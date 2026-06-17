@@ -1,0 +1,261 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoomCategory {
+  standard
+  lux
+}
+
+enum ExpiryStatus {
+  neutral
+  valid
+  needs_replacement
+  empty
+}
+
+enum CheckType {
+  checked
+  emptied
+  gih
+}
+
+enum GihRoomSt {
+  dnd
+  all_in_place
+  all_out
+  empty
+}
+
+enum GihItemSt {
+  replenished
+  in_place
+  out
+  not_replenished
+}
+
+model Product {
+  id         Int      @id @default(autoincrement())
+  name       String   @db.VarChar(200)
+  price      Decimal  @db.Decimal(10,2)
+  volume     Decimal? @db.Decimal(10,3)
+  unit       String?  @default("шт") @db.VarChar(10)
+  emoji      String?  @db.VarChar(10)
+  bgColor    String?  @default("slate") @map("bg_color") @db.VarChar(20)
+  category   String?  @default("Напитки") @db.VarChar(50)
+  hasExpiry  Boolean  @default(true) @map("has_expiry")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  templateItems     TemplateItem[]
+  roomCustoms       RoomCustom[]
+  replacementItems  ReplacementItem[]
+  gihItems          GihItem[]
+  productStatuses   RoomProductStatus[]
+  monthChecks         ProductMonthCheck[]
+
+  @@map("products")
+}
+
+model FillTemplate {
+  id         Int            @id @default(autoincrement())
+  name       String         @db.VarChar(150)
+  category   RoomCategory
+  isDefault  Boolean        @default(false) @map("is_default")
+  createdAt  DateTime       @default(now()) @map("created_at")
+
+  items  TemplateItem[]
+  rooms  Room[]
+
+  @@unique([category, name])
+  @@map("fill_templates")
+}
+
+model TemplateItem {
+  id          Int @id @default(autoincrement())
+  templateId  Int @map("template_id")
+  productId   Int @map("product_id")
+  qty         Int
+  sortOrder   Int @default(0) @map("sort_order")
+
+  template FillTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  product  Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, productId])
+  @@map("template_items")
+}
+
+model Room {
+  id             Int           @id @default(autoincrement())
+  number         Int           @unique
+  floor          Int
+  category       RoomCategory
+  expiryStatus   ExpiryStatus  @default(neutral) @map("expiry_status")
+  templateId     Int?          @map("template_id")
+  notes          String?
+  updatedAt      DateTime      @default(now()) @updatedAt @map("updated_at")
+
+  template         FillTemplate?       @relation(fields: [templateId], references: [id])
+  customs          RoomCustom[]
+  replacementItems ReplacementItem[]
+  checks           Check[]
+  listRooms        ListRoom[]
+  productStatuses  RoomProductStatus[]
+
+  @@map("rooms")
+}
+
+model RoomProductStatus {
+  id             Int      @id @default(autoincrement())
+  roomId         Int      @map("room_id")
+  productId      Int      @map("product_id")
+  expiryStatus   String   @default("ok") @map("expiry_status") @db.VarChar(20)
+  qtyToReplace   Int      @default(0) @map("qty_to_replace")
+  checkedAt      DateTime @default(now()) @map("checked_at")
+
+  room    Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, productId])
+  @@map("room_product_statuses")
+}
+
+model RoomCustom {
+  id        Int     @id @default(autoincrement())
+  roomId    Int     @map("room_id")
+  productId Int     @map("product_id")
+  qty       Int
+  isEnabled Boolean @default(true) @map("is_enabled")
+
+  room    Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, productId])
+  @@map("room_customs")
+}
+
+model ReplacementItem {
+  id        Int     @id @default(autoincrement())
+  roomId    Int     @map("room_id")
+  productId Int     @map("product_id")
+  notes     String?
+
+  room    Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, productId])
+  @@map("replacement_items")
+}
+
+model Check {
+  id             Int         @id @default(autoincrement())
+  roomId         Int         @map("room_id")
+  checkDate      DateTime    @default(now()) @map("check_date")
+  type           CheckType
+  gihRoomStatus  GihRoomSt?  @map("gih_room_status")
+  inspectorName  String?     @db.VarChar(150) @map("inspector_name")
+  notes          String?
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  room     Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  gihItems GihItem[]
+
+  @@map("checks")
+}
+
+model GihItem {
+  id         Int       @id @default(autoincrement())
+  checkId    Int       @map("check_id")
+  productId  Int       @map("product_id")
+  itemStatus GihItemSt @default(in_place) @map("item_status")
+  notes      String?
+
+  check   Check   @relation(fields: [checkId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([checkId, productId])
+  @@map("gih_items")
+}
+
+model Excise {
+  id          Int      @id @default(autoincrement())
+  markNumber  String   @map("mark_number")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("excises")
+}
+
+model ActiveList {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(150)
+  listType  String   @default("active") @map("list_type")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  rooms ListRoom[]
+
+  @@map("active_lists")
+}
+
+model ListRoom {
+  id       Int      @id @default(autoincrement())
+  listId   Int      @map("list_id")
+  roomId   Int      @map("room_id")
+  addedAt  DateTime @default(now()) @map("added_at")
+
+  list ActiveList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  room Room       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, roomId])
+  @@map("list_rooms")
+}
+
+model Setting {
+  key       String   @id @db.VarChar(100)
+  value     String?
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("settings")
+}
+
+model DeadlineDailyStat {
+  id                     Int      @id @default(autoincrement())
+  date                   DateTime @db.Date
+  validCount             Int      @default(0) @map("valid_count")
+  emptyCount             Int      @default(0) @map("empty_count")
+  needsReplacementCount  Int      @default(0) @map("needs_replacement_count")
+  neutralCount           Int      @default(0) @map("neutral_count")
+  updatedAt              DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([date])
+  @@map("deadline_daily_stats")
+}
+
+model DeadlineTarget {
+  id            Int       @id @default(autoincrement())
+  date          DateTime  @db.Date
+  targetCount   Int       @map("target_count")
+  startBadCount Int       @default(0) @map("start_bad_count")
+  lockedAt      DateTime? @map("locked_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@unique([date])
+  @@map("deadline_targets")
+}
+
+model ProductMonthCheck {
+  id         Int      @id @default(autoincrement())
+  productId  Int      @map("product_id")
+  checkMonth Int      @map("check_month")
+  checkYear  Int      @map("check_year")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, checkMonth, checkYear])
+  @@map("product_month_checks")
+}

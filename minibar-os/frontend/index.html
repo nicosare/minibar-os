@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MiniBar OS</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.0/index.css" />
+<link rel="stylesheet" href="styles.css" />
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body class="antialiased">
+
+<div class="flex h-screen overflow-hidden">
+  <!-- Sidebar -->
+  <aside class="w-64 bg-white border-r border-slate-200 flex flex-col">
+    <div class="p-5 border-b border-slate-100">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+          <i data-lucide="box" class="w-4 h-4 text-white"></i>
+        </div>
+        <span class="font-bold text-slate-900">MiniBar OS</span>
+      </div>
+    </div>
+    <nav class="flex-1 p-3 overflow-y-auto scrollbar">
+      <!-- Обзор -->
+      <a data-route="dashboard" data-accent="indigo" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-pointer">
+        <i data-lucide="layout-dashboard" class="nav-icon w-4 h-4 text-slate-500"></i>
+        <span>Обзор</span>
+      </a>
+    
+      <div class="my-2 border-t border-slate-100"></div>
+    
+      <!-- Акцизы и Сроки -->
+      <a data-route="excise" data-accent="amber" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-pointer">
+        <i data-lucide="stamp" class="nav-icon w-4 h-4 text-slate-500"></i>
+        <span>Акцизы</span>
+        <span id="excise-badge" class="ml-auto badge badge-warning hidden">0</span>
+      </a>
+      <a data-route="deadlines" data-accent="rose" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-pointer">
+        <i data-lucide="calendar" class="nav-icon w-4 h-4 text-slate-500"></i>
+        <span>Сроки</span>
+        <span id="deadlines-badge" class="ml-auto badge badge-danger hidden">0</span>
+      </a>
+    
+      <div class="my-2 border-t border-slate-100"></div>
+    
+      <!-- Операции с номерами -->
+      <a data-route="arrivals" data-accent="emerald" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-pointer">
+        <i data-lucide="plane-landing" class="nav-icon w-4 h-4 text-slate-500"></i>
+        <span>Arrivals</span>
+        <span id="arrivals-badge" class="ml-auto badge badge-success hidden">0</span>
+      </a>
+      <a data-route="departures" data-accent="sky" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-pointer">
+        <i data-lucide="plane-takeoff" class="nav-icon w-4 h-4 text-slate-500"></i>
+        <span>Departures</span>
+        <span id="departures-badge" class="ml-auto badge badge-info hidden">0</span>
+      </a>
+      <a data-route="gih" data-accent="violet" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-pointer">
+        <i data-lucide="clipboard-check" class="nav-icon w-4 h-4 text-slate-500"></i>
+        <span>GIH</span>
+        <span id="gih-badge" class="ml-auto badge badge-primary hidden">0</span>
+      </a>
+    
+      <div class="my-2 border-t border-slate-100"></div>
+    
+      <!-- Отчёты -->
+      <a data-route="history" data-accent="slate" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-pointer">
+        <i data-lucide="history" class="nav-icon w-4 h-4 text-slate-500"></i>
+        <span>История</span>
+        <span id="history-badge" class="ml-auto badge badge-muted hidden">0</span>
+      </a>
+      <a data-route="empty" data-accent="pink" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-pointer">
+        <i data-lucide="alert-circle" class="nav-icon w-4 h-4 text-slate-500"></i>
+        <span>Пустые</span>
+        <span id="empty-badge" class="ml-auto badge badge-rose hidden">0</span>
+      </a>
+    
+      <div class="my-2 border-t border-slate-100"></div>
+    
+      <!-- Инструменты -->
+      <a data-route="calculator" data-accent="teal" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-pointer">
+        <i data-lucide="calculator" class="nav-icon w-4 h-4 text-slate-500"></i>
+        <span>Калькулятор</span>
+      </a>
+      <a data-route="inventory" data-accent="blue" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-pointer">
+        <i data-lucide="clipboard-list" class="nav-icon w-4 h-4 text-slate-500"></i>
+        <span>Инвентаризация</span>
+        <span id="inventory-badge" class="ml-auto badge badge-blue hidden">0</span>
+      </a>
+    
+      <div class="my-2 border-t border-slate-100"></div>
+    
+      <!-- Настройки -->
+      <a data-route="settings" data-accent="zinc" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-pointer">
+        <i data-lucide="settings" class="nav-icon w-4 h-4 text-slate-500"></i>
+        <span>Настройки</span>
+      </a>
+    </nav>
+    <div class="p-3 border-t border-slate-100">
+      <div class="flex items-center gap-3 px-3 py-2">
+        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-pink-500 to-orange-500 flex items-center justify-center text-white font-semibold text-sm">А</div>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-medium text-slate-900 truncate">Анна</div>
+          <div class="text-xs text-slate-500">Администратор</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 overflow-y-auto scrollbar">
+    <div class="p-8 max-w-7xl mx-auto">
+      
+      <!-- DASHBOARD -->
+      <section id="view-dashboard" class="tab-content fade-in">
+        <div class="mb-8">
+          <h1 class="text-3xl font-bold text-slate-900">Добро пожаловать, Анна</h1>
+          <p class="text-slate-600 mt-2">Суббота, 14 июня 2026 · Смена: утренняя</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div class="bg-white rounded-xl p-6 border border-slate-100">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-semibold text-slate-900">Выручка за неделю</h3>
+              <span class="text-xs text-slate-500">Обновлено 5 мин назад</span>
+            </div>
+            <div class="text-3xl font-bold text-slate-900">₽ 245,800</div>
+            <div class="text-sm text-emerald-600 mt-2">↑ 12% к прошлой неделе</div>
+          </div>
+          <div class="bg-white rounded-xl p-6 border border-slate-100">
+            <h3 class="font-semibold text-slate-900 mb-4">Топ продукты</h3>
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-sm text-slate-700">Heineken 0.33</span>
+                <span class="text-sm font-semibold">142 шт</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-sm text-slate-700">Evian 0.5</span>
+                <span class="text-sm font-semibold">98 шт</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-sm text-slate-700">Chianti Classico</span>
+                <span class="text-sm font-semibold">67 шт</span>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl p-6 border border-slate-100">
+            <h3 class="font-semibold text-slate-900 mb-4">Последние события</h3>
+            <div class="space-y-3">
+              <div class="flex items-start gap-3">
+                <div class="w-2 h-2 rounded-full bg-emerald-500 mt-2"></div>
+                <div class="flex-1">
+                  <div class="text-sm text-slate-700">Проверка номера 512</div>
+                  <div class="text-xs text-slate-500">2 минуты назад</div>
+                </div>
+              </div>
+              <div class="flex items-start gap-3">
+                <div class="w-2 h-2 rounded-full bg-amber-500 mt-2"></div>
+                <div class="flex-1">
+                  <div class="text-sm text-slate-700">Пополнение минибара 718</div>
+                  <div class="text-xs text-slate-500">15 минут назад</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- EXCISE -->
+<section id="view-excise" class="tab-content fade-in">
+  
+  <!-- Заголовок с кнопкой -->
+  <div class="flex items-start justify-between mb-6">
+    <h1 class="text-2xl font-bold text-slate-900">Акцизы</h1>
+    <div class="flex gap-2">
+      <button id="excise-copy-all-btn" class="btn btn-outline">
+        <i data-lucide="copy" class="w-4 h-4"></i> Копировать все
+      </button>
+      <button id="excise-clear-all-btn" class="btn btn-outline" style="color: var(--danger);">
+        <i data-lucide="trash-2" class="w-4 h-4"></i> Очистить все
+      </button>
+    </div>
+  </div>
+
+  <!-- Статистика (3 блока с градиентами) -->
+  <div class="grid grid-cols-3 gap-4 mb-6">
+    <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl p-5 text-white shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-medium uppercase tracking-wider opacity-90">Всего</span>
+        <i data-lucide="layers" class="w-5 h-5 opacity-80"></i>
+      </div>
+      <div class="text-3xl font-bold" id="excise-stat-total">0</div>
+      <div class="text-xs opacity-80 mt-1">акцизных марок</div>
+    </div>
+    <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-5 text-white shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-medium uppercase tracking-wider opacity-90">Валидные</span>
+        <i data-lucide="check-circle" class="w-5 h-5 opacity-80"></i>
+      </div>
+      <div class="text-3xl font-bold" id="excise-stat-valid">0</div>
+      <div class="text-xs opacity-80 mt-1" id="excise-stat-valid-pct">0%</div>
+    </div>
+    <div class="bg-gradient-to-br from-rose-500 to-rose-600 rounded-xl p-5 text-white shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-medium uppercase tracking-wider opacity-90">Невалидные</span>
+        <i data-lucide="alert-circle" class="w-5 h-5 opacity-80"></i>
+      </div>
+      <div class="text-3xl font-bold" id="excise-stat-invalid">0</div>
+      <div class="text-xs opacity-80 mt-1" id="excise-stat-invalid-pct">0%</div>
+    </div>
+  </div>
+
+  <!-- Поле ввода -->
+  <div class="bg-white rounded-xl p-5 border border-slate-100 shadow-sm mb-6">
+    <div class="flex gap-3">
+      <div class="flex-1 relative">
+        <i data-lucide="scan-line" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+        <input 
+          type="text" 
+          id="excise-input"
+          placeholder="Введите или отсканируйте акцизную марку..."
+          class="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          autocomplete="off"
+        />
+      </div>
+      <button id="excise-add-btn" class="btn btn-primary px-6">
+        <i data-lucide="plus" class="w-4 h-4"></i> Добавить
+      </button>
+    </div>
+    <p class="text-xs text-slate-500 mt-2">
+      Можно вводить по одной или несколько через пробел/перенос строки
+    </p>
+  </div>
+
+  <!-- Сетка акцизов в стиле номеров -->
+  <div id="excise-list-container" class="bg-white rounded-xl p-5 border border-slate-100 shadow-sm">
+    <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+      <div class="flex items-center gap-2">
+        <i data-lucide="list" class="w-4 h-4 text-slate-500"></i>
+        <h3 class="font-semibold text-slate-900 text-sm">Список акцизов</h3>
+      </div>
+      <span class="text-xs text-slate-500" id="excise-list-count">0 марок</span>
+    </div>
+    <div id="excise-list" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+      <!-- Карточки акцизов будут рендериться здесь -->
+    </div>
+    <div id="excise-empty-state" class="hidden text-center py-12 text-slate-400">
+      <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
+      <p class="text-sm">Нет добавленных акцизов</p>
+      <p class="text-xs mt-1">Введите марку в поле выше</p>
+    </div>
+  </div>
+</section>
+
+      <!-- ARRIVALS -->
+<section id="view-arrivals" class="tab-content fade-in">
+  <div class="flex items-start justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900">Arrivals</h1>
+      <p class="text-slate-600 mt-1">Заезды гостей на сегодня</p>
+    </div>
+    <div class="flex gap-2">
+      <button class="btn btn-outline"><i data-lucide="calendar" class="w-4 h-4"></i> Сегодня</button>
+      <button class="btn btn-primary"><i data-lucide="plus" class="w-4 h-4"></i> Новый заезд</button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-xl p-5 border border-slate-100">
+      <div class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Всего заездов</div>
+      <div class="text-2xl font-bold">24</div>
+    </div>
+    <div class="bg-white rounded-xl p-5 border border-slate-100">
+      <div class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">VIP</div>
+      <div class="text-2xl font-bold text-indigo-600">3</div>
+    </div>
+    <div class="bg-white rounded-xl p-5 border border-slate-100">
+      <div class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Стандарт</div>
+      <div class="text-2xl font-bold">15</div>
+    </div>
+    <div class="bg-white rounded-xl p-5 border border-slate-100">
+      <div class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Люкс</div>
+      <div class="text-2xl font-bold">6</div>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+    <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+      <h3 class="font-semibold text-slate-900">Список заездов</h3>
+      <input type="text" placeholder="Поиск по номеру или гостю..." class="px-3 py-2 border border-slate-200 rounded-lg text-sm w-64" />
+    </div>
+    <div class="p-8 text-center text-slate-400">
+      <i data-lucide="plane-landing" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
+      <p>Нет заездов на сегодня</p>
+    </div>
+  </div>
+</section>
+
+<!-- DEPARTURES -->
+<section id="view-departures" class="tab-content fade-in">
+  <div class="flex items-start justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900">Departures</h1>
+      <p class="text-slate-600 mt-1">Выезды гостей на сегодня</p>
+    </div>
+    <div class="flex gap-2">
+      <button class="btn btn-outline"><i data-lucide="calendar" class="w-4 h-4"></i> Сегодня</button>
+      <button class="btn btn-primary"><i data-lucide="check-circle" class="w-4 h-4"></i> Проверить все</button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-xl p-5 border border-slate-100">
+      <div class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Всего выездов</div>
+      <div class="text-2xl font-bold">18</div>
+    </div>
+    <div class="bg-white rounded-xl p-5 border border-slate-100">
+      <div class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Проверено</div>
+      <div class="text-2xl font-bold text-emerald-600">12</div>
+    </div>
+    <div class="bg-white rounded-xl p-5 border border-slate-100">
+      <div class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Ожидают</div>
+      <div class="text-2xl font-bold text-amber-600">6</div>
+    </div>
+    <div class="bg-white rounded-xl p-5 border border-slate-100">
+      <div class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">С списаниями</div>
+      <div class="text-2xl font-bold text-rose-600">4</div>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+    <div class="p-5 border-b border-slate-100">
+      <h3 class="font-semibold text-slate-900">Номера к выезду</h3>
+    </div>
+    <div class="p-8 text-center text-slate-400">
+      <i data-lucide="plane-takeoff" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
+      <p>Нет выездов на сегодня</p>
+    </div>
+  </div>
+</section>
+
+<!-- GIH -->
+<section id="view-gih" class="tab-content fade-in">
+  <div class="flex items-start justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900">GIH</h1>
+      <p class="text-slate-600 mt-1">Guest In House — проверка минибаров занятых номеров</p>
+    </div>
+    <button class="btn btn-primary"><i data-lucide="plus" class="w-4 h-4"></i> Новая проверка</button>
+  </div>
+
+  <div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-xl p-5 border border-slate-100">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
+          <i data-lucide="check-circle" class="w-5 h-5 text-emerald-600"></i>
+        </div>
+        <div>
+          <div class="text-2xl font-bold">142</div>
+          <div class="text-xs text-slate-500">Всё на месте</div>
+        </div>
+      </div>
+    </div>
+    <div class="bg-white rounded-xl p-5 border border-slate-100">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
+          <i data-lucide="package" class="w-5 h-5 text-amber-600"></i>
+        </div>
+        <div>
+          <div class="text-2xl font-bold">23</div>
+          <div class="text-xs text-slate-500">Выложили</div>
+        </div>
+      </div>
+    </div>
+    <div class="bg-white rounded-xl p-5 border border-slate-100">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-rose-50 flex items-center justify-center">
+          <i data-lucide="alert-triangle" class="w-5 h-5 text-rose-600"></i>
+        </div>
+        <div>
+          <div class="text-2xl font-bold">8</div>
+          <div class="text-xs text-slate-500">Не пополнено</div>
+        </div>
+      </div>
+    </div>
+    <div class="bg-white rounded-xl p-5 border border-slate-100">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
+          <i data-lucide="door-closed" class="w-5 h-5 text-slate-600"></i>
+        </div>
+        <div>
+          <div class="text-2xl font-bold">5</div>
+          <div class="text-xs text-slate-500">DND</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+    <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+      <h3 class="font-semibold text-slate-900">Номера для проверки</h3>
+      <div class="flex gap-2">
+        <select class="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+          <option>Все этажи</option>
+          <option>Этаж 5</option>
+          <option>Этаж 6</option>
+          <option>Этаж 7</option>
+        </select>
+        <select class="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+          <option>Все статусы</option>
+          <option>Не проверены</option>
+          <option>Проверены</option>
+        </select>
+      </div>
+    </div>
+    <div class="p-8 text-center text-slate-400">
+      <i data-lucide="clipboard-check" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
+      <p>Нет номеров для проверки</p>
+    </div>
+  </div>
+</section>
+
+<!-- INVENTORY -->
+<section id="view-inventory" class="tab-content fade-in">
+  <div class="flex items-start justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900">Инвентаризация</h1>
+      <p class="text-slate-600 mt-1 text-sm">Два поля суммируются → количество × объём единицы</p>
+    </div>
+    <button id="inventory-clear-btn" type="button" class="btn btn-outline" style="color: var(--danger);">
+      <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+      Очистить
+    </button>
+  </div>
+
+  <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+    <div id="inventory-products-container" class="p-3">
+      <div class="flex items-center justify-center py-12 text-slate-400">
+        <i data-lucide="loader-2" class="w-6 h-6 animate-spin"></i>
+      </div>
+    </div>
+  </div>
+</section>
+
+      <!-- DEADLINES -->
+<section id="view-deadlines" class="tab-content fade-in">
+  <div class="flex items-start justify-between mb-6">
+    <h1 class="text-2xl font-bold text-slate-900">Сроки годности</h1>
+    <div class="flex items-center gap-2">
+      <button id="deadlines-month-products-btn" class="btn btn-outline">
+        <i data-lucide="calendar-check" class="w-4 h-4"></i> Добавить сроки
+      </button>
+      <button id="deadlines-reset-all-btn" class="btn btn-outline" style="color: var(--danger);">
+        <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Сбросить все номера
+      </button>
+    </div>
+  </div>
+
+  <!-- Статистика -->
+  <div class="grid grid-cols-4 gap-4 mb-4">
+    <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-5 text-white shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-medium uppercase tracking-wider opacity-90">В порядке</span>
+        <i data-lucide="check-circle" class="w-5 h-5 opacity-80"></i>
+      </div>
+      <div class="text-3xl font-bold" id="stat-valid">0</div>
+      <div class="text-xs opacity-80 mt-1" id="stat-valid-pct">0%</div>
+    </div>
+    <div class="bg-gradient-to-br from-sky-500 to-sky-600 rounded-xl p-5 text-white shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-medium uppercase tracking-wider opacity-90">Пустые</span>
+        <i data-lucide="inbox" class="w-5 h-5 opacity-80"></i>
+      </div>
+      <div class="text-3xl font-bold" id="stat-empty">0</div>
+      <div class="text-xs opacity-80 mt-1" id="stat-empty-pct">0%</div>
+    </div>
+    <div class="bg-gradient-to-br from-rose-500 to-rose-600 rounded-xl p-5 text-white shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-medium uppercase tracking-wider opacity-90">Заменить</span>
+        <i data-lucide="alert-triangle" class="w-5 h-5 opacity-80"></i>
+      </div>
+      <div class="text-3xl font-bold" id="stat-needs-replacement">0</div>
+      <div class="text-xs opacity-80 mt-1" id="stat-needs-pct">0%</div>
+    </div>
+    <div class="bg-gradient-to-br from-slate-500 to-slate-600 rounded-xl p-5 text-white shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-medium uppercase tracking-wider opacity-90">Не проверены</span>
+        <i data-lucide="clock" class="w-5 h-5 opacity-80"></i>
+      </div>
+      <div class="text-3xl font-bold" id="stat-neutral">0</div>
+      <div class="text-xs opacity-80 mt-1" id="stat-neutral-pct">0%</div>
+    </div>
+  </div>
+
+  <!-- Динамика -->
+  <div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="col-span-3 bg-white rounded-xl p-5 border border-slate-100 shadow-sm">
+  <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center gap-2">
+        <i data-lucide="trending-up" class="w-4 h-4 text-slate-500"></i>
+        <h3 class="font-semibold text-slate-900">Динамика проверок</h3>
+      </div>
+    </div>
+    <!-- Нижний ряд: График + Цели (ДВА ОТДЕЛЬНЫХ БЛОКА) -->
+  
+  <!-- БЛОК 1: График (занимает 3/4 ширины) -->
+    <div id="stat-dynamics" class="h-64">
+      <canvas id="deadlines-chart" class="w-full h-full"></canvas>
+    </div>
+</div>
+
+<!-- БЛОК 2: Цели (занимает 1/4 ширины) — ОТДЕЛЬНЫЙ РАВНОПРАВНЫЙ БЛОК -->
+<div class="col-span-1 bg-white rounded-xl p-5 border border-slate-100 shadow-sm">
+  <div id="targets-container">
+    <div class="flex items-center justify-center py-12 text-slate-400">
+      <i data-lucide="loader-2" class="w-5 h-5 animate-spin mr-2"></i>
+    </div>
+  </div>
+</div>
+</div>
+
+
+  <!-- Продукты месяца + Требуют замены -->
+  <div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="col-span-1 bg-white rounded-xl p-5 border border-slate-100 shadow-sm flex flex-col min-h-[140px]">
+      <div class="flex items-center gap-2 mb-3">
+        <i data-lucide="calendar-check" class="w-4 h-4 text-slate-500"></i>
+        <h3 class="font-semibold text-slate-900 text-sm">На проверку</h3>
+      </div>
+      <div id="deadlines-month-products-container" class="flex-1">
+        <div class="flex items-center justify-center py-6 text-slate-400 text-xs">
+          <i data-lucide="loader-2" class="w-4 h-4 animate-spin mr-2"></i> Загрузка...
+        </div>
+      </div>
+    </div>
+    <div class="col-span-3 bg-white rounded-xl p-5 border border-slate-100 shadow-sm">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-500"></i>
+          <h3 class="font-semibold text-slate-900 text-sm">Требуют замены</h3>
+        </div>
+        <span id="deadlines-replacement-total" class="text-xs font-medium text-rose-600"></span>
+      </div>
+      <div id="deadlines-replacement-container">
+        <div class="flex items-center justify-center py-6 text-slate-400 text-xs">
+          <i data-lucide="loader-2" class="w-4 h-4 animate-spin mr-2"></i> Загрузка...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Сетка номеров -->
+  <div id="deadlines-floors-container" class="space-y-3">
+    <div class="flex items-center justify-center py-12 text-slate-400">
+      <i data-lucide="loader-2" class="w-6 h-6 animate-spin mr-2"></i>
+      Загрузка номеров...
+    </div>
+  </div>
+</section>
+
+<!-- Модальное окно -->
+<div id="deadline-modal-backdrop" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[85vh] overflow-hidden flex flex-col fade-in">
+    <div class="p-4 border-b border-slate-100 flex items-start justify-between">
+      <div>
+        <h3 class="text-lg font-bold text-slate-900">Номер <span id="deadline-modal-room-number"></span></h3>
+        <p class="text-xs text-slate-500 mt-0.5" id="deadline-modal-room-info"></p>
+      </div>
+      <button onclick="App.deadlinesModule.closeModal()" class="btn btn-ghost">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+      <div id="deadline-modal-products" class="p-4 overflow-y-auto scrollbar flex-1">
+      </div>
+
+    <div class="p-4 border-t border-slate-100 bg-slate-50">
+      <div class="flex items-center justify-between">
+        <button onclick="App.deadlinesModule.reset()" class="btn btn-outline">
+          <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Сброс
+        </button>
+        <div class="flex gap-2">
+          <button onclick="App.deadlinesModule.setEmpty()" class="btn bg-sky-500 hover:bg-sky-600 text-white">
+            <i data-lucide="inbox" class="w-4 h-4"></i> Опустошён
+          </button>
+          <button onclick="App.deadlinesModule.setValid()" class="btn bg-emerald-500 hover:bg-emerald-600 text-white">
+            <i data-lucide="check-circle" class="w-4 h-4"></i> В порядке
+          </button>
+          <button onclick="App.deadlinesModule.save()" class="btn btn-primary">
+            <i data-lucide="save" class="w-4 h-4"></i> Сохранить
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Модальное окно: продукты месяца -->
+<div id="deadline-month-modal-backdrop" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-hidden flex flex-col fade-in">
+    <div class="p-4 border-b border-slate-100 flex items-start justify-between">
+      <div>
+        <h3 class="text-lg font-bold text-slate-900">Добавление сроков</h3>
+      </div>
+      <button id="deadline-month-modal-close" class="btn btn-ghost">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+    <div id="deadline-month-modal-list" class="p-4 overflow-y-auto scrollbar flex-1 space-y-2">
+      <div class="flex items-center justify-center py-8 text-slate-400 text-sm">
+        <i data-lucide="loader-2" class="w-5 h-5 animate-spin mr-2"></i> Загрузка...
+      </div>
+    </div>
+  </div>
+</div>
+
+      <!-- HISTORY -->
+      <section id="view-history" class="tab-content fade-in">
+        <div class="mb-8">
+          <h1 class="text-2xl font-bold text-slate-900">История операций</h1>
+          <p class="text-slate-600 mt-2">Полный журнал действий в системе</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+          <div class="p-5 border-b border-slate-100">
+            <div class="flex items-center gap-3">
+              <input type="text" placeholder="Поиск..." class="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+              <button class="btn btn-outline">Фильтры</button>
+            </div>
+          </div>
+          <div class="p-5 text-center text-slate-400">Загрузка...</div>
+        </div>
+      </section>
+
+      <!-- EMPTY -->
+      <section id="view-empty" class="tab-content fade-in">
+        <div class="mb-8">
+          <h1 class="text-2xl font-bold text-slate-900">Пустые минибары</h1>
+          <p class="text-slate-600 mt-2">Требуют пополнения или обслуживания</p>
+        </div>
+        <div id="empty-rooms-container">
+          <div class="flex items-center justify-center py-12">
+            <div class="text-slate-400">
+              <i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto mb-2"></i>
+              <p class="text-sm">Загрузка данных...</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CALCULATOR -->
+      <section id="view-calculator" class="tab-content fade-in">
+        <div class="flex items-start justify-between mb-6">
+          <div>
+            <h1 class="text-2xl font-bold text-slate-900">Калькулятор</h1>
+          </div>
+          <button id="calculator-clear-btn" type="button" class="btn btn-outline" style="color: var(--danger);">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+            Очистить счёт
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div class="lg:col-span-3">
+            <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+              <div class="p-5 border-b border-slate-100">
+                <h3 class="font-semibold text-slate-900">Продукты</h3>
+              </div>
+              <div id="calculator-products-container" class="p-3">
+                <div class="flex items-center justify-center py-12 text-slate-400">
+                  <i data-lucide="loader-2" class="w-6 h-6 animate-spin"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="calculator-bill-panel bg-white rounded-xl border border-slate-100 overflow-hidden">
+              <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="font-semibold text-slate-900">Счёт</h3>
+                <span id="calculator-bill-count" class="text-xs font-medium text-slate-500">0 поз.</span>
+              </div>
+              <div id="calculator-bill-container" class="p-5 max-h-[420px] overflow-y-auto scrollbar">
+                <div id="calculator-bill-empty" class="text-center py-10 text-slate-400">
+                  <i data-lucide="receipt" class="w-10 h-10 mx-auto mb-3 opacity-40"></i>
+                  <p class="text-sm">Выберите продукты</p>
+                </div>
+                <div id="calculator-bill-list" class="hidden space-y-2"></div>
+              </div>
+              <div class="p-5 border-t border-slate-100 bg-slate-50">
+                <div class="flex items-center justify-between">
+                  <span class="text-sm font-semibold text-slate-700">Итого:</span>
+                  <span id="calculator-bill-total" class="text-2xl font-bold text-teal-600">0 ₽</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section id="view-settings" class="tab-content fade-in">
+        <div class="flex items-start justify-between mb-6">
+          <h1 class="text-2xl font-bold text-slate-900">Настройки</h1>
+        </div>
+
+        <div class="flex gap-1 bg-slate-100 rounded-lg p-1 w-fit mb-6">
+          <button data-settings-tab="products" class="settings-tab px-4 py-1.5 text-sm rounded-md bg-white shadow-sm font-medium">Продукты</button>
+          <button data-settings-tab="templates" class="settings-tab px-4 py-1.5 text-sm rounded-md text-slate-600">Шаблоны наполнения</button>
+        </div>
+
+        <div id="settings-products" class="settings-panel">
+          <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+            <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+              <h3 class="font-semibold text-slate-900">Список продуктов</h3>
+              <button id="add-product-btn" class="btn btn-primary">
+                <i data-lucide="plus" class="w-4 h-4"></i> Добавить продукт
+              </button>
+            </div>
+            <div id="products-table-container" class="p-5">
+              <div class="flex items-center justify-center py-12 text-slate-400">
+                <i data-lucide="loader-2" class="w-6 h-6 animate-spin"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="settings-templates" class="settings-panel hidden">
+          <div class="grid grid-cols-2 gap-6">
+            <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+              <div class="p-5 border-b border-slate-100 bg-slate-50">
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                  <h3 class="font-semibold text-slate-900">Стандарт</h3>
+                </div>
+              </div>
+              <div class="p-5 template-items-container" data-category="standard">
+                <div class="text-center py-8 text-slate-400 text-sm">Загрузка...</div>
+              </div>
+            </div>
+            <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+              <div class="p-5 border-b border-slate-100 bg-slate-50">
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                  <h3 class="font-semibold text-slate-900">Люкс</h3>
+                </div>
+              </div>
+              <div class="p-5 template-items-container" data-category="lux">
+                <div class="text-center py-8 text-slate-400 text-sm">Загрузка...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- Модальное окно продукта -->
+<div id="product-modal-backdrop" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 fade-in">
+    <div class="flex items-start justify-between mb-4">
+      <h3 id="product-modal-title" class="text-lg font-bold text-slate-900">Новый продукт</h3>
+      <button onclick="App.settingsModule.closeProductModal()" class="btn btn-ghost">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+    <form id="product-form" class="space-y-3">
+      <input type="hidden" id="product-id" />
+      <div>
+        <label class="text-xs font-medium text-slate-600 mb-1.5 block">Название *</label>
+        <input id="product-name" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="Heineken 0.33" />
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-medium text-slate-600 mb-1.5 block">Категория</label>
+          <select id="product-category" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white">
+            <option value="Дверца">Дверца</option>
+            <option value="Напитки">Напитки</option>
+            <option value="Алкоголь">Алкоголь</option>
+            <option value="Соки">Соки</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-medium text-slate-600 mb-1.5 block">Единица</label>
+          <select id="product-unit" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white">
+            <option value="шт">шт</option>
+            <option value="л">л</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-medium text-slate-600 mb-1.5 block">Объём *</label>
+          <input id="product-volume" type="number" step="0.001" min="0" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="0.33" />
+        </div>
+        <div>
+          <label class="text-xs font-medium text-slate-600 mb-1.5 block">Цена (₽) *</label>
+          <input id="product-price" type="number" step="0.01" min="0" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="450" />
+        </div>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-slate-600 mb-1.5 block">Эмодзи и цвет фона</label>
+        <div class="flex items-center gap-2">
+          <input id="product-emoji" class="w-9 h-9 border border-slate-200 rounded-lg text-xl text-center cursor-pointer hover:bg-slate-50" placeholder="📦" maxlength="4" />
+          <div id="product-color-picker" class="flex flex-wrap gap-2 flex-1">
+            <button type="button" class="color-option w-9 h-9 rounded-lg border-2 border-transparent hover:scale-110 transition" data-color="amber" style="background: #fef3c7;"></button>
+            <button type="button" class="color-option w-9 h-9 rounded-lg border-2 border-transparent hover:scale-110 transition" data-color="red" style="background: #fee2e2;"></button>
+            <button type="button" class="color-option w-9 h-9 rounded-lg border-2 border-transparent hover:scale-110 transition" data-color="blue" style="background: #dbeafe;"></button>
+            <button type="button" class="color-option w-9 h-9 rounded-lg border-2 border-transparent hover:scale-110 transition" data-color="yellow" style="background: #fef9c3;"></button>
+            <button type="button" class="color-option w-9 h-9 rounded-lg border-2 border-transparent hover:scale-110 transition" data-color="purple" style="background: #f3e8ff;"></button>
+            <button type="button" class="color-option w-9 h-9 rounded-lg border-2 border-transparent hover:scale-110 transition" data-color="emerald" style="background: #d1fae5;"></button>
+            <button type="button" class="color-option w-9 h-9 rounded-lg border-2 border-transparent hover:scale-110 transition" data-color="rose" style="background: #ffe4e6;"></button>
+            <button type="button" class="color-option w-9 h-9 rounded-lg border-2 border-transparent hover:scale-110 transition" data-color="orange" style="background: #ffedd5;"></button>
+            <button type="button" class="color-option w-9 h-9 rounded-lg border-2 border-transparent hover:scale-110 transition" data-color="slate" style="background: #f1f5f9;"></button>
+          </div>
+        </div>
+        <input type="hidden" id="product-bg-color" value="slate" />
+      </div>
+      
+      <div>
+        <label class="text-xs font-medium text-slate-600 mb-1.5 block">Предпросмотр</label>
+        <div id="product-preview" class="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+          <div id="preview-icon" class="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center text-2xl">📦</div>
+          <div class="flex-1">
+            <div id="preview-name" class="text-sm font-semibold text-slate-900">Название продукта</div>
+            <div id="preview-details" class="text-xs text-slate-500 mt-0.5">0.33 шт · 450 ₽</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-2 pt-1">
+        <input id="product-has-expiry" type="checkbox" class="w-4 h-4 rounded border-slate-300" checked />
+        <label for="product-has-expiry" class="text-sm">Есть срок годности</label>
+      </div>
+      <div class="flex justify-end gap-2 pt-3">
+        <button type="button" onclick="App.settingsModule.closeProductModal()" class="btn btn-outline">Отмена</button>
+        <button type="submit" class="btn btn-primary">Сохранить</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<script src="config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/app-core.js"></script>
+<script src="js/excise-module.js"></script>
+<script src="js/deadlines-module.js"></script>
+<script src="js/settings-module.js"></script>
+<script src="js/calculator-module.js"></script>
+<script src="js/inventory-module.js"></script>
+<script src="js/route-handlers.js"></script>
+<script src="js/init.js"></script>
+</body>
+</html>

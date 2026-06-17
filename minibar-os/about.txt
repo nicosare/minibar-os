@@ -1,0 +1,461 @@
+================================================================================
+MINIBAR OS — ПОЛНЫЙ КОНТЕКСТ ДЛЯ РАЗРАБОТКИ (AI / РАЗРАБОТЧИК)
+================================================================================
+Версия: 1.3.0 | Обновлено: 2026-06-15
+Цель: дать нейросети или разработчику все знания для работы с проектом.
+
+================================================================================
+0. КАК ЧИТАТЬ ЭТОТ ДОКУМЕНТ (для AI)
+================================================================================
+
+Перед изменением:
+  1. Определи раздел UI (route) — секция 8.
+  2. API — секция 7; если эндпоинта нет, проверь модель в schema.prisma.
+  3. Схема БД — backend/prisma/schema.prisma + prisma db push.
+  4. После изменения schema: docker exec minibar-api npx prisma db push
+
+Ключевые файлы:
+  Backend:  backend/src/app.js, backend/src/routes/*.js, backend/src/services/
+  Frontend: frontend/index.html, frontend/styles.css, frontend/config.js,
+            frontend/js/*.js
+
+================================================================================
+1. НАЗНАЧЕНИЕ
+================================================================================
+
+MiniBar OS — управление минибарами в гостинице (тестовый отель: Grand Palace
+Hotel). Сроки годности, акцизные марки, шаблоны наполнения standard/lux,
+калькулятор списания продуктов.
+
+Язык UI: русский. Аутентификация: нет. Пользователь «Анна» захардкожен в UI.
+
+================================================================================
+2. ТЕХНОЛОГИИ
+================================================================================
+
+Backend:  Node.js 20, Express 4, Prisma 5, PostgreSQL 15
+Frontend: Vanilla JS (модули App.*), Tailwind CDN, Lucide Icons, Inter font
+Infra:    Docker Compose (db, backend, frontend/nginx)
+
+================================================================================
+3. СТРУКТУРА РЕПОЗИТОРИЯ (полный список файлов)
+================================================================================
+
+minibar-os/
+├── docker-compose.yml
+├── README.md
+├── about.txt
+├── backend/
+│   ├── Dockerfile
+│   ├── package.json
+│   ├── src/
+│   │   ├── index.js
+│   │   ├── app.js
+│   │   ├── lib/prisma.js
+│   │   ├── services/
+│   │   │   ├── deadlines.js
+│   │   │   └── monthChecks.js      # логика периодов MM.YY
+│   │   └── routes/
+│   │       ├── deadlines.js
+│   │       ├── rooms.js
+│   │       ├── products.js
+│   │       ├── templates.js
+│   │       ├── checks.js
+│   │       ├── excises.js
+│   │       └── lists.js
+│   └── prisma/
+│       ├── schema.prisma        # единственный источник схемы БД
+│       └── seed-data.sql        # тестовые данные
+└── frontend/
+    ├── Dockerfile
+    ├── index.html               # HTML (~830 строк)
+    ├── styles.css               # CSS (~730 строк)
+    ├── config.js                # window.api
+    ├── nginx.conf               # nginx в контейнере minibar-web
+    └── js/
+        ├── utils.js
+        ├── app-core.js
+        ├── excise-module.js
+        ├── deadlines-module.js
+        ├── settings-module.js
+        ├── calculator-module.js
+        ├── route-handlers.js
+        └── init.js
+
+Всего ~32 файла. Лишние legacy-файлы удалены (init.sql, дубликат nginx.conf,
+scripts/rebuild-index.js).
+
+================================================================================
+4. ЗАПУСК
+================================================================================
+
+Порты: 8080 UI | 3000 API | 5432 PostgreSQL
+
+  docker compose up -d --build
+  docker exec -it minibar-api sh -c "npx prisma db push --accept-data-loss"
+  docker exec -i minibar-db psql -U minibar -d minibar_db < backend/prisma/seed-data.sql
+
+Credentials (docker-compose.yml):
+  minibar / minibar_pass / minibar_db
+
+Пересборка frontend:
+  docker compose build frontend && docker compose up -d frontend
+
+Перезапуск backend (после новых routes):
+  docker compose restart backend
+
+Health: GET http://localhost:3000/api/health
+
+Локальный dev:
+  localhost → API http://localhost:3000/api
+  Docker :8080 → /api (nginx proxy через frontend/nginx.conf)
+
+================================================================================
+5. BACKEND — АРХИТЕКТУРА
+================================================================================
+
+index.js → createApp() из app.js → app.listen(PORT)
+
+app.js монтирует:
+  GET  /api/health
+  /api/deadlines  → routes/deadlines.js
+  /api/rooms      → routes/rooms.js
+  /api/products   → routes/products.js
+  /api/templates  → routes/templates.js
+  /api/checks     → routes/checks.js
+  /api/excises    → routes/excises.js
+  /api/lists      → routes/lists.js
+
+services/deadlines.js:
+  getBadCount(tx)           — rooms expiryStatus IN (neutral, needs_replacement)
+  ensureTodayTarget(tx)     — фиксация lockedAt на сегодня
+  recalcTomorrowTarget(tx)  — прогноз на завтра
+  updateAllTargets(tx)
+  upsertTodayRoomStats(tx)  — DeadlineDailyStat из groupBy rooms
+  buildTargetsResponse(tx)  — ответ GET /deadlines/targets
+
+services/monthChecks.js:
+  parsePeriod(value)              — "11.26" / "1126" → { month, year, period }
+  formatPeriod(month, year2)      — MM.YY
+  isAssignmentActive(...)         — активна до начала месяца после указанного
+  isCurrentCheckMonth(...)        — период = текущий календарный месяц
+  isCurrentOrNextCheckMonth(...)  — текущий или следующий месяц
+  purgeExpiredMonthChecks(prisma) — автоудаление просроченных записей
+
+Важно: POST /api/rooms/reset-all-deadlines объявлен ДО GET /:id в rooms.js
+
+================================================================================
+6. МОДЕЛЬ ДАННЫХ (schema.prisma)
+================================================================================
+
+ENUM RoomCategory: standard | lux
+ENUM ExpiryStatus: neutral | valid | needs_replacement | empty
+ENUM CheckType: checked | emptied | gih
+ENUM GihRoomSt: dnd | all_in_place | all_out | empty
+ENUM GihItemSt: replenished | in_place | out | not_replenished
+
+Product — name, price, volume, unit, emoji, bgColor, category, hasExpiry
+FillTemplate + TemplateItem — шаблоны наполнения (sortOrder)
+Room — number, floor, category, expiryStatus, templateId
+RoomProductStatus — qtyToReplace per product (модуль «Сроки»)
+ProductMonthCheck — productId, checkMonth (1–12), checkYear (2 цифры, 26=2026)
+  @@unique([productId, checkMonth, checkYear]) — несколько дат на продукт
+RoomCustom, ReplacementItem — модели есть, API нет
+Check + GihItem — API есть, UI нет
+Excise — markNumber, createdAt
+ActiveList + ListRoom — GET /lists, UI нет
+Setting — seed only, API нет
+DeadlineDailyStat, DeadlineTarget — логика «Сроки»
+
+Миграции: только prisma db push / migrate. SQL-дамп схемы отдельно не хранится.
+
+================================================================================
+7. REST API
+================================================================================
+
+Auth: нет. JSON. Ошибки: { error: "..." }. Prisma → camelCase в ответах.
+
+Deadlines:
+  GET  /api/deadlines/targets
+  GET  /api/deadlines/stats
+  POST /api/deadlines/update-stats
+  GET  /api/deadlines/month-products
+       — активные записи для блока UI (текущий + следующий месяц)
+  GET  /api/deadlines/month-products/manage
+       — все hasExpiry продукты + monthChecks[]
+  PUT  /api/deadlines/month-products/:productId
+       body: { period: "11.26", checkId? } — добавить или обновить дату
+  DELETE /api/deadlines/month-products/check/:checkId — удалить одну дату
+  DELETE /api/deadlines/month-products/:productId — удалить все даты продукта
+  GET  /api/deadlines/replacement-summary
+       — { items: [{ productId, product, totalQty }], totalQty }
+
+Rooms:
+  GET    /api/rooms?floor&category&status
+  GET    /api/rooms/:id
+  PATCH  /api/rooms/:id
+  GET    /api/rooms/:id/product-statuses
+  PUT    /api/rooms/:id/product-statuses   body: { items, roomStatus }
+  DELETE /api/rooms/:id/product-statuses   body: { roomStatus? }
+  POST   /api/rooms/reset-all-deadlines
+
+Products: GET, GET/:id, POST, PUT/:id, DELETE/:id
+Templates: GET, PUT/:id/items
+Checks: GET?limit, POST
+Excises: GET, POST { mark_number }, DELETE, DELETE/:id
+Lists: GET
+
+================================================================================
+8. FRONTEND — ЗАГРУЗКА СКРИПТОВ (порядок в index.html)
+================================================================================
+
+  config.js
+  js/utils.js
+  js/app-core.js          → window.App
+  js/excise-module.js
+  js/deadlines-module.js
+  js/settings-module.js
+  js/calculator-module.js
+  js/route-handlers.js
+  js/init.js              → DOMContentLoaded
+
+CSS: styles.css (в <head>)
+
+================================================================================
+9. window.api (config.js)
+================================================================================
+
+API_BASE: localhost → http://localhost:3000/api, иначе /api
+Все методы через apiRequest(path, options).
+
+Методы:
+  getDeadlineTargets(), getDeadlineStats()
+  getMonthProducts(), getMonthProductsManage()
+  setMonthProduct(productId, period, checkId?)
+  deleteMonthCheck(checkId), deleteMonthProduct(productId)
+  getReplacementSummary()
+  getRoomProductStatuses, saveRoomProductStatuses, clearRoomProductStatuses
+  resetAllDeadlines()
+  getRooms(filters), updateRoomStatus
+  getProducts, createProduct, updateProduct, deleteProduct
+  getTemplates, updateTemplateItems
+  getChecks(limit)
+  getExcises, createExcise, deleteExcise, deleteAllExcises
+  getLists()
+
+Экспорт: window.api, window.API_BASE
+
+================================================================================
+10. App CORE (js/app-core.js)
+================================================================================
+
+App.state.currentRoute
+App.events — on/emit, событие 'route:change'
+App.router — go(route), urlToRoute, routeToUrl, currentFromUrl()
+App.badges — register(name, fn), update(name), updateAll()
+
+Роуты: dashboard, excise, deadlines, arrivals, departures, gih, history,
+        empty, calculator, inventory, settings
+
+================================================================================
+11. js/init.js + js/route-handlers.js
+================================================================================
+
+init.js:
+  nav click → router.go
+  popstate → router.go
+  initial route from URL
+  bootstrap: waitForApi → badges.updateAll → init модулей для текущего route
+
+route-handlers.js:
+  route:change → badges.update(route)
+  deadlines/excise/settings/calculator → module.init() с retry если api не готов
+
+================================================================================
+12. РАЗДЕЛЫ UI — СТАТУС
+================================================================================
+
+Route          | Module                | API | Статус
+---------------|-----------------------|-----|------------------
+dashboard      | —                     | нет | MOCK
+excise         | App.exciseModule      | да  | ПОЛНЫЙ
+deadlines      | App.deadlinesModule   | да  | ПОЛНЫЙ (+продукты месяца, замены)
+settings       | App.settingsModule    | да  | ПОЛНЫЙ
+calculator     | App.calculatorModule  | да  | ПОЛНЫЙ
+arrivals       | —                     | нет | MOCK UI
+departures     | —                     | нет | MOCK UI
+gih            | —                     | нет | MOCK UI
+history        | —                     | нет | ЗАГЛУШКА
+empty          | —                     | нет | ЗАГЛУШКА
+inventory      | —                     | нет | ЗАГЛУШКА
+
+================================================================================
+13. App.exciseModule (js/excise-module.js)
+================================================================================
+
+Состояние: excises[], isInitialized, isLoaded
+
+Валидация — isValidMark(mark):
+  • строка, trim, длина >= 20, начинается с цифры (/^\d/)
+  Используется для карточек, счётчиков valid/invalid, «Копировать все»
+
+RU→EN раскладка: convertLayout() при сканировании
+
+Кнопки:
+  excise-copy-all-btn → copyValid() (только валидные + confirm очистки)
+  excise-clear-all-btn → clearList()
+
+Бейдж excise: excises.length (локальный массив)
+
+DOM: excise-input, excise-list, excise-stat-total/valid/invalid, excise-badge
+
+================================================================================
+14. App.deadlinesModule (js/deadlines-module.js)
+================================================================================
+
+Состояние: rooms[], currentRoom, productSelections{}, modalProductos[],
+           monthManageProducts[]
+
+Основное:
+  loadRooms → renderStats + renderFloors
+  renderChart → api.getDeadlineStats()
+  renderTargets → api.getDeadlineTargets()
+  openRoomModal — продукты hasExpiry из шаблона, qtyToReplace из БД
+  Бейдж: today.target - today.processed
+
+Блок «Продукты месяца» (1/4 ширины):
+  #deadlines-month-products-container
+  GET /deadlines/month-products — периоды текущего И следующего месяца
+  Кнопка #deadlines-month-products-btn → модал настройки
+
+Модал продуктов месяца (#deadline-month-modal-backdrop):
+  Список hasExpiry продуктов, у каждого:
+    — сохранённые даты текстом слева (клик = удалить, hover красный)
+    — одно поле ММ.ГГ (ввод 1126 → 11.26) + кнопка сохранить справа
+    — несколько дат на продукт (повторный ввод в то же поле)
+  purgeExpiredMonthChecks на каждом GET
+
+Блок «Требуют замены» (3/4 ширины):
+  #deadlines-replacement-container, #deadlines-replacement-total
+  GET /deadlines/replacement-summary — агрегация qtyToReplace по продуктам
+  Обновляется после save/clear/reset номеров
+
+Макет view-deadlines:
+  статистика (4 карточки) → динамика+цели (3/4+1/4) →
+  продукты месяца+замены (1/4+3/4) → сетка номеров
+
+================================================================================
+15. App.calculatorModule (js/calculator-module.js)
+================================================================================
+
+Состояние: products[], cart{} (productId → qty), isInitialized, isLoaded
+API: getProducts() — корзина только в памяти (не сохраняется в БД)
+
+Макет view-calculator: grid 3/4 + 1/4
+  Слева — продукты в 4 колонках по категориям:
+    Дверца | Напитки | Алкоголь | Соки
+  Карточка продукта (компактная, одна строка):
+    [emoji] [название / цена количество] [−] [+]
+    — объём не показывается
+    — количество справа от цены
+    — has-qty подсветка при qty > 0
+  Справа — счёт (#calculator-bill-*), sticky panel
+    список позиций, итого, #calculator-clear-btn
+
+DOM: calculator-products-container, calculator-bill-list/empty/total/count
+
+================================================================================
+16. App.settingsModule (js/settings-module.js)
+================================================================================
+
+Продукты CRUD + шаблоны standard/lux, drag-and-drop, updateTemplateItems
+
+================================================================================
+17. БИЗНЕС-ЛОГИКА «СРОКИ»
+================================================================================
+
+badCount = neutral + needs_replacement
+targetCount = ceil(badCount / daysLeft до конца месяца)
+processedToday = startBadCount - badCount (>= 0)
+
+Продукты месяца (ProductMonthCheck):
+  Период MM.YY — месяц проверки продукта (год 2 цифры: 26 = 2026)
+  Запись активна до начала месяца ПОСЛЕ указанного:
+    11.26 активна до 01.12.26, затем purgeExpiredMonthChecks удаляет
+  Блок UI показывает записи где isCurrentOrNextCheckMonth:
+    текущий месяц (06.26 в июне) ИЛИ следующий (07.26 в июне)
+  В модалке — все активные monthChecks[] per product
+
+Требуют замены:
+  SUM(qtyToReplace) GROUP BY productId WHERE qtyToReplace > 0
+
+================================================================================
+18. ТЕСТОВЫЕ ДАННЫЕ (seed-data.sql)
+================================================================================
+
+Продукты (hasExpiry), 2 шаблона, ~280 номеров (этажи 5–19)
+После seed: expiry_status=valid, template_id по category
+
+================================================================================
+19. DOM ID — КРАТКАЯ КАРТА
+================================================================================
+
+Badges: excise-badge, deadlines-badge
+Excise: excise-copy-all-btn, excise-clear-all-btn, excise-input, excise-list
+Deadlines:
+  deadlines-floors-container, deadline-modal-*, stat-*, deadlines-chart
+  deadlines-month-products-btn/container
+  deadlines-replacement-container/total
+  deadline-month-modal-backdrop/list/close
+  deadlines-reset-all-btn
+Calculator:
+  calculator-products-container, calculator-clear-btn
+  calculator-bill-list/empty/total/count/container
+Settings: settings-products/templates, product-modal-*, template-items-container
+
+================================================================================
+20. МОДЕЛИ БЕЗ API (будущие фичи)
+================================================================================
+
+RoomCustom, ReplacementItem, Setting (CRUD)
+ActiveList POST, Check/GIH UI
+Arrivals, Departures — mock UI
+
+================================================================================
+21. ИЗВЕСТНЫЙ ТЕХДОЛГ
+================================================================================
+
+  • Нет аутентификации
+  • Tailwind CDN (не production build)
+  • README ссылается на .env.example — файла нет (пароли в docker-compose.yml)
+  • App.views.onEnter/onLeave не используются
+  • Dashboard mock данные
+  • Корзина калькулятора не персистится
+
+================================================================================
+22. ЧЕКЛИСТ: НОВАЯ ФИЧА
+================================================================================
+
+Backend: schema.prisma → db push → routes/*.js → services/*.js → config.js
+Frontend: index.html + styles.css + js модуль → route-handlers + init
+Docker: frontend/Dockerfile копирует js/ и styles.css; restart backend при routes
+
+================================================================================
+23. ПРИМЕРЫ curl
+================================================================================
+
+curl http://localhost:3000/api/health
+curl http://localhost:3000/api/deadlines/targets
+curl http://localhost:3000/api/deadlines/month-products
+curl http://localhost:3000/api/deadlines/replacement-summary
+curl -X PUT http://localhost:3000/api/deadlines/month-products/16 \
+  -H "Content-Type: application/json" \
+  -d '{"period":"07.26"}'
+curl http://localhost:3000/api/rooms?floor=5
+curl -X POST http://localhost:3000/api/excises \
+  -H "Content-Type: application/json" \
+  -d '{"mark_number":"12345678901234567890123"}'
+
+================================================================================
+КОНЕЦ ДОКУМЕНТА
+================================================================================

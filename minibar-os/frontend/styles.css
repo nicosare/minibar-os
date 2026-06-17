@@ -1,0 +1,925 @@
+  :root {
+    --primary: #6366f1;
+    --primary-dark: #4f46e5;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --border: #e2e8f0;
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+  }
+  * { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+  body { background: var(--bg); }
+  .scrollbar::-webkit-scrollbar { width: 6px; }
+  .scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  .fade-in { animation: fadeIn 0.25s ease-out; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px; border-radius: 8px; font-weight: 500; font-size: 13px;
+    transition: all 0.15s ease; cursor: pointer; border: none;
+  }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-outline { background: white; color: #0f172a; border: 1px solid var(--border); }
+  .btn-outline:hover { background: #f8fafc; border-color: #cbd5e1; }
+  .btn-ghost { background: transparent; color: #64748b; }
+  .btn-ghost:hover { background: #f1f5f9; color: #0f172a; }
+  .nav-item {
+    transition: all 0.15s ease;
+  }
+  /* Базовый стиль активной вкладки */
+.nav-item.active {
+  background: var(--nav-active-bg, #eef2ff);
+  color: var(--nav-active-color, #4f46e5);
+  font-weight: 600;
+}
+
+.nav-item.active .nav-icon {
+  color: var(--nav-active-color, #4f46e5) !important;
+}
+
+/* Обзор — индиго (главный дашборд) */
+.nav-item.active[data-accent="indigo"] {
+  --nav-active-bg: #eef2ff;
+  --nav-active-color: #4f46e5;
+}
+
+/* Акцизы — янтарный */
+.nav-item.active[data-accent="amber"] {
+  --nav-active-bg: #fffbeb;
+  --nav-active-color: #d97706;
+}
+
+/* Сроки — красный */
+.nav-item.active[data-accent="rose"] {
+  --nav-active-bg: #fff1f2;
+  --nav-active-color: #e11d48;
+}
+
+/* Arrivals — зелёный */
+.nav-item.active[data-accent="emerald"] {
+  --nav-active-bg: #ecfdf5;
+  --nav-active-color: #059669;
+}
+
+/* Departures — голубой */
+.nav-item.active[data-accent="sky"] {
+  --nav-active-bg: #f0f9ff;
+  --nav-active-color: #0284c7;
+}
+
+/* GIH — фиолетовый */
+.nav-item.active[data-accent="violet"] {
+  --nav-active-bg: #f5f3ff;
+  --nav-active-color: #7c3aed;
+}
+
+/* История — серый */
+.nav-item.active[data-accent="slate"] {
+  --nav-active-bg: #f1f5f9;
+  --nav-active-color: #475569;
+}
+
+/* Пустые — розовый */
+.nav-item.active[data-accent="pink"] {
+  --nav-active-bg: #fdf2f8;
+  --nav-active-color: #db2777;
+}
+
+/* Калькулятор — бирюзовый */
+.nav-item.active[data-accent="teal"] {
+  --nav-active-bg: #f0fdfa;
+  --nav-active-color: #0d9488;
+}
+
+/* Инвентаризация — синий */
+.nav-item.active[data-accent="blue"] {
+  --nav-active-bg: #eff6ff;
+  --nav-active-color: #2563eb;
+}
+
+/* Настройки — темно-серый */
+.nav-item.active[data-accent="zinc"] {
+  --nav-active-bg: #f4f4f5;
+  --nav-active-color: #3f3f46;
+}
+  .nav-item.active .nav-icon {
+    color: var(--primary);
+  }
+  .badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Акцизы — янтарный (операционная задача) */
+.badge-warning {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+/* Сроки — красный (проблема, требует замены) */
+.badge-danger {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+/* Arrivals — зелёный (позитивное событие) */
+.badge-success {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+/* Departures — голубой (информационный) */
+.badge-info {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+/* GIH — индиго (рабочий процесс) */
+.badge-primary {
+  background: #e0e7ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+}
+
+/* История — серый (архив, пассивный) */
+.badge-muted {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+/* Пустые — розовый (предупреждение о проблеме) */
+.badge-rose {
+  background: #ffe4e6;
+  color: #9f1239;
+  border: 1px solid #fecdd3;
+}
+
+/* Калькулятор — бирюзовый (инструмент) */
+.badge-teal {
+  background: #ccfbf1;
+  color: #115e59;
+  border: 1px solid #99f6e4;
+}
+
+/* Инвентаризация — синий (плановая задача) */
+.badge-blue {
+  background: #e0f2fe;
+  color: #075985;
+  border: 1px solid #bae6fd;
+}
+
+/* Настройки — slate (системный, редко используется) */
+.badge-slate {
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  input, select, textarea {
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+  }
+  .hidden { display: none !important; }
+
+  .status-icon-container {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: 2px solid transparent;
+}
+
+.status-icon-container.valid {
+  background-color: #10b981;
+}
+
+.status-icon-container.invalid {
+  background-color: #f43f5e;
+}
+
+.status-icon-container:hover {
+  background-color: white;
+  border-color: #dc2626;
+  transform: scale(1.1);
+}
+
+.status-icon-default,
+.status-icon-hover {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s ease;
+}
+
+.status-icon-default {
+  opacity: 1;
+}
+
+.status-icon-hover {
+  opacity: 0;
+}
+
+.status-icon-container:hover .status-icon-default {
+  opacity: 0;
+}
+
+.status-icon-container:hover .status-icon-hover {
+  opacity: 1;
+}
+
+.group:hover .status-icon {
+  transform: scale(1.1);
+}
+
+  .template-item[draggable="true"] {
+  user-select: none;
+}
+
+
+.template-item {
+  position: relative;
+  transition: opacity 0.15s ease;
+}
+
+.template-item.dragging {
+  opacity: 0.4;
+}
+
+.drag-handle {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.template-item.drag-over-top::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--primary);
+  border-radius: 2px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.template-item.drag-over-bottom::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--primary);
+  border-radius: 2px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.floor-section {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #f1f5f9;
+  padding: 16px 20px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+.floor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+  gap: 8px;
+}
+
+.room-cell {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.room-cell:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+  z-index: 2;
+}
+
+.deadline-product-card {
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  background: white;
+  user-select: none;
+}
+
+.deadline-product-card:hover {
+  border-color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(99, 102, 241, 0.1);
+}
+
+.deadline-product-card.selected {
+  border-color: #dc2626;
+  background: #fee2e2;
+  box-shadow: 0 0 0 1px #dc2626;
+}
+
+.deadline-product-counter {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  background: #ef4444;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.deadlines-month-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--surface, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+}
+
+.deadlines-month-item-emoji {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.deadlines-month-item-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deadlines-month-item-period {
+  font-size: 10px;
+  font-weight: 700;
+  color: #6366f1;
+  background: #eef2ff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.deadlines-replacement-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.deadlines-replacement-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #fecdd3;
+  background: #fff1f2;
+  min-width: 0;
+}
+
+.deadlines-replacement-card-emoji {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.deadlines-replacement-card-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: #0f172a;
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deadlines-replacement-card-qty {
+  font-size: 12px;
+  font-weight: 700;
+  color: #e11d48;
+  min-width: 18px;
+  text-align: center;
+}
+
+.deadline-month-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border, #e2e8f0);
+  background: white;
+}
+
+.deadline-month-row-product {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  min-width: 140px;
+}
+
+.deadline-month-saved-dates {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.deadline-month-saved-date {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6366f1;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  user-select: none;
+}
+
+.deadline-month-saved-date:hover {
+  color: #e11d48;
+}
+
+.deadline-month-add {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.deadline-month-row-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.deadline-month-row-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.deadline-month-row-meta {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.deadline-month-period-input {
+  width: 72px;
+  padding: 6px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.deadline-month-period-input:focus {
+  outline: none;
+  border-color: var(--primary, #6366f1);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+
+.excise-card {
+  position: relative;
+  padding: 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: filter 0.1s ease;
+  user-select: none;
+  overflow: hidden;
+}
+
+.excise-card:hover {
+  filter: brightness(1.05);
+}
+
+.excise-card.valid {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.35);
+}
+
+.excise-card.invalid {
+  background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+  color: white;
+  box-shadow: 0 2px 6px rgba(244, 63, 94, 0.35);
+}
+
+.excise-card-mark {
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  word-break: break-all;
+  line-height: 1.4;
+  margin-right: 25px;
+}
+
+.excise-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.excise-status-icon {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.excise-delete-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: white;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.excise-delete-btn:hover {
+  background: #fee2e2;
+}
+
+.excise-delete-btn svg {
+  width: 12px;
+  height: 12px;
+  stroke: #dc2626;
+}
+
+.excise-card:hover .excise-status-icon {
+  display: none;
+}
+
+.excise-card:hover .excise-delete-btn {
+  display: flex;
+}
+
+/* Calculator */
+.calculator-bill-panel {
+  position: sticky;
+  top: 1rem;
+}
+
+.calculator-categories-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.calculator-category-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.calculator-category-header {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.calculator-category-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.calculator-category-empty {
+  text-align: center;
+  padding: 8px 0;
+  color: #cbd5e1;
+  font-size: 11px;
+}
+
+.calculator-product-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 4px 5px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: white;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.calculator-product-card.has-qty {
+  border-color: #5eead4;
+  background: #f0fdfa;
+}
+
+.calculator-product-main {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+
+.calculator-product-emoji {
+  width: 36px;
+  height: 36px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.calculator-product-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.calculator-product-name {
+  font-size: 14px;
+  color: #0f172a;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calculator-product-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 1px;
+}
+
+.calculator-product-price {
+  font-size: 10px;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.calculator-product-qty {
+  font-size: 10px;
+  font-weight: 700;
+  color: #0d9488;
+  min-width: 10px;
+}
+
+.calculator-product-card:not(.has-qty) .calculator-product-qty {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.calculator-product-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.calculator-qty-btn {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: white;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.calculator-qty-btn:hover:not(:disabled) {
+  border-color: #0d9488;
+  color: #0d9488;
+  background: #f0fdfa;
+}
+
+.calculator-qty-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.calculator-bill-row {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+}
+
+.calculator-bill-dec {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: white;
+  color: #64748b;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.calculator-bill-dec:hover {
+  border-color: #fca5a5;
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+/* Inventory */
+.inventory-product-card {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 5px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: white;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.inventory-product-card.has-qty {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.inventory-product-main {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+
+.inventory-product-fields {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.inventory-field-input {
+  width: 32px;
+  padding: 3px 2px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.inventory-field-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.inventory-field-input::placeholder {
+  color: #cbd5e1;
+  font-weight: 400;
+}
+
+.inventory-product-result {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  min-width: 44px;
+  line-height: 1.1;
+}
+
+.inventory-product-qty {
+  font-size: 11px;
+  font-weight: 700;
+  color: #3b82f6;
+  font-variant-numeric: tabular-nums;
+}
+
+.inventory-product-card:not(.has-qty) .inventory-product-qty {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.inventory-product-volume {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e40af;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.inventory-product-card:not(.has-qty) .inventory-product-volume {
+  color: #94a3b8;
+  font-weight: 500;
+  font-size: 11px;
+}
