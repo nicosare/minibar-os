@@ -6,7 +6,7 @@
 <title>MiniBar OS</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.0/index.css" />
-<link rel="stylesheet" href="styles.css" />
+<link rel="stylesheet" href="styles.css?v=m3" />
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body class="antialiased">
@@ -110,6 +110,19 @@
 
   <!-- Main Content -->
   <main class="flex-1 overflow-y-auto scrollbar">
+
+<!-- ═══ МОБИЛЬНАЯ ШАПКА (только телефон) ═══ -->
+<header id="mobile-header">
+  <div class="mh-brand">
+    <div class="mh-logo">M</div>
+    <div>
+      <div class="mh-app">MiniBar OS</div>
+      <div class="mh-section" id="mobile-section-title">Обзор</div>
+    </div>
+  </div>
+  <div class="mh-date" id="mobile-date"></div>
+</header>
+
     <div class="p-8 max-w-7xl mx-auto">
       
       <!-- DASHBOARD -->
@@ -843,15 +856,44 @@
 </div>
 
 
-<script src="config.js"></script>
-<script src="js/utils.js"></script>
-<script src="js/app-core.js"></script>
-<script src="js/excise-module.js"></script>
-<script src="js/deadlines-module.js"></script>
-<script src="js/settings-module.js"></script>
-<script src="js/calculator-module.js"></script>
-<script src="js/inventory-module.js"></script>
-<script src="js/route-handlers.js"></script>
-<script src="js/init.js"></script>
+<script src="config.js?v=m3"></script>
+<script src="js/utils.js?v=m3"></script>
+<script src="js/app-core.js?v=m3"></script>
+<script src="js/excise-module.js?v=m3"></script>
+<script src="js/deadlines-module.js?v=m3"></script>
+<script src="js/settings-module.js?v=m3"></script>
+<script src="js/calculator-module.js?v=m3"></script>
+<script src="js/inventory-module.js?v=m3"></script>
+<script src="js/route-handlers.js?v=m3"></script>
+<script src="js/init.js?v=m3"></script>
+
+
+<!-- ═══ МОБИЛЬНЫЙ ТАБ-БАР (только телефон) ═══ -->
+<nav id="mobile-tabbar">
+  <a class="mobile-tab" data-route="dashboard" href="#"><i data-lucide="layout-dashboard"></i><span>Обзор</span></a>
+  <a class="mobile-tab" data-route="excise" href="#"><i data-lucide="stamp"></i><span>Акцизы</span><span class="mt-badge b-amber hidden" id="excise-badge-m">0</span></a>
+  <a class="mobile-tab" data-route="deadlines" href="#"><i data-lucide="calendar"></i><span>Сроки</span><span class="mt-badge b-rose hidden" id="deadlines-badge-m">0</span></a>
+  <a class="mobile-tab" data-route="gih" href="#"><i data-lucide="clipboard-check"></i><span>GIH</span></a>
+  <a class="mobile-tab" data-route="more" href="#"><i data-lucide="grid-3x3"></i><span>Ещё</span></a>
+</nav>
+
+<!-- ═══ ШТОРКА «ЕЩЁ» ═══ -->
+<div id="mobile-more-backdrop" class="hidden">
+  <div id="mobile-more-sheet">
+    <div class="ms-handle"></div>
+    <div class="ms-title">Разделы</div>
+    <div class="ms-grid">
+      <a class="ms-item" data-route="arrivals" href="#"><i data-lucide="plane-landing"></i><span>Arrivals</span></a>
+      <a class="ms-item" data-route="departures" href="#"><i data-lucide="plane-takeoff"></i><span>Departures</span></a>
+      <a class="ms-item" data-route="history" href="#"><i data-lucide="history"></i><span>История</span></a>
+      <a class="ms-item" data-route="empty" href="#"><i data-lucide="alert-circle"></i><span>Пустые</span></a>
+      <a class="ms-item" data-route="calculator" href="#"><i data-lucide="calculator"></i><span>Калькулятор</span></a>
+      <a class="ms-item" data-route="inventory" href="#"><i data-lucide="clipboard-list"></i><span>Инвентаризация</span></a>
+      <a class="ms-item" data-route="settings" href="#"><i data-lucide="settings"></i><span>Настройки</span></a>
+    </div>
+  </div>
+</div>
+
+<script src="js/mobile-nav.js?v=m3"></script>
 </body>
 </html>

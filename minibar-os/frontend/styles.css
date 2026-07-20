@@ -923,3 +923,474 @@
   font-weight: 500;
   font-size: 11px;
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   МОБИЛЬНАЯ ВЕРСИЯ (<=768px): шапка, таб-бар, шторка «Ещё»
+   ═══════════════════════════════════════════════════════════════ */
+#mobile-header, #mobile-tabbar, #mobile-more-backdrop { display: none; }
+
+/* ═══════════════════════════════════════════════════════════════
+   МОБИЛЬНАЯ ВЕРСИЯ (≤768px) — профессиональная верстка
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Скрываем мобильные элементы на десктопе */
+#mobile-header,
+#mobile-tabbar,
+#mobile-more-backdrop {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  
+  /* ── Сброс и базовая структура ── */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  body {
+    overflow-x: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  /* Скрываем сайдбар */
+  aside {
+    display: none !important;
+  }
+  
+  /* Убираем padding с main */
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  /* ── Шапка (fixed, не скроллится) ── */
+  #mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.95);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid #e2e8f0;
+    padding: 0 16px;
+    padding-top: env(safe-area-inset-top, 0);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  }
+  
+  .mh-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .mh-logo {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    color: #fff;
+    font-weight: 800;
+    font-size: 17px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
+    flex-shrink: 0;
+  }
+  
+  .mh-app {
+    font-size: 15px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+  }
+  
+  .mh-section {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    margin-top: 1px;
+  }
+  
+  .mh-date {
+    font-size: 12px;
+    font-weight: 700;
+    color: #475569;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 6px 10px;
+    white-space: nowrap;
+  }
+  
+  /* ── Нижний таб-бар (fixed) ── */
+  #mobile-tabbar {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    height: 64px;
+    background: #fff;
+    border-top: 1px solid #e2e8f0;
+    box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.06);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  
+  .mobile-tab {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px 4px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #94a3b8;
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+  
+  .mobile-tab::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 0;
+    height: 3px;
+    border-radius: 0 0 3px 3px;
+    background: currentColor;
+    transform: translateX(-50%);
+    transition: width 0.2s ease;
+  }
+  
+  .mobile-tab.active::before {
+    width: 28px;
+  }
+  
+  .mobile-tab svg {
+    width: 24px;
+    height: 24px;
+    transition: transform 0.15s ease;
+  }
+  
+  .mobile-tab.active svg {
+    transform: translateY(-1px) scale(1.05);
+  }
+  
+  .mobile-tab:active {
+    transform: scale(0.95);
+  }
+  
+  /* Акцентные цвета вкладок */
+  .mobile-tab.active[data-route="dashboard"] { color: #4f46e5; }
+  .mobile-tab.active[data-route="excise"] { color: #d97706; }
+  .mobile-tab.active[data-route="deadlines"] { color: #e11d48; }
+  .mobile-tab.active[data-route="gih"] { color: #7c3aed; }
+  .mobile-tab.active[data-route="more"] { color: #4f46e5; }
+  
+  /* Бейджи на вкладках */
+  .mt-badge {
+    position: absolute;
+    top: 6px;
+    right: calc(50% - 24px);
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    font-size: 10px;
+    font-weight: 800;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 0 2px #fff;
+    animation: mt-badge-pop 0.25s ease;
+  }
+  
+  .mt-badge.hidden {
+    display: none !important;
+  }
+  
+  .mt-badge.b-amber { background: #d97706; }
+  .mt-badge.b-rose { background: #e11d48; }
+  
+  @keyframes mt-badge-pop {
+    from { transform: scale(0.5); }
+    to { transform: scale(1); }
+  }
+  
+  /* ── Шторка «Ещё» ── */
+  #mobile-more-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    background: rgba(15, 23, 42, 0.5);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+  
+  #mobile-more-backdrop.hidden {
+    display: none !important;
+  }
+  
+  #mobile-more-backdrop:not(.hidden) {
+    display: block;
+  }
+  
+  #mobile-more-backdrop.show {
+    opacity: 1;
+  }
+  
+  #mobile-more-sheet {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border-radius: 24px 24px 0 0;
+    padding: 12px 20px calc(24px + env(safe-area-inset-bottom, 0));
+    box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.18);
+    transform: translateY(102%);
+    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0.24, 1);
+  }
+  
+  #mobile-more-sheet.open {
+    transform: translateY(0);
+  }
+  
+  .ms-handle {
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: #e2e8f0;
+    margin: 0 auto 16px;
+  }
+  
+  .ms-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 16px;
+    letter-spacing: -0.01em;
+  }
+  
+  .ms-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  
+  .ms-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 4px;
+    border-radius: 14px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #475569;
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    text-decoration: none;
+    transition: transform 0.12s ease, background 0.15s ease, color 0.15s ease;
+  }
+  
+  .ms-item svg {
+    width: 22px;
+    height: 22px;
+    color: #64748b;
+    transition: color 0.15s ease;
+  }
+  
+  .ms-item:active {
+    transform: scale(0.95);
+  }
+  
+  .ms-item.active {
+    background: #eef2ff;
+    border-color: #c7d2fe;
+    color: #4f46e5;
+  }
+  
+  .ms-item.active svg {
+    color: #4f46e5;
+  }
+  
+  /* ── Контент: правильные отступы ── */
+  .tab-content {
+    padding: 76px 16px calc(88px + env(safe-area-inset-bottom, 0)) !important;
+    min-height: 100vh;
+    box-sizing: border-box;
+  }
+  
+  /* ── Типографика ── */
+  h1 {
+    font-size: 1.5rem !important;
+    line-height: 1.3 !important;
+    margin-bottom: 16px !important;
+  }
+  
+  h2 {
+    font-size: 1.25rem !important;
+    margin-bottom: 12px !important;
+  }
+  
+  h3 {
+    font-size: 1.1rem !important;
+    margin-bottom: 10px !important;
+  }
+  
+  p {
+    font-size: 14px !important;
+    line-height: 1.6 !important;
+  }
+  
+  /* ── Сетки ── */
+  .grid-cols-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+  
+  .grid:has(> [class*="col-span-"]) {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+  
+  [class*="col-span-"] {
+    grid-column: auto !important;
+  }
+  
+  /* ── Карточки статистики ── */
+  .grid-cols-4 > div {
+    padding: 16px !important;
+  }
+  
+  /* ── Сетка номеров ── */
+  .rooms-grid {
+    grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)) !important;
+    gap: 8px !important;
+  }
+  
+  .room-cell {
+    min-height: 48px;
+    font-size: 12px !important;
+    border-radius: 10px !important;
+  }
+  
+  .floor-header {
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px !important;
+  }
+  
+  /* ── График ── */
+  #deadlines-chart {
+    height: 240px !important;
+    width: 100% !important;
+  }
+  
+  /* ── Кнопки (touch-friendly) ── */
+  .btn {
+    min-height: 44px !important;
+    padding: 12px 20px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    border-radius: 10px !important;
+  }
+  
+  .btn-sm {
+    min-height: 36px !important;
+    padding: 8px 14px !important;
+    font-size: 13px !important;
+  }
+  
+  /* ── Инпуты (iOS не зумит при 16px) ── */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+    padding: 12px 14px !important;
+    border-radius: 10px !important;
+  }
+  
+  /* ── Модалки (поверх таб-бара, z-index: 100) ── */
+  #deadline-modal-backdrop,
+  #deadline-month-modal-backdrop {
+    z-index: 100 !important;
+    position: fixed !important;
+    inset: 0 !important;
+  }
+  
+  #deadline-modal-backdrop > div,
+  #deadline-month-modal-backdrop > div {
+    width: 100% !important;
+    max-width: none !important;
+    height: 100%;
+    max-height: none !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 20px 16px calc(24px + env(safe-area-inset-bottom, 0)) !important;
+    overflow-y: auto !important;
+    box-sizing: border-box;
+  }
+  
+  /* ── Таблицы ── */
+  table {
+    font-size: 13px !important;
+  }
+  
+  th,
+  td {
+    padding: 10px 8px !important;
+  }
+  
+  /* ── Отступы между элементами ── */
+  .space-y-4 > * + * {
+    margin-top: 16px !important;
+  }
+  
+  .space-y-6 > * + * {
+    margin-top: 20px !important;
+  }
+  
+  .mb-6 {
+    margin-bottom: 20px !important;
+  }
+  
+  .mb-4 {
+    margin-bottom: 16px !important;
+  }
+  
+  .gap-4 {
+    gap: 12px !important;
+  }
+  
+  .gap-6 {
+    gap: 16px !important;
+  }
+  
+  /* ── Убираем лишнюю прокрутку ── */
+  .flex.h-screen {
+    height: auto !important;
+  }
+  
+  .overflow-hidden {
+    overflow: visible !important;
+  }
+}
