@@ -41,7 +41,7 @@ App.settingsModule = (() => {
       <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
         <div class="p-5 border-b border-slate-100">
           <h3 class="font-semibold text-slate-900">Разделы в нижнем меню</h3>
-          <p class="text-xs text-slate-500 mt-1">Выберите от 1 до 4 разделов — они появятся в нижнем меню на телефоне. Остальные будут доступны в шторке «Ещё». Кнопка «Ещё» закреплена всегда.</p>
+          <p class="text-xs text-slate-500 mt-1">Выберите от 1 до 5 разделов — они появятся в нижнем меню на телефоне. Остальные будут доступны в шторке «Ещё». Кнопка «Ещё» закреплена всегда.</p>
         </div>
         <div id="tabbar-settings-list" class="p-5"></div>
       </div>
