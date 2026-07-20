@@ -1,4 +1,4 @@
-// МОДУЛЬ КАЛЬКУЛЯТОРА
+// МОДУЛЬ КАЛЬКУЛЯТОРА (v2 — единый дизайн)
 // ═══════════════════════════════════════════════════════════════
 App.calculatorModule = (() => {
   const api = () => window.api;
@@ -12,8 +12,8 @@ App.calculatorModule = (() => {
   const CATEGORY_ORDER = ['Дверца', 'Напитки', 'Алкоголь', 'Соки'];
 
   let products = [];
-  /** @type {Record<number, number>} productId → qty */
   let cart = {};
+  let activeCategory = CATEGORY_ORDER[0];
   let isInitialized = false;
   let isLoaded = false;
 
@@ -56,15 +56,27 @@ App.calculatorModule = (() => {
       if (!grouped[cat]) grouped[cat] = [];
       grouped[cat].push(p);
     });
-    return CATEGORY_ORDER.map(name => ({
-      name,
-      items: grouped[name] || []
-    }));
+    return CATEGORY_ORDER.map(name => ({ name, items: grouped[name] || [] }));
+  }
+
+  function renderTabs() {
+    const tabsEl = document.getElementById('calculator-tabs');
+    if (!tabsEl) return;
+    const groups = getProductsByCategory();
+    tabsEl.innerHTML = groups.map(g => {
+      const count = g.items.reduce((s, p) => s + getQty(p.id), 0);
+      const active = g.name === activeCategory ? ' active' : '';
+      return `<button type="button" class="cat-tab${active}" data-category="${escapeHtml(g.name)}">
+        ${escapeHtml(g.name)}
+        ${count > 0 ? `<span class="cat-tab-count">${count}</span>` : ''}
+      </button>`;
+    }).join('');
   }
 
   function renderProducts() {
     const container = document.getElementById('calculator-products-container');
     if (!container) return;
+    renderTabs();
 
     if (products.length === 0) {
       container.innerHTML = '<div class="text-center py-12 text-slate-400 text-sm">Нет продуктов</div>';
@@ -72,58 +84,42 @@ App.calculatorModule = (() => {
     }
 
     const groups = getProductsByCategory();
-    container.innerHTML = `
-      <div class="calculator-categories-grid">
-        ${groups.map(group => `
-          <div class="calculator-category-col">
-            <div class="calculator-category-header">${escapeHtml(group.name)}</div>
-            <div class="calculator-category-items">
-              ${group.items.length === 0
-                ? '<div class="calculator-category-empty">—</div>'
-                : group.items.map(p => {
-                    const qty = getQty(p.id);
-                    const price = parseFloat(p.price);
-                    const emoji = p.emoji || p.name.charAt(0).toUpperCase();
-                    return `
-                      <div class="calculator-product-card${qty > 0 ? ' has-qty' : ''}" data-product-id="${p.id}">
-                        <div class="calculator-product-main">
-                          <div class="calculator-product-emoji ${getColorClass(p.bgColor)}">${emoji}</div>
-                          <div class="calculator-product-info">
-                            <div class="calculator-product-name">${escapeHtml(p.name)}</div>
-                            <div class="calculator-product-meta">
-                              <span class="calculator-product-price">${formatMoney(price)}</span>
-                              <span class="calculator-product-qty">${qty}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div class="calculator-product-controls">
-                          <button type="button" class="calc-dec-btn calculator-qty-btn" data-product-id="${p.id}" aria-label="Уменьшить" ${qty === 0 ? 'disabled' : ''}>
-                            <i data-lucide="minus" class="w-3 h-3"></i>
-                          </button>
-                          <button type="button" class="calc-inc-btn calculator-qty-btn" data-product-id="${p.id}" aria-label="Увеличить">
-                            <i data-lucide="plus" class="w-3 h-3"></i>
-                          </button>
-                        </div>
-                      </div>
-                    `;
-                  }).join('')}
-            </div>
+    const group = groups.find(g => g.name === activeCategory) || groups[0];
+
+    if (group.items.length === 0) {
+      container.innerHTML = '<div class="text-center py-12 text-slate-400 text-sm">Нет продуктов в этой категории</div>';
+      return;
+    }
+
+    container.innerHTML = group.items.map(p => {
+      const qty = getQty(p.id);
+      const price = parseFloat(p.price);
+      const emoji = p.emoji || p.name.charAt(0).toUpperCase();
+      return `
+        <div class="product-card calc-card${qty > 0 ? ' has-qty' : ''}" data-product-id="${p.id}">
+          <div class="product-card-emoji ${getColorClass(p.bgColor)}">${emoji}</div>
+          <div class="product-card-info">
+            <div class="product-card-name" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</div>
+            <div class="product-card-meta">${formatMoney(price)}</div>
           </div>
-        `).join('')}
-      </div>
-    `;
+          <div class="calc-controls">
+            <button type="button" class="calc-qty-btn calc-dec-btn" data-product-id="${p.id}" aria-label="Уменьшить" ${qty === 0 ? 'disabled' : ''}>
+              <i data-lucide="minus" class="w-4 h-4"></i>
+            </button>
+            <span class="calc-qty-value">${qty}</span>
+            <button type="button" class="calc-qty-btn calc-inc-btn" data-product-id="${p.id}" aria-label="Увеличить">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
 
     if (window.lucide) lucide.createIcons();
   }
 
-  function renderBill() {
-    const emptyEl = document.getElementById('calculator-bill-empty');
-    const listEl = document.getElementById('calculator-bill-list');
-    const totalEl = document.getElementById('calculator-bill-total');
-    const countEl = document.getElementById('calculator-bill-count');
-    if (!listEl || !totalEl) return;
-
-    const entries = Object.entries(cart)
+  function getBillEntries() {
+    return Object.entries(cart)
       .map(([id, qty]) => {
         const product = products.find(p => p.id === parseInt(id, 10));
         if (!product) return null;
@@ -132,40 +128,62 @@ App.calculatorModule = (() => {
       })
       .filter(Boolean)
       .sort((a, b) => a.product.name.localeCompare(b.product.name, 'ru'));
+  }
 
-    const totalQty = entries.reduce((sum, e) => sum + e.qty, 0);
-    const totalSum = entries.reduce((sum, e) => sum + e.subtotal, 0);
-
-    if (countEl) {
-      countEl.textContent = totalQty === 0
-        ? '0 позиций'
-        : `${totalQty} ${pluralize(totalQty, ['позиция', 'позиции', 'позиций'])}`;
-    }
-
-    if (entries.length === 0) {
-      emptyEl?.classList.remove('hidden');
-      listEl.classList.add('hidden');
-      listEl.innerHTML = '';
-      totalEl.textContent = '0 ₽';
-      return;
-    }
-
-    emptyEl?.classList.add('hidden');
-    listEl.classList.remove('hidden');
-    listEl.innerHTML = entries.map(({ product, qty, price, subtotal }) => `
-      <div class="calculator-bill-row">
-        <div class="flex-1 min-w-0">
-          <div class="text-sm font-medium text-slate-900 truncate">${escapeHtml(product.name)}</div>
-          <div class="text-xs text-slate-500">${qty} × ${formatMoney(price)}</div>
+  function billRowHtml(e) {
+    return `
+      <div class="bill-row">
+        <div class="bill-row-info">
+          <div class="bill-row-name">${escapeHtml(e.product.name)}</div>
+          <div class="bill-row-meta">${e.qty} × ${formatMoney(e.price)}</div>
         </div>
-        <div class="text-sm font-semibold text-slate-900 whitespace-nowrap ml-3">${formatMoney(subtotal)}</div>
-        <button type="button" class="calc-dec-btn calculator-bill-dec ml-2" data-product-id="${product.id}" title="Убрать">
-          <i data-lucide="minus" class="w-3 h-3"></i>
+        <div class="bill-row-sum">${formatMoney(e.subtotal)}</div>
+        <button type="button" class="bill-row-del calc-dec-btn" data-product-id="${e.product.id}" title="Убрать">
+          <i data-lucide="minus" class="w-3.5 h-3.5"></i>
         </button>
       </div>
-    `).join('');
+    `;
+  }
 
-    totalEl.textContent = formatMoney(totalSum);
+  function renderBill() {
+    const entries = getBillEntries();
+    const totalQty = entries.reduce((s, e) => s + e.qty, 0);
+    const totalSum = entries.reduce((s, e) => s + e.subtotal, 0);
+    const countText = totalQty === 0
+      ? '0 позиций'
+      : `${totalQty} ${pluralize(totalQty, ['позиция', 'позиции', 'позиций'])}`;
+    const totalText = formatMoney(totalSum);
+    const rowsHtml = entries.map(billRowHtml).join('');
+    const isEmpty = entries.length === 0;
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+
+    // Десктоп-панель
+    const emptyEl = document.getElementById('calculator-bill-empty');
+    const listEl = document.getElementById('calculator-bill-list');
+    if (emptyEl) emptyEl.classList.toggle('hidden', !isEmpty);
+    if (listEl) {
+      listEl.classList.toggle('hidden', isEmpty);
+      listEl.innerHTML = rowsHtml;
+    }
+    set('calculator-bill-count', countText);
+    set('calculator-bill-total', totalText);
+
+    // Мобильная мини-панель
+    const mobileBar = document.getElementById('calculator-mobile-bar');
+    if (mobileBar) mobileBar.classList.toggle('hidden', isEmpty);
+    set('calculator-mobile-count', countText);
+    set('calculator-mobile-total', totalText);
+
+    // Мобильная шторка
+    set('calculator-bill-modal-count', countText);
+    set('calculator-bill-modal-total', totalText);
+    const modalList = document.getElementById('calculator-bill-modal-list');
+    if (modalList) {
+      modalList.innerHTML = isEmpty
+        ? '<div class="text-center py-8 text-slate-400 text-sm">Счёт пуст</div>'
+        : rowsHtml;
+    }
+
     if (window.lucide) lucide.createIcons();
   }
 
@@ -184,23 +202,47 @@ App.calculatorModule = (() => {
     }
   }
 
+  function openBillModal() {
+    document.getElementById('calculator-bill-modal')?.classList.remove('hidden');
+  }
+  function closeBillModal() {
+    document.getElementById('calculator-bill-modal')?.classList.add('hidden');
+  }
+
   function setupListeners() {
     if (isInitialized) return;
+
+    document.getElementById('calculator-tabs')?.addEventListener('click', (e) => {
+      const tab = e.target.closest('.cat-tab');
+      if (!tab) return;
+      activeCategory = tab.dataset.category;
+      renderProducts();
+    });
 
     document.getElementById('calculator-clear-btn')?.addEventListener('click', () => {
       if (Object.keys(cart).length === 0) return;
       if (confirm('Очистить счёт?')) clearBill();
     });
 
+    document.getElementById('calculator-mobile-expand')?.addEventListener('click', openBillModal);
+    document.getElementById('calculator-bill-modal-close')?.addEventListener('click', closeBillModal);
+    document.getElementById('calculator-bill-modal-backdrop')?.addEventListener('click', closeBillModal);
+    document.getElementById('calculator-bill-modal-clear')?.addEventListener('click', () => {
+      if (Object.keys(cart).length === 0) return;
+      if (confirm('Очистить счёт?')) {
+        clearBill();
+        closeBillModal();
+      }
+    });
+
+    // Делегирование кликов по +/− (работает и в сетке, и в счёте, и в шторке)
     document.addEventListener('click', (e) => {
       if (!e.target.closest('#view-calculator')) return;
-
       const inc = e.target.closest('.calc-inc-btn');
       if (inc) {
         changeQty(parseInt(inc.dataset.productId, 10), 1);
         return;
       }
-
       const dec = e.target.closest('.calc-dec-btn');
       if (dec) {
         changeQty(parseInt(dec.dataset.productId, 10), -1);
