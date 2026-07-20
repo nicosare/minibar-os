@@ -2,11 +2,12 @@
 // МОБИЛЬНАЯ НАВИГАЦИЯ: нижний таб-бар + шторка «Ещё»
 // Состав и ПОРЯДОК таб-бара настраиваются: Настройки → «Нижнее меню»
 // Долгое нажатие на вкладку — перетаскивание (кроме «Ещё»)
+// Шторка «Ещё» закрывается свайпом вниз за верхнюю часть
 // Также: блокирует прокрутку фона под открытыми модалками
 // ═══════════════════════════════════════════════════════════════
 (function () {
   var STORAGE_KEY = 'minibar.tabbar.routes';
-  var MAX_TABS = 5;
+  var MAX_TABS = 4;
   var MIN_TABS = 1;
   var DEFAULT_ROUTES = ['dashboard', 'excise', 'deadlines', 'gih'];
 
@@ -74,7 +75,6 @@
     ROUTE_ICONS: ROUTE_ICONS
   };
 
-  // Порядок вкладок = порядок, сохранённый пользователем (drag&drop)
   function tabRoutes() {
     return getSelected();
   }
@@ -101,7 +101,6 @@
         badgeHtml(r) +
         '</a>';
     }).join('');
-    // «Ещё» — всегда последний
     html += '<a class="mobile-tab" data-route="more" data-accent="indigo" href="#">' +
       '<i data-lucide="grid-3x3"></i><span>Ещё</span></a>';
     bar.innerHTML = html;
@@ -140,7 +139,7 @@
     document.querySelectorAll('.mobile-tab').forEach(function (tab) {
       tab.addEventListener('click', function (e) {
         e.preventDefault();
-        if (suppressTabClick) return; // после drag&drop не переходим
+        if (suppressTabClick) return;
         var route = tab.dataset.route;
         if (route === 'more') openMoreSheet();
         else if (route && window.App && App.router) App.router.go(route);
@@ -208,6 +207,72 @@
     setTimeout(function () { backdrop.classList.add('hidden'); }, 280);
   }
 
+  // Мгновенное закрытие (используется после свайпа вниз)
+  function closeMoreSheetImmediate() {
+    var backdrop = document.getElementById('mobile-more-backdrop');
+    if (!backdrop) return;
+    backdrop.classList.remove('show');
+    var sheet = document.getElementById('mobile-more-sheet');
+    if (sheet) sheet.classList.remove('open');
+    backdrop.classList.add('hidden');
+  }
+
+  // ── Свайп вниз для закрытия шторки «Ещё» ──
+  function setupMoreSheetDragZone() {
+    var sheet = document.getElementById('mobile-more-sheet');
+    if (!sheet || sheet.querySelector('.ms-drag-zone')) return;
+    var handle = sheet.querySelector('.ms-handle');
+    var title = sheet.querySelector('.ms-title');
+    if (!handle) return;
+    var zone = document.createElement('div');
+    zone.className = 'ms-drag-zone';
+    handle.parentNode.insertBefore(zone, handle);
+    zone.appendChild(handle);
+    if (title) zone.appendChild(title);
+  }
+
+  function initMoreSheetDrag() {
+    var sheet = document.getElementById('mobile-more-sheet');
+    if (!sheet || sheet.dataset.swipeInit) return;
+    var zone = sheet.querySelector('.ms-drag-zone');
+    if (!zone) return;
+    sheet.dataset.swipeInit = '1';
+
+    var startY = 0, dy = 0, dragging = false;
+
+    zone.addEventListener('touchstart', function (e) {
+      dragging = true;
+      startY = e.touches[0].clientY;
+      dy = 0;
+      sheet.style.transition = 'none';
+    }, { passive: true });
+
+    zone.addEventListener('touchmove', function (e) {
+      if (!dragging) return;
+      dy = Math.max(0, e.touches[0].clientY - startY);
+      sheet.style.transform = 'translateY(' + dy + 'px)';
+    }, { passive: true });
+
+    function endDrag() {
+      if (!dragging) return;
+      dragging = false;
+      sheet.style.transition = 'transform 0.25s cubic-bezier(0.32, 0.72, 0.24, 1)';
+      if (dy > 90) {
+        sheet.style.transform = 'translateY(105%)';
+        setTimeout(function () {
+          closeMoreSheetImmediate();
+          sheet.style.transform = '';
+          sheet.style.transition = '';
+        }, 240);
+      } else {
+        sheet.style.transform = '';
+        setTimeout(function () { sheet.style.transition = ''; }, 260);
+      }
+    }
+    zone.addEventListener('touchend', endDrag);
+    zone.addEventListener('touchcancel', endDrag);
+  }
+
   // ── Drag & drop вкладок (долгое нажатие) ──
   var LONG_PRESS_MS = 400;
   var pressTimer = null;
@@ -223,7 +288,6 @@
     if (!bar || bar.dataset.dragInit) return;
     bar.dataset.dragInit = '1';
 
-    // Долгое нажатие на ссылку не должно вызывать контекстное меню
     bar.addEventListener('contextmenu', function (e) {
       if (e.target.closest('.mobile-tab')) e.preventDefault();
     });
@@ -231,7 +295,7 @@
     bar.addEventListener('touchstart', function (e) {
       if (drag) return;
       var tab = e.target.closest('.mobile-tab');
-      if (!tab || tab.dataset.route === 'more') return; // «Ещё» не двигается
+      if (!tab || tab.dataset.route === 'more') return;
       if (e.touches.length !== 1) return;
       var t = e.touches[0];
       pressStart = { x: t.clientX, y: t.clientY };
@@ -244,7 +308,6 @@
     bar.addEventListener('touchmove', function (e) {
       var t = e.touches[0];
       if (!drag) {
-        // Если палец сдвинулся до срабатывания долгого нажатия — отменяем
         if (pressTimer && pressStart) {
           if (Math.abs(t.clientX - pressStart.x) > 8 || Math.abs(t.clientY - pressStart.y) > 8) {
             clearTimeout(pressTimer);
@@ -253,7 +316,7 @@
         }
         return;
       }
-      e.preventDefault(); // не даём странице скроллиться во время drag
+      e.preventDefault();
       moveDrag(t.clientX);
     }, { passive: false });
 
@@ -298,7 +361,7 @@
   function moveDrag(x) {
     if (!drag) return;
     var dx = x - drag.startX;
-    var maxIndex = drag.count - 2; // «Ещё» последний — его не трогаем
+    var maxIndex = drag.count - 2;
     var target = Math.round(drag.index + dx / drag.slotW);
     target = Math.max(0, Math.min(maxIndex, target));
     drag.targetIndex = target;
@@ -331,7 +394,6 @@
     vibrate(10);
 
     var moved = d.targetIndex !== d.index;
-    // Плавное «приземление» в новый слот
     var shift = (d.targetIndex - d.index) * d.slotW;
     d.el.style.transition = 'transform 0.18s cubic-bezier(0.32, 0.72, 0.24, 1)';
     d.el.style.transform = 'translateX(' + shift + 'px) scale(1.12)';
@@ -440,6 +502,8 @@
 
     setInterval(mirrorBadges, 1500);
 
+    setupMoreSheetDragZone();
+    initMoreSheetDrag();
     initTabDrag();
     initScrollGuard();
   }
