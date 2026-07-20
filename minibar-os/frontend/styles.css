@@ -1801,3 +1801,41 @@
 @media (min-width: 769px) {
   #deadline-month-modal-backdrop > div { max-width: 40rem !important; }
 }
+/* ═══════════════════════════════════════════════════════════════
+   БЛОКИРОВКА ПРОКРУТКИ ФОНА ПОД ОТКРЫТЫМИ МОДАЛКАМИ
+   ═══════════════════════════════════════════════════════════════ */
+.scroll-locked {
+  overflow: hidden !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   НИЖНЕЕ МЕНЮ: НАСТРОЙКИ + АКЦЕНТЫ ВСЕХ ВКЛАДОК
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Вкладка «Нижнее меню» в настройках видна только на телефоне */
+.settings-tab-mobile { display: none; }
+
+.tabbar-setting-checked {
+  background: #eef2ff;
+  border-color: #c7d2fe !important;
+}
+.tabbar-setting-row input[type="checkbox"] {
+  accent-color: var(--primary);
+}
+
+@media (max-width: 768px) {
+  .settings-tab-mobile { display: inline-flex; align-items: center; }
+}
+
+/* Акцентные цвета активной вкладки для всех разделов */
+.mobile-tab.active[data-accent="indigo"]  { color: #4f46e5; }
+.mobile-tab.active[data-accent="amber"]   { color: #d97706; }
+.mobile-tab.active[data-accent="rose"]    { color: #e11d48; }
+.mobile-tab.active[data-accent="emerald"] { color: #059669; }
+.mobile-tab.active[data-accent="sky"]     { color: #0284c7; }
+.mobile-tab.active[data-accent="violet"]  { color: #7c3aed; }
+.mobile-tab.active[data-accent="slate"]   { color: #475569; }
+.mobile-tab.active[data-accent="pink"]    { color: #db2777; }
+.mobile-tab.active[data-accent="teal"]    { color: #0d9488; }
+.mobile-tab.active[data-accent="blue"]    { color: #2563eb; }
+.mobile-tab.active[data-accent="zinc"]    { color: #3f3f46; }
