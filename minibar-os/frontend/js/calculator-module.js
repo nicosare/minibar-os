@@ -1,8 +1,8 @@
-// МОДУЛЬ КАЛЬКУЛЯТОРА (v2 — единый дизайн)
+// МОДУЛЬ КАЛЬКУЛЯТОРА (v3 — шторка со свайпом + копирование счёта)
 // ═══════════════════════════════════════════════════════════════
 App.calculatorModule = (() => {
   const api = () => window.api;
-  const { escapeHtml, pluralize } = window.AppUtils;
+  const { escapeHtml, pluralize, showToast } = window.AppUtils;
 
   const colorMap = {
     amber: 'bg-amber-50', red: 'bg-red-50', blue: 'bg-blue-50',
@@ -187,6 +187,135 @@ App.calculatorModule = (() => {
     if (window.lucide) lucide.createIcons();
   }
 
+  // ── Копирование счёта ──────────────────────────────────────
+  function getBillText() {
+    const entries = getBillEntries();
+    if (entries.length === 0) return null;
+    const totalSum = entries.reduce((s, e) => s + e.subtotal, 0);
+    const lines = [`Счёт на ${formatMoney(totalSum)}`];
+    entries.forEach(e => lines.push(`${e.product.name} х ${e.qty}`));
+    return lines.join('\n');
+  }
+
+  async function copyBill() {
+    const text = getBillText();
+    if (!text) {
+      showToast('Счёт пуст');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('Счёт скопирован');
+    } catch (err) {
+      // Фолбэк для браузеров без Clipboard API
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        showToast('Счёт скопирован');
+      } catch (e) {
+        showToast('Не удалось скопировать');
+      }
+      document.body.removeChild(ta);
+    }
+  }
+
+  // ── Инъекция кнопок «Копировать» (без правки index.html) ──
+  function injectCopyButtons() {
+    // Десктоп: рядом с «Очистить» в шапке боковой панели
+    const clearBtn = document.getElementById('calculator-clear-btn');
+    if (clearBtn && !document.getElementById('calculator-copy-btn')) {
+      const wrap = document.createElement('div');
+      wrap.style.display = 'flex';
+      wrap.style.gap = '4px';
+      clearBtn.parentNode.insertBefore(wrap, clearBtn);
+      const copyBtn = document.createElement('button');
+      copyBtn.id = 'calculator-copy-btn';
+      copyBtn.className = 'btn btn-ghost btn-sm';
+      copyBtn.innerHTML = '<i data-lucide="copy" class="w-3.5 h-3.5"></i> Копировать';
+      wrap.appendChild(copyBtn);
+      wrap.appendChild(clearBtn);
+    }
+
+    // Мобильный: рядом с «Очистить счёт» в футере шторки
+    const clearModalBtn = document.getElementById('calculator-bill-modal-clear');
+    if (clearModalBtn && !document.getElementById('calculator-bill-modal-copy')) {
+      const row = document.createElement('div');
+      row.style.display = 'flex';
+      row.style.gap = '8px';
+      clearModalBtn.parentNode.insertBefore(row, clearModalBtn);
+      const copyModalBtn = document.createElement('button');
+      copyModalBtn.id = 'calculator-bill-modal-copy';
+      copyModalBtn.className = 'btn btn-primary';
+      copyModalBtn.style.flex = '1';
+      copyModalBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i> Копировать';
+      clearModalBtn.style.flex = '1';
+      clearModalBtn.style.width = 'auto';
+      row.appendChild(copyModalBtn);
+      row.appendChild(clearModalBtn);
+    }
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ── Ручка шторки + закрытие свайпом вниз ──────────────────
+  function injectSheetHandle() {
+    const content = document.querySelector('#calculator-bill-modal .sheet-modal-content');
+    if (!content || content.querySelector('.calc-sheet-handle')) return;
+    const handle = document.createElement('div');
+    handle.className = 'calc-sheet-handle';
+    handle.style.cssText = 'width:40px;height:4px;border-radius:2px;background:#e2e8f0;margin:10px auto 2px;flex-shrink:0;';
+    content.insertBefore(handle, content.firstChild);
+  }
+
+  function setupBillSheetSwipe() {
+    const modal = document.getElementById('calculator-bill-modal');
+    if (!modal || modal.dataset.swipeInit) return;
+    const content = modal.querySelector('.sheet-modal-content');
+    if (!content) return;
+    modal.dataset.swipeInit = '1';
+
+    let startY = 0, dy = 0, dragging = false;
+
+    content.addEventListener('touchstart', (e) => {
+      // Свайп работает только если касание началось с верхней части (ручка или шапка)
+      if (!e.target.closest('.sheet-modal-header') && !e.target.closest('.calc-sheet-handle')) return;
+      dragging = true;
+      startY = e.touches[0].clientY;
+      dy = 0;
+      content.style.transition = 'none';
+    }, { passive: true });
+
+    content.addEventListener('touchmove', (e) => {
+      if (!dragging) return;
+      dy = Math.max(0, e.touches[0].clientY - startY);
+      content.style.transform = `translateY(${dy}px)`;
+    }, { passive: true });
+
+    const endDrag = () => {
+      if (!dragging) return;
+      dragging = false;
+      content.style.transition = 'transform 0.25s cubic-bezier(0.32, 0.72, 0.24, 1)';
+      if (dy > 90) {
+        content.style.transform = 'translateY(105%)';
+        setTimeout(() => {
+          closeBillModal();
+          content.style.transform = '';
+          content.style.transition = '';
+        }, 240);
+      } else {
+        content.style.transform = '';
+        setTimeout(() => { content.style.transition = ''; }, 260);
+      }
+    };
+    content.addEventListener('touchend', endDrag);
+    content.addEventListener('touchcancel', endDrag);
+  }
+
   async function loadProducts() {
     const container = document.getElementById('calculator-products-container');
     try {
@@ -212,6 +341,11 @@ App.calculatorModule = (() => {
   function setupListeners() {
     if (isInitialized) return;
 
+    // Инъекция кнопок и ручки, свайп
+    injectCopyButtons();
+    injectSheetHandle();
+    setupBillSheetSwipe();
+
     document.getElementById('calculator-tabs')?.addEventListener('click', (e) => {
       const tab = e.target.closest('.cat-tab');
       if (!tab) return;
@@ -223,6 +357,10 @@ App.calculatorModule = (() => {
       if (Object.keys(cart).length === 0) return;
       if (confirm('Очистить счёт?')) clearBill();
     });
+
+    // Копирование счёта (ПК + шторка)
+    document.getElementById('calculator-copy-btn')?.addEventListener('click', copyBill);
+    document.getElementById('calculator-bill-modal-copy')?.addEventListener('click', copyBill);
 
     document.getElementById('calculator-mobile-expand')?.addEventListener('click', openBillModal);
     document.getElementById('calculator-bill-modal-close')?.addEventListener('click', closeBillModal);
@@ -262,5 +400,5 @@ App.calculatorModule = (() => {
     }
   }
 
-  return { init, clearBill, changeQty };
+  return { init, clearBill, changeQty, copyBill };
 })();
