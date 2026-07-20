@@ -1,6 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // МОБИЛЬНАЯ НАВИГАЦИЯ: нижний таб-бар + шторка «Ещё»
-// Состав таб-бара настраивается: Настройки → «Нижнее меню» (на телефоне)
+// Состав и ПОРЯДОК таб-бара настраиваются: Настройки → «Нижнее меню»
+// Долгое нажатие на вкладку — перетаскивание (кроме «Ещё»)
 // Также: блокирует прокрутку фона под открытыми модалками
 // ═══════════════════════════════════════════════════════════════
 (function () {
@@ -35,7 +36,7 @@
     inventory: 'blue', settings: 'zinc'
   };
 
-  // ── Сохранённый выбор разделов нижнего меню ──
+  // ── Сохранённый выбор и порядок разделов нижнего меню ──
   function getSelected() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
@@ -73,9 +74,9 @@
     ROUTE_ICONS: ROUTE_ICONS
   };
 
+  // Порядок вкладок = порядок, сохранённый пользователем (drag&drop)
   function tabRoutes() {
-    var sel = getSelected();
-    return ROUTE_ORDER.filter(function (r) { return sel.indexOf(r) !== -1; });
+    return getSelected();
   }
 
   function sheetRoutes() {
@@ -133,10 +134,13 @@
   }
 
   // ── Клики ──
+  var suppressTabClick = false;
+
   function bindTabs() {
     document.querySelectorAll('.mobile-tab').forEach(function (tab) {
       tab.addEventListener('click', function (e) {
         e.preventDefault();
+        if (suppressTabClick) return; // после drag&drop не переходим
         var route = tab.dataset.route;
         if (route === 'more') openMoreSheet();
         else if (route && window.App && App.router) App.router.go(route);
@@ -162,7 +166,6 @@
     document.querySelectorAll('.ms-item').forEach(function (i) {
       i.classList.toggle('active', i.dataset.route === route);
     });
-    // «Ещё» подсвечивается, если открыт раздел из шторки
     var moreTab = document.querySelector('.mobile-tab[data-route="more"]');
     if (moreTab) {
       var inSheet = !!document.querySelector('.ms-item[data-route="' + route + '"]');
@@ -203,6 +206,156 @@
     var sheet = document.getElementById('mobile-more-sheet');
     if (sheet) sheet.classList.remove('open');
     setTimeout(function () { backdrop.classList.add('hidden'); }, 280);
+  }
+
+  // ── Drag & drop вкладок (долгое нажатие) ──
+  var LONG_PRESS_MS = 400;
+  var pressTimer = null;
+  var pressStart = null;
+  var drag = null;
+
+  function vibrate(ms) {
+    if (navigator.vibrate) { try { navigator.vibrate(ms); } catch (e) {} }
+  }
+
+  function initTabDrag() {
+    var bar = document.getElementById('mobile-tabbar');
+    if (!bar || bar.dataset.dragInit) return;
+    bar.dataset.dragInit = '1';
+
+    // Долгое нажатие на ссылку не должно вызывать контекстное меню
+    bar.addEventListener('contextmenu', function (e) {
+      if (e.target.closest('.mobile-tab')) e.preventDefault();
+    });
+
+    bar.addEventListener('touchstart', function (e) {
+      if (drag) return;
+      var tab = e.target.closest('.mobile-tab');
+      if (!tab || tab.dataset.route === 'more') return; // «Ещё» не двигается
+      if (e.touches.length !== 1) return;
+      var t = e.touches[0];
+      pressStart = { x: t.clientX, y: t.clientY };
+      clearTimeout(pressTimer);
+      pressTimer = setTimeout(function () {
+        startDrag(tab, t.clientX);
+      }, LONG_PRESS_MS);
+    }, { passive: true });
+
+    bar.addEventListener('touchmove', function (e) {
+      var t = e.touches[0];
+      if (!drag) {
+        // Если палец сдвинулся до срабатывания долгого нажатия — отменяем
+        if (pressTimer && pressStart) {
+          if (Math.abs(t.clientX - pressStart.x) > 8 || Math.abs(t.clientY - pressStart.y) > 8) {
+            clearTimeout(pressTimer);
+            pressTimer = null;
+          }
+        }
+        return;
+      }
+      e.preventDefault(); // не даём странице скроллиться во время drag
+      moveDrag(t.clientX);
+    }, { passive: false });
+
+    bar.addEventListener('touchend', function () {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+      pressStart = null;
+      if (drag) endDrag();
+    });
+
+    bar.addEventListener('touchcancel', function () {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+      pressStart = null;
+      if (drag) cancelDrag();
+    });
+  }
+
+  function startDrag(tab, x) {
+    var bar = document.getElementById('mobile-tabbar');
+    var tabs = Array.prototype.slice.call(bar.querySelectorAll('.mobile-tab'));
+    var index = tabs.indexOf(tab);
+    if (index === -1 || drag) return;
+
+    drag = {
+      route: tab.dataset.route,
+      el: tab,
+      index: index,
+      startX: x,
+      slotW: tab.offsetWidth,
+      count: tabs.length,
+      targetIndex: index
+    };
+    suppressTabClick = true;
+    vibrate(30);
+
+    bar.classList.add('reordering');
+    tab.classList.add('drag-source');
+    applyDragPositions(0);
+  }
+
+  function moveDrag(x) {
+    if (!drag) return;
+    var dx = x - drag.startX;
+    var maxIndex = drag.count - 2; // «Ещё» последний — его не трогаем
+    var target = Math.round(drag.index + dx / drag.slotW);
+    target = Math.max(0, Math.min(maxIndex, target));
+    drag.targetIndex = target;
+    applyDragPositions(dx);
+  }
+
+  function applyDragPositions(dx) {
+    var bar = document.getElementById('mobile-tabbar');
+    var tabs = Array.prototype.slice.call(bar.querySelectorAll('.mobile-tab'));
+    var from = drag.index, to = drag.targetIndex;
+    tabs.forEach(function (t, i) {
+      if (i === from) {
+        t.style.transform = 'translateX(' + dx + 'px) scale(1.12)';
+        t.style.zIndex = '10';
+      } else if (from < to && i > from && i <= to) {
+        t.style.transform = 'translateX(' + (-drag.slotW) + 'px)';
+      } else if (to < from && i >= to && i < from) {
+        t.style.transform = 'translateX(' + drag.slotW + 'px)';
+      } else {
+        t.style.transform = '';
+        t.style.zIndex = '';
+      }
+    });
+  }
+
+  function endDrag() {
+    var d = drag;
+    drag = null;
+    if (!d) return;
+    vibrate(10);
+
+    var moved = d.targetIndex !== d.index;
+    // Плавное «приземление» в новый слот
+    var shift = (d.targetIndex - d.index) * d.slotW;
+    d.el.style.transition = 'transform 0.18s cubic-bezier(0.32, 0.72, 0.24, 1)';
+    d.el.style.transform = 'translateX(' + shift + 'px) scale(1.12)';
+
+    setTimeout(function () {
+      if (moved) {
+        var sel = getSelected();
+        var idx = sel.indexOf(d.route);
+        if (idx !== -1) {
+          sel.splice(idx, 1);
+          sel.splice(d.targetIndex, 0, d.route);
+          saveSelected(sel);
+        }
+      }
+      renderAll();
+    }, 180);
+
+    setTimeout(function () { suppressTabClick = false; }, 450);
+  }
+
+  function cancelDrag() {
+    drag = null;
+    renderAll();
+    setTimeout(function () { suppressTabClick = false; }, 350);
   }
 
   // ── Блокировка прокрутки фона под модалками ──
@@ -287,6 +440,7 @@
 
     setInterval(mirrorBadges, 1500);
 
+    initTabDrag();
     initScrollGuard();
   }
 
