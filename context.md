@@ -1,11 +1,13 @@
 # minibar-os — полный контекст
 
-> **2026-07-20 21:17** · ветка `main` · всего файлов: **37**
+> **2026-07-20 21:28** · ветка `main` · всего файлов: **39**
 > Нетекстовые файлы (картинки, шрифты, медиа) указаны только в структуре.
 
 ## Структура проекта (все файлы)
 
 ```text
+context.md
+minibar-os/.gitignore
 minibar-os/README.md
 minibar-os/about.txt
 minibar-os/backend/Dockerfile
@@ -43,6 +45,23 @@ minibar-os/frontend/js/utils.js
 minibar-os/frontend/nginx.conf
 minibar-os/frontend/styles.css
 minibar-os/make-context.sh
+```
+
+---
+
+## `context.md`
+
+```markdown
+
+```
+
+---
+
+## `minibar-os/.gitignore`
+
+```
+context.md
+
 ```
 
 ---
@@ -14760,4 +14779,4 @@ echo "Готово. В VS Code: правый клик по context.md -> Downloa
 ```
 
 ---
-> **Итог:** 37 файлов с кодом вставлено, 0 файлов только в списке структуры.
+> **Итог:** 39 файлов с кодом вставлено, 0 файлов только в списке структуры.
