@@ -7,7 +7,7 @@
 // ═══════════════════════════════════════════════════════════════
 (function () {
   var STORAGE_KEY = 'minibar.tabbar.routes';
-  var MAX_TABS = 4;
+  var MAX_TABS = 5;
   var MIN_TABS = 1;
   var DEFAULT_ROUTES = ['dashboard', 'excise', 'deadlines', 'gih'];
 
