@@ -6,7 +6,7 @@
 <title>MiniBar OS</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.0/index.css" />
-<link rel="stylesheet" href="styles.css?v=m3" />
+<link rel="stylesheet" href="styles.css?v=m4" />
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body class="antialiased">
@@ -237,10 +237,7 @@
           autocomplete="off"
         />
       </div>
-      <button id="excise-add-btn" class="btn btn-primary px-6">
-        <i data-lucide="plus" class="w-4 h-4"></i> Добавить
-      </button>
-    </div>
+      </div>
     <p class="text-xs text-slate-500 mt-2">
       Можно вводить по одной или несколько через пробел/перенос строки
     </p>
@@ -436,21 +433,65 @@
 
 <!-- INVENTORY -->
 <section id="view-inventory" class="tab-content fade-in">
-  <div class="flex items-start justify-between mb-6">
-    <div>
-      <h1 class="text-2xl font-bold text-slate-900">Инвентаризация</h1>
-      <p class="text-slate-600 mt-1 text-sm">Два поля суммируются → количество × объём единицы</p>
+  <!-- Вкладки категорий -->
+  <div class="cat-tabs blue" id="inventory-tabs"></div>
+
+  <div class="split-layout">
+    <!-- Продукты -->
+    <div id="inventory-products-container" class="products-grid"></div>
+
+    <!-- Сводка (десктоп) -->
+    <aside class="side-panel">
+      <div class="side-panel-header">
+        <span class="side-panel-title">Сводка</span>
+        <button id="inventory-clear-btn" class="btn btn-ghost btn-sm">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Очистить
+        </button>
+      </div>
+      <div id="inventory-summary-empty" class="side-panel-empty">
+        <i data-lucide="clipboard-list"></i>
+        <p>Введите количество продуктов</p>
+      </div>
+      <div id="inventory-summary-list" class="side-panel-body hidden"></div>
+      <div class="side-panel-footer">
+        <div class="total-row">
+          <span class="total-row-label">Итоговый объём</span>
+          <span class="total-row-value" id="inventory-total-volume">0 л</span>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Мобильная мини-панель -->
+  <div id="inventory-mobile-bar" class="mobile-action-bar hidden">
+    <div class="mobile-action-bar-info">
+      <span class="mobile-action-bar-label" id="inventory-mobile-count">0 продуктов</span>
+      <span class="mobile-action-bar-value" id="inventory-mobile-total">0 л</span>
     </div>
-    <button id="inventory-clear-btn" type="button" class="btn btn-outline" style="color: var(--danger);">
-      <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
-      Очистить
+    <button id="inventory-mobile-expand" class="btn btn-primary">
+      Развернуть <i data-lucide="chevron-up" class="w-4 h-4"></i>
     </button>
   </div>
 
-  <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
-    <div id="inventory-products-container" class="p-3">
-      <div class="flex items-center justify-center py-12 text-slate-400">
-        <i data-lucide="loader-2" class="w-6 h-6 animate-spin"></i>
+  <!-- Мобильная шторка сводки -->
+  <div id="inventory-summary-modal" class="sheet-modal hidden">
+    <div class="sheet-modal-backdrop" id="inventory-summary-modal-backdrop"></div>
+    <div class="sheet-modal-content">
+      <div class="sheet-modal-header">
+        <span class="sheet-modal-title">Сводка</span>
+        <button id="inventory-summary-modal-close" class="btn btn-ghost btn-sm">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div id="inventory-summary-modal-list" class="sheet-modal-body"></div>
+      <div class="sheet-modal-footer">
+        <div class="total-row" style="margin-bottom:12px;">
+          <span class="total-row-label">Итоговый объём</span>
+          <span class="total-row-value" id="inventory-summary-modal-total">0 л</span>
+        </div>
+        <button id="inventory-summary-modal-clear" class="btn btn-outline" style="width:100%;">
+          <i data-lucide="trash-2" class="w-4 h-4"></i> Очистить всё
+        </button>
       </div>
     </div>
   </div>
@@ -663,53 +704,69 @@
 
       <!-- CALCULATOR -->
       <section id="view-calculator" class="tab-content fade-in">
-        <div class="flex items-start justify-between mb-6">
-          <div>
-            <h1 class="text-2xl font-bold text-slate-900">Калькулятор</h1>
-          </div>
-          <button id="calculator-clear-btn" type="button" class="btn btn-outline" style="color: var(--danger);">
-            <i data-lucide="trash-2" class="w-4 h-4"></i>
-            Очистить счёт
-          </button>
-        </div>
+  <!-- Вкладки категорий -->
+  <div class="cat-tabs teal" id="calculator-tabs"></div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div class="lg:col-span-3">
-            <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
-              <div class="p-5 border-b border-slate-100">
-                <h3 class="font-semibold text-slate-900">Продукты</h3>
-              </div>
-              <div id="calculator-products-container" class="p-3">
-                <div class="flex items-center justify-center py-12 text-slate-400">
-                  <i data-lucide="loader-2" class="w-6 h-6 animate-spin"></i>
-                </div>
-              </div>
-            </div>
-          </div>
+  <div class="split-layout">
+    <!-- Продукты -->
+    <div id="calculator-products-container" class="products-grid"></div>
 
-          <div>
-            <div class="calculator-bill-panel bg-white rounded-xl border border-slate-100 overflow-hidden">
-              <div class="p-5 border-b border-slate-100 flex items-center justify-between">
-                <h3 class="font-semibold text-slate-900">Счёт</h3>
-                <span id="calculator-bill-count" class="text-xs font-medium text-slate-500">0 поз.</span>
-              </div>
-              <div id="calculator-bill-container" class="p-5 max-h-[420px] overflow-y-auto scrollbar">
-                <div id="calculator-bill-empty" class="text-center py-10 text-slate-400">
-                  <i data-lucide="receipt" class="w-10 h-10 mx-auto mb-3 opacity-40"></i>
-                  <p class="text-sm">Выберите продукты</p>
-                </div>
-                <div id="calculator-bill-list" class="hidden space-y-2"></div>
-              </div>
-              <div class="p-5 border-t border-slate-100 bg-slate-50">
-                <div class="flex items-center justify-between">
-                  <span class="text-sm font-semibold text-slate-700">Итого:</span>
-                  <span id="calculator-bill-total" class="text-2xl font-bold text-teal-600">0 ₽</span>
-                </div>
-              </div>
-            </div>
-          </div>
+    <!-- Счёт (десктоп) -->
+    <aside class="side-panel">
+      <div class="side-panel-header">
+        <span class="side-panel-title">Счёт</span>
+        <button id="calculator-clear-btn" class="btn btn-ghost btn-sm">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Очистить
+        </button>
+      </div>
+      <div id="calculator-bill-empty" class="side-panel-empty">
+        <i data-lucide="shopping-cart"></i>
+        <p>Выберите продукты</p>
+      </div>
+      <div id="calculator-bill-list" class="side-panel-body hidden"></div>
+      <div class="side-panel-footer">
+        <div class="total-row">
+          <span class="total-row-label" id="calculator-bill-count">0 позиций</span>
+          <span class="total-row-value" id="calculator-bill-total">0 ₽</span>
         </div>
-      </section>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Мобильная мини-панель -->
+  <div id="calculator-mobile-bar" class="mobile-action-bar hidden">
+    <div class="mobile-action-bar-info">
+      <span class="mobile-action-bar-label" id="calculator-mobile-count">0 позиций</span>
+      <span class="mobile-action-bar-value" id="calculator-mobile-total">0 ₽</span>
+    </div>
+    <button id="calculator-mobile-expand" class="btn btn-primary">
+      Развернуть <i data-lucide="chevron-up" class="w-4 h-4"></i>
+    </button>
+  </div>
+
+  <!-- Мобильная шторка счёта -->
+  <div id="calculator-bill-modal" class="sheet-modal hidden">
+    <div class="sheet-modal-backdrop" id="calculator-bill-modal-backdrop"></div>
+    <div class="sheet-modal-content">
+      <div class="sheet-modal-header">
+        <span class="sheet-modal-title">Счёт</span>
+        <button id="calculator-bill-modal-close" class="btn btn-ghost btn-sm">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div id="calculator-bill-modal-list" class="sheet-modal-body"></div>
+      <div class="sheet-modal-footer">
+        <div class="total-row" style="margin-bottom:12px;">
+          <span class="total-row-label" id="calculator-bill-modal-count">0 позиций</span>
+          <span class="total-row-value" id="calculator-bill-modal-total">0 ₽</span>
+        </div>
+        <button id="calculator-bill-modal-clear" class="btn btn-outline" style="width:100%;">
+          <i data-lucide="trash-2" class="w-4 h-4"></i> Очистить счёт
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
 
       <!-- SETTINGS -->
       <section id="view-settings" class="tab-content fade-in">
@@ -856,16 +913,16 @@
 </div>
 
 
-<script src="config.js?v=m3"></script>
-<script src="js/utils.js?v=m3"></script>
-<script src="js/app-core.js?v=m3"></script>
-<script src="js/excise-module.js?v=m3"></script>
-<script src="js/deadlines-module.js?v=m3"></script>
-<script src="js/settings-module.js?v=m3"></script>
-<script src="js/calculator-module.js?v=m3"></script>
-<script src="js/inventory-module.js?v=m3"></script>
-<script src="js/route-handlers.js?v=m3"></script>
-<script src="js/init.js?v=m3"></script>
+<script src="config.js?v=m4"></script>
+<script src="js/utils.js?v=m4"></script>
+<script src="js/app-core.js?v=m4"></script>
+<script src="js/excise-module.js?v=m4"></script>
+<script src="js/deadlines-module.js?v=m4"></script>
+<script src="js/settings-module.js?v=m4"></script>
+<script src="js/calculator-module.js?v=m4"></script>
+<script src="js/inventory-module.js?v=m4"></script>
+<script src="js/route-handlers.js?v=m4"></script>
+<script src="js/init.js?v=m4"></script>
 
 
 <!-- ═══ МОБИЛЬНЫЙ ТАБ-БАР (только телефон) ═══ -->
@@ -894,6 +951,6 @@
   </div>
 </div>
 
-<script src="js/mobile-nav.js?v=m3"></script>
+<script src="js/mobile-nav.js?v=m4"></script>
 </body>
 </html>
