@@ -483,6 +483,68 @@
     applyScrollLock();
   }
 
+
+  // ── Свайп вниз для центрированных модалок (на телефоне они = шторки) ──
+  // Ручка инжектится в начало окна; свайп работает только за ручку/шапку
+  // и только на <=768px. Закрытие идёт через штатный крестик (сброс состояния).
+  function initModalSheetSwipe() {
+    var MODALS = [
+      'deadline-modal-backdrop',
+      'deadline-month-modal-backdrop',
+      'product-modal-backdrop'
+    ];
+    MODALS.forEach(function (id) {
+      var backdrop = document.getElementById(id);
+      if (!backdrop || backdrop.dataset.swipeInit) return;
+      backdrop.dataset.swipeInit = '1';
+      var inner = backdrop.querySelector(':scope > div');
+      if (!inner) return;
+      if (!inner.querySelector(':scope > .modal-sheet-handle')) {
+        var handle = document.createElement('div');
+        handle.className = 'modal-sheet-handle';
+        inner.insertBefore(handle, inner.firstChild);
+      }
+      var startY = 0, dy = 0, dragging = false;
+      inner.addEventListener('touchstart', function (e) {
+        if (!window.matchMedia('(max-width: 768px)').matches) return;
+        var t = e.target;
+        var headerEl = inner.children[1];
+        var inHandle = !!(t.closest && t.closest('.modal-sheet-handle'));
+        var inHeader = !!(headerEl && (headerEl === t || headerEl.contains(t)));
+        if (!inHandle && !inHeader) return; // тело скроллится отдельно
+        dragging = true;
+        startY = e.touches[0].clientY;
+        dy = 0;
+        inner.style.transition = 'none';
+      }, { passive: true });
+      inner.addEventListener('touchmove', function (e) {
+        if (!dragging) return;
+        dy = Math.max(0, e.touches[0].clientY - startY);
+        inner.style.transform = 'translateY(' + dy + 'px)';
+      }, { passive: true });
+      function endDrag() {
+        if (!dragging) return;
+        dragging = false;
+        inner.style.transition = 'transform 0.25s cubic-bezier(0.32, 0.72, 0.24, 1)';
+        if (dy > 90) {
+          inner.style.transform = 'translateY(105%)';
+          setTimeout(function () {
+            var headerEl = inner.children[1];
+            var cb = headerEl && headerEl.querySelector('button');
+            if (cb) cb.click(); else backdrop.classList.add('hidden');
+            inner.style.transform = '';
+            inner.style.transition = '';
+          }, 240);
+        } else {
+          inner.style.transform = '';
+          setTimeout(function () { inner.style.transition = ''; }, 260);
+        }
+      }
+      inner.addEventListener('touchend', endDrag);
+      inner.addEventListener('touchcancel', endDrag);
+    });
+  }
+
   // ── Инициализация ──
   function init() {
     renderAll();
@@ -521,6 +583,7 @@
     initMoreSheetDrag();
     initTabDrag();
     initScrollGuard();
+    initModalSheetSwipe();
   }
 
   function tryInit(attempt) {

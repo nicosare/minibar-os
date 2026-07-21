@@ -1,4 +1,4 @@
-git add -A && git commit -m "deadlines stats -> bottom sheet; modals as sheets on mobile" && git push#!/bin/bash
+#!/bin/bash
 OUT="context.md"
 echo "# MiniBar OS — контекст ($(date '+%Y-%m-%d %H:%M'))" > "$OUT"
 for f in \

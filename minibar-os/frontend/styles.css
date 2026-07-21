@@ -2218,3 +2218,19 @@
   }
   #product-modal-backdrop { z-index: 100 !important; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   PRODUCT-MODAL-SCROLL: длинная форма продукта скроллится на телефоне
+   ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  #product-modal-backdrop > div {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #product-modal-backdrop > div > form {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
