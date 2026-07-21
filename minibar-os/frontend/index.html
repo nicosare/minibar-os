@@ -658,11 +658,9 @@
   <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-hidden flex flex-col fade-in">
     <div class="ms-drag-zone modal-center-drag-zone">
       <div class="ms-handle modal-sheet-handle"></div>
-      <div class="ms-header-row p-4 border-b border-slate-100 flex items-start justify-between">
-        <div>
-          <h3 class="ms-title text-lg font-bold text-slate-900">Добавление сроков</h3>
-        </div>
-        <button id="deadline-month-modal-close" class="ms-close-btn btn btn-ghost" type="button" aria-label="Закрыть">
+      <div class="ms-header-row">
+        <span class="ms-title">Добавление сроков</span>
+        <button id="deadline-month-modal-close" class="ms-close-btn" type="button" aria-label="Закрыть">
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
       </div>
@@ -841,9 +839,9 @@
   <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 fade-in">
     <div class="ms-drag-zone modal-center-drag-zone">
       <div class="ms-handle modal-sheet-handle"></div>
-      <div class="ms-header-row flex items-start justify-between mb-4">
-        <h3 id="product-modal-title" class="ms-title text-lg font-bold text-slate-900">Новый продукт</h3>
-        <button onclick="App.settingsModule.closeProductModal()" class="ms-close-btn btn btn-ghost" type="button" aria-label="Закрыть">
+      <div class="ms-header-row">
+        <span id="product-modal-title" class="ms-title">Новый продукт</span>
+        <button onclick="App.settingsModule.closeProductModal()" class="ms-close-btn" type="button" aria-label="Закрыть">
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
       </div>
