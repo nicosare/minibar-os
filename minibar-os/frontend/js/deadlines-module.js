@@ -63,20 +63,31 @@ App.deadlinesModule = (() => {
     `;
     grids[0].parentNode.insertBefore(bar, grids[0]);
 
+    // Фон шторки (только телефон)
+    const backdrop = document.createElement('div');
+    backdrop.id = 'deadlines-stats-backdrop';
+    backdrop.className = 'dl-stats-backdrop hidden';
+    // Шторка в едином стиле «Ещё»: ручка + шапка + скролл-тело
     const details = document.createElement('div');
     details.id = 'deadlines-details';
     details.className = 'dl-details';
     details.innerHTML = `
-      <div class="dl-details-header">
-        <span class="dl-details-title">Аналитика</span>
-        <button id="deadlines-details-close" class="btn btn-ghost btn-sm">
-          <i data-lucide="x" class="w-4 h-4"></i>
-        </button>
+      <div class="dl-sheet-dragzone">
+        <div class="modal-sheet-handle"></div>
+        <div class="dl-details-header">
+          <span class="dl-details-title">Аналитика</span>
+          <button id="deadlines-details-close" class="btn btn-ghost btn-sm">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
       </div>
+      <div class="dl-sheet-body"></div>
     `;
-    grids[1].parentNode.insertBefore(details, grids[1]);
-    details.appendChild(grids[1]);
-    details.appendChild(grids[2]);
+    grids[1].parentNode.insertBefore(backdrop, grids[1]);
+    backdrop.parentNode.insertBefore(details, backdrop.nextSibling);
+    const body = details.querySelector('.dl-sheet-body');
+    body.appendChild(grids[1]);
+    body.appendChild(grids[2]);
 
     if (window.lucide) lucide.createIcons();
   }
@@ -84,11 +95,56 @@ App.deadlinesModule = (() => {
   function openDetails() {
     const d = document.getElementById('deadlines-details');
     if (!d) return;
+    setupDetailsSheet(); // свайп + фон — один раз
+    const backdrop = document.getElementById('deadlines-stats-backdrop');
+    if (backdrop) {
+      backdrop.classList.remove('hidden');
+      requestAnimationFrame(() => requestAnimationFrame(() => backdrop.classList.add('show')));
+    }
     d.classList.add('open');
     setTimeout(() => renderChart(), 340); // пересчитать canvas после выезда
   }
   function closeDetails() {
-    document.getElementById('deadlines-details')?.classList.remove('open');
+    const d = document.getElementById('deadlines-details');
+    const backdrop = document.getElementById('deadlines-stats-backdrop');
+    if (d) d.classList.remove('open');
+    if (backdrop) {
+      backdrop.classList.remove('show');
+      setTimeout(() => backdrop.classList.add('hidden'), 280);
+    }
+  }
+  // Свайп вниз за ручку/шапку + закрытие по фону
+  function setupDetailsSheet() {
+    const d = document.getElementById('deadlines-details');
+    if (!d || d.dataset.sheetSwipe) return;
+    d.dataset.sheetSwipe = '1';
+    document.getElementById('deadlines-stats-backdrop')?.addEventListener('click', closeDetails);
+    const zone = d.querySelector('.dl-sheet-dragzone');
+    if (!zone) return;
+    let startY = 0, dy = 0, dragging = false;
+    zone.addEventListener('touchstart', (e) => {
+      dragging = true; startY = e.touches[0].clientY; dy = 0;
+      d.style.transition = 'none';
+    }, { passive: true });
+    zone.addEventListener('touchmove', (e) => {
+      if (!dragging) return;
+      dy = Math.max(0, e.touches[0].clientY - startY);
+      d.style.transform = `translateY(${dy}px)`;
+    }, { passive: true });
+    const endDrag = () => {
+      if (!dragging) return;
+      dragging = false;
+      d.style.transition = 'transform 0.25s cubic-bezier(0.32, 0.72, 0.24, 1)';
+      if (dy > 90) {
+        d.style.transform = 'translateY(105%)';
+        setTimeout(() => { closeDetails(); d.style.transform = ''; d.style.transition = ''; }, 240);
+      } else {
+        d.style.transform = '';
+        setTimeout(() => { d.style.transition = ''; }, 260);
+      }
+    };
+    zone.addEventListener('touchend', endDrag);
+    zone.addEventListener('touchcancel', endDrag);
   }
 
   async function loadRooms() {
