@@ -861,10 +861,13 @@ App.deadlinesModule = (() => {
     const sheet = backdrop?.querySelector(':scope > div');
     if (!backdrop) return;
     backdrop.classList.remove('hidden');
-    backdrop.classList.remove('is-closing');
-    backdrop.classList.add('is-open');
     sheet?.classList.remove('modal-sheet-closing');
-    requestAnimationFrame(() => sheet?.classList.add('is-open'));
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        backdrop.classList.add('show');
+        sheet?.classList.add('open');
+      });
+    });
     const list = document.getElementById('deadline-month-modal-list');
     if (list) {
       list.innerHTML = `
@@ -886,17 +889,14 @@ App.deadlinesModule = (() => {
     const backdrop = document.getElementById('deadline-month-modal-backdrop');
     const sheet = backdrop?.querySelector(':scope > div');
     if (!backdrop) return;
-    backdrop.classList.remove('is-open');
-    backdrop.classList.add('is-closing');
-    sheet?.classList.remove('is-open');
+    backdrop.classList.remove('show');
+    sheet?.classList.remove('open');
     sheet?.classList.add('modal-sheet-closing');
     setTimeout(() => {
       backdrop.classList.add('hidden');
-      backdrop.classList.remove('is-closing');
       sheet?.classList.remove('modal-sheet-closing');
-      sheet?.classList.remove('is-open');
       monthManageProducts = [];
-    }, 260);
+    }, 280);
   }
 
   async function saveMonthProduct(productId, rawPeriod, inputEl = null) {

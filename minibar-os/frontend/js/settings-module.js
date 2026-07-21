@@ -199,11 +199,15 @@ App.settingsModule = (() => {
     });
     const backdrop = document.getElementById('product-modal-backdrop');
     const sheet = backdrop?.querySelector(':scope > div');
-    backdrop?.classList.remove('hidden');
-    backdrop?.classList.remove('is-closing');
-    backdrop?.classList.add('is-open');
+    if (!backdrop) return;
+    backdrop.classList.remove('hidden');
     sheet?.classList.remove('modal-sheet-closing');
-    requestAnimationFrame(() => sheet?.classList.add('is-open'));
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        backdrop.classList.add('show');
+        sheet?.classList.add('open');
+      });
+    });
     setTimeout(updatePreview, 50);
     if (window.lucide) lucide.createIcons();
   }
@@ -212,16 +216,13 @@ App.settingsModule = (() => {
     const backdrop = document.getElementById('product-modal-backdrop');
     const sheet = backdrop?.querySelector(':scope > div');
     if (!backdrop) return;
-    backdrop.classList.remove('is-open');
-    backdrop.classList.add('is-closing');
-    sheet?.classList.remove('is-open');
+    backdrop.classList.remove('show');
+    sheet?.classList.remove('open');
     sheet?.classList.add('modal-sheet-closing');
     setTimeout(() => {
       backdrop.classList.add('hidden');
-      backdrop.classList.remove('is-closing');
       sheet?.classList.remove('modal-sheet-closing');
-      sheet?.classList.remove('is-open');
-    }, 260);
+    }, 280);
   }
 
   function updatePreview() {
