@@ -477,11 +477,14 @@
   <div id="inventory-summary-modal" class="sheet-modal hidden">
     <div class="sheet-modal-backdrop" id="inventory-summary-modal-backdrop"></div>
     <div class="sheet-modal-content">
-      <div class="sheet-modal-header">
-        <span class="sheet-modal-title">Сводка</span>
-        <button id="inventory-summary-modal-close" class="btn btn-ghost btn-sm">
-          <i data-lucide="x" class="w-4 h-4"></i>
-        </button>
+      <div class="ms-drag-zone sheet-modal-drag-zone">
+        <div class="ms-handle"></div>
+        <div class="ms-header-row sheet-modal-header">
+          <span class="ms-title sheet-modal-title">Сводка</span>
+          <button id="inventory-summary-modal-close" class="ms-close-btn" type="button" aria-label="Закрыть">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
       </div>
       <div id="inventory-summary-modal-list" class="sheet-modal-body"></div>
       <div class="sheet-modal-footer">
@@ -653,13 +656,14 @@
 <!-- Модальное окно: продукты месяца -->
 <div id="deadline-month-modal-backdrop" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
   <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-hidden flex flex-col fade-in">
-    <div class="p-4 border-b border-slate-100 flex items-start justify-between">
-      <div>
-        <h3 class="text-lg font-bold text-slate-900">Добавление сроков</h3>
+    <div class="ms-drag-zone modal-center-drag-zone">
+      <div class="ms-handle modal-sheet-handle"></div>
+      <div class="ms-header-row">
+        <span class="ms-title">Добавление сроков</span>
+        <button id="deadline-month-modal-close" class="ms-close-btn" type="button" aria-label="Закрыть">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
       </div>
-      <button id="deadline-month-modal-close" class="btn btn-ghost">
-        <i data-lucide="x" class="w-4 h-4"></i>
-      </button>
     </div>
     <div id="deadline-month-modal-list" class="p-4 overflow-y-auto scrollbar flex-1 space-y-2">
       <div class="flex items-center justify-center py-8 text-slate-400 text-sm">
@@ -748,11 +752,14 @@
   <div id="calculator-bill-modal" class="sheet-modal hidden">
     <div class="sheet-modal-backdrop" id="calculator-bill-modal-backdrop"></div>
     <div class="sheet-modal-content">
-      <div class="sheet-modal-header">
-        <span class="sheet-modal-title">Счёт</span>
-        <button id="calculator-bill-modal-close" class="btn btn-ghost btn-sm">
-          <i data-lucide="x" class="w-4 h-4"></i>
-        </button>
+      <div class="ms-drag-zone sheet-modal-drag-zone">
+        <div class="ms-handle"></div>
+        <div class="ms-header-row sheet-modal-header">
+          <span class="ms-title sheet-modal-title">Счёт</span>
+          <button id="calculator-bill-modal-close" class="ms-close-btn" type="button" aria-label="Закрыть">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
       </div>
       <div id="calculator-bill-modal-list" class="sheet-modal-body"></div>
       <div class="sheet-modal-footer">
@@ -830,11 +837,14 @@
 <!-- Модальное окно продукта -->
 <div id="product-modal-backdrop" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
   <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 fade-in">
-    <div class="flex items-start justify-between mb-4">
-      <h3 id="product-modal-title" class="text-lg font-bold text-slate-900">Новый продукт</h3>
-      <button onclick="App.settingsModule.closeProductModal()" class="btn btn-ghost">
-        <i data-lucide="x" class="w-4 h-4"></i>
-      </button>
+    <div class="ms-drag-zone modal-center-drag-zone">
+      <div class="ms-handle modal-sheet-handle"></div>
+      <div class="ms-header-row">
+        <span id="product-modal-title" class="ms-title">Новый продукт</span>
+        <button onclick="App.settingsModule.closeProductModal()" class="ms-close-btn" type="button" aria-label="Закрыть">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
     </div>
     <form id="product-form" class="space-y-3">
       <input type="hidden" id="product-id" />
