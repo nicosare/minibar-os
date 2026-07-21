@@ -2234,3 +2234,45 @@
     -webkit-overflow-scrolling: touch;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   УНИФИКАЦИЯ ШАПОК МОДАЛОК (телефон) — крестик-квадрат + заголовок
+   Классы навешиваются из JS, правила только на <=768px (десктоп не тронут)
+   ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .unified-sheet-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px;
+  }
+  .unified-sheet-close {
+    width: 32px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 10px !important;
+    background: #f1f5f9 !important;
+    color: #64748b !important;
+    border: none !important;
+    flex-shrink: 0 !important;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .unified-sheet-close svg { width: 16px !important; height: 16px !important; }
+  .unified-sheet-close:active { background: #e2e8f0 !important; color: #0f172a !important; }
+
+  /* Форма продукта скроллится внутри шторки, ничего не вылезает */
+  #product-modal-backdrop > div {
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+  #product-modal-backdrop > div > form {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+}
