@@ -499,7 +499,7 @@
       backdrop.dataset.swipeInit = '1';
       var inner = backdrop.querySelector(':scope > div');
       if (!inner) return;
-      if (!inner.querySelector(':scope > .modal-sheet-handle')) {
+      if (!inner.querySelector(':scope > .modal-sheet-handle') && !inner.querySelector(':scope > .modal-center-drag-zone')) {
         var handle = document.createElement('div');
         handle.className = 'modal-sheet-handle';
         inner.insertBefore(handle, inner.firstChild);
@@ -508,10 +508,11 @@
       inner.addEventListener('touchstart', function (e) {
         if (!window.matchMedia('(max-width: 768px)').matches) return;
         var t = e.target;
-        var headerEl = inner.children[1];
-        var inHandle = !!(t.closest && t.closest('.modal-sheet-handle'));
+        var dragZone = inner.querySelector(':scope > .modal-center-drag-zone') || inner.querySelector(':scope > .modal-sheet-handle');
+        var headerEl = dragZone || inner.children[1];
+        var inDragZone = !!(dragZone && (dragZone === t || dragZone.contains(t)));
         var inHeader = !!(headerEl && (headerEl === t || headerEl.contains(t)));
-        if (!inHandle && !inHeader) return; // тело скроллится отдельно
+        if (!inDragZone && !inHeader) return; // тело скроллится отдельно
         dragging = true;
         startY = e.touches[0].clientY;
         dy = 0;
@@ -529,7 +530,7 @@
         if (dy > 90) {
           inner.style.transform = 'translateY(105%)';
           setTimeout(function () {
-            var headerEl = inner.children[1];
+            var headerEl = inner.querySelector(':scope > .modal-center-drag-zone') || inner.children[1];
             var cb = headerEl && headerEl.querySelector('button');
             if (cb) cb.click(); else backdrop.classList.add('hidden');
             inner.style.transform = '';
@@ -542,6 +543,51 @@
       }
       inner.addEventListener('touchend', endDrag);
       inner.addEventListener('touchcancel', endDrag);
+    });
+  }
+
+
+  // ── Единый свайп вниз для простых нижних шторок с ms-drag-zone ──
+  function initPlainSheetSwipe() {
+    ['inventory-summary-modal'].forEach(function (id) {
+      var modal = document.getElementById(id);
+      if (!modal || modal.dataset.plainSwipeInit) return;
+      var content = modal.querySelector('.sheet-modal-content');
+      var zone = modal.querySelector('.ms-drag-zone');
+      var closeBtn = modal.querySelector('.ms-close-btn');
+      if (!content || !zone || !closeBtn) return;
+      modal.dataset.plainSwipeInit = '1';
+      var startY = 0, dy = 0, dragging = false;
+      zone.addEventListener('touchstart', function (e) {
+        if (!window.matchMedia('(max-width: 768px)').matches) return;
+        dragging = true;
+        startY = e.touches[0].clientY;
+        dy = 0;
+        content.style.transition = 'none';
+      }, { passive: true });
+      zone.addEventListener('touchmove', function (e) {
+        if (!dragging) return;
+        dy = Math.max(0, e.touches[0].clientY - startY);
+        content.style.transform = 'translateY(' + dy + 'px)';
+      }, { passive: true });
+      function endDrag() {
+        if (!dragging) return;
+        dragging = false;
+        content.style.transition = 'transform 0.25s cubic-bezier(0.32, 0.72, 0.24, 1)';
+        if (dy > 90) {
+          content.style.transform = 'translateY(105%)';
+          setTimeout(function () {
+            closeBtn.click();
+            content.style.transform = '';
+            content.style.transition = '';
+          }, 240);
+        } else {
+          content.style.transform = '';
+          setTimeout(function () { content.style.transition = ''; }, 260);
+        }
+      }
+      zone.addEventListener('touchend', endDrag);
+      zone.addEventListener('touchcancel', endDrag);
     });
   }
 
@@ -584,6 +630,7 @@
     initTabDrag();
     initScrollGuard();
     initModalSheetSwipe();
+    initPlainSheetSwipe();
   }
 
   function tryInit(attempt) {
