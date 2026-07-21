@@ -2464,3 +2464,44 @@
   #deadline-month-modal-list { padding-left: 20px !important; padding-right: 20px !important; }
   #product-modal-backdrop > div > form { padding: 16px 20px 20px !important; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   ЕДИНЫЙ КРЕСТИК ШТОРКИ (квадрат, иконка по центру) — везде
+   ═══════════════════════════════════════════════════════════════ */
+.sheet-close {
+  width: 32px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 10px !important;
+  background: #f1f5f9 !important;
+  color: #64748b !important;
+  border: none !important;
+  gap: 0 !important;
+  flex-shrink: 0 !important;
+  -webkit-tap-highlight-color: transparent;
+}
+.sheet-close svg { width: 16px !important; height: 16px !important; }
+.sheet-close:active { background: #e2e8f0 !important; color: #0f172a !important; }
+
+@media (max-width: 768px) {
+  /* шапки бывших модалок — крестик по центру строки */
+  #deadline-modal-backdrop > div > [data-sheet-head],
+  #deadline-month-modal-backdrop > div > [data-sheet-head],
+  #product-modal-backdrop > div > [data-sheet-head] {
+    align-items: center !important;
+  }
+  /* модалка продукта — скролл формы внутри шторки */
+  #product-modal-backdrop > div {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  #product-modal-backdrop > div > form {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+}
