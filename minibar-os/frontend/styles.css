@@ -1839,3 +1839,38 @@
 .mobile-tab.active[data-accent="teal"]    { color: #0d9488; }
 .mobile-tab.active[data-accent="blue"]    { color: #2563eb; }
 .mobile-tab.active[data-accent="zinc"]    { color: #3f3f46; }
+
+/* ═══════════════════════════════════════════════════════════════
+   НИЖНЕЕ МЕНЮ: ПЕРЕСТАНОВКА ВКЛАДОК (долгое нажатие + drag)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Запрет системного меню ссылки при долгом нажатии (iOS) и выделения текста */
+#mobile-tabbar .mobile-tab {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* При перестановке: соседние вкладки плавно расступаются */
+#mobile-tabbar.reordering .mobile-tab {
+  transition: transform 0.22s cubic-bezier(0.32, 0.72, 0.24, 1), opacity 0.2s ease;
+}
+
+/* Перетаскиваемая вкладка следует за пальцем без задержки,
+   но тень и фон появляются плавно */
+#mobile-tabbar.reordering .mobile-tab.drag-source {
+  transition: box-shadow 0.2s ease, background 0.2s ease;
+  background: #f8fafc;
+  border-radius: 14px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+}
+
+/* Индикатор активной вкладки на время переноса скрываем */
+.mobile-tab.drag-source::before {
+  display: none;
+}
+
+/* Остальные вкладки слегка приглушены, пока идёт перенос */
+#mobile-tabbar.reordering .mobile-tab:not(.drag-source) {
+  opacity: 0.8;
+}
