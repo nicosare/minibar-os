@@ -1,4 +1,9 @@
-// МОДУЛЬ КАЛЬКУЛЯТОРА (v3 — шторка со свайпом + копирование счёта)
+// МОДУЛЬ КАЛЬКУЛЯТОРА (v4 — шторка на телефоне + страница на ПК)
+// ═══════════════════════════════════════════════════════════════
+// Телефон: тап по «Калькулятор» в таб-баре или шторке «Ещё»
+// открывает шторку с плоской сеткой продуктов (тап = +1, счётчик = −1).
+// ПК: обычная страница с вкладками категорий и боковым счётом.
+// Корзина общая для обоих режимов.
 // ═══════════════════════════════════════════════════════════════
 App.calculatorModule = (() => {
   const api = () => window.api;
@@ -16,6 +21,8 @@ App.calculatorModule = (() => {
   let activeCategory = CATEGORY_ORDER[0];
   let isInitialized = false;
   let isLoaded = false;
+  let sheetBuilt = false;
+  let sheetOpen = false;
 
   function getColorClass(color) {
     return colorMap[color] || 'bg-slate-100';
@@ -26,6 +33,14 @@ App.calculatorModule = (() => {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2
     }) + ' ₽';
+  }
+
+  function vibrate(ms) {
+    if (navigator.vibrate) { try { navigator.vibrate(ms); } catch (e) {} }
+  }
+
+  function isMobile() {
+    return window.matchMedia('(max-width: 768px)').matches;
   }
 
   function getQty(productId) {
@@ -41,12 +56,20 @@ App.calculatorModule = (() => {
     }
     renderProducts();
     renderBill();
+    if (sheetOpen) {
+      updateSheetCard(productId);
+      renderSheetFooter();
+    }
   }
 
   function clearBill() {
     cart = {};
     renderProducts();
     renderBill();
+    if (sheetOpen) {
+      renderSheetGrid();
+      renderSheetFooter();
+    }
   }
 
   function getProductsByCategory() {
@@ -118,6 +141,18 @@ App.calculatorModule = (() => {
     if (window.lucide) lucide.createIcons();
   }
 
+  // Плоский список для шторки: без категорий, но в логичном порядке
+  function sortedFlatProducts() {
+    const catIndex = (p) => {
+      const i = CATEGORY_ORDER.indexOf(p.category || 'Напитки');
+      return i === -1 ? 99 : i;
+    };
+    return [...products].sort((a, b) => {
+      const d = catIndex(a) - catIndex(b);
+      return d !== 0 ? d : a.name.localeCompare(b.name, 'ru');
+    });
+  }
+
   function getBillEntries() {
     return Object.entries(cart)
       .map(([id, qty]) => {
@@ -168,13 +203,13 @@ App.calculatorModule = (() => {
     set('calculator-bill-count', countText);
     set('calculator-bill-total', totalText);
 
-    // Мобильная мини-панель
+    // Мобильная мини-панель (страница)
     const mobileBar = document.getElementById('calculator-mobile-bar');
     if (mobileBar) mobileBar.classList.toggle('hidden', isEmpty);
     set('calculator-mobile-count', countText);
     set('calculator-mobile-total', totalText);
 
-    // Мобильная шторка
+    // Мобильная шторка счёта (страница)
     set('calculator-bill-modal-count', countText);
     set('calculator-bill-modal-total', totalText);
     const modalList = document.getElementById('calculator-bill-modal-list');
@@ -187,7 +222,7 @@ App.calculatorModule = (() => {
     if (window.lucide) lucide.createIcons();
   }
 
-  // ── Копирование счёта ──────────────────────────────────────
+  // ── Копирование счёта ───────────────────────────────────────
   function getBillText() {
     const entries = getBillEntries();
     if (entries.length === 0) return null;
@@ -197,17 +232,29 @@ App.calculatorModule = (() => {
     return lines.join('\n');
   }
 
+  // Тост с высоким z-index — виден поверх любой шторки
+  function sheetToast(message) {
+    const t = document.createElement('div');
+    t.className = 'cs-toast';
+    t.textContent = message;
+    document.body.appendChild(t);
+    requestAnimationFrame(() => t.classList.add('show'));
+    setTimeout(() => {
+      t.classList.remove('show');
+      setTimeout(() => t.remove(), 250);
+    }, 1800);
+  }
+
   async function copyBill() {
     const text = getBillText();
     if (!text) {
-      showToast('Счёт пуст');
+      sheetToast('Счёт пуст');
       return;
     }
     try {
       await navigator.clipboard.writeText(text);
-      showToast('Счёт скопирован');
+      sheetToast('Счёт скопирован');
     } catch (err) {
-      // Фолбэк для браузеров без Clipboard API
       const ta = document.createElement('textarea');
       ta.value = text;
       ta.style.position = 'fixed';
@@ -216,17 +263,16 @@ App.calculatorModule = (() => {
       ta.select();
       try {
         document.execCommand('copy');
-        showToast('Счёт скопирован');
+        sheetToast('Счёт скопирован');
       } catch (e) {
-        showToast('Не удалось скопировать');
+        sheetToast('Не удалось скопировать');
       }
       document.body.removeChild(ta);
     }
   }
 
-  // ── Инъекция кнопок «Копировать» (без правки index.html) ──
+  // ── Инъекция кнопок «Копировать» на странице (без правки index.html) ──
   function injectCopyButtons() {
-    // Десктоп: рядом с «Очистить» в шапке боковой панели
     const clearBtn = document.getElementById('calculator-clear-btn');
     if (clearBtn && !document.getElementById('calculator-copy-btn')) {
       const wrap = document.createElement('div');
@@ -241,7 +287,6 @@ App.calculatorModule = (() => {
       wrap.appendChild(clearBtn);
     }
 
-    // Мобильный: рядом с «Очистить счёт» в футере шторки
     const clearModalBtn = document.getElementById('calculator-bill-modal-clear');
     if (clearModalBtn && !document.getElementById('calculator-bill-modal-copy')) {
       const row = document.createElement('div');
@@ -262,7 +307,6 @@ App.calculatorModule = (() => {
     if (window.lucide) lucide.createIcons();
   }
 
-  // ── Ручка шторки + закрытие свайпом вниз ──────────────────
   function injectSheetHandle() {
     const content = document.querySelector('#calculator-bill-modal .sheet-modal-content');
     if (!content || content.querySelector('.calc-sheet-handle')) return;
@@ -282,7 +326,6 @@ App.calculatorModule = (() => {
     let startY = 0, dy = 0, dragging = false;
 
     content.addEventListener('touchstart', (e) => {
-      // Свайп работает только если касание началось с верхней части (ручка или шапка)
       if (!e.target.closest('.sheet-modal-header') && !e.target.closest('.calc-sheet-handle')) return;
       dragging = true;
       startY = e.touches[0].clientY;
@@ -316,6 +359,238 @@ App.calculatorModule = (() => {
     content.addEventListener('touchcancel', endDrag);
   }
 
+  // ═════════════════════════════════════════════════════════════
+  // ШТОРКА КАЛЬКУЛЯТОРА (только телефон)
+  // ═════════════════════════════════════════════════════════════
+  function buildSheet() {
+    if (sheetBuilt) return;
+    const wrap = document.createElement('div');
+    wrap.id = 'calc-sheet-backdrop';
+    wrap.className = 'hidden';
+    wrap.innerHTML = `
+      <div id="calc-sheet">
+        <div class="cs-drag-zone">
+          <div class="cs-handle"></div>
+          <div class="cs-header">
+            <span class="cs-title">Калькулятор</span>
+            <button type="button" id="cs-close" class="btn btn-ghost btn-sm">
+              <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+        <div class="cs-body">
+          <div class="cs-hint">Нажмите на продукт — добавить · на счётчик — убрать</div>
+          <div id="cs-grid" class="cs-grid"></div>
+        </div>
+        <div class="cs-footer">
+          <div class="cs-totals">
+            <span class="cs-count" id="cs-count">0 позиций</span>
+            <span class="cs-total" id="cs-total">0 ₽</span>
+          </div>
+          <div class="cs-actions">
+            <button type="button" id="cs-copy" class="btn btn-primary" disabled>
+              <i data-lucide="copy" class="w-4 h-4"></i> Копировать
+            </button>
+            <button type="button" id="cs-clear" class="btn btn-outline" disabled>
+              <i data-lucide="trash-2" class="w-4 h-4"></i> Очистить
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(wrap);
+
+    document.getElementById('cs-close').addEventListener('click', closeSheet);
+    wrap.addEventListener('click', (e) => {
+      if (e.target.id === 'calc-sheet-backdrop') closeSheet();
+    });
+    document.getElementById('cs-copy').addEventListener('click', copyBill);
+    document.getElementById('cs-clear').addEventListener('click', () => {
+      if (Object.keys(cart).length === 0) return;
+      if (confirm('Очистить счёт?')) clearBill();
+    });
+
+    // Тап по карточке = +1, тап по счётчику = −1
+    document.getElementById('cs-grid').addEventListener('click', (e) => {
+      const badge = e.target.closest('.cs-badge');
+      if (badge) {
+        changeQty(parseInt(badge.dataset.productId, 10), -1);
+        vibrate(8);
+        return;
+      }
+      const card = e.target.closest('.cs-product');
+      if (card) {
+        changeQty(parseInt(card.dataset.productId, 10), 1);
+        vibrate(8);
+      }
+    });
+
+    setupCalcSheetSwipe();
+    sheetBuilt = true;
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function renderSheetGrid() {
+    const grid = document.getElementById('cs-grid');
+    if (!grid) return;
+    if (!isLoaded) {
+      grid.innerHTML = `
+        <div class="cs-loading">
+          <i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Загрузка...
+        </div>`;
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+    if (products.length === 0) {
+      grid.innerHTML = '<div class="cs-loading">Нет продуктов</div>';
+      return;
+    }
+    grid.innerHTML = sortedFlatProducts().map(p => {
+      const qty = getQty(p.id);
+      const emoji = p.emoji || p.name.charAt(0).toUpperCase();
+      return `
+        <button type="button" class="cs-product${qty > 0 ? ' has-qty' : ''}" data-product-id="${p.id}">
+          ${qty > 0 ? `<span class="cs-badge" data-product-id="${p.id}">${qty}</span>` : ''}
+          <span class="cs-emoji ${getColorClass(p.bgColor)}">${emoji}</span>
+          <span class="cs-name">${escapeHtml(p.name)}</span>
+          <span class="cs-price">${formatMoney(parseFloat(p.price))}</span>
+        </button>
+      `;
+    }).join('');
+  }
+
+  // Точечное обновление карточки (без перерисовки всей сетки)
+  function updateSheetCard(productId) {
+    const grid = document.getElementById('cs-grid');
+    if (!grid) return;
+    const card = grid.querySelector(`.cs-product[data-product-id="${productId}"]`);
+    if (!card) return;
+    const qty = getQty(productId);
+    card.classList.toggle('has-qty', qty > 0);
+    let badge = card.querySelector('.cs-badge');
+    if (qty > 0) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'cs-badge';
+        badge.dataset.productId = productId;
+        card.insertBefore(badge, card.firstChild);
+      }
+      badge.textContent = qty;
+    } else if (badge) {
+      badge.remove();
+    }
+  }
+
+  function renderSheetFooter() {
+    const entries = getBillEntries();
+    const totalQty = entries.reduce((s, e) => s + e.qty, 0);
+    const totalSum = entries.reduce((s, e) => s + e.subtotal, 0);
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set('cs-count', totalQty === 0
+      ? '0 позиций'
+      : `${totalQty} ${pluralize(totalQty, ['позиция', 'позиции', 'позиций'])}`);
+    set('cs-total', formatMoney(totalSum));
+    const empty = entries.length === 0;
+    const copyBtn = document.getElementById('cs-copy');
+    const clearBtn = document.getElementById('cs-clear');
+    if (copyBtn) copyBtn.disabled = empty;
+    if (clearBtn) clearBtn.disabled = empty;
+  }
+
+  function openSheet() {
+    buildSheet();
+    if (!isLoaded && products.length === 0) loadProducts();
+    renderSheetGrid();
+    renderSheetFooter();
+    const backdrop = document.getElementById('calc-sheet-backdrop');
+    backdrop.classList.remove('hidden');
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        backdrop.classList.add('show');
+        document.getElementById('calc-sheet').classList.add('open');
+      });
+    });
+    sheetOpen = true;
+    // Блокируем прокрутку фона
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeSheet() {
+    const backdrop = document.getElementById('calc-sheet-backdrop');
+    if (!backdrop || backdrop.classList.contains('hidden')) return;
+    backdrop.classList.remove('show');
+    document.getElementById('calc-sheet').classList.remove('open');
+    setTimeout(() => backdrop.classList.add('hidden'), 280);
+    sheetOpen = false;
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
+  }
+
+  function setupCalcSheetSwipe() {
+    const sheet = document.getElementById('calc-sheet');
+    const zone = sheet.querySelector('.cs-drag-zone');
+    let startY = 0, dy = 0, dragging = false;
+
+    zone.addEventListener('touchstart', (e) => {
+      dragging = true;
+      startY = e.touches[0].clientY;
+      dy = 0;
+      sheet.style.transition = 'none';
+    }, { passive: true });
+
+    zone.addEventListener('touchmove', (e) => {
+      if (!dragging) return;
+      dy = Math.max(0, e.touches[0].clientY - startY);
+      sheet.style.transform = `translateY(${dy}px)`;
+    }, { passive: true });
+
+    const endDrag = () => {
+      if (!dragging) return;
+      dragging = false;
+      sheet.style.transition = 'transform 0.25s cubic-bezier(0.32, 0.72, 0.24, 1)';
+      if (dy > 90) {
+        sheet.style.transform = 'translateY(105%)';
+        setTimeout(() => {
+          closeSheet();
+          sheet.style.transform = '';
+          sheet.style.transition = '';
+        }, 240);
+      } else {
+        sheet.style.transform = '';
+        setTimeout(() => { sheet.style.transition = ''; }, 260);
+      }
+    };
+    zone.addEventListener('touchend', endDrag);
+    zone.addEventListener('touchcancel', endDrag);
+  }
+
+  // Перехват кликов по «Калькулятор» в мобильной навигации.
+  // Capture-фаза: срабатывает РАНЬШЕ обработчиков mobile-nav
+  // и не даёт им выполнить переход на страницу.
+  function interceptMobileCalculator() {
+    ['mobile-tabbar', 'mobile-more-sheet'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el || el.dataset.calcIntercept) return;
+      el.dataset.calcIntercept = '1';
+      el.addEventListener('click', (e) => {
+        if (!isMobile()) return;
+        const target = e.target.closest('[data-route="calculator"]');
+        if (!target) return;
+        e.preventDefault();
+        e.stopPropagation();
+        // Прикрываем шторку «Ещё», если тап был в ней
+        const moreBackdrop = document.getElementById('mobile-more-backdrop');
+        if (moreBackdrop && !moreBackdrop.classList.contains('hidden')) {
+          moreBackdrop.classList.remove('show');
+          document.getElementById('mobile-more-sheet')?.classList.remove('open');
+          setTimeout(() => moreBackdrop.classList.add('hidden'), 280);
+        }
+        setTimeout(openSheet, 150);
+      }, true);
+    });
+  }
+
   async function loadProducts() {
     const container = document.getElementById('calculator-products-container');
     try {
@@ -323,10 +598,18 @@ App.calculatorModule = (() => {
       isLoaded = true;
       renderProducts();
       renderBill();
+      if (sheetOpen) {
+        renderSheetGrid();
+        renderSheetFooter();
+      }
     } catch (err) {
       console.error('Ошибка загрузки продуктов:', err);
       if (container) {
         container.innerHTML = '<div class="text-center py-12 text-rose-500 text-sm">Не удалось загрузить продукты</div>';
+      }
+      if (sheetOpen) {
+        const grid = document.getElementById('cs-grid');
+        if (grid) grid.innerHTML = '<div class="cs-loading">Не удалось загрузить</div>';
       }
     }
   }
@@ -341,7 +624,6 @@ App.calculatorModule = (() => {
   function setupListeners() {
     if (isInitialized) return;
 
-    // Инъекция кнопок и ручки, свайп
     injectCopyButtons();
     injectSheetHandle();
     setupBillSheetSwipe();
@@ -358,7 +640,6 @@ App.calculatorModule = (() => {
       if (confirm('Очистить счёт?')) clearBill();
     });
 
-    // Копирование счёта (ПК + шторка)
     document.getElementById('calculator-copy-btn')?.addEventListener('click', copyBill);
     document.getElementById('calculator-bill-modal-copy')?.addEventListener('click', copyBill);
 
@@ -373,7 +654,7 @@ App.calculatorModule = (() => {
       }
     });
 
-    // Делегирование кликов по +/− (работает и в сетке, и в счёте, и в шторке)
+    // Делегирование кликов по +/− на странице
     document.addEventListener('click', (e) => {
       if (!e.target.closest('#view-calculator')) return;
       const inc = e.target.closest('.calc-inc-btn');
@@ -400,5 +681,13 @@ App.calculatorModule = (() => {
     }
   }
 
-  return { init, clearBill, changeQty, copyBill };
+  // Перехват регистрируем сразу (не дожидаясь init),
+  // чтобы работал первый же тап по «Калькулятор»
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', interceptMobileCalculator);
+  } else {
+    interceptMobileCalculator();
+  }
+
+  return { init, clearBill, changeQty, copyBill, openSheet, closeSheet };
 })();
