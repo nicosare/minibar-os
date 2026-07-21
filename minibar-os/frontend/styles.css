@@ -1605,10 +1605,11 @@
   bottom: 0; left: 0; right: 0;
   background: white;
   border-radius: 24px 24px 0 0;
-  max-height: 80vh;
+  max-height: 88vh;
   display: flex;
   flex-direction: column;
   padding-bottom: env(safe-area-inset-bottom, 0);
+  box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.18);
   animation: sheetUp 0.3s cubic-bezier(0.32, 0.72, 0.24, 1);
 }
 @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
@@ -1616,11 +1617,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 20px 12px;
-  border-bottom: 1px solid #f1f5f9;
 }
-.sheet-modal-title { font-size: 17px; font-weight: 800; color: #0f172a; }
-.sheet-modal-body { flex: 1; overflow-y: auto; padding: 8px 20px; }
+.sheet-modal-title { font-size: 14px; font-weight: 800; color: #0f172a; }
+.sheet-modal-drag-zone { padding: 12px 20px 0; flex-shrink: 0; cursor: grab; -webkit-tap-highlight-color: transparent; }
+.sheet-modal-body { flex: 1; overflow-y: auto; padding: 0 20px 8px; }
 .sheet-modal-footer { padding: 16px 20px; border-top: 1px solid #f1f5f9; background: #f8fafc; }
 
 /* ── Мобильная адаптация нового дизайна ── */
@@ -1914,12 +1914,7 @@
    -webkit-tap-highlight-color: transparent;
  }
 .cs-drag-zone:active { cursor: grabbing; }
- .cs-handle {
-   width: 40px; height: 4px;
-   border-radius: 2px;
-   background: #e2e8f0;
-   margin: 0 auto 16px;
- }
+ .cs-handle { }
  .cs-header {
    display: flex;
    align-items: center;
@@ -2425,12 +2420,13 @@
    УНИФИКАЦИЯ КРЕСТИКОВ И ШАПОК МОДАЛОК (под эталон «Ещё»)
    ═══════════════════════════════════════════════════════════════ */
 #cs-close,
-#deadlines-details-close {
+#deadlines-details-close,
+.sheet-modal .ms-close-btn {
   width: 32px !important; height: 32px !important; min-height: 32px !important;
   padding: 0 !important; border-radius: 10px !important;
   background: #f1f5f9 !important; color: #64748b !important; border: none !important;
 }
-#cs-close svg, #deadlines-details-close svg { width: 16px !important; height: 16px !important; }
+#cs-close svg, #deadlines-details-close svg, .sheet-modal .ms-close-btn svg { width: 16px !important; height: 16px !important; }
 @media (max-width: 768px) {
   #deadline-modal-backdrop > div,
   #deadline-month-modal-backdrop > div,
