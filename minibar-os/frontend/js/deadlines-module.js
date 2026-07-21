@@ -858,8 +858,11 @@ App.deadlinesModule = (() => {
 
   async function openMonthModal() {
     const backdrop = document.getElementById('deadline-month-modal-backdrop');
+    const sheet = backdrop?.querySelector(':scope > div');
     if (!backdrop) return;
     backdrop.classList.remove('hidden');
+    sheet?.classList.remove('modal-sheet-closing');
+    requestAnimationFrame(() => sheet?.classList.add('is-open'));
     const list = document.getElementById('deadline-month-modal-list');
     if (list) {
       list.innerHTML = `
@@ -878,8 +881,17 @@ App.deadlinesModule = (() => {
   }
 
   function closeMonthModal() {
-    document.getElementById('deadline-month-modal-backdrop')?.classList.add('hidden');
-    monthManageProducts = [];
+    const backdrop = document.getElementById('deadline-month-modal-backdrop');
+    const sheet = backdrop?.querySelector(':scope > div');
+    if (!backdrop) return;
+    sheet?.classList.remove('is-open');
+    sheet?.classList.add('modal-sheet-closing');
+    setTimeout(() => {
+      backdrop.classList.add('hidden');
+      sheet?.classList.remove('modal-sheet-closing');
+      sheet?.classList.remove('is-open');
+      monthManageProducts = [];
+    }, 260);
   }
 
   async function saveMonthProduct(productId, rawPeriod, inputEl = null) {

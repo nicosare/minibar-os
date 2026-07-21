@@ -197,13 +197,26 @@ App.settingsModule = (() => {
         btn.classList.remove('border-slate-900', 'ring-2', 'ring-slate-900/20');
       }
     });
-    document.getElementById('product-modal-backdrop').classList.remove('hidden');
+    const backdrop = document.getElementById('product-modal-backdrop');
+    const sheet = backdrop?.querySelector(':scope > div');
+    backdrop?.classList.remove('hidden');
+    sheet?.classList.remove('modal-sheet-closing');
+    requestAnimationFrame(() => sheet?.classList.add('is-open'));
     setTimeout(updatePreview, 50);
     if (window.lucide) lucide.createIcons();
   }
 
   function closeProductModal() {
-    document.getElementById('product-modal-backdrop')?.classList.add('hidden');
+    const backdrop = document.getElementById('product-modal-backdrop');
+    const sheet = backdrop?.querySelector(':scope > div');
+    if (!backdrop) return;
+    sheet?.classList.remove('is-open');
+    sheet?.classList.add('modal-sheet-closing');
+    setTimeout(() => {
+      backdrop.classList.add('hidden');
+      sheet?.classList.remove('modal-sheet-closing');
+      sheet?.classList.remove('is-open');
+    }, 260);
   }
 
   function updatePreview() {

@@ -2118,13 +2118,15 @@
 /* Center modals reuse the exact same top structure as the “Ещё” sheet. */
 .modal-center-drag-zone {
   padding: 12px 20px 0;
-  cursor: grab;
+  cursor: default;
   -webkit-tap-highlight-color: transparent;
 }
-.modal-center-drag-zone:active { cursor: grabbing; }
+.modal-center-drag-zone:active { cursor: default; }
 #deadline-month-modal-backdrop > div > .modal-center-drag-zone > .modal-sheet-handle,
-#product-modal-backdrop > div > .modal-center-drag-zone > .modal-sheet-handle {
-  display: block;
+#product-modal-backdrop > div > .modal-center-drag-zone > .modal-sheet-handle,
+#deadline-month-modal-backdrop > div > .ms-header-row > .ms-close-btn,
+#product-modal-backdrop > div > .ms-header-row > .ms-close-btn {
+  display: none;
 }
 
 @media (min-width: 769px) {
@@ -2139,10 +2141,34 @@
   #product-modal-backdrop > div > .modal-center-drag-zone {
     flex-shrink: 0;
     padding: 12px 20px 0 !important;
+    cursor: grab;
+  }
+  #deadline-month-modal-backdrop > div > .modal-center-drag-zone:active,
+  #product-modal-backdrop > div > .modal-center-drag-zone:active {
+    cursor: grabbing;
   }
   #deadline-month-modal-backdrop > div > .modal-center-drag-zone > .modal-sheet-handle,
-  #product-modal-backdrop > div > .modal-center-drag-zone > .modal-sheet-handle {
+  #product-modal-backdrop > div > .modal-center-drag-zone > .modal-sheet-handle,
+  #deadline-month-modal-backdrop > div > .ms-header-row > .ms-close-btn,
+  #product-modal-backdrop > div > .ms-header-row > .ms-close-btn {
     display: block !important;
+  }
+
+  #deadline-month-modal-backdrop > div,
+  #product-modal-backdrop > div {
+    transform: translateY(100%);
+    opacity: 0;
+    transition: transform 0.28s cubic-bezier(0.32, 0.72, 0.24, 1), opacity 0.28s ease;
+  }
+  #deadline-month-modal-backdrop:not(.hidden) > div,
+  #product-modal-backdrop:not(.hidden) > div {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  #deadline-month-modal-backdrop > div.modal-sheet-closing,
+  #product-modal-backdrop > div.modal-sheet-closing {
+    transform: translateY(100%);
+    opacity: 0;
   }
 }
 
