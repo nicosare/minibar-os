@@ -2276,3 +2276,146 @@
     -webkit-overflow-scrolling: touch;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   UNIFIED-MODAL-HEADERS: шапки модалок = шторка «Ещё» (mobile)
+   ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* контейнеры шторок — те же метрики, что у #mobile-more-sheet */
+  #deadline-modal-backdrop > div,
+  #deadline-month-modal-backdrop > div,
+  #product-modal-backdrop > div {
+    padding: 0 20px !important;
+    height: auto !important;
+    max-height: 90vh !important;
+    border-radius: 24px 24px 0 0 !important;
+    overflow: hidden !important;
+  }
+  #product-modal-backdrop > div {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  /* обнуляем боковые padding секций (у deadline/month это p-4) */
+  #deadline-modal-backdrop > div > div,
+  #deadline-month-modal-backdrop > div > div {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  /* ручка — единые метрики (как ms-handle в «Ещё») */
+  #deadline-modal-backdrop > div > .modal-sheet-handle,
+  #deadline-month-modal-backdrop > div > .modal-sheet-handle,
+  #product-modal-backdrop > div > .modal-sheet-handle {
+    display: block !important;
+    width: 40px; height: 4px; border-radius: 2px;
+    background: #e2e8f0;
+    margin: 12px auto 16px !important;
+    flex-shrink: 0;
+  }
+
+  /* ШАПКА = ms-header-row в «Ещё» */
+  #deadline-modal-backdrop > div > .modal-sheet-handle + div,
+  #deadline-month-modal-backdrop > div > .modal-sheet-handle + div,
+  #product-modal-backdrop > div > .modal-sheet-handle + div {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin-bottom: 16px !important;
+    border: none !important;
+    background: transparent !important;
+    flex-shrink: 0;
+  }
+
+  #deadline-modal-backdrop > div > .modal-sheet-handle + div > div:first-child,
+  #deadline-month-modal-backdrop > div > .modal-sheet-handle + div > div:first-child {
+    min-width: 0;
+  }
+
+  /* заголовок = ms-title (14/800) */
+  #deadline-modal-backdrop > div > .modal-sheet-handle + div h3,
+  #deadline-month-modal-backdrop > div > .modal-sheet-handle + div h3,
+  #product-modal-backdrop > div > .modal-sheet-handle + div h3 {
+    font-size: 14px !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.01em !important;
+    color: #0f172a !important;
+    line-height: 1.2 !important;
+    margin: 0 !important;
+  }
+  #deadline-modal-room-info {
+    font-size: 11px !important;
+    margin-top: 1px !important;
+    color: #64748b !important;
+  }
+
+  /* КРЕСТИК = серый квадрат (как ms-close-btn) */
+  #deadline-modal-backdrop > div > .modal-sheet-handle + div > button,
+  #deadline-month-modal-backdrop > div > .modal-sheet-handle + div > button,
+  #product-modal-backdrop > div > .modal-sheet-handle + div > button {
+    width: 32px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0 !important;
+    border-radius: 10px !important;
+    background: #f1f5f9 !important;
+    color: #64748b !important;
+    border: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+  }
+  #deadline-modal-backdrop > div > .modal-sheet-handle + div > button svg,
+  #deadline-month-modal-backdrop > div > .modal-sheet-handle + div > button svg,
+  #product-modal-backdrop > div > .modal-sheet-handle + div > button svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+  /* скролл тела (ручка и шапка стоят на месте) */
+  #deadline-modal-products,
+  #deadline-month-modal-list {
+    min-height: 0 !important;
+    padding-top: 0 !important;
+  }
+  #product-modal-backdrop > div > form {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    min-height: 0 !important;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0)) !important;
+  }
+
+  /* ФУТЕР модалки номера — кнопки не обрезаются */
+  #deadline-modal-backdrop > div > div:last-child {
+    padding-top: 12px !important;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0)) !important;
+    border-top: 1px solid #f1f5f9 !important;
+    background: #f8fafc !important;
+    flex-shrink: 0;
+  }
+  #deadline-modal-backdrop > div > div:last-child > div {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+  #deadline-modal-backdrop > div > div:last-child > div > button {
+    width: 100% !important;
+  }
+  #deadline-modal-backdrop > div > div:last-child > div > div {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  #deadline-modal-backdrop > div > div:last-child button {
+    padding: 10px 4px !important;
+    font-size: 11px !important;
+    min-height: 40px !important;
+    justify-content: center !important;
+  }
+}
