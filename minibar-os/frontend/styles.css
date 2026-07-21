@@ -1732,7 +1732,7 @@
     margin-bottom: 4px;
     z-index: 5;
   }
-  .dl-details-title { font-size: 16px; font-weight: 800; color: #0f172a; }
+   .dl-details-title { font-size: 14px; font-weight: 800; color: #0f172a; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1907,40 +1907,41 @@
 #calc-sheet.open { transform: translateY(0); }
 
 /* Ручка и шапка (зона свайпа вниз) */
-.cs-drag-zone {
-  flex-shrink: 0;
-  padding: 10px 20px 0;
-  cursor: grab;
-  -webkit-tap-highlight-color: transparent;
-}
+ .cs-drag-zone {
+   flex-shrink: 0;
+   padding: 12px 20px 0;
+   cursor: grab;
+   -webkit-tap-highlight-color: transparent;
+ }
 .cs-drag-zone:active { cursor: grabbing; }
-.cs-handle {
-  width: 40px; height: 4px;
-  border-radius: 2px;
-  background: #e2e8f0;
-  margin: 0 auto 8px;
-}
-.cs-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #f1f5f9;
-}
-.cs-title {
-  font-size: 17px;
-  font-weight: 800;
-  color: #0f172a;
-  letter-spacing: -0.01em;
-}
+ .cs-handle {
+   width: 40px; height: 4px;
+   border-radius: 2px;
+   background: #e2e8f0;
+   margin: 0 auto 16px;
+ }
+ .cs-header {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   padding-bottom: 0;
+   margin-bottom: 16px;
+   border-bottom: none;
+ }
+ .cs-title {
+   font-size: 14px;
+   font-weight: 800;
+   color: #0f172a;
+   letter-spacing: -0.01em;
+ }
 
 /* Тело шторки */
-.cs-body {
-  flex: 1;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  padding: 12px 16px 16px;
-}
+ .cs-body {
+   flex: 1;
+   overflow-y: auto;
+   -webkit-overflow-scrolling: touch;
+   padding: 0 20px 16px;
+ }
 .cs-hint {
   font-size: 11.5px;
   color: #94a3b8;
@@ -2037,16 +2038,16 @@
 }
 
 /* Футер с итогом */
-.cs-footer {
-  flex-shrink: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-top: 1px solid #f1f5f9;
-  background: #f8fafc;
-}
+ .cs-footer {
+   flex-shrink: 0;
+   display: grid;
+   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+   align-items: center;
+   gap: 12px;
+   padding: 12px 20px;
+   border-top: 1px solid #f1f5f9;
+   background: #f8fafc;
+ }
 .cs-totals { display: flex; flex-direction: column; flex-shrink: 0; justify-self: start; min-width: 0; }
 .cs-total { white-space: nowrap; }
 #cs-copy { justify-self: center; }
@@ -2123,16 +2124,16 @@
    ═══════════════════════════════════════════════════════════════ */
 
 /* Универсальная ручка шторки */
-.modal-sheet-handle {
-  display: none;
-  width: 40px;
-  height: 4px;
-  border-radius: 2px;
-  background: #e2e8f0;
-  margin: 10px auto 4px;
-  flex-shrink: 0;
-  cursor: grab;
-}
+ .modal-sheet-handle {
+   display: none;
+   width: 40px;
+   height: 4px;
+   border-radius: 2px;
+   background: #e2e8f0;
+   margin: 0 auto 16px;
+   flex-shrink: 0;
+   cursor: grab;
+ }
 .modal-sheet-handle:active { cursor: grabbing; background: #cbd5e1; }
 
 /* Backdrop шторки статистики (Сроки) */
@@ -2171,31 +2172,31 @@
     transition: transform 0.3s cubic-bezier(0.32, 0.72, 0.24, 1);
   }
   .dl-details.open { transform: translateY(0); }
-  .dl-sheet-dragzone {
-    flex-shrink: 0;
-    padding: 0 20px;
-    cursor: grab;
-    -webkit-tap-highlight-color: transparent;
-  }
+   .dl-sheet-dragzone {
+     flex-shrink: 0;
+     padding: 12px 20px 0;
+     cursor: grab;
+     -webkit-tap-highlight-color: transparent;
+   }
   .dl-sheet-dragzone:active { cursor: grabbing; }
-  .dl-details-header {
-    position: relative;
-    top: auto;
-    background: transparent;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 4px 0 12px;
-    margin-bottom: 0;
-    border-bottom: 1px solid #f1f5f9;
-    z-index: auto;
-  }
-  .dl-sheet-body {
-    flex: 1;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    padding: 16px;
-  }
+   .dl-details-header {
+     position: relative;
+     top: auto;
+     background: transparent;
+     display: flex;
+     align-items: center;
+     justify-content: space-between;
+     padding: 0;
+     margin-bottom: 16px;
+     border-bottom: none;
+     z-index: auto;
+   }
+   .dl-sheet-body {
+     flex: 1;
+     overflow-y: auto;
+     -webkit-overflow-scrolling: touch;
+     padding: 0 20px 20px;
+   }
 
   /* ── Центрированные модалки → нижние шторки ── */
   #deadline-modal-backdrop,
@@ -2418,4 +2419,48 @@
     min-height: 40px !important;
     justify-content: center !important;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   УНИФИКАЦИЯ КРЕСТИКОВ И ШАПОК МОДАЛОК (под эталон «Ещё»)
+   ═══════════════════════════════════════════════════════════════ */
+#cs-close,
+#deadlines-details-close {
+  width: 32px !important; height: 32px !important; min-height: 32px !important;
+  padding: 0 !important; border-radius: 10px !important;
+  background: #f1f5f9 !important; color: #64748b !important; border: none !important;
+}
+#cs-close svg, #deadlines-details-close svg { width: 16px !important; height: 16px !important; }
+@media (max-width: 768px) {
+  #deadline-modal-backdrop > div,
+  #deadline-month-modal-backdrop > div,
+  #product-modal-backdrop > div { padding: 0 !important; }
+  #deadline-modal-backdrop > div > .modal-sheet-handle + div,
+  #deadline-month-modal-backdrop > div > .modal-sheet-handle + div,
+  #product-modal-backdrop > div > .modal-sheet-handle + div {
+    padding: 12px 20px 0 !important; border-bottom: none !important;
+    align-items: center !important; margin-bottom: 16px !important;
+  }
+  #deadline-modal-backdrop > div > .modal-sheet-handle + div h3,
+  #deadline-month-modal-backdrop > div > .modal-sheet-handle + div h3,
+  #product-modal-backdrop > div > .modal-sheet-handle + div h3 {
+    font-size: 14px !important; font-weight: 800 !important;
+    letter-spacing: -0.01em !important; margin: 0 !important;
+  }
+  #deadline-modal-backdrop > div > .modal-sheet-handle + div button,
+  #deadline-month-modal-backdrop > div > .modal-sheet-handle + div button,
+  #product-modal-backdrop > div > .modal-sheet-handle + div button {
+    width: 32px !important; height: 32px !important; min-height: 32px !important;
+    padding: 0 !important; border-radius: 10px !important;
+    background: #f1f5f9 !important; color: #64748b !important; border: none !important;
+  }
+  #deadline-modal-backdrop > div > .modal-sheet-handle + div button svg,
+  #deadline-month-modal-backdrop > div > .modal-sheet-handle + div button svg,
+  #product-modal-backdrop > div > .modal-sheet-handle + div button svg {
+    width: 16px !important; height: 16px !important;
+  }
+  #deadline-modal-products { padding-left: 20px !important; padding-right: 20px !important; }
+  #deadline-modal-backdrop > div > div:last-child { padding-left: 20px !important; padding-right: 20px !important; }
+  #deadline-month-modal-list { padding-left: 20px !important; padding-right: 20px !important; }
+  #product-modal-backdrop > div > form { padding: 16px 20px 20px !important; }
 }
