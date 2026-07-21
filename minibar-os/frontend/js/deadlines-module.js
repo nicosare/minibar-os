@@ -72,11 +72,11 @@ App.deadlinesModule = (() => {
     details.id = 'deadlines-details';
     details.className = 'dl-details';
     details.innerHTML = `
-      <div class="dl-sheet-dragzone">
-        <div class="modal-sheet-handle"></div>
-        <div class="dl-details-header">
-          <span class="dl-details-title">Аналитика</span>
-          <button id="deadlines-details-close" class="btn btn-ghost btn-sm">
+      <div class="ms-drag-zone dl-sheet-dragzone">
+        <div class="ms-handle modal-sheet-handle"></div>
+        <div class="ms-header-row dl-details-header">
+          <span class="ms-title dl-details-title">Аналитика</span>
+          <button id="deadlines-details-close" class="ms-close-btn" type="button" aria-label="Закрыть">
             <i data-lucide="x" class="w-4 h-4"></i>
           </button>
         </div>

@@ -545,6 +545,51 @@
     });
   }
 
+
+  // ── Единый свайп вниз для простых нижних шторок с ms-drag-zone ──
+  function initPlainSheetSwipe() {
+    ['inventory-summary-modal'].forEach(function (id) {
+      var modal = document.getElementById(id);
+      if (!modal || modal.dataset.plainSwipeInit) return;
+      var content = modal.querySelector('.sheet-modal-content');
+      var zone = modal.querySelector('.ms-drag-zone');
+      var closeBtn = modal.querySelector('.ms-close-btn');
+      if (!content || !zone || !closeBtn) return;
+      modal.dataset.plainSwipeInit = '1';
+      var startY = 0, dy = 0, dragging = false;
+      zone.addEventListener('touchstart', function (e) {
+        if (!window.matchMedia('(max-width: 768px)').matches) return;
+        dragging = true;
+        startY = e.touches[0].clientY;
+        dy = 0;
+        content.style.transition = 'none';
+      }, { passive: true });
+      zone.addEventListener('touchmove', function (e) {
+        if (!dragging) return;
+        dy = Math.max(0, e.touches[0].clientY - startY);
+        content.style.transform = 'translateY(' + dy + 'px)';
+      }, { passive: true });
+      function endDrag() {
+        if (!dragging) return;
+        dragging = false;
+        content.style.transition = 'transform 0.25s cubic-bezier(0.32, 0.72, 0.24, 1)';
+        if (dy > 90) {
+          content.style.transform = 'translateY(105%)';
+          setTimeout(function () {
+            closeBtn.click();
+            content.style.transform = '';
+            content.style.transition = '';
+          }, 240);
+        } else {
+          content.style.transform = '';
+          setTimeout(function () { content.style.transition = ''; }, 260);
+        }
+      }
+      zone.addEventListener('touchend', endDrag);
+      zone.addEventListener('touchcancel', endDrag);
+    });
+  }
+
   // ── Инициализация ──
   function init() {
     renderAll();
@@ -584,6 +629,7 @@
     initTabDrag();
     initScrollGuard();
     initModalSheetSwipe();
+    initPlainSheetSwipe();
   }
 
   function tryInit(attempt) {

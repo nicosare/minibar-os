@@ -308,12 +308,7 @@ App.calculatorModule = (() => {
   }
 
   function injectSheetHandle() {
-    const content = document.querySelector('#calculator-bill-modal .sheet-modal-content');
-    if (!content || content.querySelector('.calc-sheet-handle')) return;
-    const handle = document.createElement('div');
-    handle.className = 'calc-sheet-handle';
-    handle.style.cssText = 'width:40px;height:4px;border-radius:2px;background:#e2e8f0;margin:10px auto 2px;flex-shrink:0;';
-    content.insertBefore(handle, content.firstChild);
+    // Ручка и шапка уже заданы в HTML единой структурой ms-drag-zone/ms-header-row.
   }
 
   function setupBillSheetSwipe() {
@@ -326,7 +321,7 @@ App.calculatorModule = (() => {
     let startY = 0, dy = 0, dragging = false;
 
     content.addEventListener('touchstart', (e) => {
-      if (!e.target.closest('.sheet-modal-header') && !e.target.closest('.calc-sheet-handle')) return;
+      if (!e.target.closest('.sheet-modal-drag-zone') && !e.target.closest('.sheet-modal-header')) return;
       dragging = true;
       startY = e.touches[0].clientY;
       dy = 0;
@@ -369,11 +364,11 @@ App.calculatorModule = (() => {
     wrap.className = 'hidden';
     wrap.innerHTML = `
       <div id="calc-sheet">
-        <div class="cs-drag-zone">
-          <div class="cs-handle"></div>
-          <div class="cs-header">
-            <span class="cs-title">Калькулятор</span>
-            <button type="button" id="cs-close" class="btn btn-ghost btn-sm">
+        <div class="ms-drag-zone cs-drag-zone">
+          <div class="ms-handle cs-handle"></div>
+          <div class="ms-header-row cs-header">
+            <span class="ms-title cs-title">Калькулятор</span>
+            <button type="button" id="cs-close" class="ms-close-btn" aria-label="Закрыть">
               <i data-lucide="x" class="w-4 h-4"></i>
             </button>
           </div>
