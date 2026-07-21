@@ -2136,6 +2136,24 @@
   }
 }
 
+#deadline-month-modal-backdrop,
+#product-modal-backdrop {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.28s cubic-bezier(0.32, 0.72, 0.24, 1);
+}
+#deadline-month-modal-backdrop.is-open,
+#product-modal-backdrop.is-open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+#deadline-month-modal-backdrop.is-closing,
+#product-modal-backdrop.is-closing {
+  opacity: 0;
+}
+
 @media (max-width: 768px) {
   #deadline-month-modal-backdrop > div > .modal-center-drag-zone,
   #product-modal-backdrop > div > .modal-center-drag-zone {
@@ -2160,8 +2178,8 @@
     opacity: 0;
     transition: transform 0.28s cubic-bezier(0.32, 0.72, 0.24, 1), opacity 0.28s ease;
   }
-  #deadline-month-modal-backdrop:not(.hidden) > div,
-  #product-modal-backdrop:not(.hidden) > div {
+  #deadline-month-modal-backdrop.is-open > div,
+  #product-modal-backdrop.is-open > div {
     transform: translateY(0);
     opacity: 1;
   }
