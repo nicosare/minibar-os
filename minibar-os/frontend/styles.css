@@ -1874,3 +1874,211 @@
 #mobile-tabbar.reordering .mobile-tab:not(.drag-source) {
   opacity: 0.8;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   ШТОРКА КАЛЬКУЛЯТОРА (только телефон)
+   ═══════════════════════════════════════════════════════════════ */
+#calc-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(15, 23, 42, 0.5);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+#calc-sheet-backdrop.hidden { display: none !important; }
+#calc-sheet-backdrop.show { opacity: 1; }
+
+#calc-sheet {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: #fff;
+  border-radius: 24px 24px 0 0;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.18);
+  transform: translateY(102%);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0.24, 1);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+#calc-sheet.open { transform: translateY(0); }
+
+/* Ручка и шапка (зона свайпа вниз) */
+.cs-drag-zone {
+  flex-shrink: 0;
+  padding: 10px 20px 0;
+  cursor: grab;
+  -webkit-tap-highlight-color: transparent;
+}
+.cs-drag-zone:active { cursor: grabbing; }
+.cs-handle {
+  width: 40px; height: 4px;
+  border-radius: 2px;
+  background: #e2e8f0;
+  margin: 0 auto 8px;
+}
+.cs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.cs-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+/* Тело шторки */
+.cs-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 16px 16px;
+}
+.cs-hint {
+  font-size: 11.5px;
+  color: #94a3b8;
+  text-align: center;
+  margin-bottom: 12px;
+}
+.cs-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.cs-loading {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13px;
+  padding: 24px 0;
+}
+
+/* Карточка продукта */
+.cs-product {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 6px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  font: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.cs-product:active { transform: scale(0.96); }
+.cs-product.has-qty { border-color: #5eead4; background: #f0fdfa; }
+
+.cs-emoji {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+.cs-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.25;
+  text-align: center;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 30px;
+}
+.cs-price {
+  font-size: 11px;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Счётчик на карточке (тап = −1) */
+.cs-badge {
+  position: absolute;
+  top: -7px; right: -7px;
+  min-width: 22px; height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  background: #0d9488;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(13, 148, 136, 0.4);
+  font-variant-numeric: tabular-nums;
+  animation: cs-badge-pop 0.2s ease;
+}
+@keyframes cs-badge-pop {
+  from { transform: scale(0.5); }
+  to { transform: scale(1); }
+}
+
+/* Футер с итогом */
+.cs-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid #f1f5f9;
+  background: #f8fafc;
+}
+.cs-totals { display: flex; flex-direction: column; flex-shrink: 0; }
+.cs-count { font-size: 11px; color: #64748b; }
+.cs-total {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.cs-actions { display: flex; gap: 8px; flex: 1; max-width: 260px; }
+.cs-actions .btn { flex: 1; justify-content: center; }
+
+/* Тост поверх шторки */
+.cs-toast {
+  position: fixed;
+  bottom: calc(90px + env(safe-area-inset-bottom, 0));
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  background: #0f172a;
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 200;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.3);
+  white-space: nowrap;
+}
+.cs-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
