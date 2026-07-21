@@ -228,7 +228,22 @@
     zone.className = 'ms-drag-zone';
     handle.parentNode.insertBefore(zone, handle);
     zone.appendChild(handle);
-    if (title) zone.appendChild(title);
+    // Шапка: заголовок + крестик закрытия
+    var headerRow = document.createElement('div');
+    headerRow.className = 'ms-header-row';
+    if (title) headerRow.appendChild(title);
+    var closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'ms-close-btn';
+    closeBtn.setAttribute('aria-label', 'Закрыть');
+    closeBtn.innerHTML = '<i data-lucide="x"></i>';
+    closeBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      closeMoreSheet();
+    });
+    headerRow.appendChild(closeBtn);
+    zone.appendChild(headerRow);
+    if (window.lucide) lucide.createIcons();
   }
 
   function initMoreSheetDrag() {

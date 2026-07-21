@@ -387,14 +387,12 @@ App.calculatorModule = (() => {
             <span class="cs-count" id="cs-count">0 позиций</span>
             <span class="cs-total" id="cs-total">0 ₽</span>
           </div>
-          <div class="cs-actions">
-            <button type="button" id="cs-copy" class="btn btn-primary" disabled>
+          <button type="button" id="cs-copy" class="btn btn-primary btn-sm" disabled>
               <i data-lucide="copy" class="w-4 h-4"></i> Копировать
             </button>
-            <button type="button" id="cs-clear" class="btn btn-outline" disabled>
+          <button type="button" id="cs-clear" class="btn btn-outline btn-sm" disabled>
               <i data-lucide="trash-2" class="w-4 h-4"></i> Очистить
             </button>
-          </div>
         </div>
       </div>
     `;
@@ -415,13 +413,13 @@ App.calculatorModule = (() => {
       const badge = e.target.closest('.cs-badge');
       if (badge) {
         changeQty(parseInt(badge.dataset.productId, 10), -1);
-        vibrate(8);
+        vibrate(20);
         return;
       }
       const card = e.target.closest('.cs-product');
       if (card) {
         changeQty(parseInt(card.dataset.productId, 10), 1);
-        vibrate(8);
+        vibrate(20);
       }
     });
 

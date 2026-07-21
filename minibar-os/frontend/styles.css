@@ -2039,26 +2039,26 @@
 /* Футер с итогом */
 .cs-footer {
   flex-shrink: 0;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   padding: 12px 16px;
   border-top: 1px solid #f1f5f9;
   background: #f8fafc;
 }
-.cs-totals { display: flex; flex-direction: column; flex-shrink: 0; }
+.cs-totals { display: flex; flex-direction: column; flex-shrink: 0; justify-self: start; min-width: 0; }
+.cs-total { white-space: nowrap; }
+#cs-copy { justify-self: center; }
+#cs-clear { justify-self: end; }
 .cs-count { font-size: 11px; color: #64748b; }
 .cs-total {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 800;
   color: #0f172a;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
 }
-.cs-actions { display: flex; gap: 8px; flex: 1; max-width: 260px; }
-.cs-actions .btn { flex: 1; justify-content: center; }
-
 /* Тост поверх шторки */
 .cs-toast {
   position: fixed;
@@ -2081,4 +2081,39 @@
 .cs-toast.show {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ШТОРКА «ЕЩЁ»: КРЕСТИК ЗАКРЫТИ
+   ═══════════════════════════════════════════════════════════════ */
+.ms-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.ms-drag-zone .ms-title {
+  margin-bottom: 0;
+}
+.ms-close-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #64748b;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.ms-close-btn svg { width: 16px; height: 16px; }
+.ms-close-btn:active {
+  transform: scale(0.9);
+  background: #e2e8f0;
+  color: #0f172a;
 }
