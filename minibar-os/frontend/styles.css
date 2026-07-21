@@ -2114,6 +2114,46 @@
   color: #0f172a;
 }
 
+
+/* Desktop keeps centered modals visually unchanged; mobile turns the wrapper into the same drag/header zone as “Ещё”. */
+.modal-center-drag-zone { display: contents; }
+.modal-center-drag-zone > .modal-sheet-handle { display: none; }
+.modal-center-drag-zone > .ms-header-row { margin-bottom: 0; }
+.modal-center-drag-zone .ms-title { margin-bottom: 0; }
+
+@media (max-width: 768px) {
+  #deadline-month-modal-backdrop > div > .modal-center-drag-zone,
+  #product-modal-backdrop > div > .modal-center-drag-zone {
+    display: block !important;
+    flex-shrink: 0;
+    padding: 12px 20px 0 !important;
+    cursor: grab;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #deadline-month-modal-backdrop > div > .modal-center-drag-zone:active,
+  #product-modal-backdrop > div > .modal-center-drag-zone:active { cursor: grabbing; }
+  #deadline-month-modal-backdrop > div > .modal-center-drag-zone > .modal-sheet-handle,
+  #product-modal-backdrop > div > .modal-center-drag-zone > .modal-sheet-handle {
+    display: block !important;
+    width: 40px !important;
+    height: 4px !important;
+    border-radius: 2px !important;
+    background: #e2e8f0 !important;
+    margin: 0 auto 16px !important;
+  }
+  #deadline-month-modal-backdrop > div > .modal-center-drag-zone > .ms-header-row,
+  #product-modal-backdrop > div > .modal-center-drag-zone > .ms-header-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    padding: 0 !important;
+    margin: 0 0 16px !important;
+    border: none !important;
+    background: transparent !important;
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════
    ЕДИНЫЙ СТИЛЬ ШТОРОК (в стиле шторки «Ещё») — все окна на телефоне
    ═══════════════════════════════════════════════════════════════ */

@@ -499,7 +499,7 @@
       backdrop.dataset.swipeInit = '1';
       var inner = backdrop.querySelector(':scope > div');
       if (!inner) return;
-      if (!inner.querySelector(':scope > .modal-sheet-handle')) {
+      if (!inner.querySelector(':scope > .modal-sheet-handle') && !inner.querySelector(':scope > .modal-center-drag-zone')) {
         var handle = document.createElement('div');
         handle.className = 'modal-sheet-handle';
         inner.insertBefore(handle, inner.firstChild);
@@ -508,10 +508,11 @@
       inner.addEventListener('touchstart', function (e) {
         if (!window.matchMedia('(max-width: 768px)').matches) return;
         var t = e.target;
-        var headerEl = inner.children[1];
-        var inHandle = !!(t.closest && t.closest('.modal-sheet-handle'));
+        var dragZone = inner.querySelector(':scope > .modal-center-drag-zone') || inner.querySelector(':scope > .modal-sheet-handle');
+        var headerEl = dragZone || inner.children[1];
+        var inDragZone = !!(dragZone && (dragZone === t || dragZone.contains(t)));
         var inHeader = !!(headerEl && (headerEl === t || headerEl.contains(t)));
-        if (!inHandle && !inHeader) return; // тело скроллится отдельно
+        if (!inDragZone && !inHeader) return; // тело скроллится отдельно
         dragging = true;
         startY = e.touches[0].clientY;
         dy = 0;
@@ -529,7 +530,7 @@
         if (dy > 90) {
           inner.style.transform = 'translateY(105%)';
           setTimeout(function () {
-            var headerEl = inner.children[1];
+            var headerEl = inner.querySelector(':scope > .modal-center-drag-zone') || inner.children[1];
             var cb = headerEl && headerEl.querySelector('button');
             if (cb) cb.click(); else backdrop.classList.add('hidden');
             inner.style.transform = '';
