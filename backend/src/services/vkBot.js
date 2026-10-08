@@ -68,7 +68,7 @@ export function parseVkOperationalMessage(rawText) {
   }
 
   return {
-    rooms: matches.map(match => Number(match[0])),
+    rooms: [...new Set(matches.map(match => Number(match[0])))],
     emptied: Boolean(emptyMatch)
   };
 }
@@ -110,7 +110,7 @@ export async function processVkBotMessage({
           peerId,
           messageId: messageId === null || messageId === undefined
             ? null
-            : Number(messageId),
+            : (Number.isSafeInteger(Number(messageId)) ? Number(messageId) : null),
           text,
           eventType: parsed.emptied ? 'emptied' : 'room',
           occurredAt: eventDate
