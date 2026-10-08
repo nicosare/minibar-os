@@ -9,6 +9,7 @@ import templatesRouter from './routes/templates.js';
 import checksRouter from './routes/checks.js';
 import excisesRouter from './routes/excises.js';
 import listsRouter from './routes/lists.js';
+import vkBotRouter from './routes/vk-bot.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,6 +31,7 @@ export function createApp() {
   app.use('/api/checks', checksRouter);
   app.use('/api/excises', excisesRouter);
   app.use('/api/lists', listsRouter);
+  app.use('/api/vk-bot', vkBotRouter);
 
   app.use((err, req, res, next) => {
     console.error('Unhandled error:', err);
