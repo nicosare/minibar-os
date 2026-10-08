@@ -72,19 +72,20 @@ services:
       - "127.0.0.1:3001:3001"
     restart: unless-stopped
 
-
   vk-bot:
     build:
       context: ./vk-bot
     container_name: minibar-vk-bot
     environment:
-      VK_BOT_ACCESS_TOKEN: ${VK_BOT_ACCESS_TOKEN}
-      VK_API_VERSION: ${VK_API_VERSION}
       VK_BOT_GROUP_ID: ${VK_BOT_GROUP_ID}
       VK_BOT_ALLOWED_PEER_IDS: ${VK_BOT_ALLOWED_PEER_IDS:-2000000352}
-      VK_LONGPOLL_VERSION: ${VK_LONGPOLL_VERSION:-3}
+      VK_CALLBACK_SECRET: ${VK_CALLBACK_SECRET}
+      VK_CALLBACK_CONFIRMATION: ${VK_CALLBACK_CONFIRMATION}
+      VK_BOT_HTTP_PORT: 3002
       MINIBAR_API_URL: http://backend:3000
       VK_BOT_INTERNAL_TOKEN: ${VK_BOT_INTERNAL_TOKEN}
+    ports:
+      - "127.0.0.1:${VK_BOT_HTTP_PORT:-3002}:3002"
     depends_on:
       - backend
     restart: unless-stopped
