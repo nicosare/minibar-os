@@ -736,36 +736,48 @@
 <script type="module">
 import bridge from 'https://cdn.jsdelivr.net/npm/@vkontakte/vk-bridge@3.0.2/+esm';
 
-/* Rooms Data Generator */
-function generateRoomsData() {
-  const rooms = [];
-  [500, 509, 534].forEach(n => rooms.push({ number: String(n), floor: 5, type: 'suite' }));
-  [502, 504, 506, 508, 510, 512, 514, 516, 518, 520, 522, 524, 526, 528, 530, 532].forEach(n => rooms.push({ number: String(n), floor: 5, type: 'standard' }));
+let ALL_ROOMS = [];
+let ROOM_BY_NUMBER = new Map();
+let FLOORS = [];
+let queueRemaining = 0;
 
-  [600, 609, 634].forEach(n => rooms.push({ number: String(n), floor: 6, type: 'suite' }));
-  [602, 604, 606, 608, 610, 612, 614, 616, 618, 620, 622, 624, 626, 628, 630, 632].forEach(n => rooms.push({ number: String(n), floor: 6, type: 'standard' }));
+const API_BASE = '/api';
 
-  for (let f = 7; f <= 17; f++) {
-    const suites = [f*100, f*100+9, f*100+17, f*100+25, f*100+34];
-    const stds = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32].map(x => f*100 + x);
-    suites.forEach(n => rooms.push({ number: String(n), floor: f, type: 'suite' }));
-    stds.forEach(n => rooms.push({ number: String(n), floor: f, type: 'standard' }));
+async function loadRooms() {
+  const response = await fetch(API_BASE + '/rooms', {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+    cache: 'no-store'
+  });
+
+  if (!response.ok) {
+    throw new Error('Не удалось загрузить номера (HTTP ' + response.status + ')');
   }
 
-  [1800, 1807, 1811, 1818].forEach(n => rooms.push({ number: String(n), floor: 18, type: 'suite' }));
-  [1802, 1804, 1806, 1808, 1810, 1812, 1814, 1816].forEach(n => rooms.push({ number: String(n), floor: 18, type: 'standard' }));
+  const rows = await response.json();
 
-  [1911, 1919].forEach(n => rooms.push({ number: String(n), floor: 19, type: 'suite' }));
-  [1902, 1904, 1906, 1908, 1910, 1912, 1914, 1916, 1918, 1920].forEach(n => rooms.push({ number: String(n), floor: 19, type: 'standard' }));
+  if (!Array.isArray(rows) || rows.length === 0) {
+    throw new Error('API не вернул список номеров');
+  }
 
-  rooms.sort((a, b) => Number(a.number) - Number(b.number));
-  return rooms;
+  ALL_ROOMS = rows
+    .map(room => {
+      const category = String(room.category || '').trim().toLowerCase();
+      const type = category.includes('люкс') || category.includes('suite') ? 'suite' : 'standard';
+
+      return {
+        ...room,
+        number: String(room.number),
+        floor: Number(room.floor),
+        type
+      };
+    })
+    .sort((a, b) => Number(a.number) - Number(b.number));
+
+  ROOM_BY_NUMBER = new Map(ALL_ROOMS.map(room => [room.number, room]));
+  FLOORS = [...new Set(ALL_ROOMS.map(room => room.floor))].sort((a, b) => a - b);
+  queueRemaining = ALL_ROOMS.length;
 }
-
-const ALL_ROOMS = generateRoomsData();
-const ROOM_BY_NUMBER = new Map(ALL_ROOMS.map(room => [room.number, room]));
-const FLOORS = [...new Set(ALL_ROOMS.map(room => room.floor))];
-let queueRemaining = ALL_ROOMS.length;
 
 /* Orientation Tracking
    Не полагаемся только на screen.orientation: при выключенном
@@ -1416,10 +1428,8 @@ async function sendPhotoToServer(blobFile, roomNum) {
   const formData = new FormData();
   formData.append('photo', blobFile, 'photo.jpg');
   formData.append('room', roomNum);
-  formData.append('peer_id', '2000000244');
-
   try {
-    const res = await fetch('https://tintink.ru/vk-proxy/send-photo', {
+    const res = await fetch('/vk-proxy/send-photo', {
       method: 'POST',
       body: formData
     });
@@ -1481,9 +1491,17 @@ btnEmpty.addEventListener('click', () => {
 loaderRetry.addEventListener('click', startCamera);
 
 (async function boot() {
-  updateQueueDisplay();
-  buildCarousel();
-  renderDrawerRooms();
+  try {
+    await loadRooms();
+    updateQueueDisplay();
+    buildCarousel();
+    renderDrawerRooms();
+  } catch (error) {
+    console.error('Rooms load error:', error);
+    showMessage(error.message || 'Не удалось загрузить номера', 5000);
+    return;
+  }
+
   await initVK();
   await startCamera();
 })();
