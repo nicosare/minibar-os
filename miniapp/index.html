@@ -744,39 +744,70 @@ let queueRemaining = 0;
 const API_BASE = '/api';
 
 async function loadRooms() {
-  const response = await fetch(API_BASE + '/rooms', {
+  const response = await fetch(API_BASE + '/miniapp/queue', {
     method: 'GET',
     headers: { Accept: 'application/json' },
     cache: 'no-store'
   });
 
   if (!response.ok) {
-    throw new Error('Не удалось загрузить номера (HTTP ' + response.status + ')');
+    throw new Error('Не удалось загрузить очередь (HTTP ' + response.status + ')');
   }
 
-  const rows = await response.json();
+  const data = await response.json();
 
-  if (!Array.isArray(rows) || rows.length === 0) {
-    throw new Error('API не вернул список номеров');
+  if (!data || !Array.isArray(data.rooms) || data.rooms.length === 0) {
+    throw new Error('API не вернул очередь номеров');
   }
 
-  ALL_ROOMS = rows
-    .map(room => {
-      const category = String(room.category || '').trim().toLowerCase();
-      const type = category.includes('люкс') || category.includes('suite') ? 'suite' : 'standard';
-
-      return {
-        ...room,
-        number: String(room.number),
-        floor: Number(room.floor),
-        type
-      };
-    })
+  ALL_ROOMS = data.rooms
+    .map(room => ({
+      ...room,
+      number: String(room.number),
+      floor: Number(room.floor),
+      type: String(room.category || '').toLowerCase().includes('люкс') ||
+            String(room.category || '').toLowerCase().includes('suite')
+        ? 'suite'
+        : 'standard'
+    }))
     .sort((a, b) => Number(a.number) - Number(b.number));
 
   ROOM_BY_NUMBER = new Map(ALL_ROOMS.map(room => [room.number, room]));
   FLOORS = [...new Set(ALL_ROOMS.map(room => room.floor))].sort((a, b) => a - b);
-  queueRemaining = ALL_ROOMS.length;
+  queueRemaining = Number.isFinite(data.remaining) ? data.remaining : ALL_ROOMS.length;
+}
+
+async function completeRoom(action) {
+  if (!selectedRoom?.id) throw new Error('Не выбран номер');
+
+  const response = await fetch(API_BASE + '/miniapp/rooms/' + selectedRoom.id + '/complete', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json'
+    },
+    body: JSON.stringify({ action })
+  });
+
+  if (!response.ok) {
+    let message = 'Не удалось обновить очередь';
+    try {
+      const data = await response.json();
+      if (data?.error) message = data.error;
+    } catch (_) {}
+    throw new Error(message);
+  }
+
+  const task = ALL_ROOMS.find(room => room.id === selectedRoom.id);
+  if (task) {
+    task.status = 'completed';
+    task.action = action;
+  }
+
+  queueRemaining = Math.max(0, queueRemaining - 1);
+  updateQueueDisplay();
+}
+
 }
 
 /* Orientation Tracking
@@ -1460,9 +1491,8 @@ btnSend.addEventListener('click', async () => {
 
     if (!result.ok) throw new Error(result.error);
 
-    // Успешная отправка
-    if (queueRemaining > 0) queueRemaining--;
-    updateQueueDisplay();
+    // Сначала фиксируем выполненную задачу в общей БД.
+    await completeRoom('sent');
 
     btnSend.textContent = 'Отправлено';
     await triggerHaptic();
@@ -1481,11 +1511,19 @@ btnSend.addEventListener('click', async () => {
   }
 });
 
-btnEmpty.addEventListener('click', () => {
-  triggerHaptic();
-  if (queueRemaining > 0) queueRemaining--;
-  updateQueueDisplay();
-  showMessage(`№ ${selectedRoom.number} помечен как «Опустошён»`);
+btnEmpty.addEventListener('click', async () => {
+  if (btnEmpty.classList.contains('busy')) return;
+
+  setBusy(btnEmpty, true);
+  try {
+    triggerHaptic();
+    await completeRoom('empty');
+    showMessage(`№ ${selectedRoom.number} помечен как «Опустошён»`);
+  } catch (error) {
+    showMessage('Ошибка: ' + error.message, 3500);
+  } finally {
+    setBusy(btnEmpty, false);
+  }
 });
 
 loaderRetry.addEventListener('click', startCamera);
