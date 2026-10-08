@@ -25,7 +25,7 @@ App.dashboardModule = (() => {
 
       checks.forEach(c => {
         const checkDate = new Date(c.checkDate || c.check_date || c.createdAt);
-        if (checkDate >= todayStart) {
+        if (checkDate >= todayStart && c.type !== 'vk_room' && c.type !== 'vk_emptied') {
           // If check has gihItems, we can sum them up
           if (c.gihItems && c.gihItems.length > 0) {
             c.gihItems.forEach(item => {
@@ -95,6 +95,12 @@ App.dashboardModule = (() => {
             if (c.type === 'emptied') {
               statusText = 'Списание минибара';
               statusColor = 'bg-rose-500';
+            } else if (c.type === 'vk_emptied') {
+              statusText = 'Опустошение из VK';
+              statusColor = 'bg-rose-500';
+            } else if (c.type === 'vk_room') {
+              statusText = 'Номер из VK';
+              statusColor = 'bg-sky-500';
             } else if (c.type === 'gih') {
               statusText = 'GIH Проверка';
               statusColor = 'bg-emerald-500';
@@ -108,7 +114,7 @@ App.dashboardModule = (() => {
                 <div class="flex-1">
                   <div class="text-sm text-slate-700 font-medium">${statusText} комн. ${roomNum}</div>
                   <div class="text-xs text-slate-500 flex justify-between mt-0.5">
-                    <span>Исполнитель: ${escapeHtml(c.inspectorName || 'Анна')}</span>
+                    <span>Источник: ${escapeHtml(c.type === 'vk_room' || c.type === 'vk_emptied' ? 'VK бот' : (c.inspectorName || '—'))}</span>
                     <span>${timeStr}</span>
                   </div>
                 </div>
