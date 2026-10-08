@@ -1,6 +1,6 @@
 const API_BASE = window.location.hostname === 'localhost'
   ? 'http://localhost:3000/api'
-  : '/api';
+  : '/minibar-os/api';
 
 async function apiRequest(path, options = {}) {
   const headers = {
