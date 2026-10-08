@@ -1,3 +1,12 @@
+const APP_BASE_PATH = '/minibar-os';
+
+function routePathFromUrl() {
+  const pathname = window.location.pathname;
+  if (pathname === APP_BASE_PATH || pathname === APP_BASE_PATH + '/') return '/';
+  if (pathname.startsWith(APP_BASE_PATH + '/')) return pathname.slice(APP_BASE_PATH.length) || '/';
+  return pathname;
+}
+
 const App = {
   state: { currentRoute: 'dashboard' },
   events: {
@@ -64,7 +73,8 @@ const App = {
           el.classList.toggle('active', el.dataset.route === route);
         });
 
-        const url = this.routeToUrl[route] || '/';
+        const routePath = this.routeToUrl[route] || '/';
+        const url = APP_BASE_PATH + (routePath === '/' ? '/' : routePath);
         if (pushToHistory && window.location.pathname !== url) {
           window.history.pushState({ route }, '', url);
         }
@@ -79,7 +89,7 @@ const App = {
       }
     },
     currentFromUrl() {
-      return this.urlToRoute[window.location.pathname] || 'dashboard';
+      return this.urlToRoute[routePathFromUrl()] || 'dashboard';
     },
     current() {
       return App.state.currentRoute;
