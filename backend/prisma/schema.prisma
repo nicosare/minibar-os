@@ -229,3 +229,17 @@ model ProductMonthCheck {
   @@unique([productId, checkMonth, checkYear])
   @@map("product_month_checks")
 }
+
+model VkBotEvent {
+  id          Int      @id @default(autoincrement())
+  eventId     String   @unique @map("event_id")
+  peerId      String   @map("peer_id")
+  messageId   Int?     @map("message_id")
+  text        String
+  eventType   String   @map("event_type")
+  occurredAt  DateTime @map("occurred_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([peerId, occurredAt])
+  @@map("vk_bot_events")
+}
