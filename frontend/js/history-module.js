@@ -28,11 +28,13 @@ App.historyModule = (() => {
 
     const filtered = checks.filter(c => {
       const roomNum = c.room ? String(c.room.number) : '';
-      const inspector = String(c.inspectorName || 'Анна').toLowerCase();
+      const source = c.type === 'vk_room' || c.type === 'vk_emptied'
+        ? 'vk бот'
+        : String(c.inspectorName || '').toLowerCase();
       const notes = String(c.notes || '').toLowerCase();
       
       if (!searchValue) return true;
-      return roomNum.includes(searchValue) || inspector.includes(searchValue) || notes.includes(searchValue);
+      return roomNum.includes(searchValue) || source.includes(searchValue) || notes.includes(searchValue);
     });
 
     if (filtered.length === 0) {
@@ -54,7 +56,7 @@ App.historyModule = (() => {
               <th class="p-4 pl-6">Дата и время</th>
               <th class="p-4">Номер комнаты</th>
               <th class="p-4">Тип операции</th>
-              <th class="p-4">Исполнитель</th>
+              <th class="p-4">Источник</th>
               <th class="p-4">Заметки</th>
               <th class="p-4 pr-6">Продукты</th>
             </tr>
@@ -70,6 +72,12 @@ App.historyModule = (() => {
               if (c.type === 'emptied') {
                 typeLabel = 'Опустошение';
                 typeClass = 'bg-rose-50 text-rose-700';
+              } else if (c.type === 'vk_emptied') {
+                typeLabel = 'Опустошение из VK';
+                typeClass = 'bg-rose-50 text-rose-700';
+              } else if (c.type === 'vk_room') {
+                typeLabel = 'Номер из VK';
+                typeClass = 'bg-sky-50 text-sky-700';
               } else if (c.type === 'gih') {
                 typeLabel = 'GIH проверка';
                 typeClass = 'bg-emerald-50 text-emerald-700';
@@ -98,7 +106,7 @@ App.historyModule = (() => {
                       ${typeLabel}
                     </span>
                   </td>
-                  <td class="p-4 text-slate-600">${escapeHtml(c.inspectorName || 'Анна')}</td>
+                  <td class="p-4 text-slate-600">${escapeHtml(c.type === 'vk_room' || c.type === 'vk_emptied' ? 'VK бот' : (c.inspectorName || '—'))}</td>
                   <td class="p-4 text-slate-500 italic max-w-xs truncate" title="${escapeHtml(c.notes || '')}">
                     ${escapeHtml(c.notes || '—')}
                   </td>
