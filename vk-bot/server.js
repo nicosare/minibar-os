@@ -182,14 +182,14 @@ async function handleCallback(req, res) {
     return sendText(res, 403, 'Forbidden');
   }
 
-  if (!sameSecret(incomingSecret, CALLBACK_SECRET)) {
-    console.warn('[VK] callback rejected: invalid secret');
-    return sendText(res, 403, 'Forbidden');
-  }
-
   if (type === 'confirmation') {
     console.log('[VK] confirmation requested');
     return sendText(res, 200, CONFIRMATION_TOKEN);
+  }
+
+  if (!sameSecret(incomingSecret, CALLBACK_SECRET)) {
+    console.warn('[VK] callback rejected: invalid secret');
+    return sendText(res, 403, 'Forbidden');
   }
 
   if (type !== 'message_new') {
