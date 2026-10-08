@@ -1,0 +1,15 @@
+{
+  "name": "minibar-vk-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "multer": "^2.4.0"
+  }
+}
