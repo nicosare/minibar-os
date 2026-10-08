@@ -74,6 +74,7 @@ model Room {
   checks           Check[]
   listRooms        ListRoom[]
   productStatuses  RoomProductStatus[]
+  miniAppTasks     MiniAppRoomTask[]
 
   @@map("rooms")
 }
@@ -91,6 +92,23 @@ model RoomProductStatus {
 
   @@unique([roomId, productId])
   @@map("room_product_statuses")
+}
+
+model MiniAppRoomTask {
+  id          Int      @id @default(autoincrement())
+  roomId      Int      @map("room_id")
+  taskDate    DateTime @map("task_date") @db.Date
+  status      String   @default("pending")
+  action      String?
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, taskDate])
+  @@index([taskDate, status])
+  @@map("miniapp_room_tasks")
 }
 
 model RoomCustom {
