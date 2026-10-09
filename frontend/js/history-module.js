@@ -646,6 +646,9 @@ App.historyModule = (() => {
       '<div class="room-history-subtitle">Ежедневные операции и GIH. События раздела «Сроки» здесь не отображаются.</div>' +
       '<div class="room-history-body" id="room-history-body"><div class="room-history-loading">Загрузка истории…</div></div></div>';
     main.parentElement.insertBefore(panel, main);
+    panel.addEventListener('click', event => {
+      if (event.target.closest('[data-room-history-close]')) closeRoomHistory();
+    });
     if (window.lucide) window.lucide.createIcons();
   }
 
