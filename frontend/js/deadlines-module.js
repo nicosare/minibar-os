@@ -880,16 +880,18 @@ App.deadlinesModule = (() => {
     App.badges.update('deadlines');
   }
 
-function init() {if (!isInitialized) {
-      document.getElementById('deadline-modal-backdrop')?.addEventListener('click', (e) => {
-        if (e.target.id === 'deadline-modal-backdrop') closeModal();
+  function init() {
+    if (!isInitialized) {
+      document.getElementById('deadline-modal-backdrop')?.addEventListener('click', event => {
+        if (event.target.id === 'deadline-modal-backdrop') closeModal();
       });
-      document.getElementById('deadline-month-modal-backdrop')?.addEventListener('click', (e) => {
-        if (e.target.id === 'deadline-month-modal-backdrop') closeMonthModal();
+      document.getElementById('deadline-month-modal-backdrop')?.addEventListener('click', event => {
+        if (event.target.id === 'deadline-month-modal-backdrop') closeMonthModal();
       });
       document.getElementById('deadline-month-modal-close')?.addEventListener('click', closeMonthModal);
       document.getElementById('deadlines-month-products-btn')?.addEventListener('click', openMonthModal);
-      document.getElementById('deadlines-reset-all-btn')?.addEventListener('click', resetAllRooms);// Перерисовка графика при смене ориентации/размера
+      document.getElementById('deadlines-reset-all-btn')?.addEventListener('click', resetAllRooms);
+
       let resizeTimer = null;
       window.addEventListener('resize', () => {
         clearTimeout(resizeTimer);
@@ -897,7 +899,6 @@ function init() {if (!isInitialized) {
           if (App.state.currentRoute === 'deadlines') renderChart();
         }, 250);
       });
-
       isInitialized = true;
     }
 
