@@ -2932,24 +2932,8 @@ gap:10px !important; padding:6px 10px !important;
 .gih-room-history-link { padding:0; border:0; background:transparent; text-align:left; cursor:pointer; }
 .gih-room-history-link:hover { color:#4f46e5; text-decoration:underline; text-underline-offset:3px; }
 .gih-room-history-link:focus-visible,.history-room-link:focus-visible,.room-history-close:focus-visible { outline:3px solid #a5b4fc; outline-offset:2px; }
-/* История номера: выдвижная боковая панель, сдвигающая основной контент как калькулятор. */
-.room-history-panel {
-  display:flex;
-  flex:0 0 0;
-  width:0;
-  min-width:0;
-  overflow:hidden;
-  background:#fff;
-  border-right:1px solid #e2e8f0;
-  box-shadow:6px 0 24px rgba(15,23,42,0);
-  transition:flex-basis .34s cubic-bezier(.32,.72,.24,1), width .34s cubic-bezier(.32,.72,.24,1), box-shadow .34s ease;
-}
-.room-history-panel.open {
-  flex:0 0 440px;
-  width:440px;
-  box-shadow:6px 0 24px rgba(15,23,42,.07);
-}
-.room-history-panel > /* Продукты GIH: один цельный цветной блок на статус, продукты — отдельными метками внутри. */
+
+/* GIH products by status — clean status panels shared with room history. */
 .history-gih-groups { display:flex; flex-direction:column; gap:8px; min-width:230px; }
 .history-gih-status-panel {
   padding:9px 10px 10px;
@@ -2990,10 +2974,5 @@ gap:10px !important; padding:6px 10px !important;
 .history-gih-product-chip b { margin-left:3px; font-size:10px; font-weight:800; opacity:.8; }
 .room-history-products .history-gih-groups { min-width:0; }
 .room-history-products .history-gih-status-panel { padding:10px; }
-
-@media (min-width:769px) and (max-width:1180px) {
-  .room-history-panel.open { flex-basis:380px; width:380px; }
-  .room-history-panel > }
-
 
 /* Legacy mobile breakpoints removed. Unified desktop styles live in design-system.css. */
