@@ -122,7 +122,8 @@ App.historyModule = (() => {
 
     const groups = new Map();
     (check.gihItems || []).forEach(item => {
-      const status = String(item.itemStatus || 'pending');
+      const rawStatus = String(item.itemStatus || 'pending');
+      const status = GIH_STATUSES[rawStatus] ? rawStatus : 'pending';
       const name = item.product ? item.product.name : 'Продукт';
       if (!groups.has(status)) groups.set(status, new Map());
       const products = groups.get(status);
@@ -132,17 +133,18 @@ App.historyModule = (() => {
     const statuses = GIH_STATUS_ORDER.filter(status => groups.has(status));
     if (!statuses.length) return '<span class="text-slate-400">—</span>';
 
-    return '<div class="flex flex-col gap-1.5">' +
+    return '<div class="history-gih-groups">' +
       statuses.map(status => {
         const meta = statusMeta(status);
+        const isPending = status === 'pending';
         const products = Array.from(groups.get(status).entries()).map(([name, qty]) =>
-          qty > 1 ? escapeHtml(name) + ' ×' + qty : escapeHtml(name)
-        ).join(', ');
-        return '<div class="flex items-start gap-2">' +
-          '<span class="inline-flex shrink-0 items-center px-2 py-0.5 rounded-full border text-[11px] font-semibold ' +
-            meta.cls + '">' + escapeHtml(meta.label) + '</span>' +
-          '<span class="text-sm text-slate-700 leading-5">' + products + '</span>' +
-        '</div>';
+          '<span class="history-gih-product-chip">' + escapeHtml(name) +
+          (qty > 1 ? ' <b>×' + qty + '</b>' : '') + '</span>'
+        ).join('');
+        return '<section class="history-gih-status-panel" data-status="' + status + '">' +
+          (!isPending ? '<div class="history-gih-status-heading">' + escapeHtml(meta.label) + '</div>' : '') +
+          '<div class="history-gih-product-list">' + products + '</div>' +
+        '</section>';
       }).join('') +
     '</div>';
   }
@@ -545,7 +547,7 @@ App.historyModule = (() => {
         '<td class="p-3 sm:p-4 pr-4 sm:pr-6 align-top min-w-[240px]">' + renderDeadlineDetails(check) + '</td></tr>';
     }
     if (state.view === 'gih') {
-      return start + date + room +
+      return start + room +
         '<td class="p-3 sm:p-4 align-top">' + renderGihStatus(check) + '</td>' +
         '<td class="p-3 sm:p-4 pr-4 sm:pr-6 align-top min-w-[260px]">' + renderGihProductsCell(check) + '</td></tr>';
     }
@@ -566,7 +568,7 @@ App.historyModule = (() => {
     if (!container) return;
     const room = currentRoomQuery();
     const records = sortRecords(state.records, Boolean(room));
-    const columnCount = state.view === 'deadlines' ? 5 : 4;
+    const columnCount = state.view === 'deadlines' ? 5 : state.view === 'gih' ? 3 : 4;
 
     if (countEl) countEl.textContent = room ? 'Найдено: ' + state.total
       : (state.view === 'deadlines' ? 'Изменений за день: ' : 'Записей за день: ') + state.total;
@@ -614,7 +616,7 @@ App.historyModule = (() => {
         '<th class="p-3 sm:p-4">Действие</th><th class="p-3 sm:p-4">Изменение статуса</th>' +
         '<th class="p-3 sm:p-4 pr-4 sm:pr-6">Подробности</th>';
     } else if (state.view === 'gih') {
-      tableHeader = '<th class="p-3 sm:p-4 pl-4 sm:pl-6">Дата и время</th><th class="p-3 sm:p-4">Номер</th>' +
+      tableHeader = '<th class="p-3 sm:p-4 pl-4 sm:pl-6">Номер</th>' +
         '<th class="p-3 sm:p-4">Статус GIH</th><th class="p-3 sm:p-4 pr-4 sm:pr-6">Продукты по статусам</th>';
     } else {
       tableHeader = '<th class="p-3 sm:p-4 pl-4 sm:pl-6">Дата и время</th><th class="p-3 sm:p-4">Номер</th>' +
@@ -628,29 +630,32 @@ App.historyModule = (() => {
   }
 
   function ensureRoomHistoryDrawer() {
-    if (document.getElementById('room-history-overlay')) return;
-    const overlay = document.createElement('div');
-    overlay.id = 'room-history-overlay';
-    overlay.className = 'room-history-overlay';
-    overlay.setAttribute('aria-hidden', 'true');
-    overlay.innerHTML =
-      '<aside class="room-history-drawer" role="dialog" aria-modal="true" aria-labelledby="room-history-title">' +
+    if (document.getElementById('room-history-panel')) return;
+    const main = document.querySelector('main');
+    if (!main || !main.parentElement) return;
+
+    const panel = document.createElement('div');
+    panel.id = 'room-history-panel';
+    panel.className = 'room-history-panel';
+    panel.setAttribute('aria-hidden', 'true');
+    panel.innerHTML =
+      '<div class="room-history-drawer" role="dialog" aria-modal="false" aria-labelledby="room-history-title">' +
       '<div class="room-history-header"><div><div class="room-history-kicker">История номера</div>' +
       '<h2 class="room-history-title" id="room-history-title">Номер</h2></div>' +
       '<button type="button" class="room-history-close" data-room-history-close aria-label="Закрыть историю номера"><i data-lucide="x"></i></button></div>' +
       '<div class="room-history-subtitle">Ежедневные операции и GIH. События раздела «Сроки» здесь не отображаются.</div>' +
-      '<div class="room-history-body" id="room-history-body"><div class="room-history-loading">Загрузка истории…</div></div></aside>';
-    document.body.appendChild(overlay);
-    overlay.addEventListener('click', event => {
-      if (event.target === overlay || event.target.closest('[data-room-history-close]')) closeRoomHistory();
-    });
+      '<div class="room-history-body" id="room-history-body"><div class="room-history-loading">Загрузка истории…</div></div></div>';
+    main.parentElement.insertBefore(panel, main);
+    if (window.lucide) window.lucide.createIcons();
   }
 
   function closeRoomHistory() {
-    const overlay = document.getElementById('room-history-overlay');
-    if (!overlay) return;
-    overlay.classList.remove('open');
-    overlay.setAttribute('aria-hidden', 'true');
+    const panel = document.getElementById('room-history-panel');
+    if (!panel) return;
+    panel.classList.remove('open');
+    panel.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('room-history-open');
+    requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
   }
 
   function renderRoomHistoryCards(items) {
@@ -688,14 +693,16 @@ App.historyModule = (() => {
     const id = Number(roomId);
     if (!Number.isInteger(id) || id <= 0) return;
     ensureRoomHistoryDrawer();
-    const overlay = document.getElementById('room-history-overlay');
+    const panel = document.getElementById('room-history-panel');
     const title = document.getElementById('room-history-title');
     const body = document.getElementById('room-history-body');
-    if (!overlay || !body) return;
+    if (!panel || !body) return;
     title.textContent = 'Номер ' + String(number || '—');
     body.innerHTML = '<div class="room-history-loading"><i data-lucide="loader-2"></i><span>Загрузка истории…</span></div>';
-    overlay.classList.add('open');
-    overlay.setAttribute('aria-hidden', 'false');
+    panel.classList.add('open');
+    panel.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('room-history-open');
+    requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
     if (window.lucide) window.lucide.createIcons();
     try {
       const params = new URLSearchParams({ operation: 'room', roomId: String(id) });
