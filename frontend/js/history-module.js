@@ -266,7 +266,9 @@ App.historyModule = (() => {
     if (selectedKey === todayKey) dateText = 'Сегодня · ' + dateText;
     else if (selectedKey === formatDayKey(yesterdayDate)) dateText = 'Вчера · ' + dateText;
     if (label) label.textContent = dateText;
-    if (count) count.textContent = pluralizeRecords(getDateCount(state.selectedDate));
+    if (count) count.textContent = state.loadedCalendarMonth === monthKey(state.selectedDate)
+      ? pluralizeRecords(getDateCount(state.selectedDate))
+      : 'Выберите дату';
     if (prev) prev.disabled = false;
     if (next) next.disabled = selectedKey === todayKey;
   }
@@ -746,6 +748,7 @@ App.historyModule = (() => {
     state.calendarOverlay.classList.add('show');
     state.calendarOverlay.setAttribute('aria-hidden', 'false');
     renderCalendar();
+    loadCalendar(false, state.calendarMonth);
     if (window.lucide) window.lucide.createIcons();
   }
 
