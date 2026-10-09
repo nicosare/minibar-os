@@ -1,3 +1,11 @@
+const MINIBAR_CLIENT_ID = (() => {
+  const randomId = window.crypto && typeof window.crypto.randomUUID === 'function'
+    ? window.crypto.randomUUID()
+    : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+  return 'browser-' + randomId.replace(/[^a-zA-Z0-9_-]/g, '');
+})();
+window.MINIBAR_CLIENT_ID = MINIBAR_CLIENT_ID;
+
 const API_BASE = window.location.hostname === 'localhost'
   ? 'http://localhost:3000/api'
   : '/minibar-os/api';
@@ -5,6 +13,7 @@ const API_BASE = window.location.hostname === 'localhost'
 async function apiRequest(path, options = {}) {
   const headers = {
     'X-Timezone-Offset': String(new Date().getTimezoneOffset()),
+    'X-Minibar-Client-ID': MINIBAR_CLIENT_ID,
     ...(options.headers || {})
   };
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });

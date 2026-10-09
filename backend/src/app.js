@@ -11,6 +11,8 @@ import excisesRouter from './routes/excises.js';
 import listsRouter from './routes/lists.js';
 import miniappRouter from './routes/miniapp.js';
 import vkBotRouter from './routes/vk-bot.js';
+import eventsRouter from './routes/events.js';
+import { dataChangeRequestMiddleware } from './lib/live-events.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,7 +23,10 @@ export function createApp() {
 
   app.use(cors());
   app.use(express.json());
+  app.use(dataChangeRequestMiddleware);
   app.use(express.static(frontendPath));
+
+  app.use('/api/events', eventsRouter);
 
   app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date() }));
 
