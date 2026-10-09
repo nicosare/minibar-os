@@ -405,6 +405,12 @@ function setCalcNavHighlight(on) {
   if (nav) nav.classList.toggle('nav-calc-open', on);
 }
 function openDrawer() {
+  if (window.App && App.historyModule && App.historyModule.closeRoomHistory) {
+    App.historyModule.closeRoomHistory();
+  }
+  if (window.App && App.inventoryModule && App.inventoryModule.closeDrawer) {
+    App.inventoryModule.closeDrawer();
+  }
   buildDrawer();
   if (!isLoaded && products.length === 0) loadProducts();
   renderDrawerGrid();
