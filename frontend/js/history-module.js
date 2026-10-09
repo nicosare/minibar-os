@@ -694,6 +694,8 @@ App.historyModule = (() => {
   async function openRoomHistory(roomId, number) {
     const id = Number(roomId);
     if (!Number.isInteger(id) || id <= 0) return;
+    if (window.App && App.calculatorModule && App.calculatorModule.closeDrawer) App.calculatorModule.closeDrawer();
+    if (window.App && App.inventoryModule && App.inventoryModule.closeDrawer) App.inventoryModule.closeDrawer();
     ensureRoomHistoryDrawer();
     const panel = document.getElementById('room-history-panel');
     const title = document.getElementById('room-history-title');
@@ -925,6 +927,11 @@ App.historyModule = (() => {
     document.addEventListener('keydown', event => {
       if (event.key === 'Escape') closeRoomHistory();
     });
+    if (window.App && App.events) {
+      App.events.on('route:change', route => {
+        if (route !== 'history' && route !== 'gih') closeRoomHistory();
+      });
+    }
 
     search && search.addEventListener('input', () => {
       if (state.searchTimer) clearTimeout(state.searchTimer);
