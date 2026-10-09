@@ -21,6 +21,7 @@
   const routeRevisions = new Map();
   const inFlight = new Set();
   const pendingRefresh = new Set();
+  const handledEventIds = new Set();
   const refreshTimers = new Map();
   let eventSource = null;
   let badgeTimer = null;
@@ -69,6 +70,14 @@
       const factory = document.getElementById('gih-factory');
       if (factory && !factory.classList.contains('hidden')) return true;
       if (active && active.id === 'gih-finput') return true;
+    }
+    if (route === 'calculator') {
+      const billModal = document.getElementById('calculator-bill-modal');
+      if (billModal && !billModal.classList.contains('hidden')) return true;
+      if (active && /^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName) &&
+          (active.closest('#view-calculator') || active.closest('#calc-drawer') || active.closest('#calculator-bill-modal'))) {
+        return true;
+      }
     }
     return false;
   }
@@ -155,6 +164,14 @@
   }
 
   function handleChange(event) {
+    if (event.id) {
+      if (handledEventIds.has(event.id)) return;
+      handledEventIds.add(event.id);
+      if (handledEventIds.size > 600) {
+        const oldest = handledEventIds.values().next().value;
+        handledEventIds.delete(oldest);
+      }
+    }
     const domains = Array.isArray(event.domains) && event.domains.length
       ? event.domains
       : ['all'];
@@ -222,9 +239,10 @@
 
   function pumpPendingRefreshes() {
     if (!pendingRefresh.size) return;
-    pendingRefresh.forEach(route => {
-      if (!activeEditorBlocksRefresh(route)) scheduleRefresh(route, 100);
-    });
+    const route = currentRoute();
+    if (pendingRefresh.has(route) && !activeEditorBlocksRefresh(route)) {
+      scheduleRefresh(route, 100);
+    }
   }
 
   document.addEventListener('focusout', () => setTimeout(pumpPendingRefreshes, 120), true);
