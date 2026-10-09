@@ -33,120 +33,6 @@ App.deadlinesModule = (() => {
     _cachedTargetsTime = 0;
   }
 
-  // ── Мобильная структура: плашка статистики + шторка деталей ──
-  // Собирается один раз при первом входе в раздел (index.html не трогаем)
-  function ensureMobileStructure() {
-    if (document.getElementById('deadlines-stats-bar')) return;
-    const view = document.getElementById('view-deadlines');
-    if (!view) return;
-
-    const grids = view.querySelectorAll('.grid.grid-cols-4');
-    if (grids.length < 3) return; // [0]=статистика, [1]=график+цели, [2]=на проверку+замены
-
-    grids[0].classList.add('dl-stats-grid', 'stat-grid-target');
-
-    const bar = document.createElement('div');
-    bar.id = 'deadlines-stats-bar';
-    bar.className = 'dl-stats-bar';
-    bar.innerHTML = `
-      <div class="dl-stats-bar-left">
-        <i data-lucide="bar-chart-3" class="w-4 h-4 text-slate-500"></i>
-        <span>Статистика</span>
-      </div>
-      <div class="dl-stats-bar-nums">
-        <span class="dl-mini-stat c-emerald" id="mstat-valid" title="В порядке">0</span>
-        <span class="dl-mini-stat c-sky" id="mstat-empty" title="Пустые">0</span>
-        <span class="dl-mini-stat c-rose" id="mstat-needs" title="Заменить">0</span>
-        <span class="dl-mini-stat c-slate" id="mstat-neutral" title="Не проверены">0</span>
-      </div>
-      <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
-    `;
-    grids[0].parentNode.insertBefore(bar, grids[0]);
-
-    // Фон шторки (только телефон)
-    const backdrop = document.createElement('div');
-    backdrop.id = 'deadlines-stats-backdrop';
-    backdrop.className = 'dl-stats-backdrop hidden';
-    // Шторка в едином стиле «Ещё»: ручка + шапка + скролл-тело
-    const details = document.createElement('div');
-    details.id = 'deadlines-details';
-    details.className = 'dl-details';
-    details.innerHTML = `
-      <div class="ms-drag-zone dl-sheet-dragzone">
-        <div class="ms-handle modal-sheet-handle"></div>
-        <div class="ms-header-row dl-details-header">
-          <span class="ms-title dl-details-title">Аналитика</span>
-          <button id="deadlines-details-close" class="ms-close-btn" type="button" aria-label="Закрыть">
-            <i data-lucide="x" class="w-4 h-4"></i>
-          </button>
-        </div>
-      </div>
-      <div class="dl-sheet-body"></div>
-    `;
-    grids[1].parentNode.insertBefore(backdrop, grids[1]);
-    backdrop.parentNode.insertBefore(details, backdrop.nextSibling);
-    const body = details.querySelector('.dl-sheet-body');
-    body.appendChild(grids[1]);
-    body.appendChild(grids[2]);
-
-    if (window.lucide) lucide.createIcons();
-  }
-
-  function openDetails() {
-    const d = document.getElementById('deadlines-details');
-    if (!d) return;
-    setupDetailsSheet(); // свайп + фон — один раз
-    const backdrop = document.getElementById('deadlines-stats-backdrop');
-    if (backdrop) {
-      backdrop.classList.remove('hidden');
-      requestAnimationFrame(() => requestAnimationFrame(() => backdrop.classList.add('show')));
-    }
-    d.classList.add('open');
-    setTimeout(() => renderChart(), 340); // пересчитать canvas после выезда
-  }
-  function closeDetails() {
-    const d = document.getElementById('deadlines-details');
-    const backdrop = document.getElementById('deadlines-stats-backdrop');
-    if (d) d.classList.remove('open');
-    if (backdrop) {
-      backdrop.classList.remove('show');
-      setTimeout(() => backdrop.classList.add('hidden'), 280);
-    }
-  }
-  // Свайп вниз за ручку/шапку + закрытие по фону
-  function setupDetailsSheet() {
-    const d = document.getElementById('deadlines-details');
-    if (!d || d.dataset.sheetSwipe) return;
-    d.dataset.sheetSwipe = '1';
-    document.getElementById('deadlines-stats-backdrop')?.addEventListener('click', closeDetails);
-    const zone = d.querySelector('.dl-sheet-dragzone');
-    if (!zone) return;
-    let startY = 0, dy = 0, dragging = false;
-    zone.addEventListener('touchstart', (e) => {
-      dragging = true; startY = e.touches[0].clientY; dy = 0;
-      d.style.transition = 'none';
-    }, { passive: true });
-    zone.addEventListener('touchmove', (e) => {
-      if (!dragging) return;
-      dy = Math.max(0, e.touches[0].clientY - startY);
-      d.style.transform = `translateY(${dy}px)`;
-    }, { passive: true });
-    const endDrag = () => {
-      if (!dragging) return;
-      dragging = false;
-      d.style.transition = 'transform 0.25s cubic-bezier(0.32, 0.72, 0.24, 1)';
-      if (dy > 90) {
-        d.style.transform = 'translateY(105%)';
-        setTimeout(() => { closeDetails(); d.style.transform = ''; d.style.transition = ''; }, 240);
-      } else {
-        d.style.transform = '';
-        setTimeout(() => { d.style.transition = ''; }, 260);
-      }
-    };
-    zone.addEventListener('touchend', endDrag);
-    zone.addEventListener('touchcancel', endDrag);
-  }
-
   async function loadRooms() {
     try {
       rooms = await api().getRooms();
@@ -203,9 +89,7 @@ App.deadlinesModule = (() => {
     set('stat-needs-pct-c', pct(counts.needs_replacement));
     set('stat-neutral-pct-c', pct(counts.neutral));
 
-    if (window.AppStatFill) window.AppStatFill.sync();
-    syncStatFill();
-  }
+    if (window.AppStatFill) window.AppStatFill.sync();}
 
   async function renderChart() {
     try {
@@ -996,67 +880,7 @@ App.deadlinesModule = (() => {
     App.badges.update('deadlines');
   }
 
-  /* ═══ ВОЛНОВАЯ ЗАЛИВКА БЛОКОВ СТАТИСТИКИ (Сроки) + маска текста ═══ */
-const STAT_FILL_COLORS = {
-  emerald: '#059669', sky: '#0284c7', rose: '#e11d48', slate: '#475569'
-};
-function detectStatColor(card) {
-  if (card.classList.contains('from-emerald-500')) return 'emerald';
-  if (card.classList.contains('from-sky-500')) return 'sky';
-  if (card.classList.contains('from-rose-500')) return 'rose';
-  return 'slate';
-}
-let statFillBuilt = false;
-function buildStatFill() {
-  if (statFillBuilt) return;
-  const view = document.getElementById('view-deadlines');
-  if (!view) return;
-  const grid = view.querySelector('.grid.grid-cols-4');
-  if (!grid) return;
-  const cards = grid.querySelectorAll(':scope > div');
-  if (cards.length < 4) return;
-  cards.forEach(card => {
-    const color = detectStatColor(card);
-    const inner = card.innerHTML;
-    card.classList.remove('bg-gradient-to-br','from-emerald-500','to-emerald-600','from-sky-500','to-sky-600','from-rose-500','to-rose-600','from-slate-500','to-slate-600','text-white','shadow-sm','p-5');
-    card.classList.add('stat-fill-card');
-    card.dataset.color = color;
-    const base = document.createElement('div');
-    base.className = 'stat-layer stat-layer-base p-5';
-    base.innerHTML = inner;
-    const fill = document.createElement('div');
-    fill.className = 'stat-layer stat-layer-fill p-5';
-    fill.innerHTML = inner;
-    fill.querySelectorAll('[id]').forEach(el => { el.id = el.id + '-fill'; });
-    card.innerHTML = '';
-    card.appendChild(base);
-    card.appendChild(fill);
-  });
-  statFillBuilt = true;
-  if (window.lucide) lucide.createIcons();
-}
-function syncStatFill() {
-  const view = document.getElementById('view-deadlines');
-  if (!view) return;
-  view.querySelectorAll('.stat-fill-card').forEach(card => {
-    const base = card.querySelector('.stat-layer-base');
-    if (!base) return;
-    const pctEl = base.querySelector('[id$="-pct"]');
-    let pct = 0;
-    if (pctEl) { const m = (pctEl.textContent || '').match(/(\d+)/); if (m) pct = Math.max(0, Math.min(100, parseInt(m[1], 10))); }
-    card.style.setProperty('--fill', pct + '%');
-    base.querySelectorAll('[id]').forEach(el => {
-      const f = document.getElementById(el.id + '-fill');
-      if (f) f.textContent = el.textContent;
-    });
-  });
-}
-
-function init() {
-    ensureMobileStructure();
-buildStatFill();
-
-    if (!isInitialized) {
+function init() {if (!isInitialized) {
       document.getElementById('deadline-modal-backdrop')?.addEventListener('click', (e) => {
         if (e.target.id === 'deadline-modal-backdrop') closeModal();
       });
@@ -1065,13 +889,7 @@ buildStatFill();
       });
       document.getElementById('deadline-month-modal-close')?.addEventListener('click', closeMonthModal);
       document.getElementById('deadlines-month-products-btn')?.addEventListener('click', openMonthModal);
-      document.getElementById('deadlines-reset-all-btn')?.addEventListener('click', resetAllRooms);
-
-      // Плашка → шторка деталей
-      document.getElementById('deadlines-stats-bar')?.addEventListener('click', openDetails);
-      document.getElementById('deadlines-details-close')?.addEventListener('click', closeDetails);
-
-      // Перерисовка графика при смене ориентации/размера
+      document.getElementById('deadlines-reset-all-btn')?.addEventListener('click', resetAllRooms);// Перерисовка графика при смене ориентации/размера
       let resizeTimer = null;
       window.addEventListener('resize', () => {
         clearTimeout(resizeTimer);
