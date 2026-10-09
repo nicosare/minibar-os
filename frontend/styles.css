@@ -941,461 +941,6 @@
   display: none;
 }
 
-@media (max-width: 768px) {
-  
-  /* ── Сброс и базовая структура ── */
-  * {
-    -webkit-tap-highlight-color: transparent;
-  }
-  
-  body {
-    overflow-x: hidden !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-  
-  /* Скрываем сайдбар */
-  aside {
-    display: none !important;
-  }
-  
-  /* Убираем padding с main */
-  main {
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-  
-  /* ── Шапка (fixed, не скроллится) ── */
-  #mobile-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 40;
-    height: 60px;
-    background: rgba(255, 255, 255, 0.95);
-    -webkit-backdrop-filter: blur(12px);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid #e2e8f0;
-    padding: 0 16px;
-    padding-top: env(safe-area-inset-top, 0);
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
-  }
-  
-  .mh-brand {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  
-  .mh-logo {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #4f46e5, #7c3aed);
-    color: #fff;
-    font-weight: 800;
-    font-size: 17px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
-    flex-shrink: 0;
-  }
-  
-  .mh-app {
-    font-size: 15px;
-    font-weight: 800;
-    color: #0f172a;
-    line-height: 1.2;
-    letter-spacing: -0.01em;
-  }
-  
-  .mh-section {
-    font-size: 12px;
-    font-weight: 600;
-    color: #64748b;
-    margin-top: 1px;
-  }
-  
-  .mh-date {
-    font-size: 12px;
-    font-weight: 700;
-    color: #475569;
-    background: #f1f5f9;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 6px 10px;
-    white-space: nowrap;
-  }
-  
-  /* ── Нижний таб-бар (fixed) ── */
-  #mobile-tabbar {
-    display: flex;
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 50;
-    height: 64px;
-    background: #fff;
-    border-top: 1px solid #e2e8f0;
-    box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.06);
-    padding-bottom: env(safe-area-inset-bottom, 0);
-  }
-  
-  .mobile-tab {
-    flex: 1;
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    padding: 8px 4px;
-    font-size: 10px;
-    font-weight: 600;
-    color: #94a3b8;
-    text-decoration: none;
-    transition: color 0.15s ease;
-  }
-  
-  .mobile-tab::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 50%;
-    width: 0;
-    height: 3px;
-    border-radius: 0 0 3px 3px;
-    background: currentColor;
-    transform: translateX(-50%);
-    transition: width 0.2s ease;
-  }
-  
-  .mobile-tab.active::before {
-    width: 28px;
-  }
-  
-  .mobile-tab svg {
-    width: 24px;
-    height: 24px;
-    transition: transform 0.15s ease;
-  }
-  
-  .mobile-tab.active svg {
-    transform: translateY(-1px) scale(1.05);
-  }
-  
-  .mobile-tab:active {
-    transform: scale(0.95);
-  }
-  
-  /* Акцентные цвета вкладок */
-  .mobile-tab.active[data-route="dashboard"] { color: #4f46e5; }
-  .mobile-tab.active[data-route="excise"] { color: #d97706; }
-  .mobile-tab.active[data-route="deadlines"] { color: #e11d48; }
-  .mobile-tab.active[data-route="gih"] { color: #7c3aed; }
-  .mobile-tab.active[data-route="more"] { color: #4f46e5; }
-  
-  /* Бейджи на вкладках */
-  .mt-badge {
-    position: absolute;
-    top: 6px;
-    right: calc(50% - 24px);
-    min-width: 18px;
-    height: 18px;
-    padding: 0 5px;
-    border-radius: 9px;
-    font-size: 10px;
-    font-weight: 800;
-    color: #fff;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 0 0 2px #fff;
-    animation: mt-badge-pop 0.25s ease;
-  }
-  
-  .mt-badge.hidden {
-    display: none !important;
-  }
-  
-  .mt-badge.b-amber { background: #d97706; }
-  .mt-badge.b-rose { background: #e11d48; }
-  
-  @keyframes mt-badge-pop {
-    from { transform: scale(0.5); }
-    to { transform: scale(1); }
-  }
-  
-  /* ── Шторка «Ещё» ── */
-  #mobile-more-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 60;
-    background: rgba(15, 23, 42, 0.5);
-    -webkit-backdrop-filter: blur(2px);
-    backdrop-filter: blur(2px);
-    opacity: 0;
-    transition: opacity 0.25s ease;
-  }
-  
-  #mobile-more-backdrop.hidden {
-    display: none !important;
-  }
-  
-  #mobile-more-backdrop:not(.hidden) {
-    display: block;
-  }
-  
-  #mobile-more-backdrop.show {
-    opacity: 1;
-  }
-  
-  #mobile-more-sheet {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: #fff;
-    border-radius: 24px 24px 0 0;
-    padding: 12px 20px calc(24px + env(safe-area-inset-bottom, 0));
-    box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.18);
-    transform: translateY(102%);
-    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0.24, 1);
-  }
-  
-  #mobile-more-sheet.open {
-    transform: translateY(0);
-  }
-  
-  .ms-handle {
-    width: 40px;
-    height: 4px;
-    border-radius: 2px;
-    background: #e2e8f0;
-    margin: 0 auto 16px;
-  }
-  
-  .ms-title {
-    font-size: 14px;
-    font-weight: 800;
-    color: #0f172a;
-    margin-bottom: 16px;
-    letter-spacing: -0.01em;
-  }
-  
-  .ms-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-  }
-  
-  .ms-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    padding: 14px 4px;
-    border-radius: 14px;
-    font-size: 11px;
-    font-weight: 600;
-    color: #475569;
-    background: #f8fafc;
-    border: 1px solid #f1f5f9;
-    text-decoration: none;
-    transition: transform 0.12s ease, background 0.15s ease, color 0.15s ease;
-  }
-  
-  .ms-item svg {
-    width: 22px;
-    height: 22px;
-    color: #64748b;
-    transition: color 0.15s ease;
-  }
-  
-  .ms-item:active {
-    transform: scale(0.95);
-  }
-  
-  .ms-item.active {
-    background: #eef2ff;
-    border-color: #c7d2fe;
-    color: #4f46e5;
-  }
-  
-  .ms-item.active svg {
-    color: #4f46e5;
-  }
-  
-  /* ── Контент: правильные отступы ── */
-  .tab-content {
-    padding: 76px 16px calc(88px + env(safe-area-inset-bottom, 0)) !important;
-    min-height: 100vh;
-    box-sizing: border-box;
-  }
-  
-  /* ── Типографика ── */
-  h1 {
-    font-size: 1.5rem !important;
-    line-height: 1.3 !important;
-    margin-bottom: 16px !important;
-  }
-  
-  h2 {
-    font-size: 1.25rem !important;
-    margin-bottom: 12px !important;
-  }
-  
-  h3 {
-    font-size: 1.1rem !important;
-    margin-bottom: 10px !important;
-  }
-  
-  p {
-    font-size: 14px !important;
-    line-height: 1.6 !important;
-  }
-  
-  /* ── Сетки ── */
-  .grid-cols-4 {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 12px !important;
-  }
-  
-  .grid:has(> [class*="col-span-"]) {
-    grid-template-columns: 1fr !important;
-    gap: 16px !important;
-  }
-  
-  [class*="col-span-"] {
-    grid-column: auto !important;
-  }
-  
-  /* ── Карточки статистики ── */
-  .grid-cols-4 > div {
-    padding: 16px !important;
-  }
-  
-  /* ── Сетка номеров ── */
-  .rooms-grid {
-    grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)) !important;
-    gap: 8px !important;
-  }
-  
-  .room-cell {
-    min-height: 48px;
-    font-size: 12px !important;
-    border-radius: 10px !important;
-  }
-  
-  .floor-header {
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 12px !important;
-  }
-  
-  /* ── График ── */
-  #deadlines-chart {
-    height: 240px !important;
-    width: 100% !important;
-  }
-  
-  /* ── Кнопки (touch-friendly) ── */
-  .btn {
-    min-height: 44px !important;
-    padding: 12px 20px !important;
-    font-size: 14px !important;
-    font-weight: 600 !important;
-    border-radius: 10px !important;
-  }
-  
-  .btn-sm {
-    min-height: 36px !important;
-    padding: 8px 14px !important;
-    font-size: 13px !important;
-  }
-  
-  /* ── Инпуты (iOS не зумит при 16px) ── */
-  input,
-  select,
-  textarea {
-    font-size: 16px !important;
-    padding: 12px 14px !important;
-    border-radius: 10px !important;
-  }
-  
-  /* ── Модалки (поверх таб-бара, z-index: 100) ── */
-  #deadline-modal-backdrop,
-  #deadline-month-modal-backdrop {
-    z-index: 100 !important;
-    position: fixed !important;
-    inset: 0 !important;
-  }
-  
-  #deadline-modal-backdrop > div,
-  #deadline-month-modal-backdrop > div {
-    width: 100% !important;
-    max-width: none !important;
-    height: 100%;
-    max-height: none !important;
-    border-radius: 0 !important;
-    margin: 0 !important;
-    padding: 20px 16px calc(24px + env(safe-area-inset-bottom, 0)) !important;
-    overflow-y: auto !important;
-    box-sizing: border-box;
-  }
-  
-  /* ── Таблицы ── */
-  table {
-    font-size: 13px !important;
-  }
-  
-  th,
-  td {
-    padding: 10px 8px !important;
-  }
-  
-  /* ── Отступы между элементами ── */
-  .space-y-4 > * + * {
-    margin-top: 16px !important;
-  }
-  
-  .space-y-6 > * + * {
-    margin-top: 20px !important;
-  }
-  
-  .mb-6 {
-    margin-bottom: 20px !important;
-  }
-  
-  .mb-4 {
-    margin-bottom: 16px !important;
-  }
-  
-  .gap-4 {
-    gap: 12px !important;
-  }
-  
-  .gap-6 {
-    gap: 16px !important;
-  }
-  
-  /* ── Убираем лишнюю прокрутку ── */
-  .flex.h-screen {
-    height: auto !important;
-  }
-  
-  .overflow-hidden {
-    overflow: visible !important;
-  }
-}
-
-
 /* ═══════════════════════════════════════════════════════════════
    ЕДИНЫЙ ДИЗАЙН: КАЛЬКУЛЯТОР + ИНВЕНТАРИЗАЦИЯ (v2)
    ═══════════════════════════════════════════════════════════════ */
@@ -1630,291 +1175,16 @@
 .sheet-modal-footer { padding: 16px 20px; border-top: 1px solid #f1f5f9; background: #f8fafc; }
 
 /* ── Мобильная адаптация нового дизайна ── */
-@media (max-width: 768px) {
-  /* Заголовки h1 скрыты на мобильном (они в шапке) */
-  .tab-content h1 { display: none !important; }
-
-  .split-layout { grid-template-columns: 1fr !important; }
-  .side-panel { display: none !important; }
-  .products-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
-
-  /* Мини-панель над таб-баром */
-  .mobile-action-bar {
-    display: flex;
-    position: fixed;
-    left: 0; right: 0;
-    bottom: calc(64px + env(safe-area-inset-bottom, 0));
-    z-index: 45;
-    align-items: center;
-    justify-content: space-between;
-    background: white;
-    border-top: 1px solid #e2e8f0;
-    box-shadow: 0 -4px 16px rgba(15,23,42,0.08);
-    padding: 10px 16px;
-  }
-  .mobile-action-bar.hidden { display: none !important; }
-  .mobile-action-bar-info { display: flex; flex-direction: column; }
-  .mobile-action-bar-label { font-size: 11px; color: #64748b; }
-  .mobile-action-bar-value { font-size: 17px; font-weight: 800; color: #0f172a; font-variant-numeric: tabular-nums; }
-
-  /* Доп. нижний отступ, чтобы контент не прятался под мини-панелью */
-  #view-calculator, #view-inventory {
-    padding-bottom: calc(150px + env(safe-area-inset-bottom, 0)) !important;
-  }
-
-  /* Карточка инвентаризации: перенос на 2 строки */
-  .inv-card { flex-wrap: wrap; }
-  .inv-result { order: 2; margin-left: auto; flex-direction: row; align-items: baseline; gap: 8px; }
-  .inv-fields { order: 3; flex-basis: 100%; margin-top: 10px; justify-content: flex-start; }
-}
 /* ═══════════════════════════════════════════════════════════════
    СРОКИ: МОБИЛЬНАЯ ПЛАШКА СТАТИСТИКИ + ШТОРКА ДЕТАЛЕЙ
    ═══════════════════════════════════════════════════════════════ */
 #deadlines-stats-bar { display: none; }
 .dl-details-header { display: none; }
 
-@media (max-width: 768px) {
-  /* Карточки статистики скрыты — цифры только в плашке */
-  .dl-stats-grid { display: none !important; }
-
-  /* Плашка статистики (липкая под шапкой) */
-  #deadlines-stats-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    background: #fff;
-    border: 1px solid #f1f5f9;
-    border-radius: 14px;
-    padding: 10px 14px;
-    margin-bottom: 12px;
-    box-shadow: 0 1px 3px rgba(15,23,42,0.06);
-    cursor: pointer;
-    position: sticky;
-    top: calc(68px + env(safe-area-inset-top, 0));
-    z-index: 30;
-    -webkit-tap-highlight-color: transparent;
-    transition: transform 0.1s ease;
-  }
-  #deadlines-stats-bar:active { transform: scale(0.98); }
-  .dl-stats-bar-left {
-    display: flex; align-items: center; gap: 8px;
-    font-size: 12px; font-weight: 700; color: #0f172a;
-    flex-shrink: 0; white-space: nowrap;
-  }
-  .dl-stats-bar-nums { display: flex; gap: 6px; flex-wrap: nowrap; }
-  .dl-mini-stat {
-    font-size: 11px; font-weight: 700;
-    padding: 3px 7px; border-radius: 8px;
-    font-variant-numeric: tabular-nums;
-  }
-  /* Цвета мини-цифр = цвета градиентных блоков */
-  .dl-mini-stat.c-emerald { color: #059669; background: #ecfdf5; }
-  .dl-mini-stat.c-sky     { color: #0284c7; background: #f0f9ff; }
-  .dl-mini-stat.c-rose    { color: #e11d48; background: #fff1f2; }
-  .dl-mini-stat.c-slate   { color: #475569; background: #f1f5f9; }
-
-  /* Шторка деталей: график, цели, на проверку, замены */
-  .dl-details {
-    position: fixed;
-    inset: 0;
-    z-index: 80;
-    background: var(--bg);
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    padding: 0 16px calc(32px + env(safe-area-inset-bottom, 0));
-    transform: translateY(102%);
-    transition: transform 0.32s cubic-bezier(0.32, 0.72, 0.24, 1);
-  }
-  .dl-details.open { transform: translateY(0); }
-  .dl-details-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: sticky;
-    top: 0;
-    background: var(--bg);
-    padding: 16px 0 12px;
-    margin-bottom: 4px;
-    z-index: 5;
-  }
-   .dl-details-title { font-size: 14px; font-weight: 800; color: #0f172a; }
-}
-
 /* ═══════════════════════════════════════════════════════════════
    АКЦИЗЫ: МОБИЛЬНАЯ ПЛАШКА СТАТИСТИКИ + ЛАКОНИЧНЫЙ СПИСОК
    ═══════════════════════════════════════════════════════════════ */
 #excise-stats-bar { display: none; }
-
-@media (max-width: 768px) {
-  /* Скрываем крупную сетку статистики на мобильном */
-  .excise-stats-grid {
-    display: none !important;
-  }
-
-  /* Плашка статистики (липкая под шапкой) */
-  #excise-stats-bar {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    gap: 10px !important;
-    background: #fff !important;
-    border: 1px solid #f1f5f9 !important;
-    border-radius: 14px !important;
-    padding: 10px 14px !important;
-    margin-bottom: 12px !important;
-    box-shadow: 0 1px 3px rgba(15,23,42,0.06) !important;
-    position: sticky !important;
-    top: calc(68px + env(safe-area-inset-top, 0)) !important;
-    z-index: 30 !important;
-  }
-  
-  .excise-stats-bar-left {
-    display: flex !important;
-    align-items: center !important;
-    gap: 8px !important;
-    font-size: 12px !important;
-    font-weight: 700 !important;
-    color: #0f172a !important;
-    flex-shrink: 0 !important;
-    white-space: nowrap !important;
-  }
-  
-  .excise-stats-bar-nums {
-    display: flex !important;
-    gap: 6px !important;
-    flex-wrap: nowrap !important;
-  }
-  
-  .excise-mini-stat {
-    font-size: 11px !important;
-    font-weight: 700 !important;
-    padding: 3px 7px !important;
-    border-radius: 8px !important;
-    font-variant-numeric: tabular-nums !important;
-  }
-  
-  .excise-mini-stat.c-indigo  { color: #4f46e5 !important; background: #eef2ff !important; }
-  .excise-mini-stat.c-emerald { color: #059669 !important; background: #ecfdf5 !important; }
-  .excise-mini-stat.c-rose    { color: #e11d48 !important; background: #fff1f2 !important; }
-
-  /* Лаконичный одноколоночный список марок */
-  #excise-list {
-    grid-template-columns: 1fr !important;
-    gap: 8px !important;
-  }
-
-  .excise-card {
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: center !important;
-    padding: 10px 12px !important;
-    background: #ffffff !important;
-    border: 1px solid #e2e8f0 !important;
-    border-radius: 12px !important;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.02) !important;
-    color: #0f172a !important;
-    gap: 12px !important;
-    overflow: visible !important;
-    position: relative !important;
-    min-height: auto !important;
-  }
-
-  .excise-card.valid {
-    border-color: #bbf7d0 !important;
-    background: #f0fdf4 !important;
-    box-shadow: none !important;
-  }
-
-  .excise-card.invalid {
-    border-color: #fecdd3 !important;
-    background: #fff1f2 !important;
-    box-shadow: none !important;
-  }
-
-  /* Иконка статуса слева */
-  .excise-status-icon {
-    position: static !important;
-    width: 24px !important;
-    height: 24px !important;
-    flex-shrink: 0 !important;
-    border-radius: 50% !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-  }
-
-  .excise-card.valid .excise-status-icon {
-    background: #10b981 !important;
-  }
-
-  .excise-card.invalid .excise-status-icon {
-    background: #f43f5e !important;
-  }
-
-  /* Текст марки посередине */
-  .excise-card-mark {
-    flex: 1 !important;
-    font-size: 11px !important;
-    line-height: 1.3 !important;
-    margin-right: 0 !important;
-    color: #334155 !important;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
-    font-weight: 500 !important;
-    word-break: break-all !important;
-  }
-
-  /* Мета-информация (только время) */
-  .excise-card-meta {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: flex-end !important;
-    justify-content: center !important;
-    margin-top: 0 !important;
-    padding-top: 0 !important;
-    border-top: none !important;
-    font-size: 10px !important;
-    color: #64748b !important;
-    opacity: 1 !important;
-    flex-shrink: 0 !important;
-    margin-right: 28px !important; /* Отступ под иконку корзины */
-  }
-
-  .excise-card-meta span:first-child {
-    display: none !important; /* Скрываем "✓ Валидна", так как есть иконка */
-  }
-
-  .excise-card-meta span:last-child {
-    font-size: 11px !important;
-    font-weight: 600 !important;
-    color: #64748b !important;
-  }
-
-  /* Кнопка удаления (всегда видна на мобильном) */
-  .excise-delete-btn {
-    position: absolute !important;
-    top: 50% !important;
-    right: 12px !important;
-    transform: translateY(-50%) !important;
-    display: flex !important;
-    width: 28px !important;
-    height: 28px !important;
-    background: #f1f5f9 !important;
-    border: 1px solid #e2e8f0 !important;
-    box-shadow: none !important;
-    border-radius: 8px !important;
-    align-items: center !important;
-    justify-content: center !important;
-  }
-
-  .excise-card:hover .excise-status-icon {
-    display: flex !important;
-  }
-
-  .excise-card:hover .excise-delete-btn {
-    display: flex !important;
-  }
-}
 
 /* ═══════════════════════════════════════════════════════════════
    СРОКИ: МОДАЛ «ДОБАВИТЬ СРОКИ» (новые карточки)
@@ -2002,10 +1272,6 @@
 }
 .tabbar-setting-row input[type="checkbox"] {
   accent-color: var(--primary);
-}
-
-@media (max-width: 768px) {
-  .settings-tab-mobile { display: inline-flex; align-items: center; }
 }
 
 /* Акцентные цвета активной вкладки для всех разделов */
@@ -2331,42 +1597,6 @@
   pointer-events: auto;
 }
 
-@media (max-width: 768px) {
-  #deadline-month-modal-backdrop > div > .modal-center-drag-zone,
-  #product-modal-backdrop > div > .modal-center-drag-zone {
-    flex-shrink: 0;
-    padding: 12px 20px 0 !important;
-    cursor: grab;
-  }
-  #deadline-month-modal-backdrop > div > .modal-center-drag-zone:active,
-  #product-modal-backdrop > div > .modal-center-drag-zone:active {
-    cursor: grabbing;
-  }
-  #deadline-month-modal-backdrop > div > .modal-center-drag-zone > .modal-sheet-handle,
-  #product-modal-backdrop > div > .modal-center-drag-zone > .modal-sheet-handle,
-  #deadline-month-modal-backdrop > div > .ms-header-row > .ms-close-btn,
-  #product-modal-backdrop > div > .ms-header-row > .ms-close-btn {
-    display: block !important;
-  }
-
-  #deadline-month-modal-backdrop > div,
-  #product-modal-backdrop > div {
-    transform: translateY(100%);
-    opacity: 0;
-    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0.24, 1), opacity 0.25s ease;
-  }
-  #deadline-month-modal-backdrop > div.open,
-  #product-modal-backdrop > div.open {
-    transform: translateY(0);
-    opacity: 1;
-  }
-  #deadline-month-modal-backdrop > div.modal-sheet-closing,
-  #product-modal-backdrop > div.modal-sheet-closing {
-    transform: translateY(100%);
-    opacity: 0;
-  }
-}
-
 /* ═══════════════════════════════════════════════════════════════
    ЕДИНЫЙ СТИЛЬ ШТОРОК (в стиле шторки «Ещё») — все окна на телефоне
    ═══════════════════════════════════════════════════════════════ */
@@ -2387,288 +1617,16 @@
 /* Backdrop шторки статистики (Сроки) */
 .dl-stats-backdrop { display: none; }
 
-@media (max-width: 768px) {
-  .modal-sheet-handle { display: block; }
-
-  /* ── Шторка статистики (Сроки) в стиле «Ещё» ── */
-  .dl-stats-backdrop {
-    display: block;
-    position: fixed; inset: 0; z-index: 79;
-    background: rgba(15, 23, 42, 0.5);
-    -webkit-backdrop-filter: blur(2px);
-    backdrop-filter: blur(2px);
-    opacity: 0;
-    transition: opacity 0.25s ease;
-  }
-  .dl-stats-backdrop.hidden { display: none !important; }
-  .dl-stats-backdrop.show { opacity: 1; }
-
-  .dl-details {
-    position: fixed;
-    inset: auto 0 0 0;
-    z-index: 80;
-    background: #fff;
-    border-radius: 24px 24px 0 0;
-    max-height: 88vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    -webkit-overflow-scrolling: touch;
-    padding: 0;
-    box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.18);
-    transform: translateY(102%);
-    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0.24, 1);
-  }
-  .dl-details.open { transform: translateY(0); }
-   .dl-sheet-dragzone {
-     flex-shrink: 0;
-     padding: 12px 20px 0;
-     cursor: grab;
-     -webkit-tap-highlight-color: transparent;
-   }
-  .dl-sheet-dragzone:active { cursor: grabbing; }
-   .dl-details-header {
-     position: relative;
-     top: auto;
-     background: transparent;
-     display: flex;
-     align-items: center;
-     justify-content: space-between;
-     padding: 0;
-     margin-bottom: 16px;
-     border-bottom: none;
-     z-index: auto;
-   }
-   .dl-sheet-body {
-     flex: 1;
-     overflow-y: auto;
-     -webkit-overflow-scrolling: touch;
-     padding: 0 20px 20px;
-   }
-
-  /* ── Центрированные модалки → нижние шторки ── */
-  #deadline-modal-backdrop,
-  #deadline-month-modal-backdrop,
-  #product-modal-backdrop { padding: 0 !important; }
-
-  #deadline-modal-backdrop > div,
-  #deadline-month-modal-backdrop > div,
-  #product-modal-backdrop > div {
-    position: absolute !important;
-    inset: auto 0 0 0 !important;
-    width: 100% !important;
-    max-width: none !important;
-    height: auto !important;
-    max-height: 90vh !important;
-    border-radius: 24px 24px 0 0 !important;
-    margin: 0 !important;
-    box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.18);
-    animation: sheetUp 0.3s cubic-bezier(0.32, 0.72, 0.24, 1) !important;
-  }
-  #product-modal-backdrop { z-index: 100 !important; }
-}
-
 /* ═══════════════════════════════════════════════════════════════
    PRODUCT-MODAL-SCROLL: длинная форма продукта скроллится на телефоне
    ═══════════════════════════════════════════════════════════════ */
-@media (max-width: 768px) {
-  #product-modal-backdrop > div {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  #product-modal-backdrop > div > form {
-    flex: 1;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-}
-
 /* ═══════════════════════════════════════════════════════════════
    УНИФИКАЦИЯ ШАПОК МОДАЛОК (телефон) — крестик-квадрат + заголовок
    Классы навешиваются из JS, правила только на <=768px (десктоп не тронут)
    ═══════════════════════════════════════════════════════════════ */
-@media (max-width: 768px) {
-  .unified-sheet-header {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    gap: 12px;
-  }
-  .unified-sheet-close {
-    width: 32px !important;
-    height: 32px !important;
-    min-height: 32px !important;
-    padding: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    border-radius: 10px !important;
-    background: #f1f5f9 !important;
-    color: #64748b !important;
-    border: none !important;
-    flex-shrink: 0 !important;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .unified-sheet-close svg { width: 16px !important; height: 16px !important; }
-  .unified-sheet-close:active { background: #e2e8f0 !important; color: #0f172a !important; }
-
-  /* Форма продукта скроллится внутри шторки, ничего не вылезает */
-  #product-modal-backdrop > div {
-    display: flex !important;
-    flex-direction: column !important;
-    overflow: hidden !important;
-  }
-  #product-modal-backdrop > div > form {
-    flex: 1 !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
-  }
-}
-
 /* ═══════════════════════════════════════════════════════════════
    UNIFIED-MODAL-HEADERS: шапки модалок = шторка «Ещё» (mobile)
    ═══════════════════════════════════════════════════════════════ */
-@media (max-width: 768px) {
-
-  /* контейнеры шторок — те же метрики, что у #mobile-more-sheet */
-  #deadline-modal-backdrop > div,
-  #deadline-month-modal-backdrop > div,
-  #product-modal-backdrop > div {
-    padding: 0 20px !important;
-    height: auto !important;
-    max-height: 90vh !important;
-    border-radius: 24px 24px 0 0 !important;
-    overflow: hidden !important;
-  }
-  #product-modal-backdrop > div {
-    display: flex !important;
-    flex-direction: column !important;
-  }
-
-  /* обнуляем боковые padding секций (у deadline/month это p-4) */
-  #deadline-modal-backdrop > div > div,
-  #deadline-month-modal-backdrop > div > div {
-    padding-left: 0 !important;
-    padding-right: 0 !important;
-  }
-
-  /* ручка — единые метрики (как ms-handle в «Ещё») */
-  #deadline-modal-backdrop > div > .modal-sheet-handle,
-  #deadline-month-modal-backdrop > div > .modal-sheet-handle,
-  #product-modal-backdrop > div > .modal-sheet-handle {
-    display: block !important;
-    width: 40px; height: 4px; border-radius: 2px;
-    background: #e2e8f0;
-    margin: 12px auto 16px !important;
-    flex-shrink: 0;
-  }
-
-  /* ШАПКА = ms-header-row в «Ещё» */
-  #deadline-modal-backdrop > div > .modal-sheet-handle + div,
-  #deadline-month-modal-backdrop > div > .modal-sheet-handle + div,
-  #product-modal-backdrop > div > .modal-sheet-handle + div {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    gap: 12px;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-    margin-bottom: 16px !important;
-    border: none !important;
-    background: transparent !important;
-    flex-shrink: 0;
-  }
-
-  #deadline-modal-backdrop > div > .modal-sheet-handle + div > div:first-child,
-  #deadline-month-modal-backdrop > div > .modal-sheet-handle + div > div:first-child {
-    min-width: 0;
-  }
-
-  /* заголовок = ms-title (14/800) */
-  #deadline-modal-backdrop > div > .modal-sheet-handle + div h3,
-  #deadline-month-modal-backdrop > div > .modal-sheet-handle + div h3,
-  #product-modal-backdrop > div > .modal-sheet-handle + div h3 {
-    font-size: 14px !important;
-    font-weight: 800 !important;
-    letter-spacing: -0.01em !important;
-    color: #0f172a !important;
-    line-height: 1.2 !important;
-    margin: 0 !important;
-  }
-  #deadline-modal-room-info {
-    font-size: 11px !important;
-    margin-top: 1px !important;
-    color: #64748b !important;
-  }
-
-  /* КРЕСТИК = серый квадрат (как ms-close-btn) */
-  #deadline-modal-backdrop > div > .modal-sheet-handle + div > button,
-  #deadline-month-modal-backdrop > div > .modal-sheet-handle + div > button,
-  #product-modal-backdrop > div > .modal-sheet-handle + div > button {
-    width: 32px !important;
-    height: 32px !important;
-    min-height: 32px !important;
-    padding: 0 !important;
-    border-radius: 10px !important;
-    background: #f1f5f9 !important;
-    color: #64748b !important;
-    border: none !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    flex-shrink: 0 !important;
-  }
-  #deadline-modal-backdrop > div > .modal-sheet-handle + div > button svg,
-  #deadline-month-modal-backdrop > div > .modal-sheet-handle + div > button svg,
-  #product-modal-backdrop > div > .modal-sheet-handle + div > button svg {
-    width: 16px !important;
-    height: 16px !important;
-  }
-
-  /* скролл тела (ручка и шапка стоят на месте) */
-  #deadline-modal-products,
-  #deadline-month-modal-list {
-    min-height: 0 !important;
-    padding-top: 0 !important;
-  }
-  #product-modal-backdrop > div > form {
-    flex: 1 1 auto !important;
-    overflow-y: auto !important;
-    min-height: 0 !important;
-    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0)) !important;
-  }
-
-  /* ФУТЕР модалки номера — кнопки не обрезаются */
-  #deadline-modal-backdrop > div > div:last-child {
-    padding-top: 12px !important;
-    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0)) !important;
-    border-top: 1px solid #f1f5f9 !important;
-    background: #f8fafc !important;
-    flex-shrink: 0;
-  }
-  #deadline-modal-backdrop > div > div:last-child > div {
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 8px !important;
-  }
-  #deadline-modal-backdrop > div > div:last-child > div > button {
-    width: 100% !important;
-  }
-  #deadline-modal-backdrop > div > div:last-child > div > div {
-    display: grid !important;
-    grid-template-columns: repeat(3, 1fr) !important;
-    gap: 8px !important;
-    width: 100% !important;
-  }
-  #deadline-modal-backdrop > div > div:last-child button {
-    padding: 10px 4px !important;
-    font-size: 11px !important;
-    min-height: 40px !important;
-    justify-content: center !important;
-  }
-}
-
 /* ═══════════════════════════════════════════════════════════════
    УНИФИКАЦИЯ КРЕСТИКОВ И ШАПОК МОДАЛОК (под эталон «Ещё»)
    ═══════════════════════════════════════════════════════════════ */
@@ -2680,40 +1638,6 @@
   background: #f1f5f9 !important; color: #64748b !important; border: none !important;
 }
 #cs-close svg, #deadlines-details-close svg, .sheet-modal .ms-close-btn svg { width: 16px !important; height: 16px !important; }
-@media (max-width: 768px) {
-  #deadline-modal-backdrop > div,
-  #deadline-month-modal-backdrop > div,
-  #product-modal-backdrop > div { padding: 0 !important; }
-  #deadline-modal-backdrop > div > .modal-sheet-handle + div,
-  #deadline-month-modal-backdrop > div > .modal-sheet-handle + div,
-  #product-modal-backdrop > div > .modal-sheet-handle + div {
-    padding: 12px 20px 0 !important; border-bottom: none !important;
-    align-items: center !important; margin-bottom: 16px !important;
-  }
-  #deadline-modal-backdrop > div > .modal-sheet-handle + div h3,
-  #deadline-month-modal-backdrop > div > .modal-sheet-handle + div h3,
-  #product-modal-backdrop > div > .modal-sheet-handle + div h3 {
-    font-size: 14px !important; font-weight: 800 !important;
-    letter-spacing: -0.01em !important; margin: 0 !important;
-  }
-  #deadline-modal-backdrop > div > .modal-sheet-handle + div button,
-  #deadline-month-modal-backdrop > div > .modal-sheet-handle + div button,
-  #product-modal-backdrop > div > .modal-sheet-handle + div button {
-    width: 32px !important; height: 32px !important; min-height: 32px !important;
-    padding: 0 !important; border-radius: 10px !important;
-    background: #f1f5f9 !important; color: #64748b !important; border: none !important;
-  }
-  #deadline-modal-backdrop > div > .modal-sheet-handle + div button svg,
-  #deadline-month-modal-backdrop > div > .modal-sheet-handle + div button svg,
-  #product-modal-backdrop > div > .modal-sheet-handle + div button svg {
-    width: 16px !important; height: 16px !important;
-  }
-  #deadline-modal-products { padding-left: 20px !important; padding-right: 20px !important; }
-  #deadline-modal-backdrop > div > div:last-child { padding-left: 20px !important; padding-right: 20px !important; }
-  #deadline-month-modal-list { padding-left: 20px !important; padding-right: 20px !important; }
-  #product-modal-backdrop > div > form { padding: 16px 20px 20px !important; }
-}
-
 /* ═══════════════════════════════════════════════════════════════
    ЕДИНЫЙ КРЕСТИК ШТОРКИ (квадрат, иконка по центру) — везде
    ═══════════════════════════════════════════════════════════════ */
@@ -2736,152 +1660,12 @@
 .sheet-close svg { width: 16px !important; height: 16px !important; }
 .sheet-close:active { background: #e2e8f0 !important; color: #0f172a !important; }
 
-@media (max-width: 768px) {
-  /* шапки бывших модалок — крестик по центру строки */
-  #deadline-modal-backdrop > div > [data-sheet-head],
-  #deadline-month-modal-backdrop > div > [data-sheet-head],
-  #product-modal-backdrop > div > [data-sheet-head] {
-    align-items: center !important;
-  }
-  /* модалка продукта — скролл формы внутри шторки */
-  #product-modal-backdrop > div {
-    display: flex !important;
-    flex-direction: column !important;
-  }
-  #product-modal-backdrop > div > form {
-    flex: 1 1 auto !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
-  }
-}
-
-@media (max-width:768px){main .p-8.max-w-7xl{padding:0 !important;}}
-
 /* Верхние парные кнопки (Акцизы/Сроки) на телефоне — столбик на всю ширину, 1 строка */
-@media (max-width:768px){
-  #view-excise > div:first-child > .flex,
-  #view-deadlines > div:first-child > .flex{ width:100%; flex-direction:column; gap:8px; }
-  #excise-copy-all-btn,#excise-clear-all-btn,
-  #deadlines-month-products-btn,#deadlines-reset-all-btn{
-    width:100%; justify-content:center; white-space:nowrap;
-  }
-}
-
 /* ═══ ЕДИНЫЙ РИТМ ОТСТУПОВ + СКРЫТЫЙ СКРОЛЛБАР (только мобильные) ═══ */
-@media (max-width:768px){
-  /* Межблочные вертикальные отступы = 12px везде */
-  .mb-4,.mb-6,.mb-8{ margin-bottom:12px !important; }
-  .space-y-3 > * + *,.space-y-4 > * + *,.space-y-6 > * + *{ margin-top:12px !important; }
-  /* Сетки блоков: единый зазор 12px */
-  .gap-4,.gap-6{ gap:12px !important; }
-  /* Зазор между верхними кнопками (столбиком) = тоже 12px */
-  #view-excise > div:first-child > .flex,
-  #view-deadlines > div:first-child > .flex{ gap:12px !important; }
-  /* Скроллбар скрыт, прокрутка пальцем работает */
-  html,body,main,.scrollbar,.tab-content,
-  .dl-sheet-body,.sheet-modal-body,
-  #deadline-modal-products,#deadline-month-modal-list,
-  #product-modal-backdrop > div > form{
-    scrollbar-width:none !important; -ms-overflow-style:none !important;
-  }
-  html::-webkit-scrollbar,body::-webkit-scrollbar,main::-webkit-scrollbar,
-  .scrollbar::-webkit-scrollbar,.tab-content::-webkit-scrollbar,
-  .dl-sheet-body::-webkit-scrollbar,.sheet-modal-body::-webkit-scrollbar,
-  #deadline-modal-products::-webkit-scrollbar,
-  #deadline-month-modal-list::-webkit-scrollbar,
-  #product-modal-backdrop > div > form::-webkit-scrollbar,
-  *::-webkit-scrollbar{ display:none !important; width:0 !important; height:0 !important; }
-}
-
 /* ═══ АКЦИЗЫ/СРОКИ: верхние кнопки — компактный ряд вместо столбика (моб.) ═══ */
-@media (max-width:768px){
-  #view-excise > div:first-child > .flex,
-  #view-deadlines > div:first-child > .flex{
-    flex-direction:row !important; gap:8px !important; width:100%;
-  }
-  #excise-copy-all-btn,#excise-clear-all-btn,
-  #deadlines-month-products-btn,#deadlines-reset-all-btn{
-    flex:1 1 0 !important; width:auto !important;
-    min-height:40px !important; padding:8px 6px !important;
-    font-size:12px !important; white-space:nowrap !important;
-    justify-content:center !important; gap:4px !important;
-  }
-  #excise-copy-all-btn svg,#excise-clear-all-btn svg,
-  #deadlines-month-products-btn svg,#deadlines-reset-all-btn svg{
-    width:14px !important; height:14px !important; flex-shrink:0;
-  }
-  /* Поле акциза: вернуть отступ под иконку сканера */
-  #excise-input{ padding-left:44px !important; }
-  /* Карточка акциза: развести время и корзину, время — тихая метка */
-  .excise-card-meta{
-    flex-direction:row !important; align-items:center !important;
-    margin-right:44px !important;
-  }
-  .excise-card-meta span:last-child{
-    font-size:10px !important; font-weight:500 !important;
-    color:#94a3b8 !important; white-space:nowrap;
-  }
-}
-
 /* ═══ АКЦИЗЫ: полировка (заголовок в строку, корзина-круг, плашка крупнее, тост над таб-баром) ═══ */
-@media (max-width:768px){
-  /* Inline-заголовки с иконкой: отменяем мобильный margin/размер h3 → текст и иконка на одной линии */
-  .flex.items-center.gap-2 > h3{
-    font-size:13px !important; font-weight:700 !important;
-    margin:0 !important; line-height:1 !important;
-  }
-  .flex.items-center.gap-2 > svg{ flex-shrink:0; }
-  /* Корзина = круг с обводкой цвета статуса, симметрично левому кружку */
-  .excise-status-icon{ width:28px !important; height:28px !important; }
-  .excise-status-icon svg{ width:13px !important; height:13px !important; }
-  .excise-delete-btn{
-    width:28px !important; height:28px !important; border-radius:50% !important;
-    background:#fff !important; border:1.5px solid #e2e8f0 !important; box-shadow:none !important;
-  }
-  .excise-delete-btn svg{ width:13px !important; height:13px !important; }
-  .excise-card.valid .excise-delete-btn{ border-color:#10b981 !important; }
-  .excise-card.valid .excise-delete-btn svg{ stroke:#10b981 !important; }
-  .excise-card.invalid .excise-delete-btn{ border-color:#f43f5e !important; }
-  .excise-card.invalid .excise-delete-btn svg{ stroke:#f43f5e !important; }
-  .excise-delete-btn:active{ transform:translateY(-50%) scale(.9) !important; }
-  /* Плашка статистики крупнее */
-  #excise-stats-bar{ padding:12px 16px !important; }
-  .excise-stats-bar-left{ font-size:13px !important; }
-  .excise-stats-bar-left svg{ width:18px !important; height:18px !important; }
-  .excise-mini-stat{ font-size:13px !important; padding:5px 10px !important; border-radius:9px !important; }
-  /* Тосты (showToast) — по центру над таб-баром, а не под ним */
-  .fixed.bottom-4.right-4{
-    left:50% !important; right:auto !important; transform:translateX(-50%) !important;
-    bottom:calc(84px + env(safe-area-inset-bottom,0)) !important; z-index:200 !important;
-    max-width:90vw; text-align:center;
-  }
-}
-
 /* ═══ АКЦИЗЫ v2: откат размера статистики, белый фон карточек + обводка, дата, светлый тост ═══ */
 .excise-card-date{ display:none; }
-@media (max-width:768px){
-  /* Статистика — компактный размер как было */
-  #excise-stats-bar{ padding:10px 14px !important; }
-  .excise-stats-bar-left{ font-size:12px !important; }
-  .excise-stats-bar-left svg{ width:16px !important; height:16px !important; }
-  .excise-mini-stat{ font-size:11px !important; padding:3px 7px !important; border-radius:8px !important; }
-  /* Карточки — БЕЛЫЙ фон, цвет статуса ТОЛЬКО в обводке (без заливки/градиента) */
-  .excise-card{ background:#ffffff !important; border-width:1.5px !important; }
-  .excise-card.valid{ background:#ffffff !important; border-color:#10b981 !important; }
-  .excise-card.invalid{ background:#ffffff !important; border-color:#f43f5e !important; }
-  /* Время чуть темнее + дата под ним */
-  .excise-card-meta > span:last-child{ font-size:11px !important; font-weight:600 !important; color:#64748b !important; line-height:1.1 !important; }
-  .excise-card-date{ display:block !important; font-size:9px !important; font-weight:500 !important; color:#94a3b8 !important; margin-top:2px !important; line-height:1 !important; }
-  /* Тост — светлая скруглённая таблетка вместо тёмного квадрата */
-  .fixed.bottom-4.right-4{
-    background:#ffffff !important; color:#0f172a !important;
-    border:1px solid #e2e8f0 !important; border-radius:16px !important;
-    padding:12px 18px !important; font-size:13.5px !important; font-weight:600 !important;
-    box-shadow:0 12px 32px rgba(15,23,42,0.18) !important; line-height:1.3 !important;
-    max-width:88vw !important;
-  }
-}
-
 /* ═══════════════════════════════════════════════════════════════
    FINAL EXCISE REDESIGN — единый дизайн (мобила + ПК).
    Перекрывает все предыдущие слои акцизов выше по файлу.
@@ -2995,32 +1779,12 @@
 
 /* ═══ КЛОН СТАТИСТИКИ В МОБИЛЬНОЙ ШТОРКЕ «АНАЛИТИКА» — консолидированная версия ═══ */
 .dl-stats-clone{ display:none !important; }
-@media (max-width:768px){
-  .dl-stats-clone{
-    display:grid !important;
-    grid-template-columns:repeat(4,1fr) !important;
-    gap:10px !important;
-    margin-top:18px !important;
-  }
-  .dl-stats-clone .stat-fill-card{ min-height:96px; }
-  .dl-stats-clone .dl-clone-card{ position:relative; overflow:hidden; isolation:isolate; border-radius:12px; min-height:108px; box-shadow:0 1px 3px rgba(15,23,42,.06); }
-  .dl-stats-clone .stat-layer-base,.dl-stats-clone .stat-layer-fill{ padding:14px !important; }
-  .dl-stats-clone .dl-clone-card .stat-layer{ box-sizing:border-box; width:100%; display:flex; flex-direction:column; align-items:center; gap:8px; padding:12px 4px 14px; text-align:center; }
-  .dl-stats-clone .text-3xl{ font-size:1.4rem !important; }
-  .dl-clone-label{ font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.02em; line-height:1.15; opacity:.95; }
-  .dl-clone-num{ font-size:1.45rem; font-weight:800; line-height:1; font-variant-numeric:tabular-nums; }
-}
-
 /* ═══ БЕЙДЖИ НАВБАРА: серые на неактивной вкладке (консолидация) ═══ */
 .nav-item:not(.active) .badge{ background:#f1f5f9 !important; color:#94a3b8 !important; border-color:#e2e8f0 !important; }
 .mobile-tab:not(.active) .mt-badge{ background:#94a3b8 !important; box-shadow:0 0 0 2px #fff !important; }
 
 /* ═══ FIX m25: заголовок шторки «Аналитика» скрыт на ПК (на телефоне виден в шторке) ═══ */
 .dl-details-header{ display:none !important; }
-@media (max-width:768px){
-  .dl-details-header{ display:flex !important; }
-}
-
 /* ═══ FIX m26: слои статистики — оба absolute, фикс-высота, эталонный HTML ═══ */
 .stat-fill-card{ position:relative; overflow:hidden; isolation:isolate; min-height:124px; border-radius:14px; box-shadow:0 1px 3px rgba(15,23,42,.06); }
 .stat-fill-card .stat-layer{ position:absolute; inset:0; box-sizing:border-box; padding:18px 20px; }
@@ -3084,12 +1848,6 @@
   .calc-drawer.open{ flex:0 0 380px; width:380px; }
   .calc-drawer > *{ width:380px; }
 }
-@media (max-width:768px){
-  .calc-drawer{ display:none !important; }
-}
-
-
-
 /* ═══ ИНВЕНТАРИЗАЦИЯ v2: без категорий + двухэтажная карточка (grid, только ПК) ═══ */
 /* Пустая полоса вкладок скрывается (вкладки больше не рисуются) */
 #inventory-tabs:empty{ display:none !important; }
@@ -3372,22 +2130,6 @@ transition:border-color .15s ease, background .15s ease, transform .1s ease;
 .gih-empty-orb{ width:64px; height:64px; margin:0 auto 14px; border-radius:50%; background:#eef2ff; color:#6366f1; display:flex; align-items:center; justify-content:center; animation:gih-orb 2.6s ease-in-out infinite; }
 .gih-empty-t{ font-size:16px; font-weight:800; color:#0f172a; }
 .gih-empty-s{ font-size:13px; color:#64748b; margin-top:4px; }
-@media (max-width:768px){
-  .gih-fbody{ grid-template-columns:1fr; }
-  .gih-cards{ grid-template-columns:1fr; }
-  .gih-fgrid{ max-height:none; display:flex; flex-direction:column; gap:12px; }
-  .gih-fcat{ display:flex; flex-direction:column; gap:16px; }
-  .gih-fcat-grid{ display:grid !important; grid-template-columns:1fr !important; gap:10px !important; }
-  .gih-fcat-grid > *{ width:100% !important; }
-  .gih-fitem{ width:100% !important; min-width:0 !important; }
-  .gih-fhead{ display:flex !important; flex-direction:column !important; align-items:stretch !important; gap:12px !important; }
-  .gih-fhead .gih-ac-field{ position:relative !important; width:100% !important; max-width:none !important; flex:1 1 auto !important; min-width:0 !important; }
-  .gih-fhead .gih-ac-input{ width:100% !important; padding-left:42px !important; }
-  .gih-fhead .gih-x{ margin-left:0 !important; margin-top:0 !important; align-self:flex-end !important; }
-  .gih-ac-field{ width:100% !important; }
-  .gih-ac-input{ width:100% !important; }
-}
-
 /* Collapsible left sidebar: toggle by clicking the logo button; hover only on the button shows the chevron */
 @media (min-width: 769px) {
   aside.sidebar {
@@ -3575,13 +2317,6 @@ transition:border-color .15s ease, background .15s ease, transform .1s ease;
 .prod-c-vol{ color:#64748b; font-size:13px; }
 .prod-c-exp{ text-align:center; }
 .template-item{ position:relative; }
-@media (max-width:768px){
-  .prod-head{ display:none; }
-  .prod-row{ grid-template-columns:28px 36px minmax(0,1fr) auto auto; gap:8px; padding:9px 10px; }
-  .prod-c-vol, .prod-c-exp{ display:none; }
-  .prod-c-price{ font-size:12px; }
-}
-
 /* ═══ DRAG-POLISH-V1: подъём строки при перетаскивании (продукты + шаблоны) ═══ */
 .prod-row, .template-item{ transition: box-shadow .15s ease; }
 .prod-row{ cursor: grab; }
@@ -3603,13 +2338,6 @@ transition:border-color .15s ease, background .15s ease, transform .1s ease;
 .prod-c-vol{ color:#64748b; font-size:13px; }
 .prod-c-exp{ text-align:center; }
 .template-item{ position:relative; }
-@media (max-width:768px){
-  .prod-head{ display:none; }
-  .prod-row{ grid-template-columns:28px 36px minmax(0,1fr) auto auto; gap:8px; padding:9px 10px; }
-  .prod-c-vol, .prod-c-exp{ display:none; }
-  .prod-c-price{ font-size:12px; }
-}
-
 /* ═══ НАСТРОЙКИ: СПИСОК ПРОДУКТОВ (карточки вместо таблицы) ═══ */
 #products-table-container{ padding:12px !important; }
 .prod-list{ display:flex; flex-direction:column; gap:8px; }
@@ -3630,10 +2358,6 @@ transition:border-color .15s ease, box-shadow .15s ease;
 .prod-row-expiry.off{ background:#f1f5f9; color:#94a3b8; }
 .prod-row-actions{ display:flex; gap:2px; flex-shrink:0; }
 .prod-row-actions .btn{ padding:6px 8px; min-height:0; }
-@media (max-width:768px){
-.prod-row-actions .btn{ min-height:34px !important; padding:7px !important; width:34px; justify-content:center; }
-}
-
 /* ═══ НАСТРОЙКИ: DRAG-AND-DROP В СТИЛЕ МОБИЛЬНОГО НАВБАРА (продукты + шаблоны) ═══
 Хват за .drag-handle; перетаскиваемый «всплывает» тенью, соседи плавно расступаются. */
 .drag-handle{
@@ -3716,14 +2440,6 @@ gap:10px !important; padding:6px 10px !important;
   #view-inventory .side-panel{ position:sticky !important; top:24px !important; height:calc(100dvh - 48px) !important; display:flex !important; flex-direction:column !important; }
   #view-inventory .side-panel-body{ flex:1 1 auto !important; overflow-y:auto !important; max-height:none !important; }
 }
-@media (max-width:768px){
-  .inv-card{ grid-template-columns:1fr !important; gap:8px !important; }
-  .inv-mid{ justify-content:flex-start !important; flex-wrap:wrap; }
-  .inv-result{ width:auto !important; }
-  .mobile-action-bar-value{ display:none !important; }
-  .mobile-action-bar-label{ font-size:14px !important; font-weight:700 !important; color:#0f172a !important; }
-}
-
 /* ═══ ИНВЕНТАРИЗАЦИЯ v5: 2 колонки (десктоп), сводка стоит как левое меню (inv-active), отступ снизу ═══ */
 @media (min-width:769px){
   #inventory-products-container.products-grid{ grid-template-columns:repeat(2,1fr) !important; gap:12px !important; }
@@ -3734,12 +2450,6 @@ gap:10px !important; padding:6px 10px !important;
 #view-inventory.inv-active #inventory-products-container{ overflow-y:auto !important; min-height:0 !important; padding-bottom:28px !important; align-content:start !important; }
 #view-inventory.inv-active .side-panel{ position:static !important; height:100% !important; min-height:0 !important; display:flex !important; flex-direction:column !important; }
 #view-inventory.inv-active .side-panel-body{ flex:1 1 auto !important; overflow-y:auto !important; min-height:0 !important; max-height:none !important; }
-@media (max-width:768px){
-  #view-inventory.inv-active{ display:block !important; height:auto !important; }
-  #view-inventory.inv-active .side-panel{ display:none !important; }
-  #inventory-products-container.products-grid{ grid-template-columns:1fr !important; }
-}
-
 /* ═══ ИНВЕНТАРИЗАЦИЯ v6: имя отдельной колонкой, сброс order, сводка sticky как левое меню ═══ */
 #inventory-products-container.products-grid{ grid-template-columns:repeat(2,1fr) !important; gap:12px !important; align-content:start !important; padding-bottom:36px !important; }
 /* сбрасываем order из старого слоя v3 — иначе имя уезжало в конец grid и исчезало */
@@ -3780,11 +2490,6 @@ gap:10px !important; padding:6px 10px !important;
   }
   #view-inventory .side-panel-body{ flex:1 1 auto !important; overflow-y:auto !important; min-height:0 !important; max-height:none !important; }
 }
-@media (max-width:768px){
-  #inventory-products-container.products-grid{ grid-template-columns:1fr !important; }
-  #view-inventory .side-panel{ display:none !important; }
-}
-
 /* ═══ ИНВЕНТАРИЗАЦИЯ v7: сводка приклеена к экрану (секция=вьюпорт, колонки скроллятся внутри) ═══ */
 @media (min-width:769px){
   #view-inventory.inv-fixed{ display:flex !important; flex-direction:column !important; overflow:hidden !important; }
@@ -3796,11 +2501,6 @@ gap:10px !important; padding:6px 10px !important;
   #view-inventory.inv-fixed .side-panel{ position:static !important; top:auto !important; left:auto !important; right:auto !important; max-height:none !important; height:100% !important; min-height:0 !important; display:flex !important; flex-direction:column !important; align-self:stretch !important; }
   #view-inventory.inv-fixed .side-panel-body{ flex:1 1 auto !important; min-height:0 !important; overflow-y:auto !important; max-height:none !important; }
 }
-@media (max-width:768px){
-  #view-inventory.inv-fixed{ display:block !important; height:auto !important; overflow:visible !important; }
-  #view-inventory.inv-fixed .inv-cols{ display:block !important; }
-}
-
 /* ═══ ИНВЕНТАРИЗАЦИЯ v8: сводка = ящик-сосед main (не уезжает), имя под эмодзи ═══ */
 .inv-summary-toggle{ display:inline-flex; align-items:center; gap:7px; }
 .inv-toggle-count{ display:inline-flex; align-items:center; justify-content:center; min-width:20px; height:20px; padding:0 6px; border-radius:10px; background:#3b82f6; color:#fff; font-size:11px; font-weight:800; font-variant-numeric:tabular-nums; }
@@ -3830,8 +2530,6 @@ gap:10px !important; padding:6px 10px !important;
   .inv-drawer-close{ margin-left:8px; width:30px; height:30px; border-radius:9px; border:1px solid #eef2f6; background:#fff; color:#94a3b8; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:.15s; }
   .inv-drawer-close:hover{ color:#0f172a; background:#f1f5f9; }
 }
-@media (max-width:768px){ .inv-drawer{ display:none !important; } .inv-summary-toggle{ display:none !important; } }
-
 /* ═══ ИНВЕНТАРИЗАЦИЯ: эмодзи в одну линию — резерв под именем всегда в 2 строки ═══ */
 .inv-name{ min-height:2.5em !important; -webkit-box-pack:start !important; align-content:start !important; }
 .inv-id{ min-height:calc(38px + 6px + 2.5em) !important; justify-content:flex-start !important; }
@@ -3843,17 +2541,6 @@ gap:10px !important; padding:6px 10px !important;
 .gih-fhead .gih-ac-input{ width:100%; padding:10px 12px 10px 34px; border:1.5px solid #e2e8f0; border-radius:11px; font:inherit; font-size:15px; font-variant-numeric:tabular-nums; transition:border-color .15s ease, box-shadow .15s ease; }
 .gih-fhead .gih-ac-input:focus{ outline:none; border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,.12); }
 
-@media (max-width:768px) {
-  .gih-fgrid{ display:grid !important; grid-template-columns:1fr !important; gap:12px !important; }
-  .gih-fcat{ display:flex !important; flex-direction:column !important; gap:14px !important; }
-  .gih-fcat-grid{ display:grid !important; grid-template-columns:1fr !important; gap:8px !important; }
-  .gih-fcat-grid > *{ width:100% !important; }
-  .gih-fitem{ width:100% !important; min-width:0 !important; }
-  .gih-fhead{ display:flex !important; flex-wrap:wrap !important; align-items:center !important; gap:12px !important; }
-  .gih-fhead .gih-ac-field{ flex:1 1 auto !important; min-width:0 !important; width:auto !important; }
-  .gih-fhead .gih-ac-input{ width:100% !important; }
-  .gih-fhead .gih-x{ margin-left:0 !important; margin-top:0 !important; align-self:flex-start !important; }
-}
 .gih-fhead .gih-ac{ position:absolute; left:0; right:0; top:100%; margin-top:5px; z-index:40; }
 .gih-fhead-t{ flex:1 1 auto; display:flex; align-items:center; justify-content:center; gap:8px; font-size:14px; font-weight:800; color:#0f172a; letter-spacing:-.01em; }
 .gih-fhead-t svg{ color:#6366f1; }
@@ -3895,23 +2582,6 @@ gap:10px !important; padding:6px 10px !important;
   box-sizing: border-box !important;
   padding-left: 42px !important;
 }
-@media (max-width:768px) {
-  .gih-fhead {
-    flex-direction: column !important;
-    align-items: stretch !important;
-  }
-  .gih-fhead .gih-ac-field {
-    width: 100% !important;
-    max-width: none !important;
-  }
-  .gih-fhead .gih-x {
-    margin-left: 0 !important;
-    margin-top: 12px !important;
-    align-self: flex-end !important;
-  }
-}
-
-
 /* ═══ История: вкладки, фильтры и кастомный календарь ═══ */
 .history-view-tabs {
   display: inline-flex;
@@ -4199,18 +2869,6 @@ gap:10px !important; padding:6px 10px !important;
   padding-top: 14px;
   border-top: 1px solid #f1f5f9;
 }
-@media (max-width: 640px) {
-  .history-view-tabs { width: 100%; }
-  .history-view-tab { flex: 1 1 0; padding: 8px 9px; }
-  .history-search-wrap { width: 100%; }
-  .history-sort-toggle { flex: 0 0 auto; }
-  .history-current-date { padding: 8px; gap: 6px; }
-  .history-current-date-main { gap: 6px; font-size: 12px; }
-  .history-current-date-count { padding: 4px 6px; font-size: 10px; }
-  .history-date-row { grid-template-columns: 36px minmax(0, 1fr) 36px; gap: 6px; }
-  .history-calendar { padding: 14px; }
-}
-
 /* Учитываем utility-класс hidden при собственных display-правилах Истории. */
 .history-daily-filters.hidden,
 .history-date-row.hidden,
@@ -4254,14 +2912,6 @@ gap:10px !important; padding:6px 10px !important;
 .history-gih-cell { display:flex; flex-direction:column; gap:9px; min-width:240px; }
 .history-gih-note { padding-top:7px; border-top:1px solid #e2e8f0; color:#64748b; font-size:12px; line-height:1.5; white-space:normal; overflow-wrap:anywhere; }
 
-.room-history-overlay { position:fixed; inset:0; z-index:10040; background:rgba(15,23,42,0); opacity:0; pointer-events:none; transition:opacity .22s ease,background .22s ease; }
-.room-history-overlay.open { opacity:1; pointer-events:auto; background:rgba(15,23,42,.36); backdrop-filter:blur(2px); }
-.room-history-drawer {
-  position:absolute; inset:0 auto 0 0; display:flex; flex-direction:column; width:min(460px,94vw); height:100%;
-  background:#fff; border-right:1px solid #e2e8f0; box-shadow:18px 0 50px rgba(15,23,42,.18);
-  transform:translateX(-102%); transition:transform .28s cubic-bezier(.22,.72,.24,1);
-}
-.room-history-overlay.open .room-history-drawer { transform:translateX(0); }
 .room-history-header { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:20px 22px 14px; border-bottom:1px solid #eef2f7; background:linear-gradient(180deg,#fff,#fcfcfd); }
 .room-history-kicker { margin-bottom:4px; color:#94a3b8; font-size:10px; font-weight:800; letter-spacing:.11em; text-transform:uppercase; }
 .room-history-title { margin:0; color:#0f172a; font-size:22px; line-height:1.2; font-weight:850; }
@@ -4285,20 +2935,6 @@ gap:10px !important; padding:6px 10px !important;
 .gih-room-history-link { padding:0; border:0; background:transparent; text-align:left; cursor:pointer; }
 .gih-room-history-link:hover { color:#4f46e5; text-decoration:underline; text-underline-offset:3px; }
 .gih-room-history-link:focus-visible,.history-room-link:focus-visible,.room-history-close:focus-visible { outline:3px solid #a5b4fc; outline-offset:2px; }
-@media (max-width:640px) {
-  .history-calendar { width:min(100%,420px); padding:16px; }
-  .history-calendar-title { font-size:19px; }
-  .history-calendar-day { height:45px; }
-  .history-calendar-count { font-size:8px; line-height:11px; }
-  .history-view-tabs { flex-wrap:wrap; }
-  .history-view-tab { min-width:0; }
-  .room-history-drawer { width:100%; max-width:460px; }
-  .room-history-header { padding:16px 17px 12px; }
-  .room-history-subtitle { padding:10px 17px 12px; }
-  .room-history-body { padding:12px; }
-}
-
-
 /* История номера: выдвижная боковая панель, сдвигающая основной контент как калькулятор. */
 .room-history-panel {
   display:flex;
@@ -4316,23 +2952,7 @@ gap:10px !important; padding:6px 10px !important;
   width:440px;
   box-shadow:6px 0 24px rgba(15,23,42,.07);
 }
-.room-history-panel > .room-history-drawer {
-  position:relative;
-  inset:auto;
-  display:flex;
-  flex:0 0 auto;
-  flex-direction:column;
-  width:440px;
-  max-width:none;
-  height:100%;
-  min-height:0;
-  border-right:0;
-  box-shadow:none;
-  transform:none;
-  transition:none;
-}
-
-/* Продукты GIH: один цельный цветной блок на статус, продукты — отдельными метками внутри. */
+.room-history-panel > /* Продукты GIH: один цельный цветной блок на статус, продукты — отдельными метками внутри. */
 .history-gih-groups { display:flex; flex-direction:column; gap:8px; min-width:230px; }
 .history-gih-status-panel {
   padding:9px 10px 10px;
@@ -4376,12 +2996,7 @@ gap:10px !important; padding:6px 10px !important;
 
 @media (min-width:769px) and (max-width:1180px) {
   .room-history-panel.open { flex-basis:380px; width:380px; }
-  .room-history-panel > .room-history-drawer { width:380px; }
-}
-@media (max-width:768px) {
-  .room-history-panel.open { flex-basis:100vw; width:100vw; }
-  .room-history-panel > .room-history-drawer { width:100vw; }
-  body.room-history-open #mobile-header,
-  body.room-history-open #mobile-tabbar,
-  body.room-history-open #mobile-more-backdrop { display:none !important; }
-}
+  .room-history-panel > }
+
+
+/* Legacy mobile breakpoints removed. Unified desktop styles live in design-system.css. */
