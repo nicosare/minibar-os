@@ -177,9 +177,66 @@ App.historyModule = (() => {
     }
   }
 
+  function formatDayKey(date) {
+    if (!date || Number.isNaN(date.getTime())) return 'unknown';
+    return [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, '0'),
+      String(date.getDate()).padStart(2, '0')
+    ].join('-');
+  }
+
+  function formatDayHeading(date) {
+    if (!date) return 'Дата неизвестна';
+
+    const label = date.toLocaleDateString('ru-RU', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+    const capitalized = label.charAt(0).toLocaleUpperCase('ru-RU') + label.slice(1);
+
+    const today = new Date();
+    const todayKey = formatDayKey(today);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayKey = formatDayKey(yesterday);
+    const key = formatDayKey(date);
+
+    if (key === todayKey) return 'Сегодня · ' + capitalized;
+    if (key === yesterdayKey) return 'Вчера · ' + capitalized;
+    return capitalized;
+  }
+
+  function operationCountLabel(count) {
+    return 'Операций: ' + count;
+  }
+
+  function renderPagination() {
+    const start = totalCount === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+    const end = Math.min(currentPage * PAGE_SIZE, totalCount);
+
+    return '<div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">' +
+      '<span class="text-xs text-slate-500 whitespace-nowrap">Записи ' + start + '–' + end + ' из ' + totalCount + '</span>' +
+      '<div class="flex items-center gap-2">' +
+        '<button type="button" data-history-page="prev" class="btn btn-outline" ' +
+          (currentPage <= 1 ? 'disabled aria-disabled="true" ' : '') +
+          '><i data-lucide="chevron-left" class="w-4 h-4"></i> Назад</button>' +
+        '<span class="min-w-max px-1 text-sm text-slate-600">Стр. ' + currentPage + '/' + pageCount + '</span>' +
+        '<button type="button" data-history-page="next" class="btn btn-outline" ' +
+          (currentPage >= pageCount ? 'disabled aria-disabled="true" ' : '') +
+          '>Далее <i data-lucide="chevron-right" class="w-4 h-4"></i></button>' +
+      '</div>' +
+    '</div>';
+  }
+
   function renderHistory() {
     const listContainer = document.getElementById('history-list-container');
+    const paginationContainer = document.getElementById('history-pagination-top');
     if (!listContainer) return;
+
+    if (paginationContainer) paginationContainer.innerHTML = renderPagination();
 
     if (checks.length === 0) {
       const filters = currentFilters();
@@ -188,62 +245,79 @@ App.historyModule = (() => {
         '<div class="p-12 text-center text-slate-400">' +
           '<i data-lucide="history" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>' +
           '<p>' + (hasFilter ? 'По заданным условиям ничего не найдено' : 'Журнал операций пуст') + '</p>' +
-        '</div>' +
-        '<div class="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200 px-4 py-3 text-sm text-slate-500">' +
-          '<span>Всего записей: ' + totalCount + '</span>' +
-          renderPagination() +
         '</div>';
       if (window.lucide) lucide.createIcons();
       return;
     }
 
-    const rows = checks.map((check, index) => {
-      const date = new Date(check.checkDate || check.check_date || check.createdAt);
-      const dateStr = date.toLocaleDateString('ru-RU', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-      });
-      const timeStr = date.toLocaleTimeString('ru-RU', {
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-      const operation = operationMeta(check);
-      const notes = displayNotes(check);
-      const rowBackground = index % 2 === 0 ? 'bg-white' : 'bg-slate-50';
+    const groups = [];
+    checks.forEach(check => {
+      const rawDate = check.checkDate || check.check_date || check.createdAt;
+      const parsedDate = rawDate ? new Date(rawDate) : null;
+      const date = parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate : null;
+      const key = formatDayKey(date);
+      let group = groups[groups.length - 1];
 
-      return '<tr class="' + rowBackground + ' border-b-2 border-slate-200 hover:bg-indigo-50/40 transition-colors">' +
-        '<td class="p-4 pl-6 text-slate-500 align-top">' +
-          '<div class="font-medium text-slate-900">' + dateStr + '</div>' +
-          '<div class="text-xs">' + timeStr + '</div>' +
-        '</td>' +
-        '<td class="p-4 font-semibold text-slate-900 align-top">' +
-          (check.room ? check.room.number : '—') +
-        '</td>' +
-        '<td class="p-4 align-top">' +
-          '<span class="inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-semibold ' +
-            operation.cls + '">' + operation.label + '</span>' +
-        '</td>' +
-        '<td class="p-4 align-top">' + renderProducts(check) + '</td>' +
-        '<td class="p-4 pr-6 text-slate-600 max-w-sm align-top">' +
-          (notes
-            ? '<div class="leading-5 whitespace-normal break-words" title="' + escapeHtml(notes) + '">' +
-                escapeHtml(notes).replace(/\n/g, '<br>') +
-              '</div>'
-            : '<span class="text-slate-400">—</span>') +
+      if (!group || group.key !== key) {
+        group = { key, date, items: [] };
+        groups.push(group);
+      }
+      group.items.push({ check, date });
+    });
+
+    const rows = groups.map(group => {
+      const heading = '<tr class="bg-indigo-50 border-y border-indigo-100">' +
+        '<td colspan="5" class="px-6 py-3">' +
+          '<div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-indigo-950">' +
+            '<i data-lucide="calendar-days" class="w-4 h-4 text-indigo-500"></i>' +
+            '<span class="font-bold">' + escapeHtml(formatDayHeading(group.date)) + '</span>' +
+            '<span class="text-xs font-medium text-indigo-700/80">' + operationCountLabel(group.items.length) + '</span>' +
+          '</div>' +
         '</td>' +
       '</tr>';
-    }).join('');
 
-    const start = (currentPage - 1) * PAGE_SIZE + 1;
-    const end = Math.min(currentPage * PAGE_SIZE, totalCount);
+      const dayRows = group.items.map((entry, index) => {
+        const check = entry.check;
+        const date = entry.date;
+        const timeStr = date ? date.toLocaleTimeString('ru-RU', {
+          hour: '2-digit',
+          minute: '2-digit'
+        }) : '—';
+        const operation = operationMeta(check);
+        const notes = displayNotes(check);
+        const rowBackground = index % 2 === 0 ? 'bg-white' : 'bg-slate-50';
+
+        return '<tr class="' + rowBackground + ' border-b-2 border-slate-200 hover:bg-indigo-50/40 transition-colors">' +
+          '<td class="p-4 pl-6 text-slate-500 align-top whitespace-nowrap">' +
+            '<div class="font-medium text-slate-900">' + timeStr + '</div>' +
+          '</td>' +
+          '<td class="p-4 font-semibold text-slate-900 align-top">' +
+            (check.room ? escapeHtml(check.room.number) : '—') +
+          '</td>' +
+          '<td class="p-4 align-top">' +
+            '<span class="inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-semibold ' +
+              operation.cls + '">' + operation.label + '</span>' +
+          '</td>' +
+          '<td class="p-4 align-top">' + renderProducts(check) + '</td>' +
+          '<td class="p-4 pr-6 text-slate-600 max-w-sm align-top">' +
+            (notes
+              ? '<div class="leading-5 whitespace-normal break-words" title="' + escapeHtml(notes) + '">' +
+                  escapeHtml(notes).replace(/\n/g, '<br>') +
+                '</div>'
+              : '<span class="text-slate-400">—</span>') +
+          '</td>' +
+        '</tr>';
+      }).join('');
+
+      return heading + dayRows;
+    }).join('');
 
     listContainer.innerHTML =
       '<div class="overflow-x-auto">' +
         '<table class="w-full text-left border-collapse">' +
           '<thead>' +
             '<tr class="border-b-2 border-slate-200 text-xs font-semibold text-slate-500 uppercase bg-slate-100">' +
-              '<th class="p-4 pl-6">Дата и время</th>' +
+              '<th class="p-4 pl-6">Время</th>' +
               '<th class="p-4">Номер комнаты</th>' +
               '<th class="p-4">Тип операции</th>' +
               '<th class="p-4">Продукты</th>' +
@@ -252,25 +326,9 @@ App.historyModule = (() => {
           '</thead>' +
           '<tbody class="text-sm text-slate-700">' + rows + '</tbody>' +
         '</table>' +
-      '</div>' +
-      '<div class="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200 px-4 py-3 text-sm text-slate-500">' +
-        '<span>Записи ' + start + '–' + end + ' из ' + totalCount + '</span>' +
-        renderPagination() +
       '</div>';
 
     if (window.lucide) lucide.createIcons();
-  }
-
-  function renderPagination() {
-    return '<div class="flex items-center gap-2">' +
-      '<button type="button" data-history-page="prev" class="btn btn-outline" ' +
-        (currentPage <= 1 ? 'disabled aria-disabled="true" ' : '') +
-        '><i data-lucide="chevron-left" class="w-4 h-4"></i> Назад</button>' +
-      '<span class="min-w-max px-1">Страница ' + currentPage + ' из ' + pageCount + '</span>' +
-      '<button type="button" data-history-page="next" class="btn btn-outline" ' +
-        (currentPage >= pageCount ? 'disabled aria-disabled="true" ' : '') +
-        '>Далее <i data-lucide="chevron-right" class="w-4 h-4"></i></button>' +
-    '</div>';
   }
 
   function setupListeners() {
@@ -278,7 +336,7 @@ App.historyModule = (() => {
 
     const search = document.getElementById('history-search');
     const typeFilter = document.getElementById('history-type-filter');
-    const listContainer = document.getElementById('history-list-container');
+    const paginationContainer = document.getElementById('history-pagination-top');
 
     search?.addEventListener('input', () => {
       currentPage = 1;
@@ -290,7 +348,7 @@ App.historyModule = (() => {
       loadHistory();
     });
 
-    listContainer?.addEventListener('click', event => {
+    paginationContainer?.addEventListener('click', event => {
       const button = event.target.closest('[data-history-page]');
       if (!button || button.disabled) return;
 
