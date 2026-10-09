@@ -140,7 +140,7 @@ model ReplacementItem {
 
 model Check {
   id             Int         @id @default(autoincrement())
-  roomId         Int         @map("room_id")
+  roomId         Int?        @map("room_id")
   checkDate      DateTime    @default(now()) @map("check_date")
   type           String
   gihRoomStatus  String?     @map("gih_room_status")
@@ -149,7 +149,7 @@ model Check {
   notes          String?
   createdAt      DateTime    @default(now()) @map("created_at")
 
-  room     Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  room     Room?     @relation(fields: [roomId], references: [id], onDelete: Cascade)
   gihItems GihItem[]
 
   @@map("checks")

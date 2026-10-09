@@ -17,6 +17,15 @@ import { clientOffset, getLocalParts, dateFromParts, endOfLocalMonth } from '../
 
 const router = Router();
 
+function periodHistoryEvent(event) {
+  return {
+    roomId: null,
+    type: 'deadline',
+    status: 'done',
+    notes: JSON.stringify({ source: 'deadlines', scope: 'product_period', ...event })
+  };
+}
+
 router.get('/month-products', async (req, res) => {
   try {
     const offset = clientOffset(req);  // ← ДОБАВЛЕНО
@@ -110,10 +119,22 @@ router.put('/month-products/:productId', async (req, res) => {
         return res.status(409).json({ error: 'Такой период уже добавлен для этого продукта' });
       }
 
-      const result = await prisma.productMonthCheck.update({
-        where: { id: checkId },
-        data: { checkMonth: parsed.month, checkYear: parsed.year },
-        include: { product: true }
+      const result = await prisma.$transaction(async tx => {
+        const updated = await tx.productMonthCheck.update({
+          where: { id: checkId },
+          data: { checkMonth: parsed.month, checkYear: parsed.year },
+          include: { product: true }
+        });
+        await tx.check.create({
+          data: periodHistoryEvent({
+            action: 'month_period_updated',
+            productName: product.name,
+            periodBefore: formatPeriod(existing.checkMonth, existing.checkYear),
+            periodAfter: formatPeriod(updated.checkMonth, updated.checkYear),
+            note: 'Изменён период проверки срока годности продукта'
+          })
+        });
+        return updated;
       });
 
       return res.json({
@@ -133,9 +154,21 @@ router.put('/month-products/:productId', async (req, res) => {
       return res.status(409).json({ error: 'Такой период уже добавлен для этого продукта' });
     }
 
-    const result = await prisma.productMonthCheck.create({
-      data: { productId, checkMonth: parsed.month, checkYear: parsed.year },
-      include: { product: true }
+    const result = await prisma.$transaction(async tx => {
+      const created = await tx.productMonthCheck.create({
+        data: { productId, checkMonth: parsed.month, checkYear: parsed.year },
+        include: { product: true }
+      });
+      await tx.check.create({
+        data: periodHistoryEvent({
+          action: 'month_period_added',
+          productName: product.name,
+          periodBefore: null,
+          periodAfter: formatPeriod(created.checkMonth, created.checkYear),
+          note: 'Добавлен период проверки срока годности продукта'
+        })
+      });
+      return created;
     });
 
     res.json({
@@ -151,7 +184,24 @@ router.put('/month-products/:productId', async (req, res) => {
 router.delete('/month-products/check/:checkId', async (req, res) => {
   try {
     const checkId = parseInt(req.params.checkId, 10);
-    await prisma.productMonthCheck.deleteMany({ where: { id: checkId } });
+    const existing = await prisma.productMonthCheck.findUnique({
+      where: { id: checkId },
+      include: { product: true }
+    });
+    if (!existing) return res.json({ ok: true });
+
+    await prisma.$transaction(async tx => {
+      await tx.productMonthCheck.deleteMany({ where: { id: checkId } });
+      await tx.check.create({
+        data: periodHistoryEvent({
+          action: 'month_period_deleted',
+          productName: existing.product.name,
+          periodBefore: formatPeriod(existing.checkMonth, existing.checkYear),
+          periodAfter: null,
+          note: 'Удалён период проверки срока годности продукта'
+        })
+      });
+    });
     res.json({ ok: true });
   } catch (err) {
     console.error('DELETE deadlines/month-products/check error:', err);
@@ -162,7 +212,25 @@ router.delete('/month-products/check/:checkId', async (req, res) => {
 router.delete('/month-products/:productId', async (req, res) => {
   try {
     const productId = parseInt(req.params.productId, 10);
-    await prisma.productMonthCheck.deleteMany({ where: { productId } });
+    const existing = await prisma.productMonthCheck.findMany({
+      where: { productId },
+      include: { product: true },
+      orderBy: [{ checkYear: 'asc' }, { checkMonth: 'asc' }]
+    });
+    if (!existing.length) return res.json({ ok: true });
+
+    await prisma.$transaction(async tx => {
+      await tx.productMonthCheck.deleteMany({ where: { productId } });
+      await tx.check.create({
+        data: periodHistoryEvent({
+          action: 'month_periods_cleared',
+          productName: existing[0].product.name,
+          periodsBefore: existing.map(item => formatPeriod(item.checkMonth, item.checkYear)),
+          periodAfter: null,
+          note: 'Удалены все периоды проверки срока годности продукта'
+        })
+      });
+    });
     res.json({ ok: true });
   } catch (err) {
     console.error('DELETE deadlines/month-products error:', err);

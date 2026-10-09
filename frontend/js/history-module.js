@@ -423,6 +423,12 @@ App.historyModule = (() => {
   function renderRoomButton(check) {
     const number = roomNumber(check);
     const roomId = Number(check && check.roomId);
+    if (!number && check && check.type === 'deadline') {
+      const event = deadlineEvent(check);
+      const target = event.productName || 'Настройки сроков';
+      return '<span class="history-deadline-object" title="Изменение общих настроек сроков">' +
+        escapeHtml(target) + '</span>';
+    }
     if (!number) return '<span class="text-slate-400">—</span>';
     if (!Number.isInteger(roomId) || roomId <= 0) return escapeHtml(number);
     return '<button type="button" class="history-room-link" data-history-room-id="' + roomId +
@@ -447,7 +453,9 @@ App.historyModule = (() => {
     const labels = {
       emptied: 'Опустошён', marked_valid: 'Отмечен как исправный', status_reset: 'Сброс статуса',
       products_updated: 'Изменены продукты', needs_replacement: 'Требует замены',
-      reset_all: 'Общий сброс статусов', status_updated: 'Изменён статус'
+      reset_all: 'Общий сброс статусов', status_updated: 'Изменён статус',
+      month_period_added: 'Добавлен период', month_period_updated: 'Изменён период',
+      month_period_deleted: 'Удалён период', month_periods_cleared: 'Удалены периоды'
     };
     return labels[event.action] || 'Изменение сроков';
   }
@@ -464,6 +472,7 @@ App.historyModule = (() => {
 
   function renderDeadlineTransition(check) {
     const event = deadlineEvent(check);
+    if (event.scope === 'product_period') return '<span class="text-slate-400">Не относится к комнате</span>';
     if (!event.previousStatus && !event.newStatus) return '<span class="text-slate-400">—</span>';
     const previous = event.previousStatus || 'neutral';
     const next = event.newStatus || previous;
@@ -486,6 +495,13 @@ App.historyModule = (() => {
     const event = deadlineEvent(check);
     const details = [];
     if (event.note) details.push(String(event.note));
+    if (event.productName) details.push('Продукт: ' + String(event.productName));
+    if (event.periodBefore || event.periodAfter) {
+      details.push('Период: ' + (event.periodBefore || '—') + ' → ' + (event.periodAfter || 'удалён'));
+    }
+    if (Array.isArray(event.periodsBefore) && event.periodsBefore.length) {
+      details.push('Удалённые периоды: ' + event.periodsBefore.join(', '));
+    }
     const before = Array.isArray(event.previousProducts) ? event.previousProducts : [];
     const after = Array.isArray(event.productsAfter) ? event.productsAfter : [];
     if (before.length || after.length) {
@@ -594,7 +610,7 @@ App.historyModule = (() => {
 
     let tableHeader;
     if (state.view === 'deadlines') {
-      tableHeader = '<th class="p-3 sm:p-4 pl-4 sm:pl-6">Дата и время</th><th class="p-3 sm:p-4">Номер</th>' +
+      tableHeader = '<th class="p-3 sm:p-4 pl-4 sm:pl-6">Дата и время</th><th class="p-3 sm:p-4">Номер / объект</th>' +
         '<th class="p-3 sm:p-4">Действие</th><th class="p-3 sm:p-4">Изменение статуса</th>' +
         '<th class="p-3 sm:p-4 pr-4 sm:pr-6">Подробности</th>';
     } else if (state.view === 'gih') {

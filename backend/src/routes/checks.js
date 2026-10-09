@@ -71,6 +71,7 @@ router.get('/', async (req, res) => {
     const { type, status, limit } = req.query;
     const where = {};
     if (type) where.type = type;
+    else where.type = { not: 'deadline' };
     if (status) where.status = status;
     const checks = await prisma.check.findMany({
       where,
