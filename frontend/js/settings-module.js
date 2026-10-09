@@ -269,9 +269,9 @@ onReorder: () => saveTemplate(sl.dataset.category)
 });
 });
 }
-// ── Универсальный drag-and-drop списков (pointer events, визуал как в мобильном навбаре) ──
+// ── Универсальный drag-and-drop списков ──
 // Хват только за .drag-handle (работает и мышью, и пальцем благодаря touch-action:none).
-// Перетаскиваемый элемент «всплывает» (тень + scale), соседи плавно расступаются.
+// Перетаскиваемый элемент приподнимается, соседние элементы освобождают место.
 function initListDrag(listEl, opts) {
 if (!listEl || listEl.dataset.dragInit) return;
 listEl.dataset.dragInit = '1';
