@@ -6,14 +6,15 @@
 <title>MiniBar OS</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.0/index.css" />
-<link rel="stylesheet" href="styles.css??v=m72" />
+<link rel="stylesheet" href="styles.css??v=m73" />
+<link rel="stylesheet" href="design-system.css??v=ds1" />
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body class="antialiased">
 
-<div class="flex h-screen overflow-hidden">
+<div id="app-shell" class="app-shell">
   <!-- Sidebar -->
-  <aside class="sidebar bg-white border-r border-slate-200 flex flex-col">
+  <aside class="sidebar bg-white border-r border-slate-200 flex flex-col is-expanded">
     <div class="p-5 border-b border-slate-100">
       <button type="button" class="sidebar-brand flex items-center gap-2 w-full text-left" aria-label="Свернуть/развернуть меню" data-sidebar-toggle>
         <span class="sidebar-brand-icon w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0 relative">
@@ -104,35 +105,21 @@
   <main class="flex-1 overflow-y-auto scrollbar">
 
 <!-- ═══ МОБИЛЬНАЯ ШАПКА (только телефон) ═══ -->
-<header id="mobile-header">
-  <div class="mh-brand">
-    <div class="mh-logo">M</div>
-    <div>
-      <div class="mh-app">MiniBar OS</div>
-      <div class="mh-section" id="mobile-section-title">Обзор</div>
-    </div>
-  </div>
-  <div class="mh-date" id="mobile-date"></div>
-</header>
-
-    <div class="p-8 max-w-7xl mx-auto">
+<div class="workspace page-container">
       
       <!-- DASHBOARD -->
       <section id="view-dashboard" class="tab-content fade-in">
         <div class="mb-8">
-          <h1 class="text-3xl font-bold text-slate-900">Добро пожаловать, Анна</h1>
-          <p class="text-slate-600 mt-2">Панель управления MiniBar OS v2</p>
-        </div>
+          <h1 class="text-3xl font-bold text-slate-900">Обзор</h1>
+          </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div class="bg-white rounded-xl p-6 border border-slate-100">
             <div class="flex items-center justify-between mb-4">
               <h3 class="font-semibold text-slate-900">Выручка за сегодня</h3>
-              <span class="text-xs text-slate-500">Обновлено в реальном времени</span>
-            </div>
+              </div>
             <div class="text-3xl font-bold text-slate-900" id="dashboard-revenue">₽ 0</div>
-            <div class="text-sm text-emerald-600 mt-2">Базируется на завершенных проверках</div>
-          </div>
+            </div>
           <div class="bg-white rounded-xl p-6 border border-slate-100">
             <h3 class="font-semibold text-slate-900 mb-4">Топ продукты минибаров</h3>
             <div class="space-y-3" id="dashboard-top-products">
@@ -161,19 +148,6 @@
       <button id="excise-clear-all-btn" class="btn btn-outline" style="color: var(--danger);">
         <i data-lucide="trash-2" class="w-4 h-4"></i> Очистить все
       </button>
-    </div>
-  </div>
-
-  <!-- Мобильная плашка статистики (вид только на мобильных) -->
-  <div id="excise-stats-bar" class="excise-stats-bar hidden">
-    <div class="excise-stats-bar-left">
-      <i data-lucide="bar-chart-3" class="w-4 h-4 text-slate-500"></i>
-      <span>Статистика</span>
-    </div>
-    <div class="excise-stats-bar-nums">
-      <span class="excise-mini-stat c-indigo" id="excise-mstat-total" title="Всего">0</span>
-      <span class="excise-mini-stat c-emerald" id="excise-mstat-valid" title="Валидные">0</span>
-      <span class="excise-mini-stat c-rose" id="excise-mstat-invalid" title="Невалидные">0</span>
     </div>
   </div>
 
@@ -246,8 +220,7 @@
   <div class="flex items-start justify-between mb-6">
     <div>
       <h1 class="text-2xl font-bold text-slate-900">Arrivals</h1>
-      <p class="text-slate-600 mt-1">Заезды гостей на сегодня</p>
-    </div>
+      </div>
     <div class="flex gap-2">
       <button class="btn btn-outline"><i data-lucide="calendar" class="w-4 h-4"></i> Сегодня</button>
       <button class="btn btn-primary"><i data-lucide="plus" class="w-4 h-4"></i> Новый заезд</button>
@@ -292,8 +265,7 @@
   <div class="flex items-start justify-between mb-6">
     <div>
       <h1 class="text-2xl font-bold text-slate-900">Departures</h1>
-      <p class="text-slate-600 mt-1">Выезды гостей на сегодня</p>
-    </div>
+      </div>
     <div class="flex gap-2">
       <button class="btn btn-outline"><i data-lucide="calendar" class="w-4 h-4"></i> Сегодня</button>
     </div>
@@ -337,8 +309,7 @@
   <div class="gih-head">
     <div>
       <h1 class="text-2xl font-bold text-slate-900 gih-title">GIH <span id="gih-title-date" class="gih-title-date"></span></h1>
-      <p id="gih-date"></p>
-    </div>
+      </div>
     <button id="gih-new-btn" class="btn btn-primary"><i data-lucide="plus" class="w-4 h-4"></i> Новая запись</button>
   </div>
   <div id="gih-factory" class="gih-factory hidden"></div>
@@ -373,38 +344,7 @@
       <div id="inventory-summary-list" class="side-panel-body hidden"></div><div class="side-panel-footer"><div class="total-row"><span class="total-row-label">Позиций</span><span class="total-row-value" id="inventory-total-count">0</span></div></div></aside>
   </div>
 
-  <!-- Мобильная мини-панель -->
-  <div id="inventory-mobile-bar" class="mobile-action-bar hidden">
-    <div class="mobile-action-bar-info">
-      <span class="mobile-action-bar-label" id="inventory-mobile-count">0 продуктов</span>
-      <span class="mobile-action-bar-value" id="inventory-mobile-total">0 л</span>
-    </div>
-    <button id="inventory-mobile-expand" class="btn btn-primary">
-      Развернуть <i data-lucide="chevron-up" class="w-4 h-4"></i>
-    </button>
-  </div>
-
-  <!-- Мобильная шторка сводки -->
-  <div id="inventory-summary-modal" class="sheet-modal hidden">
-    <div class="sheet-modal-backdrop" id="inventory-summary-modal-backdrop"></div>
-    <div class="sheet-modal-content">
-      <div class="ms-drag-zone sheet-modal-drag-zone">
-        <div class="ms-handle"></div>
-        <div class="ms-header-row sheet-modal-header">
-          <span class="ms-title sheet-modal-title">Сводка</span>
-          <button id="inventory-summary-modal-close" class="ms-close-btn" type="button" aria-label="Закрыть">
-            <i data-lucide="x" class="w-4 h-4"></i>
-          </button>
-        </div>
-      </div>
-      <div id="inventory-summary-modal-list" class="sheet-modal-body"></div>
-      <div class="sheet-modal-footer">
-        <button id="inventory-summary-modal-clear" class="btn btn-outline" style="width:100%;">
-          <i data-lucide="trash-2" class="w-4 h-4"></i> Очистить всё
-        </button>
-      </div>
-    </div>
-  </div>
+  
 </section>
 
       <!-- DEADLINES -->
@@ -584,8 +524,7 @@
       <section id="view-history" class="tab-content fade-in">
         <div class="mb-8">
           <h1 class="text-2xl font-bold text-slate-900">История операций</h1>
-          <p class="text-slate-600 mt-2">Ежедневные операции, изменения сроков и подробные записи GIH</p>
-        </div>
+          </div>
         <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
           <div class="p-4 sm:p-5 border-b border-slate-100">
             <div class="flex flex-col gap-4">
@@ -642,8 +581,7 @@
       <section id="view-empty" class="tab-content fade-in">
         <div class="mb-8">
           <h1 class="text-2xl font-bold text-slate-900">Пустые минибары</h1>
-          <p class="text-slate-600 mt-2">Требуют пополнения или обслуживания</p>
-        </div>
+          </div>
         <div id="empty-rooms-container">
           <div class="flex items-center justify-center py-12">
             <div class="text-slate-400">
@@ -685,42 +623,7 @@
     </aside>
   </div>
 
-  <!-- Мобильная мини-панель -->
-  <div id="calculator-mobile-bar" class="mobile-action-bar hidden">
-    <div class="mobile-action-bar-info">
-      <span class="mobile-action-bar-label" id="calculator-mobile-count">0 позиций</span>
-      <span class="mobile-action-bar-value" id="calculator-mobile-total">0 ₽</span>
-    </div>
-    <button id="calculator-mobile-expand" class="btn btn-primary">
-      Развернуть <i data-lucide="chevron-up" class="w-4 h-4"></i>
-    </button>
-  </div>
-
-  <!-- Мобильная шторка счёта -->
-  <div id="calculator-bill-modal" class="sheet-modal hidden">
-    <div class="sheet-modal-backdrop" id="calculator-bill-modal-backdrop"></div>
-    <div class="sheet-modal-content">
-      <div class="ms-drag-zone sheet-modal-drag-zone">
-        <div class="ms-handle"></div>
-        <div class="ms-header-row sheet-modal-header">
-          <span class="ms-title sheet-modal-title">Счёт</span>
-          <button id="calculator-bill-modal-close" class="ms-close-btn" type="button" aria-label="Закрыть">
-            <i data-lucide="x" class="w-4 h-4"></i>
-          </button>
-        </div>
-      </div>
-      <div id="calculator-bill-modal-list" class="sheet-modal-body"></div>
-      <div class="sheet-modal-footer">
-        <div class="total-row" style="margin-bottom:12px;">
-          <span class="total-row-label" id="calculator-bill-modal-count">0 позиций</span>
-          <span class="total-row-value" id="calculator-bill-modal-total">0 ₽</span>
-        </div>
-        <button id="calculator-bill-modal-clear" class="btn btn-outline" style="width:100%;">
-          <i data-lucide="trash-2" class="w-4 h-4"></i> Очистить счёт
-        </button>
-      </div>
-    </div>
-  </div>
+  
 </section>
 
       <!-- SETTINGS -->
@@ -876,7 +779,6 @@
 <script src="js/app-core.js??v=m66"></script>
 <script src="js/excise-module.js??v=m66"></script>
 <script src="js/deadlines-module.js??v=m66"></script>
-<script src="js/stat-fill.js??v=m66"></script>
 <script src="js/settings-module.js??v=m66"></script>
 <script src="js/calculator-module.js??v=m66"></script>
 <script src="js/inventory-module.js??v=m66"></script>
@@ -889,32 +791,5 @@
 <script src="js/init.js??v=m70"></script>
 
 
-<!-- ═══ МОБИЛЬНЫЙ ТАБ-БАР (только телефон) ═══ -->
-<nav id="mobile-tabbar">
-  <a class="mobile-tab" data-route="dashboard" href="#"><i data-lucide="layout-dashboard"></i><span>Обзор</span></a>
-  <a class="mobile-tab" data-route="excise" href="#"><i data-lucide="stamp"></i><span>Акцизы</span><span class="mt-badge b-amber hidden" id="excise-badge-m">0</span></a>
-  <a class="mobile-tab" data-route="deadlines" href="#"><i data-lucide="calendar"></i><span>Сроки</span><span class="mt-badge b-rose hidden" id="deadlines-badge-m">0</span></a>
-  <a class="mobile-tab" data-route="gih" href="#"><i data-lucide="clipboard-check"></i><span>GIH</span></a>
-  <a class="mobile-tab" data-route="more" href="#"><i data-lucide="grid-3x3"></i><span>Ещё</span></a>
-</nav>
-
-<!-- ═══ ШТОРКА «ЕЩЁ» ═══ -->
-<div id="mobile-more-backdrop" class="hidden">
-  <div id="mobile-more-sheet">
-    <div class="ms-handle"></div>
-    <div class="ms-title">Разделы</div>
-    <div class="ms-grid">
-      <a class="ms-item" data-route="arrivals" href="#"><i data-lucide="plane-landing"></i><span>Arrivals</span></a>
-      <a class="ms-item" data-route="departures" href="#"><i data-lucide="plane-takeoff"></i><span>Departures</span></a>
-      <a class="ms-item" data-route="history" href="#"><i data-lucide="history"></i><span>История</span></a>
-      <a class="ms-item" data-route="empty" href="#"><i data-lucide="alert-circle"></i><span>Пустые</span></a>
-      <a class="ms-item" data-route="calculator" href="#"><i data-lucide="calculator"></i><span>Калькулятор</span></a>
-      <a class="ms-item" data-route="inventory" href="#"><i data-lucide="clipboard-list"></i><span>Инвентаризация</span></a>
-      <a class="ms-item" data-route="settings" href="#"><i data-lucide="settings"></i><span>Настройки</span></a>
-    </div>
-  </div>
-</div>
-
-<script src="js/mobile-nav.js??v=m66"></script>
 </body>
 </html>
