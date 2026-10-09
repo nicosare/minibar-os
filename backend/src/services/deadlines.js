@@ -21,12 +21,24 @@ export async function recalcTomorrowTarget(tx, offsetMinutes = null) {
   const badCount = await getBadCount(tx);
   const target = Math.ceil(badCount / daysLeft);
   
-  await tx.deadlineTarget.upsert({
-    where: { date: tomorrow },
-    update: { targetCount: target },
-    create: { date: tomorrow, targetCount: target, startBadCount: 0, lockedAt: null }
-  });
-  
+  const existingTarget = await tx.deadlineTarget.findUnique({ where: { date: tomorrow } });
+  if (existingTarget) {
+    if (existingTarget.targetCount !== target) {
+      await tx.deadlineTarget.update({
+        where: { date: tomorrow },
+        data: { targetCount: target }
+      });
+    }
+  } else {
+    // Keep upsert for concurrent first-time requests, but avoid issuing a write
+    // on every GET when the calculated target has not changed.
+    await tx.deadlineTarget.upsert({
+      where: { date: tomorrow },
+      update: { targetCount: target },
+      create: { date: tomorrow, targetCount: target, startBadCount: 0, lockedAt: null }
+    });
+  }
+
   return { target, daysLeft, badCount };
 }
 

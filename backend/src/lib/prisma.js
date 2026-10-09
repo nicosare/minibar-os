@@ -24,7 +24,17 @@ const MUTATING_ACTIONS = new Set([
 prisma.$use(async (params, next) => {
   const result = await next(params);
   if (MUTATING_ACTIONS.has(params.action)) {
-    recordPrismaMutation(params.model || 'Unknown', params.action);
+    const bulkActions = new Set(['createMany', 'updateMany', 'deleteMany']);
+    const returningBulkActions = new Set(['createManyAndReturn', 'updateManyAndReturn']);
+    const changed = bulkActions.has(params.action)
+      ? Number(result && result.count) > 0
+      : returningBulkActions.has(params.action)
+        ? Array.isArray(result) && result.length > 0
+        : true;
+
+    if (changed) {
+      recordPrismaMutation(params.model || 'Unknown', params.action);
+    }
   }
   return result;
 });
