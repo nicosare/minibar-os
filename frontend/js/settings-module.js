@@ -7,7 +7,6 @@ let products = [];
 let templates = [];
 let activeTab = 'products';
 let moduleInitialized = false;
-let tabbarTabCreated = false;
 const colorMap = {
 amber: 'bg-amber-50', red: 'bg-red-50', blue: 'bg-blue-50',
 yellow: 'bg-yellow-50', purple: 'bg-purple-50', emerald: 'bg-emerald-50',
@@ -16,83 +15,6 @@ rose: 'bg-rose-50', orange: 'bg-orange-50', slate: 'bg-slate-100'
 const COLORS = ['amber', 'red', 'blue', 'yellow', 'purple', 'emerald', 'rose', 'orange', 'slate'];
 function getColorClass(color) { return colorMap[color] || 'bg-slate-100'; }
 function getRandomColor() { return COLORS[Math.floor(Math.random() * COLORS.length)]; }
-// ── Вкладка «Нижнее меню» (видна только на телефоне) ──
-function ensureTabbarTab() {
-if (tabbarTabCreated) return;
-if (!window.AppMobileNav) return;
-const firstTab = document.querySelector('.settings-tab');
-if (!firstTab) return;
-const tabsRow = firstTab.parentElement;
-const btn = document.createElement('button');
-btn.dataset.settingsTab = 'tabbar';
-btn.className = 'settings-tab settings-tab-mobile px-4 py-1.5 text-sm rounded-md text-slate-600';
-btn.innerHTML = '<i data-lucide="smartphone" class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5"></i>Нижнее меню';
-tabsRow.appendChild(btn);
-const panel = document.createElement('div');
-panel.id = 'settings-tabbar';
-panel.className = 'settings-panel hidden';
-panel.innerHTML = `
-<div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
-<div class="p-5 border-b border-slate-100">
-<h3 class="font-semibold text-slate-900">Разделы в нижнем меню</h3>
-<p class="text-xs text-slate-500 mt-1">Выберите от 1 до 5 разделов — они появятся в нижнем меню на телефоне. Остальные будут доступны в шторке «Ещё». Кнопка «Ещё» закреплена всегда.</p>
-</div>
-<div id="tabbar-settings-list" class="p-5"></div>
-</div>
-`;
-const templatesPanel = document.getElementById('settings-templates');
-templatesPanel.parentNode.insertBefore(panel, templatesPanel.nextSibling);
-tabbarTabCreated = true;
-if (window.lucide) lucide.createIcons();
-}
-function renderTabbarSettings() {
-const container = document.getElementById('tabbar-settings-list');
-if (!container || !window.AppMobileNav) return;
-const selected = window.AppMobileNav.getSelected();
-const titles = window.AppMobileNav.ROUTE_TITLES;
-const icons = window.AppMobileNav.ROUTE_ICONS;
-container.innerHTML = `
-<div class="space-y-2">
-${window.AppMobileNav.ROUTE_ORDER.map(route => {
-const checked = selected.includes(route);
-return `
-<label class="tabbar-setting-row flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition ${checked ? 'tabbar-setting-checked' : 'border-slate-100 hover:bg-slate-50'}">
-<input type="checkbox" class="tabbar-setting-checkbox w-4 h-4 rounded border-slate-300" data-route="${route}" ${checked ? 'checked' : ''} />
-<i data-lucide="${icons[route]}" class="w-4 h-4 text-slate-500"></i>
-<span class="text-sm font-medium text-slate-900 flex-1">${titles[route]}</span>
-</label>
-`;
-}).join('')}
-</div>
-<div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-<span class="text-xs text-slate-500">Выбрано: <span id="tabbar-count" class="font-semibold text-slate-700">${selected.length}</span> из ${window.AppMobileNav.MAX_TABS}</span>
-<span class="text-xs text-slate-400">«Ещё» — всегда в меню</span>
-</div>
-`;
-if (window.lucide) lucide.createIcons();
-}
-function handleTabbarChange(checkbox) {
-const route = checkbox.dataset.route;
-const selected = window.AppMobileNav.getSelected();
-if (checkbox.checked) {
-if (selected.length >= window.AppMobileNav.MAX_TABS) {
-checkbox.checked = false;
-alert(`В нижнем меню максимум ${window.AppMobileNav.MAX_TABS} раздела`);
-return;
-}
-if (!selected.includes(route)) selected.push(route);
-} else {
-if (selected.length <= window.AppMobileNav.MIN_TABS) {
-checkbox.checked = true;
-alert('Должен остаться хотя бы 1 раздел в нижнем меню');
-return;
-}
-const idx = selected.indexOf(route);
-if (idx !== -1) selected.splice(idx, 1);
-}
-window.AppMobileNav.setSelected(selected);
-renderTabbarSettings();
-}
 function switchTab(tab) {
 activeTab = tab;
 document.querySelectorAll('.settings-tab').forEach(b => {
@@ -104,8 +26,6 @@ b.classList.toggle('text-slate-600', !isActive);
 });
 document.getElementById('settings-products')?.classList.toggle('hidden', tab !== 'products');
 document.getElementById('settings-templates')?.classList.toggle('hidden', tab !== 'templates');
-document.getElementById('settings-tabbar')?.classList.toggle('hidden', tab !== 'tabbar');
-if (tab === 'tabbar') renderTabbarSettings();
 }
 async function loadProducts() {
 try {
@@ -530,12 +450,7 @@ if (['product-name', 'product-volume', 'product-unit', 'product-price', 'product
 updatePreview();
 }
 });
-document.addEventListener('change', (e) => {
-if (e.target.classList.contains('tabbar-setting-checkbox')) {
-handleTabbarChange(e.target);
-return;
-}
-if (e.target.id === 'product-unit') updatePreview();
+document.addEventListener('change', (e) => {if (e.target.id === 'product-unit') updatePreview();
 if (e.target.classList.contains('add-product-select') && e.target.value) {
 const productId = parseInt(e.target.value);
 const product = products.find(p => p.id === productId);
@@ -585,9 +500,7 @@ function init() {
 if (!moduleInitialized) {
 setupGlobalListeners();
 moduleInitialized = true;
-}
-ensureTabbarTab();
-loadProducts();
+}loadProducts();
 loadTemplates();
 }
 return { init, refresh: refreshFromServer, closeProductModal };
