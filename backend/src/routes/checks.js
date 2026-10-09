@@ -12,6 +12,81 @@ router.get('/', async (req, res) => {
     res.json(checks);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+router.get('/history', async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const pageSize = 25;
+    const operation = String(req.query.operation || 'all');
+    const roomText = String(req.query.room || '').trim();
+
+    if (!['all', 'check', 'emptied', 'gih'].includes(operation)) {
+      return res.status(400).json({ error: 'Неизвестный тип операции' });
+    }
+
+    if (roomText && !/^\\d+$/.test(roomText)) {
+      return res.status(400).json({ error: 'Номер комнаты должен содержать только цифры' });
+    }
+
+    const conditions = [
+      // Скрываем незавершённые GIH-черновики, но оставляем остальные операции.
+      {
+        OR: [
+          { type: { not: 'gih' } },
+          { status: 'done' }
+        ]
+      }
+    ];
+
+    if (operation === 'check') {
+      conditions.push({ type: { notIn: ['gih', 'emptied', 'vk_emptied'] } });
+    } else if (operation === 'emptied') {
+      conditions.push({ type: { in: ['emptied', 'vk_emptied'] } });
+    } else if (operation === 'gih') {
+      conditions.push({ type: 'gih' });
+    }
+
+    if (roomText) {
+      conditions.push({
+        room: {
+          is: {
+            number: parseInt(roomText, 10)
+          }
+        }
+      });
+    }
+
+    const where = { AND: conditions };
+    const [total, items] = await prisma.$transaction([
+      prisma.check.count({ where }),
+      prisma.check.findMany({
+        where,
+        include: {
+          room: true,
+          gihItems: { include: { product: true } }
+        },
+        orderBy: [
+          { checkDate: 'desc' },
+          { id: 'desc' }
+        ],
+        skip: (page - 1) * pageSize,
+        take: pageSize
+      })
+    ]);
+
+    const pages = Math.ceil(total / pageSize);
+    res.json({
+      items,
+      total,
+      page: Math.min(page, Math.max(1, pages)),
+      pageSize,
+      pageCount: pages
+    });
+  } catch (error) {
+    console.error('GET /api/checks/history error:', error);
+    res.status(500).json({ error: error.message || 'Не удалось загрузить историю' });
+  }
+});
+
 router.post('/', async (req, res) => {
   try {
     const b = req.body || {};
