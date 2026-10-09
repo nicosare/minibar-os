@@ -209,9 +209,9 @@ function getQty(productId) {
   }
 
   // Тост с высоким z-index — виден поверх любой шторки
-  function sheetToast(message) {
+  function showCopyToast(message) {
     const t = document.createElement('div');
-    t.className = 'cs-toast';
+    t.className = 'app-toast';
     t.textContent = message;
     document.body.appendChild(t);
     requestAnimationFrame(() => t.classList.add('show'));
@@ -224,12 +224,12 @@ function getQty(productId) {
   async function copyBill() {
     const text = getBillText();
     if (!text) {
-      sheetToast('Счёт пуст');
+      showCopyToast('Счёт пуст');
       return;
     }
     try {
       await navigator.clipboard.writeText(text);
-      sheetToast('Счёт скопирован');
+      showCopyToast('Счёт скопирован');
     } catch (err) {
       const ta = document.createElement('textarea');
       ta.value = text;
@@ -239,9 +239,9 @@ function getQty(productId) {
       ta.select();
       try {
         document.execCommand('copy');
-        sheetToast('Счёт скопирован');
+        showCopyToast('Счёт скопирован');
       } catch (e) {
-        sheetToast('Не удалось скопировать');
+        showCopyToast('Не удалось скопировать');
       }
       document.body.removeChild(ta);
     }
@@ -268,134 +268,138 @@ function getQty(productId) {
   // Desktop calculator drawer is created lazily on first use.
   function buildDrawer() {
   if (drawerBuilt) return;
-  var main = document.querySelector('main');
+  const main = document.querySelector('main');
   if (!main) return;
-  var drawer = document.createElement('div');
+
+  const drawer = document.createElement('div');
   drawer.id = 'calc-drawer';
   drawer.className = 'calc-drawer';
   drawer.innerHTML =
     '<div class="cd-head">' +
-      '<span class="cd-title"><i data-lucide="calculator" style="width:18px;height:18px;color:#0d9488"></i> Калькулятор</span>' +
+      '<span class="cd-title"><i data-lucide="calculator" aria-hidden="true"></i> Калькулятор</span>' +
       '<button type="button" id="cd-close" class="sheet-close" aria-label="Закрыть"><i data-lucide="x"></i></button>' +
     '</div>' +
-    '<div class="cd-body">' +
-      '<div class="cd-hint">Нажмите на продукт — добавить · на счётчик — убрать</div>' +
-      '<div id="cd-grid" class="cd-grid"></div>' +
-    '</div>' +
+    '<div class="cd-body"><div id="cd-grid" class="cd-grid"></div></div>' +
     '<div class="cd-bill">' +
       '<div class="cd-bill-head" id="cd-bill-head">' +
         '<span class="cd-bill-title">Счёт</span>' +
         '<div class="cd-spacer"></div>' +
         '<span class="cd-head-summary" id="cd-head-summary">0 ₽</span>' +
         '<i data-lucide="chevron-down" class="cd-chevron" aria-hidden="true"></i>' +
-        '<button type="button" id="cd-clear" class="btn btn-ghost btn-sm"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Очистить</button>' +
+        '<button type="button" id="cd-clear" class="btn btn-ghost btn-sm"><i data-lucide="trash-2" class="w-4 h-4"></i> Очистить</button>' +
       '</div>' +
       '<div id="cd-bill-list" class="cd-bill-list"></div>' +
-      '<div class="cd-bill-foot">' +
-        '<div class="total-row">' +
-          '<span class="total-row-label" id="cd-count">0 позиций</span>' +
-          '<span class="total-row-value" id="cd-total">0 ₽</span>' +
-        '</div>' +
-      '</div>' +
+      '<div class="cd-bill-foot"><div class="total-row">' +
+        '<span class="total-row-label" id="cd-count">0 позиций</span>' +
+        '<span class="total-row-value" id="cd-total">0 ₽</span>' +
+      '</div></div>' +
     '</div>';
   main.before(drawer);
+
   document.getElementById('cd-close').addEventListener('click', closeDrawer);
-  document.getElementById('cd-clear').addEventListener('click', function () {
-    if (Object.keys(cart).length === 0) return;
-    if (confirm('Очистить счёт?')) clearBill();
+  document.getElementById('cd-clear').addEventListener('click', () => {
+    if (Object.keys(cart).length && confirm('Очистить счёт?')) clearBill();
   });
-  document.getElementById('cd-grid').addEventListener('click', function (e) {
-    var badge = e.target.closest('.cd-badge');
-    if (badge) { changeQty(parseInt(badge.dataset.productId, 10), -1); return; }
-    var card = e.target.closest('.cd-product');
-    if (card) { changeQty(parseInt(card.dataset.productId, 10), 1); }
+  document.getElementById('cd-grid').addEventListener('click', event => {
+    const badge = event.target.closest('.cd-badge');
+    if (badge) {
+      changeQty(parseInt(badge.dataset.productId, 10), -1);
+      return;
+    }
+    const card = event.target.closest('.cd-product');
+    if (card) changeQty(parseInt(card.dataset.productId, 10), 1);
   });
-  document.getElementById('cd-bill-list').addEventListener('click', function (e) {
-    var del = e.target.closest('.bill-row-del');
-    if (del) changeQty(parseInt(del.dataset.productId, 10), -1);
+  document.getElementById('cd-bill-list').addEventListener('click', event => {
+    const remove = event.target.closest('.bill-row-del');
+    if (remove) changeQty(parseInt(remove.dataset.productId, 10), -1);
   });
-  drawer.addEventListener('transitionend', function (e) {
-    if (e.propertyName === 'width' || e.propertyName === 'flex-basis') {
+  drawer.addEventListener('transitionend', event => {
+    if (event.propertyName === 'width' || event.propertyName === 'flex-basis') {
       window.dispatchEvent(new Event('resize'));
     }
   });
-  // Toggle collapse of bill on head click (avoid when clicking clear button)
-  var billHead = drawer.querySelector('#cd-bill-head');
-  var billPanel = drawer.querySelector('.cd-bill');
-  if (billHead && billPanel) {
-    billHead.addEventListener('click', function (e) {
-      if (e.target.closest('#cd-clear')) return; // don't toggle when clearing
-      billPanel.classList.toggle('collapsed');
-    });
-  }
+
+  const billHeader = drawer.querySelector('#cd-bill-head');
+  const billPanel = drawer.querySelector('.cd-bill');
+  billHeader?.addEventListener('click', event => {
+    if (event.target.closest('#cd-clear')) return;
+    billPanel.classList.toggle('collapsed');
+  });
+
   drawerBuilt = true;
   if (window.lucide) lucide.createIcons();
 }
-function drawerCardHtml(p) {
-var qty = getQty(p.id);
-var emoji = p.emoji || p.name.charAt(0).toUpperCase();
-return '<button type="button" class="cd-product' + (qty > 0 ? ' has-qty' : '') + '" data-product-id="' + p.id + '">' +
-(qty > 0 ? '<span class="cd-badge" data-product-id="' + p.id + '">' + qty + '</span>' : '') +
-'<span class="cd-emoji ' + getColorClass(p.bgColor) + '">' + emoji + '</span>' +
-'<span class="cd-name">' + escapeHtml(p.name) + '</span>' +
-'<span class="cd-price">' + formatMoney(parseFloat(p.price)) + '</span>' +
-'</button>';
+
+function drawerCardHtml(product) {
+  const qty = getQty(product.id);
+  const emoji = product.emoji || product.name.charAt(0).toUpperCase();
+  return '<button type="button" class="cd-product' + (qty > 0 ? ' has-qty' : '') + '" data-product-id="' + product.id + '">' +
+    (qty > 0 ? '<span class="cd-badge" data-product-id="' + product.id + '">' + qty + '</span>' : '') +
+    '<span class="cd-emoji ' + getColorClass(product.bgColor) + '">' + escapeHtml(emoji) + '</span>' +
+    '<span class="cd-name">' + escapeHtml(product.name) + '</span>' +
+    '<span class="cd-price">' + formatMoney(parseFloat(product.price)) + '</span>' +
+  '</button>';
 }
 
 function renderDrawerGrid() {
-  var grid = document.getElementById('cd-grid');
+  const grid = document.getElementById('cd-grid');
   if (!grid) return;
   if (!isLoaded) {
-    grid.innerHTML = '<div class="cs-loading"><i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Загрузка...</div>';
-    if (window.lucide) lucide.createIcons();
+    grid.innerHTML = '<div class="cd-bill-empty">Загрузка…</div>';
     return;
   }
-  if (products.length === 0) { grid.innerHTML = '<div class="cs-loading">Нет продуктов</div>'; return; }
+  if (!products.length) {
+    grid.innerHTML = '<div class="cd-bill-empty">Нет продуктов</div>';
+    return;
+  }
   grid.innerHTML = sortedFlatProducts().map(drawerCardHtml).join('');
   if (window.lucide) lucide.createIcons();
 }
+
 function updateDrawerCard(productId) {
-var grid = document.getElementById('cd-grid');
-if (!grid) return;
-var card = grid.querySelector('.cd-product[data-product-id="' + productId + '"]');
-if (!card) return;
-var qty = getQty(productId);
-card.classList.toggle('has-qty', qty > 0);
-var badge = card.querySelector('.cd-badge');
-if (qty > 0) {
-if (!badge) {
-badge = document.createElement('span');
-badge.className = 'cd-badge';
-badge.dataset.productId = productId;
-card.insertBefore(badge, card.firstChild);
-}
-badge.textContent = qty;
-} else if (badge) {
-badge.remove();
-}
+  const grid = document.getElementById('cd-grid');
+  if (!grid) return;
+  const card = grid.querySelector('.cd-product[data-product-id="' + productId + '"]');
+  if (!card) return;
+  const qty = getQty(productId);
+  card.classList.toggle('has-qty', qty > 0);
+  let badge = card.querySelector('.cd-badge');
+  if (qty > 0) {
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'cd-badge';
+      badge.dataset.productId = productId;
+      card.insertBefore(badge, card.firstChild);
+    }
+    badge.textContent = qty;
+  } else if (badge) {
+    badge.remove();
+  }
 }
 
 function renderDrawerBill() {
-  var list = document.getElementById('cd-bill-list');
+  const list = document.getElementById('cd-bill-list');
   if (!list) return;
-  var entries = getBillEntries();
-  var totalQty = entries.reduce(function (s, e) { return s + e.qty; }, 0);
-  var totalSum = entries.reduce(function (s, e) { return s + e.subtotal; }, 0);
-  var set = function (id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
-  set('cd-count', totalQty === 0 ? '0 позиций' : totalQty + ' ' + pluralize(totalQty, ['позиция', 'позиции', 'позиций']));
+  const entries = getBillEntries();
+  const totalQty = entries.reduce((sum, entry) => sum + entry.qty, 0);
+  const totalSum = entries.reduce((sum, entry) => sum + entry.subtotal, 0);
+  const set = (id, value) => {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value;
+  };
+  set('cd-count', totalQty === 0
+    ? '0 позиций'
+    : totalQty + ' ' + pluralize(totalQty, ['позиция', 'позиции', 'позиций']));
   set('cd-total', formatMoney(totalSum));
-set('cd-head-summary', formatMoney(totalSum));
-set('cd-head-summary', formatMoney(totalSum));
-set('cd-head-summary', formatMoney(totalSum));
-  if (entries.length === 0) {
-    list.innerHTML = '<div class="cd-bill-empty">Выберите продукты</div>';
-  } else {
-    list.innerHTML = entries.map(billRowHtml).join('');
-  }
-  var clearBtn = document.getElementById('cd-clear');
-  if (clearBtn) clearBtn.disabled = entries.length === 0;
+  set('cd-head-summary', formatMoney(totalSum));
+  list.innerHTML = entries.length
+    ? entries.map(billRowHtml).join('')
+    : '<div class="cd-bill-empty">Счёт пуст</div>';
+  const clearButton = document.getElementById('cd-clear');
+  if (clearButton) clearButton.disabled = entries.length === 0;
   if (window.lucide) lucide.createIcons();
 }
+
 function setCalcNavHighlight(on) {
   var nav = document.querySelector('.nav-item[data-route="calculator"]');
   if (nav) nav.classList.toggle('nav-calc-open', on);
