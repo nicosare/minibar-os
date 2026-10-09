@@ -572,6 +572,15 @@ document.addEventListener('click', (e) => {
 if (e.target.id === 'product-modal-backdrop') closeProductModal();
 });
 }
+async function refreshFromServer() {
+const modal = document.getElementById('product-modal-backdrop');
+if (modal && !modal.classList.contains('hidden')) return false;
+const view = document.getElementById('view-settings');
+const active = document.activeElement;
+if (active && view && view.contains(active) && /^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName)) return false;
+await Promise.all([loadProducts(), loadTemplates()]);
+return true;
+}
 function init() {
 if (!moduleInitialized) {
 setupGlobalListeners();
@@ -581,5 +590,5 @@ ensureTabbarTab();
 loadProducts();
 loadTemplates();
 }
-return { init, closeProductModal };
+return { init, refresh: refreshFromServer, closeProductModal };
 })();

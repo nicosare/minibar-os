@@ -278,8 +278,8 @@ function updateStats() {
     }
   }
 
-  async function loadFromDB() {
-    if (isLoaded) { render(); return; }
+  async function loadFromDB(force = false) {
+    if (isLoaded && !force) { render(); return; }
     if (!api() || !api().getExcises) {
       setTimeout(loadFromDB, 200);
       return;
@@ -296,6 +296,11 @@ function updateStats() {
     } catch (err) {
       console.error('Ошибка загрузки:', err);
     }
+  }
+
+
+  async function refreshFromDB() {
+    await loadFromDB(true);
   }
 
   function bindEvents() {
@@ -333,15 +338,13 @@ function updateStats() {
 
   // Бейдж — из локального списка (не из API: при удалении API ещё не успел обновиться)
   App.badges.register('excise', async () => {
-  if (!isLoaded && api() && api().getExcises) {
-    try {
-      const data = await api().getExcises();
-      excises = data.map(e => ({ id: e.id, mark_number: e.markNumber || e.mark_number, created_at: e.createdAt || e.created_at }));
-      isLoaded = true;
-    } catch (e) { return 0; }
+  try {
+    const data = await api().getExcises();
+    return Array.isArray(data) ? data.length : 0;
+  } catch (err) {
+    return isLoaded ? excises.length : 0;
   }
-  return excises.length;
 });
 
-  return { init, refresh: render, deleteExcise, copyToClipboard };
+  return { init, refresh: refreshFromDB, deleteExcise, copyToClipboard };
 })();

@@ -139,5 +139,5 @@ function setupListeners(){
   isInitialized = true;
 }
 function init(){ buildDrawer(); setupListeners(); if(!isLoaded) loadProducts(); else { renderProducts(); renderSummary(); } }
-return { init, clearAll };
+return { init, refresh: loadProducts, clearAll };
 })();

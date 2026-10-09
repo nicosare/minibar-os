@@ -895,5 +895,5 @@ document.addEventListener('DOMContentLoaded', bootIntercepts);
 } else {
 bootIntercepts();
 }
-return { init, clearBill, changeQty, copyBill, openSheet, closeSheet, openDrawer, closeDrawer };
+return { init, refresh: loadProducts, clearBill, changeQty, copyBill, openSheet, closeSheet, openDrawer, closeDrawer };
 })();

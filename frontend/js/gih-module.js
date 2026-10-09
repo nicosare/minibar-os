@@ -328,8 +328,12 @@ function bind(){
 }
 function init(){ bind(); load(); }
 App.badges.register('gih', async ()=>{
-  if(!loaded){ try{ const checks=await api().getGihChecks(); const all=checks||[]; drafts=all.filter(c=>(c.status||'draft')==='draft').map(norm); dones=all.filter(c=>(c.status||'draft')==='done').map(norm); loaded=true; }catch(e){ return 0; } }
-  return drafts.length;
+  try {
+    const checks = await api().getGihChecks();
+    return (checks || []).filter(c => (c.status || 'draft') === 'draft').length;
+  } catch(e) {
+    return drafts.length;
+  }
 });
 return { init, refresh: load };
 })();
