@@ -136,7 +136,11 @@ export function dataChangeRequestMiddleware(req, res, next) {
 
   changeContext.run(context, () => {
     res.once('finish', flush);
-    res.once('close', flush);
+    res.once('close', () => {
+      // A prematurely disconnected request may still be writing in the backend.
+      // Do not notify subscribers until its response has actually finished.
+      if (res.writableFinished) flush();
+    });
     next();
   });
 }

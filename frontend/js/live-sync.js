@@ -65,7 +65,11 @@
     }
     if (route === 'inventory' && active && active.classList &&
         active.classList.contains('inv-field')) return true;
-    if (route === 'gih' && active && active.id === 'gih-finput') return true;
+    if (route === 'gih') {
+      const factory = document.getElementById('gih-factory');
+      if (factory && !factory.classList.contains('hidden')) return true;
+      if (active && active.id === 'gih-finput') return true;
+    }
     return false;
   }
 

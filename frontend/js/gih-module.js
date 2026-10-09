@@ -15,6 +15,7 @@ let rooms = [], drafts = [], dones = [];
 let factoryOpen = false;
 let factory = { roomId:null, input:'', counts:{}, editId:null, _mode:null, _notes:'' };
 let loaded = false, bound = false;
+const locallyEditedDraftIds = new Set();
 const $ = id => document.getElementById(id);
 const productsDirty = d => (d.gihItems||[]).some(it => it.itemStatus !== 'pending');
 const modeActive = d => !!d._mode;
@@ -28,14 +29,43 @@ function norm(c){
     gihItems:(c.gihItems||[]).map(it=>({ id:it.id, productId:it.productId, name:it.product?it.product.name:'Продукт', emoji:it.product?it.product.emoji:null, bgColor:it.product?it.product.bgColor:'slate', itemStatus:it.itemStatus||'pending' })) };
 }
 async function load(){
-  try{
-    const [r, checks] = await Promise.all([ api().getRooms(), api().getGihChecks() ]);
-    rooms = r||[]; const all = checks||[];
-    drafts = all.filter(c=>(c.status||'draft')==='draft').map(norm);
-    dones = all.filter(c=>(c.status||'draft')==='done').map(norm);
-    loaded = true; render();
+  const previousDrafts = drafts.slice();
+  try {
+    const [r, checks] = await Promise.all([api().getRooms(), api().getGihChecks()]);
+    rooms = r || [];
+    const all = checks || [];
+    const nextDrafts = all.filter(c => (c.status || 'draft') === 'draft').map(norm);
+    const nextDones = all.filter(c => (c.status || 'draft') === 'done').map(norm);
+    const nextDraftById = new Map(nextDrafts.map(d => [d.id, d]));
+    const localDraftById = new Map(previousDrafts.map(d => [d.id, d]));
+
+    // A remote invalidation must not erase unsaved edits in an open GIH draft.
+    for (const id of [...locallyEditedDraftIds]) {
+      const remote = nextDraftById.get(id);
+      const local = localDraftById.get(id);
+      if (!remote || !local) {
+        locallyEditedDraftIds.delete(id);
+        continue;
+      }
+      nextDraftById.set(id, {
+        ...remote,
+        ...local,
+        id: remote.id,
+        roomId: remote.roomId,
+        number: remote.number,
+        date: remote.date
+      });
+    }
+
+    drafts = nextDrafts.map(d => nextDraftById.get(d.id) || d);
+    dones = nextDones;
+    loaded = true;
+    render();
     if (App.badges) App.badges.update('gih');
-  }catch(err){ console.error('GIH load error', err); showToast('Не удалось загрузить GIH'); }
+  } catch (err) {
+    console.error('GIH load error', err);
+    showToast('Не удалось загрузить GIH');
+  }
 }
 function render(){
   const td = document.getElementById('gih-title-date'); if (td) td.textContent = dateShort();
@@ -274,7 +304,7 @@ function openFactoryEdit(d){
 async function saveDraft(id){
   const d=drafts.find(x=>x.id===id); if(!d||!canSave(d)) return;
   const payload={ status:'done', gihRoomStatus:d._mode||null, notes:(d.notes&&d.notes.trim())?d.notes.trim():null, pills: d._mode ? [] : d.gihItems.map(it=>({ id:it.id, itemStatus:it.itemStatus })) };
-  try{ await api().updateGihCheck(id, payload); showToast('Сохранено'); await load(); }
+  try{ await api().updateGihCheck(id, payload); locallyEditedDraftIds.delete(id); showToast('Сохранено'); await load(); }
   catch(err){ console.error(err); showToast('Не удалось сохранить'); }
 }
 async function editDone(id){
@@ -283,7 +313,7 @@ async function editDone(id){
 }
 async function del(id){
   if(!confirm('Удалить запись?')) return;
-  try{ await api().deleteGihCheck(id); await load(); }
+  try{ await api().deleteGihCheck(id); locallyEditedDraftIds.delete(id); await load(); }
   catch(err){ console.error(err); showToast('Не удалось удалить'); }
 }
 function bind(){
@@ -315,9 +345,9 @@ function bind(){
     if(!d) return;
     if(act==='edit-draft'){ openFactoryEdit(d); return; }
     if(act==='save'){ saveDraft(d.id); return; }
-    if(act==='notes'){ const next = window.prompt('Комментарий к номеру', d.notes||''); if(next===null) return; d.notes=next; patchDraftCard(d); return; }
-    if(act==='mode'){ if(productsDirty(d))return; const k=b.dataset.mode; d._mode=d._mode===k?null:k; patchDraftCard(d); return; }
-    if(act==='pill'){ if(modeActive(d))return; const iid=parseInt(b.dataset.iid,10); const it=d.gihItems.find(x=>x.id===iid); if(!it)return; const i=CYCLE.indexOf(it.itemStatus); it.itemStatus=CYCLE[(i+1)%CYCLE.length]; patchDraftCard(d); return; }
+    if(act==='notes'){ const next = window.prompt('Комментарий к номеру', d.notes||''); if(next===null) return; d.notes=next; locallyEditedDraftIds.add(d.id); patchDraftCard(d); return; }
+    if(act==='mode'){ if(productsDirty(d))return; const k=b.dataset.mode; d._mode=d._mode===k?null:k; locallyEditedDraftIds.add(d.id); patchDraftCard(d); return; }
+    if(act==='pill'){ if(modeActive(d))return; const iid=parseInt(b.dataset.iid,10); const it=d.gihItems.find(x=>x.id===iid); if(!it)return; const i=CYCLE.indexOf(it.itemStatus); it.itemStatus=CYCLE[(i+1)%CYCLE.length]; locallyEditedDraftIds.add(d.id); patchDraftCard(d); return; }
   });
   const dn=$('gih-dones');
   dn?.addEventListener('click', e=>{
