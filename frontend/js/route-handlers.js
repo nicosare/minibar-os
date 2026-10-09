@@ -30,6 +30,10 @@ App.events.on('route:change', (route) => {
     initModuleWhenApiReady('history', () => App.historyModule.init());
   }
 
+  if (route === 'empty' && App.listsModule) {
+    initModuleWhenApiReady('empty', () => App.listsModule.initEmpty());
+  }
+
   if (route === 'deadlines' && App.deadlinesModule) {
     initModuleWhenApiReady('deadlines', () => App.deadlinesModule.init());
   }

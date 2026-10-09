@@ -42,6 +42,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (initialRoute === 'history' && App.historyModule) {
         App.historyModule.init();
       }
+      if (initialRoute === 'empty' && App.listsModule) {
+        App.listsModule.initEmpty();
+      }
       if (initialRoute === 'excise' && App.exciseModule) {
         App.exciseModule.init();
       }

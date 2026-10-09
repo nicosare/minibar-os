@@ -6,6 +6,8 @@ App.listsModule = (() => {
 
   let activeLists = [];
   let isInitialized = false;
+  let emptyRooms = [];
+  let emptyLoading = false;
 
   async function fetchLists() {
     try {
@@ -274,6 +276,76 @@ App.listsModule = (() => {
     if (window.lucide) lucide.createIcons();
   }
 
+  // === ALL EMPTY ROOMS ===
+  function ensureEmptyDom() {
+    const container = document.getElementById('empty-rooms-container');
+    if (!container || container.dataset.initialized === 'true') return;
+    container.dataset.initialized = 'true';
+    container.innerHTML =
+      '<div class="bg-white rounded-xl border border-slate-100 overflow-hidden">' +
+        '<div class="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">' +
+          '<div><div class="font-semibold text-slate-900">Все пустые номера</div><div class="text-sm text-slate-500 mt-1" id="empty-rooms-count">Загрузка…</div></div>' +
+          '<div class="flex gap-2"><div class="history-search-wrap min-w-0 flex-1"><i data-lucide="search" class="w-4 h-4 text-slate-400"></i>' +
+          '<input id="empty-rooms-search" type="text" inputmode="numeric" autocomplete="off" placeholder="Найти номер" aria-label="Поиск пустого номера" /></div>' +
+          '<button type="button" class="btn btn-outline" id="empty-rooms-refresh"><i data-lucide="refresh-cw" class="w-4 h-4"></i><span>Обновить</span></button></div>' +
+        '</div><div id="empty-rooms-list"><div class="p-10 text-center text-slate-400">Загрузка…</div></div></div>';
+    container.querySelector('#empty-rooms-search')?.addEventListener('input', renderEmptyRows);
+    container.querySelector('#empty-rooms-refresh')?.addEventListener('click', loadEmptyRooms);
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function renderEmptyRows() {
+    const box = document.getElementById('empty-rooms-list');
+    const count = document.getElementById('empty-rooms-count');
+    const query = String(document.getElementById('empty-rooms-search')?.value || '').replace(/\D/g, '');
+    const filtered = emptyRooms.filter(room => !query || String(room.number).includes(query));
+    if (count) count.textContent = filtered.length + ' из ' + emptyRooms.length + ' пустых номеров';
+    if (!box) return;
+    if (!filtered.length) {
+      box.innerHTML = '<div class="p-12 text-center text-slate-400"><i data-lucide="check-circle-2" class="w-10 h-10 mx-auto mb-3 opacity-50"></i><p>' +
+        (query ? 'Ничего не найдено' : 'Сейчас нет номеров со статусом «Опустошён»') + '</p></div>';
+      if (window.lucide) window.lucide.createIcons();
+      return;
+    }
+    box.innerHTML = '<div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr class="border-b border-slate-100 text-xs font-semibold text-slate-500 uppercase bg-slate-50">' +
+      '<th class="p-4 pl-6">Номер комнаты</th><th class="p-4">Категория</th><th class="p-4">Этаж</th><th class="p-4 pr-6">Состояние</th>' +
+      '</tr></thead><tbody class="divide-y divide-slate-50 text-sm text-slate-700">' +
+      filtered.map(room => '<tr class="hover:bg-rose-50/40 transition-colors">' +
+        '<td class="p-4 pl-6 font-bold text-slate-900">' + escapeHtml(String(room.number)) + '</td>' +
+        '<td class="p-4">' + (room.category === 'lux' ? 'Люкс' : 'Стандарт') + '</td>' +
+        '<td class="p-4">' + escapeHtml(String(room.floor ?? '—')) + '</td>' +
+        '<td class="p-4 pr-6"><span class="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700">' +
+          '<span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Опустошён</span></td></tr>'
+      ).join('') + '</tbody></table></div>';
+  }
+
+  async function loadEmptyRooms() {
+    ensureEmptyDom();
+    const box = document.getElementById('empty-rooms-list');
+    if (emptyLoading) return;
+    emptyLoading = true;
+    if (box) box.innerHTML = '<div class="p-10 text-center text-slate-400"><i data-lucide="loader-2" class="w-5 h-5 inline animate-spin mr-2"></i>Обновление списка…</div>';
+    if (window.lucide) window.lucide.createIcons();
+    try {
+      const allRooms = await api().getRooms();
+      emptyRooms = (Array.isArray(allRooms) ? allRooms : [])
+        .filter(room => room.expiryStatus === 'empty')
+        .sort((a, b) => String(a.number).localeCompare(String(b.number), 'ru', { numeric: true }));
+      renderEmptyRows();
+      if (App.badges) App.badges.update('empty');
+    } catch (error) {
+      console.error('Не удалось загрузить пустые номера:', error);
+      if (box) box.innerHTML = '<div class="p-10 text-center text-rose-500">Не удалось загрузить номера. Нажмите «Обновить», чтобы повторить попытку.</div>';
+    } finally {
+      emptyLoading = false;
+    }
+  }
+
+  function initEmpty() {
+    ensureEmptyDom();
+    return loadEmptyRooms();
+  }
+
   // === ACTIONS ===
   function verifyRoom(roomNumber) {
     // Show calculator or room check modal!
@@ -318,5 +390,19 @@ App.listsModule = (() => {
     fetchLists();
   }
 
-  return { init, verifyRoom, confirmClear, refresh: fetchLists };
+  function refresh() {
+    if (App.router && App.router.current() === 'empty') return loadEmptyRooms();
+    return fetchLists();
+  }
+
+  App.badges.register('empty', async () => {
+    try {
+      const allRooms = await api().getRooms();
+      return (Array.isArray(allRooms) ? allRooms : []).filter(room => room.expiryStatus === 'empty').length;
+    } catch (_) {
+      return emptyRooms.length;
+    }
+  });
+
+  return { init, initEmpty, verifyRoom, confirmClear, refresh, refreshEmpty: loadEmptyRooms };
 })();

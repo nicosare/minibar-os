@@ -93,7 +93,7 @@
       arrivals: App.listsModule,
       departures: App.listsModule,
       gih: App.gihModule,
-      empty: App.deadlinesModule,
+      empty: App.listsModule,
       calculator: App.calculatorModule,
       inventory: App.inventoryModule,
       settings: App.settingsModule
