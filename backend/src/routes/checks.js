@@ -34,11 +34,15 @@ function historyBaseConditions() {
 
 function applyOperationFilter(conditions, operation) {
   if (operation === 'daily') {
-    conditions.push({ type: { not: 'gih' } });
+    conditions.push({ type: { notIn: ['gih', 'deadline'] } });
   } else if (operation === 'check') {
-    conditions.push({ type: { notIn: ['gih', 'emptied', 'vk_emptied'] } });
+    conditions.push({ type: { notIn: ['gih', 'deadline', 'emptied', 'vk_emptied'] } });
   } else if (operation === 'emptied') {
     conditions.push({ type: { in: ['emptied', 'vk_emptied'] } });
+  } else if (operation === 'deadlines') {
+    conditions.push({ type: 'deadline' });
+  } else if (operation === 'room') {
+    conditions.push({ type: { not: 'deadline' } });
   } else if (operation === 'gih') {
     conditions.push({ type: 'gih', status: 'done' });
   } else if (operation !== 'all') {
@@ -107,11 +111,17 @@ router.get('/history', async (req, res) => {
   try {
     const operation = String(req.query.operation || 'all');
     const roomText = String(req.query.room || '').trim();
+    const roomIdRaw = String(req.query.roomId || '').trim();
+    const roomId = roomIdRaw ? parseInt(roomIdRaw, 10) : null;
+    if (roomIdRaw && (!Number.isInteger(roomId) || roomId <= 0)) {
+      return res.status(400).json({ error: 'Некорректный ID комнаты' });
+    }
     const range = dateRangeFromQuery(req.query, 33);
 
     const conditions = historyBaseConditions();
     applyOperationFilter(conditions, operation);
     if (range) conditions.push({ checkDate: range });
+    if (roomId) conditions.push({ roomId });
 
     const matchedRoomCondition = await roomCondition(roomText);
     if (matchedRoomCondition) conditions.push(matchedRoomCondition);
@@ -121,7 +131,7 @@ router.get('/history', async (req, res) => {
     // Date view and room search are deliberately unpaginated. The daily view must show
     // every operation for that day, while a room search spans the selected category
     // across dates (as in the legacy minibars History).
-    if (range || roomText) {
+    if (range || roomText || roomId) {
       const items = await prisma.check.findMany({
         where,
         include: { room: true, gihItems: { include: { product: true } } },

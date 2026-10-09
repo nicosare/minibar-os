@@ -206,7 +206,7 @@ function patchDraftCard(d){
 function draftHtml(d){
   return `<div class="gih-card gih-draft" data-did="${d.id}">
     <div class="gih-card-head">
-      <div class="gih-card-num">${escapeHtml(String(d.number))}</div>
+      <button type="button" class="gih-card-num gih-room-history-link" data-history-room-id="${d.roomId}" data-history-room-number="${escapeHtml(String(d.number))}" title="Открыть историю номера">${escapeHtml(String(d.number))}</button>
       <span class="gih-card-time">${timeStr(d.date)}</span>
       <div class="gih-card-actions">
         <button type="button" class="gih-iconbtn" data-act="edit-draft" data-id="${d.id}" title="Редактировать"><i data-lucide="pencil" class="w-4 h-4"></i></button>
@@ -351,6 +351,14 @@ function bind(){
   });
   const dn=$('gih-dones');
   dn?.addEventListener('click', e=>{
+    const roomButton=e.target.closest('[data-history-room-id]');
+    if(roomButton){
+      const roomId=parseInt(roomButton.dataset.historyRoomId,10);
+      if(Number.isInteger(roomId)&&roomId>0&&App.historyModule){
+        App.historyModule.openRoomHistory(roomId,roomButton.dataset.historyRoomNumber||roomButton.textContent.trim());
+      }
+      return;
+    }
     const b=e.target.closest('[data-act]'); if(!b) return; const id=parseInt(b.dataset.id,10);
     if(b.dataset.act==='edit') editDone(id);
     if(b.dataset.act==='del') del(id);

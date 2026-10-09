@@ -26,7 +26,7 @@ App.historyModule = (() => {
   }
 
   const today = atMidnight(new Date());
-  const allowedViews = ['daily', 'gih'];
+  const allowedViews = ['daily', 'deadlines', 'gih'];
   const state = {
     view: allowedViews.includes(readPreference(STORAGE.view, 'daily'))
       ? readPreference(STORAGE.view, 'daily') : 'daily',
@@ -109,35 +109,16 @@ App.historyModule = (() => {
 
   function displayNotes(check) {
     let note = String(check.notes || '').trim();
-
     if (isVkOperation(check)) {
       const parenthetical = note.match(/\(([^)]*)\)\s*$/u);
-      if (parenthetical) {
-        note = parenthetical[1].trim();
-      } else if (/^(?:\d{3,4}[\s,;:/|+_-]*)+(?:опустош\p{L}*)?$/iu.test(note)) {
-        note = '';
-      }
+      if (parenthetical) note = parenthetical[1].trim();
+      else if (/^(?:\d{3,4}[\s,;:/|+_-]*)+(?:опустош\p{L}*)?$/iu.test(note)) note = '';
     }
-
-    const parts = [];
-    if (note) parts.push(note);
-
-    if (check.type === 'gih' && check.gihRoomStatus) {
-      const products = getProductList(check);
-      if (products.length) parts.push('Продукты: ' + products.join(', '));
-    }
-
-    return parts.join('\n');
+    return note;
   }
 
   function renderProducts(check) {
     if (check.type !== 'gih') return '<span class="text-slate-400">—</span>';
-
-    if (check.gihRoomStatus) {
-      const mode = modeMeta(check.gihRoomStatus);
-      return '<span class="inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-semibold ' +
-        mode.cls + '">' + escapeHtml(mode.label) + '</span>';
-    }
 
     const groups = new Map();
     (check.gihItems || []).forEach(item => {
@@ -219,8 +200,9 @@ App.historyModule = (() => {
 
   function getDateCount(date) {
     const key = formatDayKey(date);
-    const counts = state.calendarCounts.get(key) || { daily: 0, emptied: 0, gih: 0 };
+    const counts = state.calendarCounts.get(key) || { daily: 0, emptied: 0, deadlines: 0, gih: 0 };
     if (state.view === 'gih') return counts.gih;
+    if (state.view === 'deadlines') return counts.deadlines;
     return state.dailyFilter === 'emptied' ? counts.emptied : counts.daily;
   }
 
@@ -230,9 +212,10 @@ App.historyModule = (() => {
       const date = new Date(entry.checkDate || entry.check_date);
       if (Number.isNaN(date.getTime())) return;
       const key = formatDayKey(date);
-      if (!counts.has(key)) counts.set(key, { daily: 0, emptied: 0, gih: 0 });
+      if (!counts.has(key)) counts.set(key, { daily: 0, emptied: 0, deadlines: 0, gih: 0 });
       const day = counts.get(key);
       if (entry.type === 'gih') day.gih += 1;
+      else if (entry.type === 'deadline') day.deadlines += 1;
       else {
         day.daily += 1;
         if (isEmptyType(entry.type)) day.emptied += 1;
@@ -330,7 +313,7 @@ App.historyModule = (() => {
     const sequence = ++state.requestSequence;
     const room = currentRoomQuery();
     const params = new URLSearchParams();
-    params.set('operation', state.view === 'gih' ? 'gih' : (state.dailyFilter === 'emptied' ? 'emptied' : 'daily'));
+    params.set('operation', state.view === 'gih' ? 'gih' : state.view === 'deadlines' ? 'deadlines' : (state.dailyFilter === 'emptied' ? 'emptied' : 'daily'));
     if (room) {
       params.set('room', room);
     } else {
@@ -363,8 +346,9 @@ App.historyModule = (() => {
     }
   }
 
-  async function loadCalendar(force) {
-    const targetMonth = monthKey(state.selectedDate);
+  async function loadCalendar(force, calendarDate) {
+    const dateForMonth = calendarDate || state.selectedDate;
+    const targetMonth = monthKey(dateForMonth);
     if (!force && state.loadedCalendarMonth === targetMonth) {
       updateDateControls();
       if (state.calendarOverlay && state.calendarOverlay.classList.contains('show')) renderCalendar();
@@ -372,7 +356,7 @@ App.historyModule = (() => {
     }
 
     const sequence = ++state.calendarSequence;
-    const range = calendarBounds(state.selectedDate);
+    const range = calendarBounds(dateForMonth);
     const params = new URLSearchParams({ from: range.from, to: range.to });
     try {
       const data = await fetchJson('/checks/history/calendar', params);
@@ -427,21 +411,135 @@ App.historyModule = (() => {
     });
   }
 
-  function renderRecordRow(check, index) {
+  function formatDateTime(check) {
     const date = dateForCheck(check);
-    const time = date ? date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '—';
+    if (!date) return '—';
+    return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
+      ' · ' + date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function renderRoomButton(check) {
+    const number = roomNumber(check);
+    const roomId = Number(check && check.roomId);
+    if (!number) return '<span class="text-slate-400">—</span>';
+    if (!Number.isInteger(roomId) || roomId <= 0) return escapeHtml(number);
+    return '<button type="button" class="history-room-link" data-history-room-id="' + roomId +
+      '" data-history-room-number="' + escapeHtml(number) + '" title="Открыть историю комнаты">' +
+      escapeHtml(number) + '</button>';
+  }
+
+  function deadlineEvent(check) {
+    try {
+      const parsed = JSON.parse(String(check && check.notes || ''));
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+    } catch (_) {}
+    return {};
+  }
+
+  function deadlineStatusLabel(status) {
+    const labels = { neutral: 'Не отмечен', empty: 'Опустошён', valid: 'В порядке', needs_replacement: 'Требует замены' };
+    return labels[status] || (status ? String(status) : '—');
+  }
+
+  function deadlineActionLabel(event) {
+    const labels = {
+      emptied: 'Опустошён', marked_valid: 'Отмечен как исправный', status_reset: 'Сброс статуса',
+      products_updated: 'Изменены продукты', needs_replacement: 'Требует замены',
+      reset_all: 'Общий сброс статусов', status_updated: 'Изменён статус'
+    };
+    return labels[event.action] || 'Изменение сроков';
+  }
+
+  function renderDeadlineAction(check) {
+    const event = deadlineEvent(check);
+    const cls = event.action === 'emptied' ? 'bg-rose-50 text-rose-700 border-rose-200'
+      : event.action === 'marked_valid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+      : event.action === 'status_reset' || event.action === 'reset_all' ? 'bg-slate-100 text-slate-700 border-slate-200'
+      : 'bg-amber-50 text-amber-700 border-amber-200';
+    return '<span class="inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-semibold ' +
+      cls + '">' + escapeHtml(deadlineActionLabel(event)) + '</span>';
+  }
+
+  function renderDeadlineTransition(check) {
+    const event = deadlineEvent(check);
+    if (!event.previousStatus && !event.newStatus) return '<span class="text-slate-400">—</span>';
+    const previous = event.previousStatus || 'neutral';
+    const next = event.newStatus || previous;
+    if (previous === next) return '<span class="text-slate-500">Без изменения</span>';
+    return '<div class="history-status-transition"><span>' + escapeHtml(deadlineStatusLabel(previous)) +
+      '</span><span class="history-status-arrow" aria-hidden="true">→</span><strong>' +
+      escapeHtml(deadlineStatusLabel(next)) + '</strong></div>';
+  }
+
+  function deadlineSnapshotText(items) {
+    if (!Array.isArray(items) || !items.length) return 'Нет позиций';
+    return items.map(item => {
+      const qty = Number(item.qty) || 0;
+      return String(item.name || 'Продукт') + (qty > 1 ? ' ×' + qty : '') +
+        ' — ' + deadlineStatusLabel(item.status);
+    }).join('; ');
+  }
+
+  function renderDeadlineDetails(check) {
+    const event = deadlineEvent(check);
+    const details = [];
+    if (event.note) details.push(String(event.note));
+    const before = Array.isArray(event.previousProducts) ? event.previousProducts : [];
+    const after = Array.isArray(event.productsAfter) ? event.productsAfter : [];
+    if (before.length || after.length) {
+      details.push('Было: ' + deadlineSnapshotText(before));
+      details.push('Стало: ' + deadlineSnapshotText(after));
+    }
+    const value = details.join('\n');
+    if (!value) return '<span class="text-slate-400">—</span>';
+    return '<div class="history-deadline-details" title="' + escapeHtml(value) + '">' +
+      escapeHtml(value).replace(/\n/g, '<br>') + '</div>';
+  }
+
+  function renderGihStatus(check) {
+    if (!check.gihRoomStatus) {
+      return '<span class="inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-semibold bg-slate-100 text-slate-700 border-slate-200">По продуктам</span>';
+    }
+    const mode = modeMeta(check.gihRoomStatus);
+    return '<span class="inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-semibold ' +
+      mode.cls + '">' + escapeHtml(mode.label) + '</span>';
+  }
+
+  function renderGihProductsCell(check) {
+    const products = renderProducts(check);
+    const notes = displayNotes(check);
+    return '<div class="history-gih-cell">' + products +
+      (notes ? '<div class="history-gih-note">' + escapeHtml(notes).replace(/\n/g, '<br>') + '</div>' : '') +
+      '</div>';
+  }
+
+  function renderRecordRow(check, index) {
+    const background = index % 2 === 0 ? 'bg-white' : 'bg-slate-50';
+    const start = '<tr class="' + background + ' border-b border-slate-200 hover:bg-indigo-50/40 transition-colors">';
+    const date = '<td class="p-3 sm:p-4 pl-4 sm:pl-6 text-slate-600 align-top whitespace-nowrap"><div class="font-medium text-slate-900">' +
+      escapeHtml(formatDateTime(check)) + '</div></td>';
+    const room = '<td class="p-3 sm:p-4 align-top whitespace-nowrap">' + renderRoomButton(check) + '</td>';
+
+    if (state.view === 'deadlines') {
+      return start + date + room +
+        '<td class="p-3 sm:p-4 align-top">' + renderDeadlineAction(check) + '</td>' +
+        '<td class="p-3 sm:p-4 align-top min-w-[180px]">' + renderDeadlineTransition(check) + '</td>' +
+        '<td class="p-3 sm:p-4 pr-4 sm:pr-6 align-top min-w-[240px]">' + renderDeadlineDetails(check) + '</td></tr>';
+    }
+    if (state.view === 'gih') {
+      return start + date + room +
+        '<td class="p-3 sm:p-4 align-top">' + renderGihStatus(check) + '</td>' +
+        '<td class="p-3 sm:p-4 pr-4 sm:pr-6 align-top min-w-[260px]">' + renderGihProductsCell(check) + '</td></tr>';
+    }
     const operation = operationMeta(check);
     const notes = displayNotes(check);
-    const background = index % 2 === 0 ? 'bg-white' : 'bg-slate-50';
-    return '<tr class="' + background + ' border-b border-slate-200 hover:bg-indigo-50/40 transition-colors">' +
-      '<td class="p-4 pl-6 text-slate-500 align-top whitespace-nowrap"><div class="font-medium text-slate-900">' + time + '</div></td>' +
-      '<td class="p-4 font-semibold text-slate-900 align-top whitespace-nowrap">' + (roomNumber(check) ? escapeHtml(roomNumber(check)) : '—') + '</td>' +
-      '<td class="p-4 align-top"><span class="inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-semibold ' + operation.cls + '">' + operation.label + '</span></td>' +
-      '<td class="p-4 align-top">' + renderProducts(check) + '</td>' +
-      '<td class="p-4 pr-6 text-slate-600 max-w-sm align-top">' +
-        (notes ? '<div class="leading-5 whitespace-normal break-words" title="' + escapeHtml(notes) + '">' + escapeHtml(notes).replace(/\n/g, '<br>') + '</div>' : '<span class="text-slate-400">—</span>') +
-      '</td>' +
-    '</tr>';
+    return start + date + room +
+      '<td class="p-3 sm:p-4 align-top"><span class="inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-semibold ' +
+      operation.cls + '">' + escapeHtml(operation.label) + '</span></td>' +
+      '<td class="p-3 sm:p-4 pr-4 sm:pr-6 text-slate-600 align-top min-w-[240px]">' +
+      (notes ? '<div class="leading-5 whitespace-normal break-words" title="' + escapeHtml(notes) + '">' +
+        escapeHtml(notes).replace(/\n/g, '<br>') + '</div>' : '<span class="text-slate-400">—</span>') +
+      '</td></tr>';
   }
 
   function renderHistory() {
@@ -450,17 +548,19 @@ App.historyModule = (() => {
     if (!container) return;
     const room = currentRoomQuery();
     const records = sortRecords(state.records, Boolean(room));
-    if (countEl) {
-      countEl.textContent = room ? 'Найдено: ' + state.total : 'Записей за день: ' + state.total;
-    }
+    const columnCount = state.view === 'deadlines' ? 5 : 4;
+
+    if (countEl) countEl.textContent = room ? 'Найдено: ' + state.total
+      : (state.view === 'deadlines' ? 'Изменений за день: ' : 'Записей за день: ') + state.total;
 
     if (!records.length) {
-      const label = room
-        ? 'По этому номеру ничего не найдено'
-        : (state.view === 'gih' ? 'За выбранный день записей GIH нет' : (state.dailyFilter === 'emptied'
-          ? 'За выбранный день опустошений нет' : 'За выбранный день проверок или опустошений нет'));
-      container.innerHTML = '<div class="p-12 text-center text-slate-400">' +
-        '<i data-lucide="history" class="w-12 h-12 mx-auto mb-3 opacity-50"></i><p>' + label + '</p></div>';
+      const label = room ? 'По этому номеру ничего не найдено'
+        : state.view === 'deadlines' ? 'За выбранный день изменений в Сроках нет'
+        : state.view === 'gih' ? 'За выбранный день записей GIH нет'
+        : state.dailyFilter === 'emptied' ? 'За выбранный день опустошений нет'
+        : 'За выбранный день проверок или опустошений нет';
+      container.innerHTML = '<div class="p-12 text-center text-slate-400"><i data-lucide="history" class="w-12 h-12 mx-auto mb-3 opacity-50"></i><p>' +
+        label + '</p></div>';
       if (window.lucide) window.lucide.createIcons();
       return;
     }
@@ -479,27 +579,117 @@ App.historyModule = (() => {
         group.items.push(check);
       });
       bodyRows = groups.map(group =>
-        '<tr class="bg-indigo-50 border-y border-indigo-100"><td colspan="5" class="px-6 py-3">' +
-          '<div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-indigo-950">' +
-            '<i data-lucide="calendar-days" class="w-4 h-4 text-indigo-500"></i>' +
-            '<span class="font-bold">' + escapeHtml(dateHeading(group.date)) + '</span>' +
-            '<span class="text-xs font-medium text-indigo-700/80">' + pluralizeRecords(group.items.length) + '</span>' +
-          '</div></td></tr>' +
+        '<tr class="bg-indigo-50 border-y border-indigo-100"><td colspan="' + columnCount + '" class="px-4 sm:px-6 py-3">' +
+        '<div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-indigo-950">' +
+        '<i data-lucide="calendar-days" class="w-4 h-4 text-indigo-500"></i><span class="font-bold">' +
+        escapeHtml(dateHeading(group.date)) + '</span><span class="text-xs font-medium text-indigo-700/80">' +
+        pluralizeRecords(group.items.length) + '</span></div></td></tr>' +
         group.items.map((check, i) => renderRecordRow(check, i)).join('')
       ).join('');
     } else {
       bodyRows = records.map((check, index) => renderRecordRow(check, index)).join('');
     }
 
-    container.innerHTML =
-      '<div class="overflow-x-auto">' +
-        '<table class="w-full text-left border-collapse">' +
-          '<thead><tr class="border-b-2 border-slate-200 text-xs font-semibold text-slate-500 uppercase bg-slate-100">' +
-            '<th class="p-4 pl-6">Время</th><th class="p-4">Номер комнаты</th><th class="p-4">Тип операции</th><th class="p-4">Продукты</th><th class="p-4 pr-6">Заметки</th>' +
-          '</tr></thead><tbody class="text-sm text-slate-700">' + bodyRows + '</tbody>' +
-        '</table></div>';
+    let tableHeader;
+    if (state.view === 'deadlines') {
+      tableHeader = '<th class="p-3 sm:p-4 pl-4 sm:pl-6">Дата и время</th><th class="p-3 sm:p-4">Номер</th>' +
+        '<th class="p-3 sm:p-4">Действие</th><th class="p-3 sm:p-4">Изменение статуса</th>' +
+        '<th class="p-3 sm:p-4 pr-4 sm:pr-6">Подробности</th>';
+    } else if (state.view === 'gih') {
+      tableHeader = '<th class="p-3 sm:p-4 pl-4 sm:pl-6">Дата и время</th><th class="p-3 sm:p-4">Номер</th>' +
+        '<th class="p-3 sm:p-4">Статус GIH</th><th class="p-3 sm:p-4 pr-4 sm:pr-6">Продукты по статусам</th>';
+    } else {
+      tableHeader = '<th class="p-3 sm:p-4 pl-4 sm:pl-6">Дата и время</th><th class="p-3 sm:p-4">Номер</th>' +
+        '<th class="p-3 sm:p-4">Операция</th><th class="p-3 sm:p-4 pr-4 sm:pr-6">Подробности</th>';
+    }
 
+    container.innerHTML = '<div class="overflow-x-auto history-table-scroll"><table class="w-full text-left border-collapse history-records-table">' +
+      '<thead><tr class="border-b-2 border-slate-200 text-xs font-semibold text-slate-500 uppercase bg-slate-100">' +
+      tableHeader + '</tr></thead><tbody class="text-sm text-slate-700">' + bodyRows + '</tbody></table></div>';
     if (window.lucide) window.lucide.createIcons();
+  }
+
+  function ensureRoomHistoryDrawer() {
+    if (document.getElementById('room-history-overlay')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'room-history-overlay';
+    overlay.className = 'room-history-overlay';
+    overlay.setAttribute('aria-hidden', 'true');
+    overlay.innerHTML =
+      '<aside class="room-history-drawer" role="dialog" aria-modal="true" aria-labelledby="room-history-title">' +
+      '<div class="room-history-header"><div><div class="room-history-kicker">История номера</div>' +
+      '<h2 class="room-history-title" id="room-history-title">Номер</h2></div>' +
+      '<button type="button" class="room-history-close" data-room-history-close aria-label="Закрыть историю номера"><i data-lucide="x"></i></button></div>' +
+      '<div class="room-history-subtitle">Ежедневные операции и GIH. События раздела «Сроки» здесь не отображаются.</div>' +
+      '<div class="room-history-body" id="room-history-body"><div class="room-history-loading">Загрузка истории…</div></div></aside>';
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', event => {
+      if (event.target === overlay || event.target.closest('[data-room-history-close]')) closeRoomHistory();
+    });
+  }
+
+  function closeRoomHistory() {
+    const overlay = document.getElementById('room-history-overlay');
+    if (!overlay) return;
+    overlay.classList.remove('open');
+    overlay.setAttribute('aria-hidden', 'true');
+  }
+
+  function renderRoomHistoryCards(items) {
+    if (!items.length) {
+      return '<div class="room-history-empty"><i data-lucide="history"></i><strong>Записей пока нет</strong>' +
+        '<span>Для этого номера не сохранено ежедневных операций или GIH.</span></div>';
+    }
+    return items.map((check, index) => {
+      const date = dateForCheck(check);
+      const operation = operationMeta(check);
+      const notes = displayNotes(check);
+      const isGih = check.type === 'gih';
+      let content = '';
+      if (isGih) {
+        content += '<div class="room-history-gih-status">' + renderGihStatus(check) + '</div>';
+        content += '<div class="room-history-products">' + renderProducts(check) + '</div>';
+        if (notes) content += '<div class="room-history-note">' + escapeHtml(notes).replace(/\n/g, '<br>') + '</div>';
+      } else if (notes) {
+        content += '<div class="room-history-note">' + escapeHtml(notes).replace(/\n/g, '<br>') + '</div>';
+      } else {
+        content += '<div class="room-history-note is-muted">Подробности не указаны</div>';
+      }
+      const dateText = date
+        ? date.toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' }) + ' · ' +
+          date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+        : 'Дата неизвестна';
+      return '<article class="room-history-record" style="--record-order:' + index + '">' +
+        '<div class="room-history-record-head"><time>' + escapeHtml(dateText) + '</time>' +
+        '<span class="inline-flex items-center px-2 py-1 rounded-full border text-xs font-semibold ' +
+        operation.cls + '">' + escapeHtml(operation.label) + '</span></div>' + content + '</article>';
+    }).join('');
+  }
+
+  async function openRoomHistory(roomId, number) {
+    const id = Number(roomId);
+    if (!Number.isInteger(id) || id <= 0) return;
+    ensureRoomHistoryDrawer();
+    const overlay = document.getElementById('room-history-overlay');
+    const title = document.getElementById('room-history-title');
+    const body = document.getElementById('room-history-body');
+    if (!overlay || !body) return;
+    title.textContent = 'Номер ' + String(number || '—');
+    body.innerHTML = '<div class="room-history-loading"><i data-lucide="loader-2"></i><span>Загрузка истории…</span></div>';
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden', 'false');
+    if (window.lucide) window.lucide.createIcons();
+    try {
+      const params = new URLSearchParams({ operation: 'room', roomId: String(id) });
+      const data = await fetchJson('/checks/history', params);
+      const items = Array.isArray(data.items) ? data.items : [];
+      items.sort((a, b) => (dateForCheck(b)?.getTime() || 0) - (dateForCheck(a)?.getTime() || 0) || Number(b.id) - Number(a.id));
+      body.innerHTML = renderRoomHistoryCards(items);
+      if (window.lucide) window.lucide.createIcons();
+    } catch (error) {
+      console.error('Не удалось загрузить историю комнаты:', error);
+      body.innerHTML = '<div class="room-history-error">Не удалось загрузить историю комнаты. Проверьте соединение и повторите попытку.</div>';
+    }
   }
 
   function todayKey() {
@@ -518,10 +708,8 @@ App.historyModule = (() => {
           '<button type="button" class="history-calendar-close" data-calendar-action="close" aria-label="Закрыть календарь"><i data-lucide="x"></i></button>' +
         '</div>' +
         '<div class="history-calendar-month-nav">' +
-          '<button type="button" data-calendar-action="prev-year" aria-label="Предыдущий год"><i data-lucide="chevrons-left"></i></button>' +
           '<button type="button" data-calendar-action="prev-month" aria-label="Предыдущий месяц"><i data-lucide="chevron-left"></i></button>' +
           '<button type="button" data-calendar-action="next-month" aria-label="Следующий месяц"><i data-lucide="chevron-right"></i></button>' +
-          '<button type="button" data-calendar-action="next-year" aria-label="Следующий год"><i data-lucide="chevrons-right"></i></button>' +
         '</div>' +
         '<div class="history-calendar-weekdays"><span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span></div>' +
         '<div class="history-calendar-days" id="history-calendar-days"></div>' +
@@ -581,11 +769,11 @@ App.historyModule = (() => {
     const year = state.calendarMonth.getFullYear();
     if (action === 'prev-month') state.calendarMonth = new Date(year, month - 1, 1);
     else if (action === 'next-month') state.calendarMonth = new Date(year, month + 1, 1);
-    else if (action === 'prev-year') state.calendarMonth = new Date(year - 1, month, 1);
-    else if (action === 'next-year') state.calendarMonth = new Date(year + 1, month, 1);
+    else return;
 
     const currentMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     if (state.calendarMonth > currentMonth) state.calendarMonth = currentMonth;
+    loadCalendar(true, state.calendarMonth);
     renderCalendar();
   }
 
@@ -599,10 +787,11 @@ App.historyModule = (() => {
     const month = state.calendarMonth.getMonth();
     title.textContent = state.calendarMonth.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
     const currentMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    state.calendarOverlay.querySelectorAll('[data-calendar-action="next-month"], [data-calendar-action="next-year"]').forEach(button => {
-      button.disabled = state.calendarMonth.getFullYear() === currentMonth.getFullYear() &&
+    const nextMonthButton = state.calendarOverlay.querySelector('[data-calendar-action="next-month"]');
+    if (nextMonthButton) {
+      nextMonthButton.disabled = state.calendarMonth.getFullYear() === currentMonth.getFullYear() &&
         state.calendarMonth.getMonth() === currentMonth.getMonth();
-    });
+    }
 
     const first = new Date(year, month, 1);
     const offset = (first.getDay() + 6) % 7;
@@ -637,12 +826,13 @@ App.historyModule = (() => {
     if (normalized.getTime() > atMidnight(new Date()).getTime()) return;
     const beforeMonth = monthKey(state.selectedDate);
     state.selectedDate = normalized;
+    state.calendarMonth = new Date(normalized.getFullYear(), normalized.getMonth(), 1);
     hideCalendar();
     updateControls();
     const afterMonth = monthKey(state.selectedDate);
     await Promise.all([
       loadHistory(),
-      beforeMonth === afterMonth ? Promise.resolve() : loadCalendar(true)
+      beforeMonth === afterMonth ? Promise.resolve() : loadCalendar(true, state.selectedDate)
     ]);
     renderCalendar();
   }
@@ -696,6 +886,18 @@ App.historyModule = (() => {
     const dateButton = document.getElementById('history-current-date');
     const sortButton = document.getElementById('history-sort-toggle');
 
+    document.addEventListener('click', event => {
+      const button = event.target.closest('[data-history-room-id]');
+      if (!button) return;
+      const roomId = Number(button.dataset.historyRoomId);
+      if (!Number.isInteger(roomId) || roomId <= 0) return;
+      event.preventDefault();
+      openRoomHistory(roomId, button.dataset.historyRoomNumber || button.textContent.trim());
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') closeRoomHistory();
+    });
+
     search && search.addEventListener('input', () => {
       if (state.searchTimer) clearTimeout(state.searchTimer);
       updateControls();
@@ -729,5 +931,5 @@ App.historyModule = (() => {
     await Promise.all([loadHistory(), loadCalendar(true)]);
   }
 
-  return { init, refresh };
+  return { init, refresh, openRoomHistory, closeRoomHistory };
 })();

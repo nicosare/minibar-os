@@ -6,7 +6,7 @@
 <title>MiniBar OS</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.0/index.css" />
-<link rel="stylesheet" href="styles.css??v=m67" />
+<link rel="stylesheet" href="styles.css??v=m70" />
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body class="antialiased">
@@ -584,7 +584,7 @@
       <section id="view-history" class="tab-content fade-in">
         <div class="mb-8">
           <h1 class="text-2xl font-bold text-slate-900">История операций</h1>
-          <p class="text-slate-600 mt-2">Журнал проверок, опустошений и GIH с выбором конкретного дня</p>
+          <p class="text-slate-600 mt-2">Ежедневные операции, изменения сроков и подробные записи GIH</p>
         </div>
         <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
           <div class="p-4 sm:p-5 border-b border-slate-100">
@@ -593,6 +593,9 @@
                 <div class="history-view-tabs" role="tablist" aria-label="Раздел истории">
                   <button type="button" class="history-view-tab active" data-history-view="daily" role="tab" aria-selected="true">
                     <i data-lucide="calendar-check" class="w-4 h-4"></i><span>Ежедневные</span>
+                  </button>
+                  <button type="button" class="history-view-tab" data-history-view="deadlines" role="tab" aria-selected="false">
+                    <i data-lucide="calendar-clock" class="w-4 h-4"></i><span>Сроки</span>
                   </button>
                   <button type="button" class="history-view-tab" data-history-view="gih" role="tab" aria-selected="false">
                     <i data-lucide="package-check" class="w-4 h-4"></i><span>GIH</span>
@@ -879,9 +882,9 @@
 <script src="js/inventory-module.js??v=m66"></script>
 <script src="js/dashboard-module.js??v=m66"></script>
 <script src="js/lists-module.js??v=m66"></script>
-<script src="js/history-module.js??v=m69"></script>
+<script src="js/history-module.js??v=m70"></script>
 <script src="js/route-handlers.js??v=m66"></script>
-<script src="js/gih-module.js??v=m66"></script>
+<script src="js/gih-module.js??v=m70"></script>
 <script src="js/live-sync.js??v=m2"></script>
 <script src="js/init.js??v=m66"></script>
 
