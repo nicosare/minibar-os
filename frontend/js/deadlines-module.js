@@ -1113,8 +1113,16 @@ buildStatFill();
     }
   });
 
+  async function refresh() {
+    invalidateTargetsCache();
+    await loadRooms();
+    await renderChart();
+    await renderTargets();
+    await refreshDeadlinesExtras();
+  }
+
   return {
-    init, openRoomModal, clickProduct, closeModal,
+    init, refresh, openRoomModal, clickProduct, closeModal,
     setEmpty, setValid, save, reset,
     openMonthModal, closeMonthModal
   };

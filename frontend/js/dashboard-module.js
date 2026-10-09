@@ -135,5 +135,5 @@ App.dashboardModule = (() => {
     isInitialized = true;
   }
 
-  return { init };
+  return { init, refresh: loadDashboardData };
 })();
