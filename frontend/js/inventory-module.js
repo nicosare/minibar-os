@@ -69,21 +69,24 @@ function getSummaryEntries(){
 }
 function renderSummary(){
   const list = getSummaryEntries();
-  const totalQty = list.reduce((s,e)=>s+e.qty,0);
-  const totalVol = list.reduce((s,e)=>s+e.volume,0);
-  const set = (id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
-  const rows = list.map(e=>`<div class="bill-row"><div class="bill-row-info"><div class="bill-row-name">${escapeHtml(e.product.name)}</div><div class="bill-row-meta">${e.qty} шт</div></div><div class="bill-row-sum">${formatVolume(e.product,e.volume)}</div></div>`).join('');
-  const emptyEl = document.getElementById('inventory-summary-empty'), listEl = document.getElementById('inventory-summary-list');
-  if(emptyEl) emptyEl.classList.toggle('hidden', list.length>0);
-  if(listEl){ listEl.classList.toggle('hidden', list.length===0); listEl.innerHTML = rows; }
+  const totalQty = list.reduce((sum, item) => sum + item.qty, 0);
+  const totalVol = list.reduce((sum, item) => sum + item.volume, 0);
+  const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+  const rows = list.map(item => `<div class="bill-row"><div class="bill-row-info"><div class="bill-row-name">${escapeHtml(item.product.name)}</div><div class="bill-row-meta">${item.qty} шт</div></div><div class="bill-row-sum">${formatVolume(item.product,item.volume)}</div></div>`).join('');
+  const emptyEl = document.getElementById('inventory-summary-empty');
+  const listEl = document.getElementById('inventory-summary-list');
+  if (emptyEl) emptyEl.classList.toggle('hidden', list.length > 0);
+  if (listEl) {
+    listEl.classList.toggle('hidden', list.length === 0);
+    listEl.innerHTML = rows;
+  }
   set('inventory-total-count', totalQty);
-  set('inventory-total-volume', totalVol.toLocaleString('ru-RU',{maximumFractionDigits:2}));
-  const bar = document.getElementById('inventory-mobile-bar'); if(bar) bar.classList.toggle('hidden', list.length===0);
-  set('inventory-mobile-count', totalQty>0 ? totalQty+' шт' : '0 шт');
-  const tc = document.getElementById('inventory-toggle-count');
-  if(tc){ if(totalQty>0){ tc.textContent = totalQty; tc.classList.remove('hidden'); } else tc.classList.add('hidden'); }
-  const ml = document.getElementById('inventory-summary-modal-list');
-  if(ml) ml.innerHTML = list.length===0 ? '<div class="text-center py-8 text-slate-400 text-sm">Нет введённых данных</div>' : rows;
+  set('inventory-total-volume', totalVol.toLocaleString('ru-RU', { maximumFractionDigits: 2 }));
+  const badge = document.getElementById('inventory-toggle-count');
+  if (badge) {
+    if (totalQty > 0) { badge.textContent = totalQty; badge.classList.remove('hidden'); }
+    else badge.classList.add('hidden');
+  }
 }
 function clearAll(){ entries={}; renderProducts(); renderSummary(); }
 async function loadProducts(){
@@ -91,8 +94,6 @@ async function loadProducts(){
   try { products = await api().getProducts(); isLoaded=true; renderProducts(); renderSummary(); }
   catch(err){ console.error(err); if(c) c.innerHTML='<div class="text-center py-12 text-rose-500 text-sm">Не удалось загрузить продукты</div>'; }
 }
-function openSummaryModal(){ document.getElementById('inventory-summary-modal')?.classList.remove('hidden'); }
-function closeSummaryModal(){ document.getElementById('inventory-summary-modal')?.classList.add('hidden'); }
 // ── Ящик сводки: сосед main справа (не внутри скролла контента) → не уезжает при прокрутке ──
 function buildDrawer(){
   if(drawerBuilt) return;
@@ -118,24 +119,25 @@ function openDrawer(){ const d=document.getElementById('inv-drawer'); if(d){ d.c
 function closeDrawer(){ const d=document.getElementById('inv-drawer'); if(d) d.classList.remove('open'); }
 function toggleDrawer(){ const d=document.getElementById('inv-drawer'); if(!d) return; d.classList.contains('open') ? closeDrawer() : openDrawer(); }
 function setupListeners(){
-  if(isInitialized) return;
-  document.getElementById('inventory-clear-btn')?.addEventListener('click', ()=>{ if(Object.keys(entries).length===0) return; if(confirm('Очистить все введённые данные?')) clearAll(); });
+  if (isInitialized) return;
+  document.getElementById('inventory-clear-btn')?.addEventListener('click', () => {
+    if (Object.keys(entries).length && confirm('Очистить все введённые данные?')) clearAll();
+  });
   document.getElementById('inventory-summary-toggle')?.addEventListener('click', toggleDrawer);
-  document.getElementById('inventory-mobile-expand')?.addEventListener('click', openSummaryModal);
-  document.getElementById('inventory-summary-modal-close')?.addEventListener('click', closeSummaryModal);
-  document.getElementById('inventory-summary-modal-backdrop')?.addEventListener('click', closeSummaryModal);
-  document.getElementById('inventory-summary-modal-clear')?.addEventListener('click', ()=>{ if(Object.keys(entries).length===0) return; if(confirm('Очистить все введённые данные?')){ clearAll(); closeSummaryModal(); } });
-  document.getElementById('inventory-products-container')?.addEventListener('input', e=>{
-    const inp = e.target.closest('.inv-field'); if(!inp) return;
-    const id = parseInt(inp.dataset.productId,10), field = inp.dataset.field;
-    inp.value = inp.value.replace(/\D/g,'').slice(0,4);
-    if(!entries[id]) entries[id]={a:'',b:''};
-    entries[id][field]=inp.value;
-    if(!entries[id].a && !entries[id].b) delete entries[id];
-    updateProductSummary(id); renderSummary();
+  document.getElementById('inventory-products-container')?.addEventListener('input', event => {
+    const input = event.target.closest('.inv-field');
+    if (!input) return;
+    const id = parseInt(input.dataset.productId, 10);
+    const field = input.dataset.field;
+    input.value = input.value.replace(/\D/g, '').slice(0, 4);
+    if (!entries[id]) entries[id] = { a: '', b: '' };
+    entries[id][field] = input.value;
+    if (!entries[id].a && !entries[id].b) delete entries[id];
+    updateProductSummary(id);
+    renderSummary();
   });
   document.getElementById('inventory-products-container')?.addEventListener('keydown', onInvKey);
-  if(window.App && App.events) App.events.on('route:change', r => { if(r!=='inventory') closeDrawer(); });
+  if (window.App && App.events) App.events.on('route:change', route => { if (route !== 'inventory') closeDrawer(); });
   isInitialized = true;
 }
 function init(){ buildDrawer(); setupListeners(); if(!isLoaded) loadProducts(); else { renderProducts(); renderSummary(); } }
