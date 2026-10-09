@@ -115,7 +115,15 @@ function buildDrawer(){
   drawerBuilt = true;
   if(window.lucide) lucide.createIcons();
 }
-function openDrawer(){ const d=document.getElementById('inv-drawer'); if(d){ d.classList.add('open'); if(window.lucide) lucide.createIcons(); } }
+function openDrawer(){
+  if (window.App && App.calculatorModule && App.calculatorModule.closeDrawer) App.calculatorModule.closeDrawer();
+  if (window.App && App.historyModule && App.historyModule.closeRoomHistory) App.historyModule.closeRoomHistory();
+  const drawer = document.getElementById('inv-drawer');
+  if (drawer) {
+    drawer.classList.add('open');
+    if (window.lucide) lucide.createIcons();
+  }
+}
 function closeDrawer(){ const d=document.getElementById('inv-drawer'); if(d) d.classList.remove('open'); }
 function toggleDrawer(){ const d=document.getElementById('inv-drawer'); if(!d) return; d.classList.contains('open') ? closeDrawer() : openDrawer(); }
 function setupListeners(){
@@ -141,5 +149,5 @@ function setupListeners(){
   isInitialized = true;
 }
 function init(){ buildDrawer(); setupListeners(); if(!isLoaded) loadProducts(); else { renderProducts(); renderSummary(); } }
-return { init, refresh: loadProducts, clearAll };
+return { init, refresh: loadProducts, clearAll, closeDrawer };
 })();
