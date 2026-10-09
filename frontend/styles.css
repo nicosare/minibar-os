@@ -926,22 +926,6 @@
 
 
 /* ═══════════════════════════════════════════════════════════════
-   МОБИЛЬНАЯ ВЕРСИЯ (<=768px): шапка, таб-бар, шторка «Ещё»
-   ═══════════════════════════════════════════════════════════════ */
-#mobile-header, #mobile-tabbar, #mobile-more-backdrop { display: none; }
-
-/* ═══════════════════════════════════════════════════════════════
-   МОБИЛЬНАЯ ВЕРСИЯ (≤768px) — профессиональная верстка
-   ═══════════════════════════════════════════════════════════════ */
-
-/* Скрываем мобильные элементы на десктопе */
-#mobile-header,
-#mobile-tabbar,
-#mobile-more-backdrop {
-  display: none;
-}
-
-/* ═══════════════════════════════════════════════════════════════
    ЕДИНЫЙ ДИЗАЙН: КАЛЬКУЛЯТОР + ИНВЕНТАРИЗАЦИЯ (v2)
    ═══════════════════════════════════════════════════════════════ */
 
@@ -1144,59 +1128,6 @@
 .total-row-label { font-size: 13px; color: #64748b; }
 .total-row-value { font-size: 22px; font-weight: 800; color: #0f172a; font-variant-numeric: tabular-nums; }
 
-/* Мобильная мини-панель (по умолчанию скрыта) */
-.mobile-action-bar { display: none; }
-
-/* Шторка (мобильный модал) */
-.sheet-modal { position: fixed; inset: 0; z-index: 100; }
-.sheet-modal.hidden { display: none; }
-.sheet-modal-backdrop { position: absolute; inset: 0; background: rgba(15,23,42,0.5); }
-.sheet-modal-content {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  background: white;
-  border-radius: 24px 24px 0 0;
-  max-height: 88vh;
-  display: flex;
-  flex-direction: column;
-  padding-bottom: env(safe-area-inset-bottom, 0);
-  box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.18);
-  animation: sheetUp 0.3s cubic-bezier(0.32, 0.72, 0.24, 1);
-}
-@keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-.sheet-modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.sheet-modal-title { font-size: 14px; font-weight: 800; color: #0f172a; }
-.sheet-modal-drag-zone { padding: 12px 20px 0; flex-shrink: 0; cursor: grab; -webkit-tap-highlight-color: transparent; }
-.sheet-modal-body { flex: 1; overflow-y: auto; padding: 0 20px 8px; }
-.sheet-modal-footer { padding: 16px 20px; border-top: 1px solid #f1f5f9; background: #f8fafc; }
-
-/* ── Мобильная адаптация нового дизайна ── */
-/* ═══════════════════════════════════════════════════════════════
-   СРОКИ: МОБИЛЬНАЯ ПЛАШКА СТАТИСТИКИ + ШТОРКА ДЕТАЛЕЙ
-   ═══════════════════════════════════════════════════════════════ */
-#deadlines-stats-bar { display: none; }
-.dl-details-header { display: none; }
-
-/* ═══════════════════════════════════════════════════════════════
-   АКЦИЗЫ: МОБИЛЬНАЯ ПЛАШКА СТАТИСТИКИ + ЛАКОНИЧНЫЙ СПИСОК
-   ═══════════════════════════════════════════════════════════════ */
-#excise-stats-bar { display: none; }
-
-/* ═══════════════════════════════════════════════════════════════
-   СРОКИ: МОДАЛ «ДОБАВИТЬ СРОКИ» (новые карточки)
-   ═══════════════════════════════════════════════════════════════ */
-.month-check-hint {
-  display: flex; gap: 10px; align-items: flex-start;
-  background: #eff6ff; border: 1px solid #bfdbfe;
-  border-radius: 12px; padding: 12px 14px;
-  font-size: 12.5px; line-height: 1.5; color: #1e40af;
-  margin-bottom: 14px;
-}
-.month-check-hint svg { flex-shrink: 0; margin-top: 2px; }
 .month-check-card {
   border: 1px solid var(--border);
   border-radius: 14px;
@@ -1257,270 +1188,6 @@
    ═══════════════════════════════════════════════════════════════ */
 .scroll-locked {
   overflow: hidden !important;
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   НИЖНЕЕ МЕНЮ: НАСТРОЙКИ + АКЦЕНТЫ ВСЕХ ВКЛАДОК
-   ═══════════════════════════════════════════════════════════════ */
-
-.tabbar-setting-checked {
-  background: #eef2ff;
-  border-color: #c7d2fe !important;
-}
-.tabbar-setting-row input[type="checkbox"] {
-  accent-color: var(--primary);
-}
-
-/* Акцентные цвета активной вкладки для всех разделов */
-.mobile-tab.active[data-accent="indigo"]  { color: #4f46e5; }
-.mobile-tab.active[data-accent="amber"]   { color: #d97706; }
-.mobile-tab.active[data-accent="rose"]    { color: #e11d48; }
-.mobile-tab.active[data-accent="emerald"] { color: #059669; }
-.mobile-tab.active[data-accent="sky"]     { color: #0284c7; }
-.mobile-tab.active[data-accent="violet"]  { color: #7c3aed; }
-.mobile-tab.active[data-accent="slate"]   { color: #475569; }
-.mobile-tab.active[data-accent="pink"]    { color: #db2777; }
-.mobile-tab.active[data-accent="teal"]    { color: #0d9488; }
-.mobile-tab.active[data-accent="blue"]    { color: #2563eb; }
-.mobile-tab.active[data-accent="zinc"]    { color: #3f3f46; }
-
-/* ═══════════════════════════════════════════════════════════════
-   НИЖНЕЕ МЕНЮ: ПЕРЕСТАНОВКА ВКЛАДОК (долгое нажатие + drag)
-   ═══════════════════════════════════════════════════════════════ */
-
-/* Запрет системного меню ссылки при долгом нажатии (iOS) и выделения текста */
-#mobile-tabbar .mobile-tab {
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
-}
-
-/* При перестановке: соседние вкладки плавно расступаются */
-#mobile-tabbar.reordering .mobile-tab {
-  transition: transform 0.22s cubic-bezier(0.32, 0.72, 0.24, 1), opacity 0.2s ease;
-}
-
-/* Перетаскиваемая вкладка следует за пальцем без задержки,
-   но тень и фон появляются плавно */
-#mobile-tabbar.reordering .mobile-tab.drag-source {
-  transition: box-shadow 0.2s ease, background 0.2s ease;
-  background: #f8fafc;
-  border-radius: 14px;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
-}
-
-/* Индикатор активной вкладки на время переноса скрываем */
-.mobile-tab.drag-source::before {
-  display: none;
-}
-
-/* Остальные вкладки слегка приглушены, пока идёт перенос */
-#mobile-tabbar.reordering .mobile-tab:not(.drag-source) {
-  opacity: 0.8;
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   ШТОРКА КАЛЬКУЛЯТОРА (только телефон)
-   ═══════════════════════════════════════════════════════════════ */
-#calc-sheet-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-  background: rgba(15, 23, 42, 0.5);
-  -webkit-backdrop-filter: blur(2px);
-  backdrop-filter: blur(2px);
-  opacity: 0;
-  transition: opacity 0.25s ease;
-}
-#calc-sheet-backdrop.hidden { display: none !important; }
-#calc-sheet-backdrop.show { opacity: 1; }
-
-#calc-sheet {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  background: #fff;
-  border-radius: 24px 24px 0 0;
-  max-height: 88vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.18);
-  transform: translateY(102%);
-  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0.24, 1);
-  padding-bottom: env(safe-area-inset-bottom, 0);
-}
-#calc-sheet.open { transform: translateY(0); }
-
-/* Ручка и шапка (зона свайпа вниз) */
- .cs-drag-zone {
-   flex-shrink: 0;
-   padding: 12px 20px 0;
-   cursor: grab;
-   -webkit-tap-highlight-color: transparent;
- }
-.cs-drag-zone:active { cursor: grabbing; }
- .cs-handle { }
- .cs-header {
-   display: flex;
-   align-items: center;
-   justify-content: space-between;
-   padding-bottom: 0;
-   margin-bottom: 16px;
-   border-bottom: none;
- }
- .cs-title {
-   font-size: 14px;
-   font-weight: 800;
-   color: #0f172a;
-   letter-spacing: -0.01em;
- }
-
-/* Тело шторки */
- .cs-body {
-   flex: 1;
-   overflow-y: auto;
-   -webkit-overflow-scrolling: touch;
-   padding: 0 20px 16px;
- }
-.cs-hint {
-  font-size: 11.5px;
-  color: #94a3b8;
-  text-align: center;
-  margin-bottom: 12px;
-}
-.cs-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-.cs-loading {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  text-align: center;
-  color: #94a3b8;
-  font-size: 13px;
-  padding: 24px 0;
-}
-
-/* Карточка продукта */
-.cs-product {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 14px 6px 12px;
-  border: 1.5px solid var(--border);
-  border-radius: 14px;
-  background: #fff;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
-  font: inherit;
-  appearance: none;
-  -webkit-appearance: none;
-}
-.cs-product:active { transform: scale(0.96); }
-.cs-product.has-qty { border-color: #5eead4; background: #f0fdfa; }
-
-.cs-emoji {
-  width: 44px; height: 44px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22px;
-  flex-shrink: 0;
-}
-.cs-name {
-  font-size: 12px;
-  font-weight: 600;
-  color: #0f172a;
-  line-height: 1.25;
-  text-align: center;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  min-height: 30px;
-}
-.cs-price {
-  font-size: 11px;
-  color: #64748b;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Счётчик на карточке (тап = −1) */
-.cs-badge {
-  position: absolute;
-  top: -7px; right: -7px;
-  min-width: 22px; height: 22px;
-  padding: 0 6px;
-  border-radius: 11px;
-  background: #0d9488;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid #fff;
-  box-shadow: 0 2px 6px rgba(13, 148, 136, 0.4);
-  font-variant-numeric: tabular-nums;
-  animation: cs-badge-pop 0.2s ease;
-}
-@keyframes cs-badge-pop {
-  from { transform: scale(0.5); }
-  to { transform: scale(1); }
-}
-
-/* Футер с итогом */
- .cs-footer {
-   flex-shrink: 0;
-   display: grid;
-   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-   align-items: center;
-   gap: 12px;
-   padding: 12px 20px;
-   border-top: 1px solid #f1f5f9;
-   background: #f8fafc;
- }
-.cs-totals { display: flex; flex-direction: column; flex-shrink: 0; justify-self: start; min-width: 0; }
-.cs-total { white-space: nowrap; }
-#cs-copy { justify-self: center; }
-#cs-clear { justify-self: end; }
-.cs-count { font-size: 11px; color: #64748b; }
-.cs-total {
-  font-size: 18px;
-  font-weight: 800;
-  color: #0f172a;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-}
-/* Тост поверх шторки */
-.cs-toast {
-  position: fixed;
-  bottom: calc(90px + env(safe-area-inset-bottom, 0));
-  left: 50%;
-  transform: translateX(-50%) translateY(10px);
-  background: #0f172a;
-  color: #fff;
-  padding: 10px 18px;
-  border-radius: 12px;
-  font-size: 13px;
-  font-weight: 600;
-  z-index: 200;
-  opacity: 0;
-  transition: opacity 0.2s ease, transform 0.2s ease;
-  pointer-events: none;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.3);
-  white-space: nowrap;
-}
-.cs-toast.show {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1611,9 +1278,6 @@
  }
 .modal-sheet-handle:active { cursor: grabbing; background: #cbd5e1; }
 
-/* Backdrop шторки статистики (Сроки) */
-.dl-stats-backdrop { display: none; }
-
 /* ═══════════════════════════════════════════════════════════════
    PRODUCT-MODAL-SCROLL: длинная форма продукта скроллится на телефоне
    ═══════════════════════════════════════════════════════════════ */
@@ -1627,14 +1291,6 @@
 /* ═══════════════════════════════════════════════════════════════
    УНИФИКАЦИЯ КРЕСТИКОВ И ШАПОК МОДАЛОК (под эталон «Ещё»)
    ═══════════════════════════════════════════════════════════════ */
-#cs-close,
-#deadlines-details-close,
-.sheet-modal .ms-close-btn {
-  width: 32px !important; height: 32px !important; min-height: 32px !important;
-  padding: 0 !important; border-radius: 10px !important;
-  background: #f1f5f9 !important; color: #64748b !important; border: none !important;
-}
-#cs-close svg, #deadlines-details-close svg, .sheet-modal .ms-close-btn svg { width: 16px !important; height: 16px !important; }
 /* ═══════════════════════════════════════════════════════════════
    ЕДИНЫЙ КРЕСТИК ШТОРКИ (квадрат, иконка по центру) — везде
    ═══════════════════════════════════════════════════════════════ */
@@ -1667,27 +1323,17 @@
    FINAL EXCISE REDESIGN — единый дизайн (мобила + ПК).
    Перекрывает все предыдущие слои акцизов выше по файлу.
    ═══════════════════════════════════════════════════════════════ */
-/* Статистика: градиентные плиты — вон везде; компактная плашка — везде */
-.excise-stats-grid{ display:none !important; }
-#excise-stats-bar{
-  display:flex !important; align-items:center !important; justify-content:space-between !important;
-  gap:10px !important; background:#fff !important; border:1px solid #eef2f6 !important;
-  border-radius:14px !important; padding:10px 14px !important; margin-bottom:16px !important;
-  box-shadow:0 1px 3px rgba(15,23,42,.05) !important; position:static !important;
+/* Desktop excise statistics and list layout */
+#view-excise .excise-stats-grid {
+  display:grid !important;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:16px;
+  margin-bottom:24px;
 }
-.excise-stats-bar-left{ display:flex !important; align-items:center !important; gap:8px !important;
-  font-size:12px !important; font-weight:700 !important; color:#0f172a !important; flex-shrink:0 !important; }
-.excise-stats-bar-left svg{ width:16px !important; height:16px !important; color:#94a3b8 !important; }
-.excise-stats-bar-nums{ display:flex !important; gap:6px !important; flex-wrap:nowrap !important; }
-.excise-mini-stat{ font-size:11px !important; font-weight:700 !important; padding:3px 8px !important;
-  border-radius:8px !important; font-variant-numeric:tabular-nums !important; }
-.excise-mini-stat.c-indigo{ color:#4f46e5 !important; background:#eef2ff !important; }
-.excise-mini-stat.c-emerald{ color:#059669 !important; background:#ecfdf5 !important; }
-.excise-mini-stat.c-rose{ color:#e11d48 !important; background:#fff1f2 !important; }
-/* Список: 1 колонка на телефоне, авто-колонки на ПК */
-#excise-list{ display:grid !important; grid-template-columns:1fr !important; gap:10px !important; }
-@media (min-width:769px){
-  #excise-list{ grid-template-columns:repeat(auto-fill,minmax(380px,1fr)) !important; }
+#excise-list {
+  display:grid !important;
+  grid-template-columns:repeat(auto-fill,minmax(380px,1fr)) !important;
+  gap:12px !important;
 }
 /* Карточка: белая, обводка в цвет статуса */
 .excise-card{
@@ -1751,55 +1397,8 @@
 .excise-delete-btn:active{ transform:scale(.9) !important; }
 .excise-card:hover .excise-delete-btn{ display:flex !important; }
 
-/* ═══ СРОКИ: волновая заливка блоков статистики + маска текста (двухслойный clip-path) ═══ */
-.stat-fill-card{ position:relative; overflow:hidden; isolation:isolate; border-radius:14px; box-shadow:0 1px 3px rgba(15,23,42,.06); }
-.stat-fill-card .stat-layer{ box-sizing:border-box; }
-.stat-layer-base{ position:relative; z-index:1; }
-.stat-layer-fill{
-  position:absolute; inset:0; z-index:2; color:#fff; pointer-events:none;
-  clip-path: inset(calc(100% - var(--fill,0%)) 0 0 0);
-  -webkit-clip-path: inset(calc(100% - var(--fill,0%)) 0 0 0);
-  transition: clip-path .9s cubic-bezier(.22,1,.36,1), -webkit-clip-path .9s cubic-bezier(.22,1,.36,1);
-}
-.stat-fill-card[data-color="emerald"]{ background:#ecfdf5; }
-.stat-fill-card[data-color="emerald"] .stat-layer-base{ color:#059669; }
-.stat-fill-card[data-color="emerald"] .stat-layer-fill{ background:linear-gradient(135deg,#10b981 0%,#059669 100%); }
-.stat-fill-card[data-color="sky"]{ background:#f0f9ff; }
-.stat-fill-card[data-color="sky"] .stat-layer-base{ color:#0284c7; }
-.stat-fill-card[data-color="sky"] .stat-layer-fill{ background:linear-gradient(135deg,#0ea5e9 0%,#0284c7 100%); }
-.stat-fill-card[data-color="rose"]{ background:#fff1f2; }
-.stat-fill-card[data-color="rose"] .stat-layer-base{ color:#e11d48; }
-.stat-fill-card[data-color="rose"] .stat-layer-fill{ background:linear-gradient(135deg,#f43f5e 0%,#e11d48 100%); }
-.stat-fill-card[data-color="slate"]{ background:#f1f5f9; }
-.stat-fill-card[data-color="slate"] .stat-layer-base{ color:#475569; }
-.stat-fill-card[data-color="slate"] .stat-layer-fill{ background:linear-gradient(135deg,#64748b 0%,#475569 100%); }
-
-/* ═══ КЛОН СТАТИСТИКИ В МОБИЛЬНОЙ ШТОРКЕ «АНАЛИТИКА» — консолидированная версия ═══ */
-.dl-stats-clone{ display:none !important; }
 /* ═══ БЕЙДЖИ НАВБАРА: серые на неактивной вкладке (консолидация) ═══ */
 .nav-item:not(.active) .badge{ background:#f1f5f9 !important; color:#94a3b8 !important; border-color:#e2e8f0 !important; }
-.mobile-tab:not(.active) .mt-badge{ background:#94a3b8 !important; box-shadow:0 0 0 2px #fff !important; }
-
-/* ═══ FIX m25: заголовок шторки «Аналитика» скрыт на ПК (на телефоне виден в шторке) ═══ */
-.dl-details-header{ display:none !important; }
-/* ═══ FIX m26: слои статистики — оба absolute, фикс-высота, эталонный HTML ═══ */
-.stat-fill-card{ position:relative; overflow:hidden; isolation:isolate; min-height:124px; border-radius:14px; box-shadow:0 1px 3px rgba(15,23,42,.06); }
-.stat-fill-card .stat-layer{ position:absolute; inset:0; box-sizing:border-box; padding:18px 20px; }
-.stat-fill-card .stat-layer-base{ position:absolute; z-index:1; }
-.stat-fill-card .stat-layer-fill{ position:absolute; z-index:2; color:#fff; pointer-events:none; clip-path:inset(calc(100% - var(--fill,0%)) 0 0 0); -webkit-clip-path:inset(calc(100% - var(--fill,0%)) 0 0 0); transition:clip-path .9s cubic-bezier(.22,1,.36,1),-webkit-clip-path .9s cubic-bezier(.22,1,.36,1); }
-.stat-fill-card[data-color="emerald"]{ background:#ecfdf5; }
-.stat-fill-card[data-color="emerald"] .stat-layer-base{ color:#059669; }
-.stat-fill-card[data-color="emerald"] .stat-layer-fill{ background:linear-gradient(135deg,#10b981 0%,#059669 100%); }
-.stat-fill-card[data-color="sky"]{ background:#f0f9ff; }
-.stat-fill-card[data-color="sky"] .stat-layer-base{ color:#0284c7; }
-.stat-fill-card[data-color="sky"] .stat-layer-fill{ background:linear-gradient(135deg,#0ea5e9 0%,#0284c7 100%); }
-.stat-fill-card[data-color="rose"]{ background:#fff1f2; }
-.stat-fill-card[data-color="rose"] .stat-layer-base{ color:#e11d48; }
-.stat-fill-card[data-color="rose"] .stat-layer-fill{ background:linear-gradient(135deg,#f43f5e 0%,#e11d48 100%); }
-.stat-fill-card[data-color="slate"]{ background:#f1f5f9; }
-.stat-fill-card[data-color="slate"] .stat-layer-base{ color:#475569; }
-.stat-fill-card[data-color="slate"] .stat-layer-fill{ background:linear-gradient(135deg,#64748b 0%,#475569 100%); }
-
 /* ═══ КАЛЬКУЛЯТОР: ВЫДВИЖНАЯ ПАНЕЛЬ-ЯЩИК (ДЕСКТОП) ═══
    Вставлена между сайдбаром и main; ширина анимируется 0→400,
    main сужается и контент перетекает. На телефоне скрыта (там нижняя шторка). */
