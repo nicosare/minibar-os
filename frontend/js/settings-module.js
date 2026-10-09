@@ -17,12 +17,10 @@ function getColorClass(color) { return colorMap[color] || 'bg-slate-100'; }
 function getRandomColor() { return COLORS[Math.floor(Math.random() * COLORS.length)]; }
 function switchTab(tab) {
 activeTab = tab;
-document.querySelectorAll('.settings-tab').forEach(b => {
-const isActive = b.dataset.settingsTab === tab;
-b.classList.toggle('bg-white', isActive);
-b.classList.toggle('shadow-sm', isActive);
-b.classList.toggle('font-medium', isActive);
-b.classList.toggle('text-slate-600', !isActive);
+document.querySelectorAll('.settings-tab').forEach(button => {
+const isActive = button.dataset.settingsTab === tab;
+button.classList.toggle('active', isActive);
+button.setAttribute('aria-selected', isActive ? 'true' : 'false');
 });
 document.getElementById('settings-products')?.classList.toggle('hidden', tab !== 'products');
 document.getElementById('settings-templates')?.classList.toggle('hidden', tab !== 'templates');
@@ -500,7 +498,9 @@ function init() {
 if (!moduleInitialized) {
 setupGlobalListeners();
 moduleInitialized = true;
-}loadProducts();
+}
+switchTab(activeTab);
+loadProducts();
 loadTemplates();
 }
 return { init, refresh: refreshFromServer, closeProductModal };
