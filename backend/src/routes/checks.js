@@ -23,7 +23,7 @@ router.get('/history', async (req, res) => {
       return res.status(400).json({ error: 'Неизвестный тип операции' });
     }
 
-    if (roomText && !/^\\d+$/.test(roomText)) {
+    if (roomText && !/^\d+$/.test(roomText)) {
       return res.status(400).json({ error: 'Номер комнаты должен содержать только цифры' });
     }
 
