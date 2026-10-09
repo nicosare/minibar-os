@@ -3,6 +3,7 @@ import { upsertTodayRoomStats, updateAllTargets } from './deadlines.js';
 
 const ROOM_RE = /\b\d{3,4}\b/g;
 const SEPARATOR_RE = /^[\s,;:/|+_-]*$/u;
+const COMMENT_RE = /\(([^)]*)\)\s*$/u;
 
 function allowedPeerIds() {
   return new Set(
@@ -30,10 +31,16 @@ export function parseVkOperationalMessage(rawText) {
   const text = String(rawText || '').trim();
   if (!text) return null;
 
-  const lowered = text.toLocaleLowerCase('ru-RU');
+  const commentMatch = text.match(COMMENT_RE);
+  const note = commentMatch ? commentMatch[1].trim() : null;
+  const baseText = commentMatch
+    ? text.slice(0, commentMatch.index).trim()
+    : text;
+
+  const lowered = baseText.toLocaleLowerCase('ru-RU');
   const emptyMatch = lowered.match(/опустош\p{L}*/u);
-  const prefixEnd = emptyMatch ? emptyMatch.index : text.length;
-  const prefix = text.slice(0, prefixEnd).trim();
+  const prefixEnd = emptyMatch ? emptyMatch.index : baseText.length;
+  const prefix = baseText.slice(0, prefixEnd).trim();
 
   const matches = [...prefix.matchAll(ROOM_RE)];
   if (!matches.length) return null;
@@ -52,13 +59,14 @@ export function parseVkOperationalMessage(rawText) {
     }
   }
 
-  const tail = prefix.slice(first.index + first[0].length);
+  const last = matches[matches.length - 1];
+  const tail = prefix.slice(last.index + last[0].length);
   if (!SEPARATOR_RE.test(tail)) {
     return null;
   }
 
   if (emptyMatch) {
-    const afterKeyword = text.slice(
+    const afterKeyword = baseText.slice(
       emptyMatch.index + emptyMatch[0].length
     );
 
@@ -68,8 +76,9 @@ export function parseVkOperationalMessage(rawText) {
   }
 
   return {
-    rooms: matches.map(match => Number(match[0])),
-    emptied: Boolean(emptyMatch)
+    rooms: [...new Set(matches.map(match => Number(match[0])))],
+    emptied: Boolean(emptyMatch),
+    note
   };
 }
 
@@ -110,7 +119,7 @@ export async function processVkBotMessage({
           peerId,
           messageId: messageId === null || messageId === undefined
             ? null
-            : Number(messageId),
+            : (Number.isSafeInteger(Number(messageId)) ? Number(messageId) : null),
           text,
           eventType: parsed.emptied ? 'emptied' : 'room',
           occurredAt: eventDate
@@ -176,7 +185,7 @@ export async function processVkBotMessage({
             checkDate: eventDate,
             type: 'vk_emptied',
             status: 'done',
-            notes: text
+            notes: parsed.note
           }
         });
       } else {
@@ -194,7 +203,7 @@ export async function processVkBotMessage({
             checkDate: eventDate,
             type: 'vk_room',
             status: 'done',
-            notes: text
+            notes: parsed.note
           }
         });
       }
