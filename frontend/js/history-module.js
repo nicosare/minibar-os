@@ -643,7 +643,6 @@ App.historyModule = (() => {
       '<div class="room-history-header"><div><div class="room-history-kicker">История номера</div>' +
       '<h2 class="room-history-title" id="room-history-title">Номер</h2></div>' +
       '<button type="button" class="room-history-close" data-room-history-close aria-label="Закрыть историю номера"><i data-lucide="x"></i></button></div>' +
-      '<div class="room-history-subtitle">Ежедневные операции и GIH. События раздела «Сроки» здесь не отображаются.</div>' +
       '<div class="room-history-body" id="room-history-body"><div class="room-history-loading">Загрузка истории…</div></div></div>';
     main.parentElement.insertBefore(panel, main);
     panel.addEventListener('click', event => {
