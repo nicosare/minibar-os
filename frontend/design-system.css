@@ -284,7 +284,7 @@ table .history-room-link { min-width: 48px; min-height: 34px; padding: 5px 10px;
   color: var(--accent); background: #fff; border-color: #e0e7ff; box-shadow: 0 1px 2px rgba(15,23,42,.05);
 }
 .history-search-wrap { display:flex; align-items:center; gap:8px; border:1px solid var(--border-strong); border-radius:9px; padding-left:11px; background:#fff; }
-.history-search-wrap input { flex:1; min-width:120px; border:0; box-shadow:none; padding-left:0; }
+.history-search-wrap input { flex:1; min-width:120px; min-height:40px; border:0; box-shadow:none; padding:8px 4px 8px 0 !important; }
 .history-search-wrap input:focus { box-shadow:none; }
 .history-current-date { min-height:42px; border:1px solid var(--border); border-radius:10px; background:#fff; }
 .history-current-date:hover { border-color:var(--border-strong); background:#f8fafc; }
@@ -441,6 +441,7 @@ table .history-room-link { min-width: 48px; min-height: 34px; padding: 5px 10px;
 .gih-fitem { border-radius:9px !important; }
 .gih-fitem button, .gih-pill { border-radius:8px !important; }
 .gih-finput, .gih-ac-input { min-height:42px !important; border-radius:9px !important; }
+#gih-finput { padding-left:42px !important; }
 .gih-draft-card, .gih-done-card { border:1px solid var(--border) !important; border-radius:13px !important; background:#fff !important; box-shadow:var(--shadow-card) !important; }
 .gih-legend { color:var(--text-secondary) !important; font-size:12px !important; }
 .gih-room-history-link { color:var(--accent) !important; font-weight:750 !important; }
