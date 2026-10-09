@@ -74,7 +74,7 @@ App.deadlinesModule = (() => {
     set('stat-needs-pct', pct(counts.needs_replacement));
     set('stat-neutral-pct', pct(counts.neutral));
 
-    // Мини-цифры в мобильной плашке
+    // Обновляем агрегированные показатели
     set('mstat-valid', counts.valid);
     set('mstat-empty', counts.empty);
     set('mstat-needs', counts.needs_replacement);
@@ -89,7 +89,7 @@ App.deadlinesModule = (() => {
     set('stat-needs-pct-c', pct(counts.needs_replacement));
     set('stat-neutral-pct-c', pct(counts.neutral));
 
-    if (window.AppStatFill) window.AppStatFill.sync();}
+    }
 
   async function renderChart() {
     try {
@@ -108,8 +108,8 @@ App.deadlinesModule = (() => {
 
       const width = rect.width;
       const height = rect.height;
-      const isMobile = width < 520;
-      const padding = isMobile
+      const isCompact = width < 520;
+      const padding = isCompact
         ? { top: 44, right: 12, bottom: 24, left: 30 }
         : { top: 30, right: 70, bottom: 30, left: 40 };
 
@@ -201,7 +201,7 @@ App.deadlinesModule = (() => {
       ctx.font = '10px Inter, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      const dayStep = isMobile ? 7 : 5;
+      const dayStep = isCompact ? 7 : 5;
       for (let i = 0; i < maxDays; i++) {
         const day = i + 1;
         if (day === 1 || day % dayStep === 0 || day === maxDays) {
@@ -322,7 +322,7 @@ App.deadlinesModule = (() => {
       ctx.textBaseline = 'top';
       ctx.fillText(`${currentMonthName} vs ${prevMonthName}`, padding.left, 6);
 
-      // Легенда: на десктопе справа вверху, на мобиле — второй строкой
+      // Легенда: на десктопе справа вверху, в компактной области — второй строкой
       const drawLegendItem = (line, x, y) => {
         ctx.fillStyle = '#475569';
         ctx.font = '11px Inter, sans-serif';
@@ -341,7 +341,7 @@ App.deadlinesModule = (() => {
         return lineEnd - 16 - 12; // следующий X
       };
 
-      if (isMobile) {
+      if (isCompact) {
         let lx = width - padding.right;
         [...lines].reverse().forEach(line => { lx = drawLegendItem(line, lx, 26); });
       } else {
@@ -682,21 +682,13 @@ App.deadlinesModule = (() => {
   // ── Модал «Добавить сроки»: новые карточки ──
   function renderMonthModalList() {
     const container = document.getElementById('deadline-month-modal-list');
-    if (!container) return;
-
-    const hint = `
-      <div class="month-check-hint">
-        <i data-lucide="info" class="w-4 h-4"></i>
-        <span>Укажите месяц проверки в формате <b>ММ.ГГ</b> (например 08.26). Продукт попадёт в блок «На проверку» в этом и следующем месяце. Нажмите <b>×</b> на дате, чтобы удалить её.</span>
-      </div>`;
-
-    if (monthManageProducts.length === 0) {
-      container.innerHTML = hint + `<div class="text-center py-8 text-slate-400 text-sm">Нет продуктов со сроком годности</div>`;
+    if (!container) return;if (monthManageProducts.length === 0) {
+      `<div class="text-center py-8 text-slate-400 text-sm">Нет продуктов со сроком годности</div>`;
       if (window.lucide) lucide.createIcons();
       return;
     }
 
-    container.innerHTML = hint + monthManageProducts.map(p => {
+    monthManageProducts.map(p => {
       const emoji = productEmoji(p);
       const colorClass = colorMap[p.bgColor] || 'bg-slate-100';
       const checks = p.monthChecks || [];
