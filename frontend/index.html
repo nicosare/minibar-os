@@ -6,7 +6,7 @@
 <title>MiniBar OS</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.0/index.css" />
-<link rel="stylesheet" href="styles.css??v=m66" />
+<link rel="stylesheet" href="styles.css??v=m67" />
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body class="antialiased">
@@ -584,27 +584,49 @@
       <section id="view-history" class="tab-content fade-in">
         <div class="mb-8">
           <h1 class="text-2xl font-bold text-slate-900">История операций</h1>
-          <p class="text-slate-600 mt-2">Полный журнал действий в системе</p>
+          <p class="text-slate-600 mt-2">Журнал проверок, опустошений и GIH с выбором конкретного дня</p>
         </div>
         <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
-          <div class="p-5 border-b border-slate-100">
-            <div class="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-4">
-              <div class="flex flex-col sm:flex-row sm:items-end gap-3 flex-1 min-w-0">
-                <div class="w-full sm:w-56 shrink-0">
-                  <label for="history-type-filter" class="block text-xs font-semibold text-slate-500 mb-1.5">Тип операции</label>
-                  <select id="history-type-filter" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
-                    <option value="all">Все операции</option>
-                    <option value="check">Проверка</option>
-                    <option value="emptied">Опустошение</option>
-                    <option value="gih">GIH</option>
-                  </select>
+          <div class="p-4 sm:p-5 border-b border-slate-100">
+            <div class="flex flex-col gap-4">
+              <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                <div class="history-view-tabs" role="tablist" aria-label="Раздел истории">
+                  <button type="button" class="history-view-tab active" data-history-view="daily" role="tab" aria-selected="true">
+                    <i data-lucide="calendar-check" class="w-4 h-4"></i><span>Ежедневные</span>
+                  </button>
+                  <button type="button" class="history-view-tab" data-history-view="gih" role="tab" aria-selected="false">
+                    <i data-lucide="package-check" class="w-4 h-4"></i><span>GIH</span>
+                  </button>
                 </div>
-                <div class="flex-1 min-w-0">
-                  <label for="history-search" class="block text-xs font-semibold text-slate-500 mb-1.5">Поиск по номеру</label>
-                  <input type="text" inputmode="numeric" autocomplete="off" id="history-search" placeholder="Например, 502" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                <div class="flex flex-col sm:flex-row sm:items-center gap-2 min-w-0">
+                  <div class="history-search-wrap min-w-0 flex-1">
+                    <i data-lucide="search" class="w-4 h-4 text-slate-400"></i>
+                    <input type="text" inputmode="numeric" autocomplete="off" id="history-search" placeholder="Поиск номера во всей истории" aria-label="Поиск номера во всей истории" />
+                    <button type="button" id="history-search-clear" class="history-search-clear hidden" aria-label="Очистить поиск"><i data-lucide="x" class="w-4 h-4"></i></button>
+                  </div>
+                  <button type="button" id="history-sort-toggle" class="btn btn-outline history-sort-toggle">
+                    <i data-lucide="arrow-down-up" class="w-4 h-4"></i><span id="history-sort-label">По номерам</span>
+                  </button>
                 </div>
               </div>
-              <div id="history-pagination-top" class="min-w-0 xl:pb-0.5"></div>
+
+              <div id="history-daily-filters" class="history-daily-filters" role="group" aria-label="Тип ежедневных операций">
+                <button type="button" class="history-filter-button active" data-history-daily-filter="all" aria-pressed="true">Все</button>
+                <button type="button" class="history-filter-button" data-history-daily-filter="emptied" aria-pressed="false"><i data-lucide="circle-slash" class="w-3.5 h-3.5"></i>Опустошения</button>
+              </div>
+
+              <div id="history-date-row" class="history-date-row">
+                <button type="button" id="history-prev-day" class="history-date-arrow" aria-label="Предыдущий день"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                <button type="button" id="history-current-date" class="history-current-date" aria-haspopup="dialog" aria-label="Выбрать дату">
+                  <span class="history-current-date-main"><i data-lucide="calendar-days" class="w-4 h-4"></i><span id="history-current-date-label">Сегодня</span></span>
+                  <span id="history-date-count" class="history-current-date-count">0 записей</span>
+                </button>
+                <button type="button" id="history-next-day" class="history-date-arrow" aria-label="Следующий день" disabled><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+              </div>
+              <div class="flex items-center justify-between gap-3 flex-wrap">
+                <div class="text-xs text-slate-500" id="history-results-count">Загрузка истории…</div>
+                <div class="text-xs text-slate-400">Выберите дату, чтобы посмотреть записи за день</div>
+              </div>
             </div>
           </div>
           <div id="history-list-container">
@@ -857,7 +879,7 @@
 <script src="js/inventory-module.js??v=m66"></script>
 <script src="js/dashboard-module.js??v=m66"></script>
 <script src="js/lists-module.js??v=m66"></script>
-<script src="js/history-module.js??v=m68"></script>
+<script src="js/history-module.js??v=m69"></script>
 <script src="js/route-handlers.js??v=m66"></script>
 <script src="js/gih-module.js??v=m66"></script>
 <script src="js/live-sync.js??v=m2"></script>
