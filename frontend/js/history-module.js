@@ -210,7 +210,7 @@ App.historyModule = (() => {
   }
 
   function operationCountLabel(count) {
-    return 'Операций: ' + count;
+    return 'Записей на странице: ' + count;
   }
 
   function renderPagination() {
