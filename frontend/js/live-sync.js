@@ -64,6 +64,8 @@
       if (active && view && view.contains(active) &&
           /^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName)) return true;
     }
+    if (route === 'history' && active && /^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName) &&
+        active.closest('#view-history')) return true;
     if (route === 'inventory' && active && active.classList &&
         active.classList.contains('inv-field')) return true;
     if (route === 'gih') {

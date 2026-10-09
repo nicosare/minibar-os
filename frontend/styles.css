@@ -3910,3 +3910,308 @@ gap:10px !important; padding:6px 10px !important;
     align-self: flex-end !important;
   }
 }
+
+
+/* ═══ История: вкладки, фильтры и кастомный календарь ═══ */
+.history-view-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  width: fit-content;
+  max-width: 100%;
+}
+.history-view-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 9px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, box-shadow .15s ease;
+}
+.history-view-tab:hover { color: #334155; background: #f1f5f9; }
+.history-view-tab.active {
+  color: #4338ca;
+  background: #fff;
+  border-color: #e0e7ff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .06);
+}
+.history-daily-filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.history-filter-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.history-filter-button:hover { background: #f8fafc; color: #334155; }
+.history-filter-button.active {
+  background: #eef2ff;
+  color: #4338ca;
+  border-color: #c7d2fe;
+}
+.history-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: min(100%, 340px);
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  background: #fff;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.history-search-wrap:focus-within {
+  border-color: #a5b4fc;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, .10);
+}
+.history-search-wrap input {
+  min-width: 0;
+  width: 100%;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #0f172a;
+  font-size: 13px;
+}
+.history-search-wrap input::placeholder { color: #94a3b8; }
+.history-search-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: #64748b;
+}
+.history-search-clear:hover { background: #f1f5f9; color: #0f172a; }
+.history-sort-toggle { white-space: nowrap; justify-content: center; min-height: 40px; }
+.history-date-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 42px;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+}
+.history-date-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  color: #475569;
+  transition: background .15s ease, border-color .15s ease;
+}
+.history-date-arrow:hover:not(:disabled) { background: #f8fafc; border-color: #cbd5e1; }
+.history-date-arrow:disabled { color: #cbd5e1; background: #f8fafc; cursor: default; }
+.history-current-date {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 9px 13px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #0f172a;
+  text-align: left;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+.history-current-date:hover { background: #f1f5f9; border-color: #cbd5e1; }
+.history-current-date-main { display: flex; align-items: center; gap: 9px; min-width: 0; font-size: 13px; font-weight: 650; }
+.history-current-date-main > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-current-date-main svg { flex: 0 0 auto; color: #6366f1; }
+.history-current-date-count {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #e0e7ff;
+  color: #4338ca;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.history-calendar-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(15, 23, 42, .38);
+  backdrop-filter: blur(3px);
+}
+.history-calendar-overlay.show { display: flex; }
+.history-calendar {
+  width: min(100%, 370px);
+  padding: 18px;
+  border: 1px solid rgba(226, 232, 240, .95);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, .22);
+  animation: historyCalendarIn .16s ease-out;
+}
+@keyframes historyCalendarIn {
+  from { opacity: 0; transform: translateY(5px) scale(.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.history-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.history-calendar-eyebrow {
+  margin-bottom: 3px;
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+}
+.history-calendar-title {
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 750;
+  text-transform: capitalize;
+}
+.history-calendar-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  color: #64748b;
+}
+.history-calendar-close:hover { background: #f1f5f9; color: #0f172a; }
+.history-calendar-close svg { width: 17px; height: 17px; }
+.history-calendar-month-nav {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin: 13px 0 8px;
+}
+.history-calendar-month-nav button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 30px;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  background: #fff;
+  color: #475569;
+}
+.history-calendar-month-nav button:hover:not(:disabled) { background: #f8fafc; }
+.history-calendar-month-nav button:disabled { color: #cbd5e1; background: #f8fafc; cursor: default; }
+.history-calendar-month-nav svg { width: 15px; height: 15px; }
+.history-calendar-weekdays,
+.history-calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+.history-calendar-weekdays { margin: 8px 0; }
+.history-calendar-weekdays span {
+  text-align: center;
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 700;
+}
+.history-calendar-days { row-gap: 5px; }
+.history-calendar-day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: 40px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: #334155;
+  cursor: pointer;
+  transition: background .12s ease, border-color .12s ease;
+}
+.history-calendar-day:hover:not(:disabled) { background: #f1f5f9; }
+.history-calendar-day.other-month { color: #cbd5e1; }
+.history-calendar-day.today { color: #4338ca; background: #eef2ff; font-weight: 750; }
+.history-calendar-day.selected { border-color: #6366f1; background: #6366f1; color: #fff; font-weight: 750; }
+.history-calendar-day.disabled { color: #dbe2eb; background: transparent; cursor: default; }
+.history-calendar-number { font-size: 12px; line-height: 16px; }
+.history-calendar-count {
+  position: absolute;
+  bottom: 1px;
+  left: 50%;
+  max-width: calc(100% - 4px);
+  overflow: hidden;
+  transform: translateX(-50%);
+  padding: 0 3px;
+  border-radius: 4px;
+  background: #e0e7ff;
+  color: #4338ca;
+  font-size: 8px;
+  line-height: 11px;
+  font-weight: 750;
+}
+.history-calendar-day.selected .history-calendar-count { background: rgba(255,255,255,.22); color: #fff; }
+.history-calendar-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #f1f5f9;
+}
+@media (max-width: 640px) {
+  .history-view-tabs { width: 100%; }
+  .history-view-tab { flex: 1 1 0; padding: 8px 9px; }
+  .history-search-wrap { width: 100%; }
+  .history-sort-toggle { flex: 0 0 auto; }
+  .history-current-date { padding: 8px; gap: 6px; }
+  .history-current-date-main { gap: 6px; font-size: 12px; }
+  .history-current-date-count { padding: 4px 6px; font-size: 10px; }
+  .history-date-row { grid-template-columns: 36px minmax(0, 1fr) 36px; gap: 6px; }
+  .history-calendar { padding: 14px; }
+}
+
+/* Учитываем utility-класс hidden при собственных display-правилах Истории. */
+.history-daily-filters.hidden,
+.history-date-row.hidden,
+.history-search-clear.hidden { display: none !important; }
