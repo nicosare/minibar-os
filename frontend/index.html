@@ -50,12 +50,12 @@
       <!-- Операции с номерами -->
       <a data-route="arrivals" data-accent="emerald" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-pointer">
         <i data-lucide="plane-landing" class="nav-icon w-4 h-4 text-slate-500"></i>
-        <span>Arrivals</span>
+        <span>Заезды</span>
         <span id="arrivals-badge" class="ml-auto badge badge-success hidden">0</span>
       </a>
       <a data-route="departures" data-accent="sky" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-pointer">
         <i data-lucide="plane-takeoff" class="nav-icon w-4 h-4 text-slate-500"></i>
-        <span>Departures</span>
+        <span>Выезды</span>
         <span id="departures-badge" class="ml-auto badge badge-info hidden">0</span>
       </a>
       <a data-route="gih" data-accent="violet" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-pointer">
@@ -210,7 +210,7 @@
     <div id="excise-empty-state" class="hidden text-center py-12 text-slate-400">
       <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
       <p class="text-sm">Нет добавленных акцизов</p>
-      <p class="text-xs mt-1">Введите марку в поле выше</p>
+      
     </div>
   </div>
 </section>
@@ -219,13 +219,9 @@
 <section id="view-arrivals" class="tab-content fade-in">
   <div class="flex items-start justify-between mb-6">
     <div>
-      <h1 class="text-2xl font-bold text-slate-900">Arrivals</h1>
+      <h1 class="text-2xl font-bold text-slate-900">Заезды</h1>
       </div>
-    <div class="flex gap-2">
-      <button class="btn btn-outline"><i data-lucide="calendar" class="w-4 h-4"></i> Сегодня</button>
-      <button class="btn btn-primary"><i data-lucide="plus" class="w-4 h-4"></i> Новый заезд</button>
-    </div>
-  </div>
+</div>
 
   <div class="grid grid-cols-4 gap-4 mb-6">
     <div class="bg-white rounded-xl p-5 border border-slate-100">
@@ -264,12 +260,9 @@
 <section id="view-departures" class="tab-content fade-in">
   <div class="flex items-start justify-between mb-6">
     <div>
-      <h1 class="text-2xl font-bold text-slate-900">Departures</h1>
+      <h1 class="text-2xl font-bold text-slate-900">Выезды</h1>
       </div>
-    <div class="flex gap-2">
-      <button class="btn btn-outline"><i data-lucide="calendar" class="w-4 h-4"></i> Сегодня</button>
-    </div>
-  </div>
+</div>
 
   <div class="grid grid-cols-4 gap-4 mb-6">
     <div class="bg-white rounded-xl p-5 border border-slate-100">
@@ -339,7 +332,7 @@
       </div>
       <div id="inventory-summary-empty" class="side-panel-empty">
         <i data-lucide="clipboard-list"></i>
-        <p>Введите количество продуктов</p>
+        <p>Нет данных</p>
       </div>
       <div id="inventory-summary-list" class="side-panel-body hidden"></div><div class="side-panel-footer"><div class="total-row"><span class="total-row-label">Позиций</span><span class="total-row-value" id="inventory-total-count">0</span></div></div></aside>
   </div>
@@ -567,8 +560,7 @@
               </div>
               <div class="flex items-center justify-between gap-3 flex-wrap">
                 <div class="text-xs text-slate-500" id="history-results-count">Загрузка истории…</div>
-                <div class="text-xs text-slate-400">Выберите дату, чтобы посмотреть записи за день</div>
-              </div>
+          </div>
             </div>
           </div>
           <div id="history-list-container">
@@ -611,7 +603,7 @@
       </div>
       <div id="calculator-bill-empty" class="side-panel-empty">
         <i data-lucide="shopping-cart"></i>
-        <p>Выберите продукты</p>
+        <p>Счёт пуст</p>
       </div>
       <div id="calculator-bill-list" class="side-panel-body hidden"></div>
       <div class="side-panel-footer">
@@ -633,8 +625,8 @@
         </div>
 
         <div class="flex gap-1 bg-slate-100 rounded-lg p-1 w-fit mb-6">
-          <button data-settings-tab="products" class="settings-tab px-4 py-1.5 text-sm rounded-md bg-white shadow-sm font-medium">Продукты</button>
-          <button data-settings-tab="templates" class="settings-tab px-4 py-1.5 text-sm rounded-md text-slate-600">Шаблоны наполнения</button>
+          <button data-settings-tab="products" class="settings-tab active" role="tab" aria-selected="true">Продукты</button>
+          <button data-settings-tab="templates" class="settings-tab" role="tab" aria-selected="false">Шаблоны наполнения</button>
         </div>
 
         <div id="settings-products" class="settings-panel">
