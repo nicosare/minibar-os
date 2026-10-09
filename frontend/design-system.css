@@ -507,3 +507,20 @@ table .history-room-link { min-width: 48px; min-height: 34px; padding: 5px 10px;
   .split-layout { grid-template-columns:minmax(0,1fr) 300px; gap:16px; }
   #view-excise .excise-stats-grid > div, #view-deadlines > div:nth-of-type(2).grid.grid-cols-4 > div { padding:16px !important; }
 }
+
+/* Semantic actions keep their state color without introducing one-off button styles. */
+#deadline-modal-backdrop .btn.bg-sky-500 {
+  color:#fff !important; background:#0284c7 !important; border-color:#0284c7 !important;
+}
+#deadline-modal-backdrop .btn.bg-sky-500:hover {
+  background:#0369a1 !important; border-color:#0369a1 !important;
+}
+#deadline-modal-backdrop .btn.bg-emerald-500 {
+  color:#fff !important; background:#059669 !important; border-color:#059669 !important;
+}
+#deadline-modal-backdrop .btn.bg-emerald-500:hover {
+  background:#047857 !important; border-color:#047857 !important;
+}
+#deadline-modal-backdrop .btn.bg-rose-500 {
+  color:#fff !important; background:#e11d48 !important; border-color:#e11d48 !important;
+}
