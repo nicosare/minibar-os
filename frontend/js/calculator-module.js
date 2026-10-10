@@ -1,7 +1,7 @@
 // МОДУЛЬ КАЛЬКУЛЯТОРА — desktop-first
 // ═══════════════════════════════════════════════════════════════
 // Desktop calculator drawer
-// открывает шторку с плоской сеткой продуктов (тап = +1, счётчик = −1).
+// Панель с сеткой продуктов: клик добавляет позицию, счётчик уменьшает количество.
 // ПК: обычная страница с вкладками категорий и боковым счётом.
 // Корзина общая для обоих режимов.
 // ═══════════════════════════════════════════════════════════════
@@ -446,9 +446,10 @@ function guardCalculatorRoute() {
       openDrawer();
       const previousRoute = lastNonCalcRoute || 'dashboard';
       setTimeout(() => { if (App.router) App.router.go(previousRoute, false); }, 0);
-    } else {
-      lastNonCalcRoute = route;
+      return;
     }
+    lastNonCalcRoute = route;
+    if (drawerOpen) closeDrawer();
   });
 }
 async function loadProducts() {
