@@ -33,120 +33,6 @@ App.deadlinesModule = (() => {
     _cachedTargetsTime = 0;
   }
 
-  // ── Мобильная структура: плашка статистики + шторка деталей ──
-  // Собирается один раз при первом входе в раздел (index.html не трогаем)
-  function ensureMobileStructure() {
-    if (document.getElementById('deadlines-stats-bar')) return;
-    const view = document.getElementById('view-deadlines');
-    if (!view) return;
-
-    const grids = view.querySelectorAll('.grid.grid-cols-4');
-    if (grids.length < 3) return; // [0]=статистика, [1]=график+цели, [2]=на проверку+замены
-
-    grids[0].classList.add('dl-stats-grid', 'stat-grid-target');
-
-    const bar = document.createElement('div');
-    bar.id = 'deadlines-stats-bar';
-    bar.className = 'dl-stats-bar';
-    bar.innerHTML = `
-      <div class="dl-stats-bar-left">
-        <i data-lucide="bar-chart-3" class="w-4 h-4 text-slate-500"></i>
-        <span>Статистика</span>
-      </div>
-      <div class="dl-stats-bar-nums">
-        <span class="dl-mini-stat c-emerald" id="mstat-valid" title="В порядке">0</span>
-        <span class="dl-mini-stat c-sky" id="mstat-empty" title="Пустые">0</span>
-        <span class="dl-mini-stat c-rose" id="mstat-needs" title="Заменить">0</span>
-        <span class="dl-mini-stat c-slate" id="mstat-neutral" title="Не проверены">0</span>
-      </div>
-      <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
-    `;
-    grids[0].parentNode.insertBefore(bar, grids[0]);
-
-    // Фон шторки (только телефон)
-    const backdrop = document.createElement('div');
-    backdrop.id = 'deadlines-stats-backdrop';
-    backdrop.className = 'dl-stats-backdrop hidden';
-    // Шторка в едином стиле «Ещё»: ручка + шапка + скролл-тело
-    const details = document.createElement('div');
-    details.id = 'deadlines-details';
-    details.className = 'dl-details';
-    details.innerHTML = `
-      <div class="ms-drag-zone dl-sheet-dragzone">
-        <div class="ms-handle modal-sheet-handle"></div>
-        <div class="ms-header-row dl-details-header">
-          <span class="ms-title dl-details-title">Аналитика</span>
-          <button id="deadlines-details-close" class="ms-close-btn" type="button" aria-label="Закрыть">
-            <i data-lucide="x" class="w-4 h-4"></i>
-          </button>
-        </div>
-      </div>
-      <div class="dl-sheet-body"></div>
-    `;
-    grids[1].parentNode.insertBefore(backdrop, grids[1]);
-    backdrop.parentNode.insertBefore(details, backdrop.nextSibling);
-    const body = details.querySelector('.dl-sheet-body');
-    body.appendChild(grids[1]);
-    body.appendChild(grids[2]);
-
-    if (window.lucide) lucide.createIcons();
-  }
-
-  function openDetails() {
-    const d = document.getElementById('deadlines-details');
-    if (!d) return;
-    setupDetailsSheet(); // свайп + фон — один раз
-    const backdrop = document.getElementById('deadlines-stats-backdrop');
-    if (backdrop) {
-      backdrop.classList.remove('hidden');
-      requestAnimationFrame(() => requestAnimationFrame(() => backdrop.classList.add('show')));
-    }
-    d.classList.add('open');
-    setTimeout(() => renderChart(), 340); // пересчитать canvas после выезда
-  }
-  function closeDetails() {
-    const d = document.getElementById('deadlines-details');
-    const backdrop = document.getElementById('deadlines-stats-backdrop');
-    if (d) d.classList.remove('open');
-    if (backdrop) {
-      backdrop.classList.remove('show');
-      setTimeout(() => backdrop.classList.add('hidden'), 280);
-    }
-  }
-  // Свайп вниз за ручку/шапку + закрытие по фону
-  function setupDetailsSheet() {
-    const d = document.getElementById('deadlines-details');
-    if (!d || d.dataset.sheetSwipe) return;
-    d.dataset.sheetSwipe = '1';
-    document.getElementById('deadlines-stats-backdrop')?.addEventListener('click', closeDetails);
-    const zone = d.querySelector('.dl-sheet-dragzone');
-    if (!zone) return;
-    let startY = 0, dy = 0, dragging = false;
-    zone.addEventListener('touchstart', (e) => {
-      dragging = true; startY = e.touches[0].clientY; dy = 0;
-      d.style.transition = 'none';
-    }, { passive: true });
-    zone.addEventListener('touchmove', (e) => {
-      if (!dragging) return;
-      dy = Math.max(0, e.touches[0].clientY - startY);
-      d.style.transform = `translateY(${dy}px)`;
-    }, { passive: true });
-    const endDrag = () => {
-      if (!dragging) return;
-      dragging = false;
-      d.style.transition = 'transform 0.25s cubic-bezier(0.32, 0.72, 0.24, 1)';
-      if (dy > 90) {
-        d.style.transform = 'translateY(105%)';
-        setTimeout(() => { closeDetails(); d.style.transform = ''; d.style.transition = ''; }, 240);
-      } else {
-        d.style.transform = '';
-        setTimeout(() => { d.style.transition = ''; }, 260);
-      }
-    };
-    zone.addEventListener('touchend', endDrag);
-    zone.addEventListener('touchcancel', endDrag);
-  }
-
   async function loadRooms() {
     try {
       rooms = await api().getRooms();
@@ -167,44 +53,25 @@ App.deadlinesModule = (() => {
   function renderStats() {
     const total = rooms.length || 1;
     const counts = {
-      valid: rooms.filter(r => r.expiryStatus === 'valid').length,
-      empty: rooms.filter(r => r.expiryStatus === 'empty').length,
-      needs_replacement: rooms.filter(r => r.expiryStatus === 'needs_replacement').length,
-      neutral: rooms.filter(r => r.expiryStatus === 'neutral').length
+      valid: rooms.filter(room => room.expiryStatus === 'valid').length,
+      empty: rooms.filter(room => room.expiryStatus === 'empty').length,
+      needs_replacement: rooms.filter(room => room.expiryStatus === 'needs_replacement').length,
+      neutral: rooms.filter(room => room.expiryStatus === 'neutral').length
     };
     const set = (id, value) => {
-      const el = document.getElementById(id);
-      if (el) el.textContent = value;
+      const element = document.getElementById(id);
+      if (element) element.textContent = value;
     };
+    const percentage = count => Math.round((count / total) * 100) + '%';
 
-    // Десктоп-карточки
     set('stat-valid', counts.valid);
     set('stat-empty', counts.empty);
     set('stat-needs-replacement', counts.needs_replacement);
     set('stat-neutral', counts.neutral);
-    const pct = (n) => Math.round((n / total) * 100) + '%';
-    set('stat-valid-pct', pct(counts.valid));
-    set('stat-empty-pct', pct(counts.empty));
-    set('stat-needs-pct', pct(counts.needs_replacement));
-    set('stat-neutral-pct', pct(counts.neutral));
-
-    // Мини-цифры в мобильной плашке
-    set('mstat-valid', counts.valid);
-    set('mstat-empty', counts.empty);
-    set('mstat-needs', counts.needs_replacement);
-    set('mstat-neutral', counts.neutral);
-
-    set('stat-valid-c', counts.valid);
-    set('stat-empty-c', counts.empty);
-    set('stat-needs-replacement-c', counts.needs_replacement);
-    set('stat-neutral-c', counts.neutral);
-    set('stat-valid-pct-c', pct(counts.valid));
-    set('stat-empty-pct-c', pct(counts.empty));
-    set('stat-needs-pct-c', pct(counts.needs_replacement));
-    set('stat-neutral-pct-c', pct(counts.neutral));
-
-    if (window.AppStatFill) window.AppStatFill.sync();
-    syncStatFill();
+    set('stat-valid-pct', percentage(counts.valid));
+    set('stat-empty-pct', percentage(counts.empty));
+    set('stat-needs-pct', percentage(counts.needs_replacement));
+    set('stat-neutral-pct', percentage(counts.neutral));
   }
 
   async function renderChart() {
@@ -224,8 +91,8 @@ App.deadlinesModule = (() => {
 
       const width = rect.width;
       const height = rect.height;
-      const isMobile = width < 520;
-      const padding = isMobile
+      const isCompact = width < 520;
+      const padding = isCompact
         ? { top: 44, right: 12, bottom: 24, left: 30 }
         : { top: 30, right: 70, bottom: 30, left: 40 };
 
@@ -317,7 +184,7 @@ App.deadlinesModule = (() => {
       ctx.font = '10px Inter, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      const dayStep = isMobile ? 7 : 5;
+      const dayStep = isCompact ? 7 : 5;
       for (let i = 0; i < maxDays; i++) {
         const day = i + 1;
         if (day === 1 || day % dayStep === 0 || day === maxDays) {
@@ -438,7 +305,7 @@ App.deadlinesModule = (() => {
       ctx.textBaseline = 'top';
       ctx.fillText(`${currentMonthName} vs ${prevMonthName}`, padding.left, 6);
 
-      // Легенда: на десктопе справа вверху, на мобиле — второй строкой
+      // Легенда: на десктопе справа вверху, в компактной области — второй строкой
       const drawLegendItem = (line, x, y) => {
         ctx.fillStyle = '#475569';
         ctx.font = '11px Inter, sans-serif';
@@ -457,7 +324,7 @@ App.deadlinesModule = (() => {
         return lineEnd - 16 - 12; // следующий X
       };
 
-      if (isMobile) {
+      if (isCompact) {
         let lx = width - padding.right;
         [...lines].reverse().forEach(line => { lx = drawLegendItem(line, lx, 26); });
       } else {
@@ -800,45 +667,39 @@ App.deadlinesModule = (() => {
     const container = document.getElementById('deadline-month-modal-list');
     if (!container) return;
 
-    const hint = `
-      <div class="month-check-hint">
-        <i data-lucide="info" class="w-4 h-4"></i>
-        <span>Укажите месяц проверки в формате <b>ММ.ГГ</b> (например 08.26). Продукт попадёт в блок «На проверку» в этом и следующем месяце. Нажмите <b>×</b> на дате, чтобы удалить её.</span>
-      </div>`;
-
     if (monthManageProducts.length === 0) {
-      container.innerHTML = hint + `<div class="text-center py-8 text-slate-400 text-sm">Нет продуктов со сроком годности</div>`;
-      if (window.lucide) lucide.createIcons();
+      container.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">Нет продуктов со сроком годности</div>';
       return;
     }
 
-    container.innerHTML = hint + monthManageProducts.map(p => {
-      const emoji = productEmoji(p);
-      const colorClass = colorMap[p.bgColor] || 'bg-slate-100';
-      const checks = p.monthChecks || [];
+    container.innerHTML = monthManageProducts.map(product => {
+      const emoji = productEmoji(product);
+      const colorClass = colorMap[product.bgColor] || 'bg-slate-100';
+      const checks = product.monthChecks || [];
       const chips = checks.length === 0
-        ? `<span class="month-check-none">Даты не заданы</span>`
-        : checks.map(c => `
+        ? '<span class="month-check-none">Даты не заданы</span>'
+        : checks.map(check => `
             <span class="month-check-chip">
-              <span>${c.period}</span>
-              <button type="button" class="month-check-chip-del" data-check-id="${c.id}" title="Удалить дату">
+              <span>${escapeHtml(check.period)}</span>
+              <button type="button" class="month-check-chip-del" data-check-id="${check.id}" title="Удалить дату" aria-label="Удалить дату ${escapeHtml(check.period)}">
                 <i data-lucide="x" class="w-3 h-3"></i>
               </button>
             </span>`).join('');
+
       return `
         <div class="month-check-card">
           <div class="month-check-card-top">
-            <div class="month-check-emoji ${colorClass}">${emoji}</div>
+            <div class="month-check-emoji ${colorClass}">${escapeHtml(emoji)}</div>
             <div class="month-check-info">
-              <div class="month-check-name">${escapeHtml(p.name)}</div>
-              <div class="month-check-meta">${p.volume || '—'} ${p.unit || 'шт'}</div>
+              <div class="month-check-name">${escapeHtml(product.name)}</div>
+              <div class="month-check-meta">${escapeHtml(String(product.volume || '—'))} ${escapeHtml(String(product.unit || 'шт'))}</div>
             </div>
           </div>
           <div class="month-check-dates">${chips}</div>
           <div class="month-check-add">
             <input type="text" class="month-check-input" maxlength="5" placeholder="ММ.ГГ"
-                   data-product-id="${p.id}" inputmode="numeric" autocomplete="off" />
-            <button type="button" class="btn btn-primary btn-sm month-check-save-btn" data-product-id="${p.id}">
+                   data-product-id="${product.id}" inputmode="numeric" autocomplete="off" aria-label="Месяц проверки для ${escapeHtml(product.name)}" />
+            <button type="button" class="btn btn-primary btn-sm month-check-save-btn" data-product-id="${product.id}">
               <i data-lucide="plus" class="w-3.5 h-3.5"></i> Добавить
             </button>
           </div>
@@ -847,22 +708,22 @@ App.deadlinesModule = (() => {
 
     container.querySelectorAll('.month-check-input').forEach(input => {
       input.addEventListener('input', () => { input.value = formatPeriodInput(input.value); });
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
+      input.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
           saveMonthProduct(parseInt(input.dataset.productId, 10), input.value, input);
         }
       });
     });
-    container.querySelectorAll('.month-check-save-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const productId = parseInt(btn.dataset.productId, 10);
-        const input = btn.closest('.month-check-card')?.querySelector('.month-check-input');
+    container.querySelectorAll('.month-check-save-btn').forEach(button => {
+      button.addEventListener('click', () => {
+        const productId = parseInt(button.dataset.productId, 10);
+        const input = button.closest('.month-check-card')?.querySelector('.month-check-input');
         saveMonthProduct(productId, input?.value || '', input);
       });
     });
-    container.querySelectorAll('.month-check-chip-del').forEach(btn => {
-      btn.addEventListener('click', () => clearMonthCheck(parseInt(btn.dataset.checkId, 10)));
+    container.querySelectorAll('.month-check-chip-del').forEach(button => {
+      button.addEventListener('click', () => clearMonthCheck(parseInt(button.dataset.checkId, 10)));
     });
 
     if (window.lucide) lucide.createIcons();
@@ -996,82 +857,18 @@ App.deadlinesModule = (() => {
     App.badges.update('deadlines');
   }
 
-  /* ═══ ВОЛНОВАЯ ЗАЛИВКА БЛОКОВ СТАТИСТИКИ (Сроки) + маска текста ═══ */
-const STAT_FILL_COLORS = {
-  emerald: '#059669', sky: '#0284c7', rose: '#e11d48', slate: '#475569'
-};
-function detectStatColor(card) {
-  if (card.classList.contains('from-emerald-500')) return 'emerald';
-  if (card.classList.contains('from-sky-500')) return 'sky';
-  if (card.classList.contains('from-rose-500')) return 'rose';
-  return 'slate';
-}
-let statFillBuilt = false;
-function buildStatFill() {
-  if (statFillBuilt) return;
-  const view = document.getElementById('view-deadlines');
-  if (!view) return;
-  const grid = view.querySelector('.grid.grid-cols-4');
-  if (!grid) return;
-  const cards = grid.querySelectorAll(':scope > div');
-  if (cards.length < 4) return;
-  cards.forEach(card => {
-    const color = detectStatColor(card);
-    const inner = card.innerHTML;
-    card.classList.remove('bg-gradient-to-br','from-emerald-500','to-emerald-600','from-sky-500','to-sky-600','from-rose-500','to-rose-600','from-slate-500','to-slate-600','text-white','shadow-sm','p-5');
-    card.classList.add('stat-fill-card');
-    card.dataset.color = color;
-    const base = document.createElement('div');
-    base.className = 'stat-layer stat-layer-base p-5';
-    base.innerHTML = inner;
-    const fill = document.createElement('div');
-    fill.className = 'stat-layer stat-layer-fill p-5';
-    fill.innerHTML = inner;
-    fill.querySelectorAll('[id]').forEach(el => { el.id = el.id + '-fill'; });
-    card.innerHTML = '';
-    card.appendChild(base);
-    card.appendChild(fill);
-  });
-  statFillBuilt = true;
-  if (window.lucide) lucide.createIcons();
-}
-function syncStatFill() {
-  const view = document.getElementById('view-deadlines');
-  if (!view) return;
-  view.querySelectorAll('.stat-fill-card').forEach(card => {
-    const base = card.querySelector('.stat-layer-base');
-    if (!base) return;
-    const pctEl = base.querySelector('[id$="-pct"]');
-    let pct = 0;
-    if (pctEl) { const m = (pctEl.textContent || '').match(/(\d+)/); if (m) pct = Math.max(0, Math.min(100, parseInt(m[1], 10))); }
-    card.style.setProperty('--fill', pct + '%');
-    base.querySelectorAll('[id]').forEach(el => {
-      const f = document.getElementById(el.id + '-fill');
-      if (f) f.textContent = el.textContent;
-    });
-  });
-}
-
-function init() {
-    ensureMobileStructure();
-buildStatFill();
-
+  function init() {
     if (!isInitialized) {
-      document.getElementById('deadline-modal-backdrop')?.addEventListener('click', (e) => {
-        if (e.target.id === 'deadline-modal-backdrop') closeModal();
+      document.getElementById('deadline-modal-backdrop')?.addEventListener('click', event => {
+        if (event.target.id === 'deadline-modal-backdrop') closeModal();
       });
-      document.getElementById('deadline-month-modal-backdrop')?.addEventListener('click', (e) => {
-        if (e.target.id === 'deadline-month-modal-backdrop') closeMonthModal();
+      document.getElementById('deadline-month-modal-backdrop')?.addEventListener('click', event => {
+        if (event.target.id === 'deadline-month-modal-backdrop') closeMonthModal();
       });
       document.getElementById('deadline-month-modal-close')?.addEventListener('click', closeMonthModal);
       document.getElementById('deadlines-month-products-btn')?.addEventListener('click', openMonthModal);
       document.getElementById('deadlines-reset-all-btn')?.addEventListener('click', resetAllRooms);
 
-      // Плашка → шторка деталей
-      document.getElementById('deadlines-stats-bar')?.addEventListener('click', openDetails);
-      document.getElementById('deadlines-details-close')?.addEventListener('click', closeDetails);
-
-      // Перерисовка графика при смене ориентации/размера
       let resizeTimer = null;
       window.addEventListener('resize', () => {
         clearTimeout(resizeTimer);
@@ -1079,7 +876,6 @@ buildStatFill();
           if (App.state.currentRoute === 'deadlines') renderChart();
         }, 250);
       });
-
       isInitialized = true;
     }
 

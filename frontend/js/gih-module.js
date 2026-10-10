@@ -103,7 +103,7 @@ function renderFactory(){
             </button>`; }).join('')}
         </div>
       </div>`).join('')) || '<div class="gih-fempty">У этого номера нет шаблона наполнения</div>'
-    : '<div class="gih-fempty">Введите номер, чтобы увидеть продукты его шаблона</div>';
+    : '';
   const isEdit = !!factory.editId;
   box.innerHTML = `
     <div class="gih-fhead">

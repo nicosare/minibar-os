@@ -638,12 +638,12 @@ App.historyModule = (() => {
     panel.id = 'room-history-panel';
     panel.className = 'room-history-panel';
     panel.setAttribute('aria-hidden', 'true');
+    panel.inert = true;
     panel.innerHTML =
       '<div class="room-history-drawer" role="dialog" aria-modal="false" aria-labelledby="room-history-title">' +
       '<div class="room-history-header"><div><div class="room-history-kicker">История номера</div>' +
       '<h2 class="room-history-title" id="room-history-title">Номер</h2></div>' +
       '<button type="button" class="room-history-close" data-room-history-close aria-label="Закрыть историю номера"><i data-lucide="x"></i></button></div>' +
-      '<div class="room-history-subtitle">Ежедневные операции и GIH. События раздела «Сроки» здесь не отображаются.</div>' +
       '<div class="room-history-body" id="room-history-body"><div class="room-history-loading">Загрузка истории…</div></div></div>';
     main.parentElement.insertBefore(panel, main);
     panel.addEventListener('click', event => {
@@ -657,14 +657,14 @@ App.historyModule = (() => {
     if (!panel) return;
     panel.classList.remove('open');
     panel.setAttribute('aria-hidden', 'true');
+    panel.inert = true;
     document.body.classList.remove('room-history-open');
     requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
   }
 
   function renderRoomHistoryCards(items) {
     if (!items.length) {
-      return '<div class="room-history-empty"><i data-lucide="history"></i><strong>Записей пока нет</strong>' +
-        '<span>Для этого номера не сохранено ежедневных операций или GIH.</span></div>';
+      return '<div class="room-history-empty"><i data-lucide="history"></i><strong>Записей пока нет</strong></div>';
     }
     return items.map((check, index) => {
       const date = dateForCheck(check);
@@ -678,8 +678,6 @@ App.historyModule = (() => {
         if (notes) content += '<div class="room-history-note">' + escapeHtml(notes).replace(/\n/g, '<br>') + '</div>';
       } else if (notes) {
         content += '<div class="room-history-note">' + escapeHtml(notes).replace(/\n/g, '<br>') + '</div>';
-      } else {
-        content += '<div class="room-history-note is-muted">Подробности не указаны</div>';
       }
       const dateText = date
         ? date.toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' }) + ' · ' +
@@ -695,11 +693,14 @@ App.historyModule = (() => {
   async function openRoomHistory(roomId, number) {
     const id = Number(roomId);
     if (!Number.isInteger(id) || id <= 0) return;
+    if (window.App && App.calculatorModule && App.calculatorModule.closeDrawer) App.calculatorModule.closeDrawer();
+    if (window.App && App.inventoryModule && App.inventoryModule.closeDrawer) App.inventoryModule.closeDrawer();
     ensureRoomHistoryDrawer();
     const panel = document.getElementById('room-history-panel');
     const title = document.getElementById('room-history-title');
     const body = document.getElementById('room-history-body');
     if (!panel || !body) return;
+    panel.inert = false;
     title.textContent = 'Номер ' + String(number || '—');
     body.innerHTML = '<div class="room-history-loading"><i data-lucide="loader-2"></i><span>Загрузка истории…</span></div>';
     panel.classList.add('open');
@@ -926,6 +927,11 @@ App.historyModule = (() => {
     document.addEventListener('keydown', event => {
       if (event.key === 'Escape') closeRoomHistory();
     });
+    if (window.App && App.events) {
+      App.events.on('route:change', route => {
+        if (route !== 'history' && route !== 'gih') closeRoomHistory();
+      });
+    }
 
     search && search.addEventListener('input', () => {
       if (state.searchTimer) clearTimeout(state.searchTimer);
