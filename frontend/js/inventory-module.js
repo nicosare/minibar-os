@@ -102,6 +102,10 @@ function buildDrawer(){
   if(!aside || !main) return;
   const drawer = document.createElement('div');
   drawer.id = 'inv-drawer'; drawer.className = 'inv-drawer';
+  drawer.setAttribute('role', 'complementary');
+  drawer.setAttribute('aria-label', 'Сводка инвентаризации');
+  drawer.setAttribute('aria-hidden', 'true');
+  drawer.inert = true;
   main.after(drawer);
   drawer.appendChild(aside);
   const header = aside.querySelector('.side-panel-header');
@@ -120,11 +124,20 @@ function openDrawer(){
   if (window.App && App.historyModule && App.historyModule.closeRoomHistory) App.historyModule.closeRoomHistory();
   const drawer = document.getElementById('inv-drawer');
   if (drawer) {
+    drawer.inert = false;
+    drawer.setAttribute('aria-hidden', 'false');
     drawer.classList.add('open');
     if (window.lucide) lucide.createIcons();
   }
 }
-function closeDrawer(){ const d=document.getElementById('inv-drawer'); if(d) d.classList.remove('open'); }
+function closeDrawer(){
+  const drawer = document.getElementById('inv-drawer');
+  if (drawer) {
+    drawer.classList.remove('open');
+    drawer.setAttribute('aria-hidden', 'true');
+    drawer.inert = true;
+  }
+}
 function toggleDrawer(){ const d=document.getElementById('inv-drawer'); if(!d) return; d.classList.contains('open') ? closeDrawer() : openDrawer(); }
 function setupListeners(){
   if (isInitialized) return;
@@ -145,6 +158,9 @@ function setupListeners(){
     renderSummary();
   });
   document.getElementById('inventory-products-container')?.addEventListener('keydown', onInvKey);
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && document.getElementById('inv-drawer')?.classList.contains('open')) closeDrawer();
+  });
   if (window.App && App.events) App.events.on('route:change', route => { if (route !== 'inventory') closeDrawer(); });
   isInitialized = true;
 }
