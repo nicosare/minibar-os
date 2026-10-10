@@ -1,0 +1,62 @@
+name: Desktop frontend smoke test
+
+on:
+  push:
+    branches:
+      - design/desktop-unification
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/desktop-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  desktop-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Build frontend image
+        run: docker build -t minibar-os-frontend-smoke ./frontend
+
+      - name: Start frontend
+        run: docker run -d --name minibar-frontend-smoke -p 8080:80 minibar-os-frontend-smoke
+
+      - name: Wait for frontend
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8080/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs minibar-frontend-smoke
+          exit 1
+
+      - name: Run desktop browser smoke tests
+        run: node frontend/tests/desktop-smoke.cjs
+
+      - name: Show frontend logs on failure
+        if: failure()
+        run: docker logs minibar-frontend-smoke || true
+
+      - name: Stop frontend
+        if: always()
+        run: docker rm -f minibar-frontend-smoke || true
