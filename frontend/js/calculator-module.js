@@ -274,6 +274,10 @@ function getQty(productId) {
   const drawer = document.createElement('div');
   drawer.id = 'calc-drawer';
   drawer.className = 'calc-drawer';
+  drawer.setAttribute('role', 'complementary');
+  drawer.setAttribute('aria-label', 'Калькулятор');
+  drawer.setAttribute('aria-hidden', 'true');
+  drawer.inert = true;
   drawer.innerHTML =
     '<div class="cd-head">' +
       '<span class="cd-title"><i data-lucide="calculator" aria-hidden="true"></i> Калькулятор</span>' +
@@ -417,6 +421,8 @@ function openDrawer() {
   renderDrawerBill();
   var drawer = document.getElementById('calc-drawer');
   if (!drawer) return;
+  drawer.inert = false;
+  drawer.setAttribute('aria-hidden', 'false');
   drawer.classList.add('open');
   drawerOpen = true;
   setCalcNavHighlight(true);
@@ -424,7 +430,11 @@ function openDrawer() {
 }
 function closeDrawer() {
   var drawer = document.getElementById('calc-drawer');
-  if (drawer) drawer.classList.remove('open');
+  if (drawer) {
+    drawer.classList.remove('open');
+    drawer.setAttribute('aria-hidden', 'true');
+    drawer.inert = true;
+  }
   drawerOpen = false;
   setCalcNavHighlight(false);
 }
@@ -528,6 +538,9 @@ function init() {
   function bootIntercepts() {
   interceptDesktopCalculator();
   guardCalculatorRoute();
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && drawerOpen) closeDrawer();
+  });
 }
 if (document.readyState === 'loading') {
 document.addEventListener('DOMContentLoaded', bootIntercepts);
