@@ -682,39 +682,41 @@ App.deadlinesModule = (() => {
   // ── Модал «Добавить сроки»: новые карточки ──
   function renderMonthModalList() {
     const container = document.getElementById('deadline-month-modal-list');
-    if (!container) return;if (monthManageProducts.length === 0) {
-      `<div class="text-center py-8 text-slate-400 text-sm">Нет продуктов со сроком годности</div>`;
-      if (window.lucide) lucide.createIcons();
+    if (!container) return;
+
+    if (monthManageProducts.length === 0) {
+      container.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">Нет продуктов со сроком годности</div>';
       return;
     }
 
-    monthManageProducts.map(p => {
-      const emoji = productEmoji(p);
-      const colorClass = colorMap[p.bgColor] || 'bg-slate-100';
-      const checks = p.monthChecks || [];
+    container.innerHTML = monthManageProducts.map(product => {
+      const emoji = productEmoji(product);
+      const colorClass = colorMap[product.bgColor] || 'bg-slate-100';
+      const checks = product.monthChecks || [];
       const chips = checks.length === 0
-        ? `<span class="month-check-none">Даты не заданы</span>`
-        : checks.map(c => `
+        ? '<span class="month-check-none">Даты не заданы</span>'
+        : checks.map(check => `
             <span class="month-check-chip">
-              <span>${c.period}</span>
-              <button type="button" class="month-check-chip-del" data-check-id="${c.id}" title="Удалить дату">
+              <span>${escapeHtml(check.period)}</span>
+              <button type="button" class="month-check-chip-del" data-check-id="${check.id}" title="Удалить дату" aria-label="Удалить дату ${escapeHtml(check.period)}">
                 <i data-lucide="x" class="w-3 h-3"></i>
               </button>
             </span>`).join('');
+
       return `
         <div class="month-check-card">
           <div class="month-check-card-top">
-            <div class="month-check-emoji ${colorClass}">${emoji}</div>
+            <div class="month-check-emoji ${colorClass}">${escapeHtml(emoji)}</div>
             <div class="month-check-info">
-              <div class="month-check-name">${escapeHtml(p.name)}</div>
-              <div class="month-check-meta">${p.volume || '—'} ${p.unit || 'шт'}</div>
+              <div class="month-check-name">${escapeHtml(product.name)}</div>
+              <div class="month-check-meta">${escapeHtml(String(product.volume || '—'))} ${escapeHtml(String(product.unit || 'шт'))}</div>
             </div>
           </div>
           <div class="month-check-dates">${chips}</div>
           <div class="month-check-add">
             <input type="text" class="month-check-input" maxlength="5" placeholder="ММ.ГГ"
-                   data-product-id="${p.id}" inputmode="numeric" autocomplete="off" />
-            <button type="button" class="btn btn-primary btn-sm month-check-save-btn" data-product-id="${p.id}">
+                   data-product-id="${product.id}" inputmode="numeric" autocomplete="off" aria-label="Месяц проверки для ${escapeHtml(product.name)}" />
+            <button type="button" class="btn btn-primary btn-sm month-check-save-btn" data-product-id="${product.id}">
               <i data-lucide="plus" class="w-3.5 h-3.5"></i> Добавить
             </button>
           </div>
@@ -723,22 +725,22 @@ App.deadlinesModule = (() => {
 
     container.querySelectorAll('.month-check-input').forEach(input => {
       input.addEventListener('input', () => { input.value = formatPeriodInput(input.value); });
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
+      input.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
           saveMonthProduct(parseInt(input.dataset.productId, 10), input.value, input);
         }
       });
     });
-    container.querySelectorAll('.month-check-save-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const productId = parseInt(btn.dataset.productId, 10);
-        const input = btn.closest('.month-check-card')?.querySelector('.month-check-input');
+    container.querySelectorAll('.month-check-save-btn').forEach(button => {
+      button.addEventListener('click', () => {
+        const productId = parseInt(button.dataset.productId, 10);
+        const input = button.closest('.month-check-card')?.querySelector('.month-check-input');
         saveMonthProduct(productId, input?.value || '', input);
       });
     });
-    container.querySelectorAll('.month-check-chip-del').forEach(btn => {
-      btn.addEventListener('click', () => clearMonthCheck(parseInt(btn.dataset.checkId, 10)));
+    container.querySelectorAll('.month-check-chip-del').forEach(button => {
+      button.addEventListener('click', () => clearMonthCheck(parseInt(button.dataset.checkId, 10)));
     });
 
     if (window.lucide) lucide.createIcons();
