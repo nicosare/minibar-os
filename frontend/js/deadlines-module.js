@@ -53,43 +53,26 @@ App.deadlinesModule = (() => {
   function renderStats() {
     const total = rooms.length || 1;
     const counts = {
-      valid: rooms.filter(r => r.expiryStatus === 'valid').length,
-      empty: rooms.filter(r => r.expiryStatus === 'empty').length,
-      needs_replacement: rooms.filter(r => r.expiryStatus === 'needs_replacement').length,
-      neutral: rooms.filter(r => r.expiryStatus === 'neutral').length
+      valid: rooms.filter(room => room.expiryStatus === 'valid').length,
+      empty: rooms.filter(room => room.expiryStatus === 'empty').length,
+      needs_replacement: rooms.filter(room => room.expiryStatus === 'needs_replacement').length,
+      neutral: rooms.filter(room => room.expiryStatus === 'neutral').length
     };
     const set = (id, value) => {
-      const el = document.getElementById(id);
-      if (el) el.textContent = value;
+      const element = document.getElementById(id);
+      if (element) element.textContent = value;
     };
+    const percentage = count => Math.round((count / total) * 100) + '%';
 
-    // Десктоп-карточки
     set('stat-valid', counts.valid);
     set('stat-empty', counts.empty);
     set('stat-needs-replacement', counts.needs_replacement);
     set('stat-neutral', counts.neutral);
-    const pct = (n) => Math.round((n / total) * 100) + '%';
-    set('stat-valid-pct', pct(counts.valid));
-    set('stat-empty-pct', pct(counts.empty));
-    set('stat-needs-pct', pct(counts.needs_replacement));
-    set('stat-neutral-pct', pct(counts.neutral));
-
-    // Обновляем агрегированные показатели
-    set('mstat-valid', counts.valid);
-    set('mstat-empty', counts.empty);
-    set('mstat-needs', counts.needs_replacement);
-    set('mstat-neutral', counts.neutral);
-
-    set('stat-valid-c', counts.valid);
-    set('stat-empty-c', counts.empty);
-    set('stat-needs-replacement-c', counts.needs_replacement);
-    set('stat-neutral-c', counts.neutral);
-    set('stat-valid-pct-c', pct(counts.valid));
-    set('stat-empty-pct-c', pct(counts.empty));
-    set('stat-needs-pct-c', pct(counts.needs_replacement));
-    set('stat-neutral-pct-c', pct(counts.neutral));
-
-    }
+    set('stat-valid-pct', percentage(counts.valid));
+    set('stat-empty-pct', percentage(counts.empty));
+    set('stat-needs-pct', percentage(counts.needs_replacement));
+    set('stat-neutral-pct', percentage(counts.neutral));
+  }
 
   async function renderChart() {
     try {
