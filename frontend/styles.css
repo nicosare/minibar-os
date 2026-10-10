@@ -1261,10 +1261,7 @@
   pointer-events: auto;
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   ЕДИНЫЙ СТИЛЬ ШТОРОК (в стиле шторки «Ещё») — все окна на телефоне
-   ═══════════════════════════════════════════════════════════════ */
-
+/* Shared modal headers and close controls */
 /* Универсальная ручка шторки */
  .modal-sheet-handle {
    display: none;
@@ -1278,19 +1275,6 @@
  }
 .modal-sheet-handle:active { cursor: grabbing; background: #cbd5e1; }
 
-/* ═══════════════════════════════════════════════════════════════
-   PRODUCT-MODAL-SCROLL: длинная форма продукта скроллится на телефоне
-   ═══════════════════════════════════════════════════════════════ */
-/* ═══════════════════════════════════════════════════════════════
-   УНИФИКАЦИЯ ШАПОК МОДАЛОК (телефон) — крестик-квадрат + заголовок
-   Классы навешиваются из JS, правила только на <=768px (десктоп не тронут)
-   ═══════════════════════════════════════════════════════════════ */
-/* ═══════════════════════════════════════════════════════════════
-   UNIFIED-MODAL-HEADERS: шапки модалок = шторка «Ещё» (mobile)
-   ═══════════════════════════════════════════════════════════════ */
-/* ═══════════════════════════════════════════════════════════════
-   УНИФИКАЦИЯ КРЕСТИКОВ И ШАПОК МОДАЛОК (под эталон «Ещё»)
-   ═══════════════════════════════════════════════════════════════ */
 /* ═══════════════════════════════════════════════════════════════
    ЕДИНЫЙ КРЕСТИК ШТОРКИ (квадрат, иконка по центру) — везде
    ═══════════════════════════════════════════════════════════════ */
@@ -1313,16 +1297,8 @@
 .sheet-close svg { width: 16px !important; height: 16px !important; }
 .sheet-close:active { background: #e2e8f0 !important; color: #0f172a !important; }
 
-/* Верхние парные кнопки (Акцизы/Сроки) на телефоне — столбик на всю ширину, 1 строка */
-/* ═══ ЕДИНЫЙ РИТМ ОТСТУПОВ + СКРЫТЫЙ СКРОЛЛБАР (только мобильные) ═══ */
-/* ═══ АКЦИЗЫ/СРОКИ: верхние кнопки — компактный ряд вместо столбика (моб.) ═══ */
-/* ═══ АКЦИЗЫ: полировка (заголовок в строку, корзина-круг, плашка крупнее, тост над таб-баром) ═══ */
-/* ═══ АКЦИЗЫ v2: откат размера статистики, белый фон карточек + обводка, дата, светлый тост ═══ */
 .excise-card-date{ display:none; }
-/* ═══════════════════════════════════════════════════════════════
-   FINAL EXCISE REDESIGN — единый дизайн (мобила + ПК).
-   Перекрывает все предыдущие слои акцизов выше по файлу.
-   ═══════════════════════════════════════════════════════════════ */
+/* Excise cards and status states */
 /* Desktop excise statistics and list layout */
 #view-excise .excise-stats-grid {
   display:grid !important;
@@ -1399,9 +1375,7 @@
 
 /* ═══ БЕЙДЖИ НАВБАРА: серые на неактивной вкладке (консолидация) ═══ */
 .nav-item:not(.active) .badge{ background:#f1f5f9 !important; color:#94a3b8 !important; border-color:#e2e8f0 !important; }
-/* ═══ КАЛЬКУЛЯТОР: ВЫДВИЖНАЯ ПАНЕЛЬ-ЯЩИК (ДЕСКТОП) ═══
-   Вставлена между сайдбаром и main; ширина анимируется 0→400,
-   main сужается и контент перетекает. На телефоне скрыта (там нижняя шторка). */
+/* Desktop calculator drawer */
 .calc-drawer{ display:none; }
 @media (min-width:769px){
   .calc-drawer{
@@ -1898,7 +1872,7 @@ transition:border-color .15s ease, background .15s ease, transform .1s ease;
 .gih-save-hint{ margin-right:auto; font-size:11px; color:#94a3b8; }
 .mt-badge.b-violet{ background:#7c3aed; }
 
-/* ═══ НАСТРОЙКИ: drag-reorder продуктов и шаблонов (в стиле мобильного навбара) ═══ */
+/* Settings drag-and-drop */
 .gih-prod-list{ display:flex; flex-direction:column; gap:8px; }
 .prod-head, .prod-row{ display:grid; grid-template-columns:30px 40px minmax(0,1fr) 76px 84px 56px 84px; align-items:center; gap:10px; }
 .prod-head{ padding:6px 12px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#94a3b8; }
@@ -1919,7 +1893,7 @@ transition:border-color .15s ease, background .15s ease, transform .1s ease;
 .prod-row button, .prod-row input{ cursor: pointer; }
 .prod-row.dragging, .template-item.dragging{ opacity:.95; }
 
-/* ═══ НАСТРОЙКИ: drag-reorder продуктов и шаблонов (в стиле мобильного навбара) ═══ */
+/* Settings drag-and-drop */
 .gih-prod-list{ display:flex; flex-direction:column; gap:8px; }
 .prod-head, .prod-row{ display:grid; grid-template-columns:30px 40px minmax(0,1fr) 76px 84px 56px 84px; align-items:center; gap:10px; }
 .prod-head{ padding:6px 12px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#94a3b8; }
@@ -1954,7 +1928,7 @@ transition:border-color .15s ease, box-shadow .15s ease;
 .prod-row-expiry.off{ background:#f1f5f9; color:#94a3b8; }
 .prod-row-actions{ display:flex; gap:2px; flex-shrink:0; }
 .prod-row-actions .btn{ padding:6px 8px; min-height:0; }
-/* ═══ НАСТРОЙКИ: DRAG-AND-DROP В СТИЛЕ МОБИЛЬНОГО НАВБАРА (продукты + шаблоны) ═══
+/* Settings drag-and-drop */
 Хват за .drag-handle; перетаскиваемый «всплывает» тенью, соседи плавно расступаются. */
 .drag-handle{
 cursor:grab; touch-action:none; user-select:none;
@@ -2158,7 +2132,7 @@ gap:10px !important; padding:6px 10px !important;
 /* ═══ GIH v11: шапка фабрики без заголовка, крестик в правом краю ═══ */
 .gih-fhead .gih-x{ margin-left:auto !important; }
 
-/* GIH factory desktop product layout and mobile search input fixes */
+/* GIH factory desktop product layout */
 .gih-fcat-grid {
   display: grid !important;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)) !important;
@@ -2514,7 +2488,6 @@ gap:10px !important; padding:6px 10px !important;
 .room-history-close { display:inline-flex; width:38px; height:38px; align-items:center; justify-content:center; flex:0 0 auto; border:1px solid #e2e8f0; border-radius:11px; background:#fff; color:#64748b; }
 .room-history-close:hover { background:#f8fafc; color:#0f172a; border-color:#cbd5e1; }
 .room-history-close svg { width:18px; height:18px; }
-.room-history-subtitle { padding:11px 22px 13px; color:#64748b; font-size:11.5px; line-height:1.45; border-bottom:1px solid #f1f5f9; }
 .room-history-body { flex:1 1 auto; min-height:0; overflow-y:auto; padding:16px; background:#f8fafc; }
 .room-history-loading,.room-history-error,.room-history-empty { display:flex; align-items:center; justify-content:center; flex-direction:column; gap:9px; min-height:180px; text-align:center; color:#94a3b8; font-size:13px; }
 .room-history-loading svg,.room-history-empty svg { width:30px; height:30px; opacity:.65; }
@@ -2574,4 +2547,4 @@ gap:10px !important; padding:6px 10px !important;
 .room-history-products .history-gih-groups { min-width:0; }
 .room-history-products .history-gih-status-panel { padding:10px; }
 
-/* Legacy mobile breakpoints removed. Unified desktop styles live in design-system.css. */
+/* Shared section styles; design tokens and common controls are in design-system.css. */
