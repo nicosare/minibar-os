@@ -662,8 +662,7 @@ App.historyModule = (() => {
 
   function renderRoomHistoryCards(items) {
     if (!items.length) {
-      return '<div class="room-history-empty"><i data-lucide="history"></i><strong>Записей пока нет</strong>' +
-        '<span>Для этого номера не сохранено ежедневных операций или GIH.</span></div>';
+      return '<div class="room-history-empty"><i data-lucide="history"></i><strong>Записей пока нет</strong></div>';
     }
     return items.map((check, index) => {
       const date = dateForCheck(check);
@@ -677,8 +676,6 @@ App.historyModule = (() => {
         if (notes) content += '<div class="room-history-note">' + escapeHtml(notes).replace(/\n/g, '<br>') + '</div>';
       } else if (notes) {
         content += '<div class="room-history-note">' + escapeHtml(notes).replace(/\n/g, '<br>') + '</div>';
-      } else {
-        content += '<div class="room-history-note is-muted">Подробности не указаны</div>';
       }
       const dateText = date
         ? date.toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' }) + ' · ' +
