@@ -638,6 +638,7 @@ App.historyModule = (() => {
     panel.id = 'room-history-panel';
     panel.className = 'room-history-panel';
     panel.setAttribute('aria-hidden', 'true');
+    panel.inert = true;
     panel.innerHTML =
       '<div class="room-history-drawer" role="dialog" aria-modal="false" aria-labelledby="room-history-title">' +
       '<div class="room-history-header"><div><div class="room-history-kicker">История номера</div>' +
@@ -656,6 +657,7 @@ App.historyModule = (() => {
     if (!panel) return;
     panel.classList.remove('open');
     panel.setAttribute('aria-hidden', 'true');
+    panel.inert = true;
     document.body.classList.remove('room-history-open');
     requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
   }
@@ -698,6 +700,7 @@ App.historyModule = (() => {
     const title = document.getElementById('room-history-title');
     const body = document.getElementById('room-history-body');
     if (!panel || !body) return;
+    panel.inert = false;
     title.textContent = 'Номер ' + String(number || '—');
     body.innerHTML = '<div class="room-history-loading"><i data-lucide="loader-2"></i><span>Загрузка истории…</span></div>';
     panel.classList.add('open');
