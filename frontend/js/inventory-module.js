@@ -111,7 +111,7 @@ function buildDrawer(){
   const header = aside.querySelector('.side-panel-header');
   if(header && !header.querySelector('.inv-drawer-close')){
     const close = document.createElement('button');
-    close.type = 'button'; close.className = 'inv-drawer-close'; close.setAttribute('aria-label','Закрыть сводку');
+    close.type = 'button'; close.className = 'inv-drawer-close panel-close-btn'; close.setAttribute('aria-label','Закрыть сводку');
     close.innerHTML = '<i data-lucide="x" class="w-4 h-4"></i>';
     close.addEventListener('click', closeDrawer);
     header.appendChild(close);
@@ -126,6 +126,7 @@ function openDrawer(){
   if (drawer) {
     drawer.inert = false;
     drawer.setAttribute('aria-hidden', 'false');
+    void drawer.offsetWidth;
     drawer.classList.add('open');
     if (window.lucide) lucide.createIcons();
   }
