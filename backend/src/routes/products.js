@@ -5,7 +5,7 @@ const router = Router();
 
 router.get('/', async (req, res) => {
   try {
-    const products = await prisma.product.findMany({ orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] });
+    const products = await prisma.product.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] });
     res.json(products);
   } catch (err) {
     console.error('GET products error:', err);
@@ -15,8 +15,8 @@ router.get('/', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    const product = await prisma.product.findUnique({
-      where: { id: parseInt(req.params.id, 10) }
+    const product = await prisma.product.findFirst({
+      where: { id: parseInt(req.params.id, 10), isActive: true }
     });
     if (!product) return res.status(404).json({ error: 'Not found' });
     res.json(product);
@@ -62,6 +62,9 @@ router.put('/reorder', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
+    const productId = parseInt(req.params.id, 10);
+    const current = await prisma.product.findFirst({ where: { id: productId, isActive: true } });
+    if (!current) return res.status(404).json({ error: 'Активный продукт не найден.' });
     const { name, price, volume, unit, hasExpiry, emoji, bgColor, category } = req.body;
     const product = await prisma.product.update({
       where: { id: parseInt(req.params.id, 10) },
@@ -90,31 +93,25 @@ router.delete('/:id', async (req, res) => {
       return res.status(400).json({ error: 'Некорректный ID продукта.' });
     }
 
-    const inTemplate = await prisma.templateItem.count({ where: { productId } });
-    if (inTemplate > 0) {
-      return res.status(409).json({
-        error: `Нельзя удалить продукт: он используется в ${inTemplate} элементах шаблонов. Сначала удалите его из шаблонов.`
-      });
-    }
+    const archived = await prisma.$transaction(async (tx) => {
+      const product = await tx.product.findUnique({ where: { id: productId } });
+      if (!product) return false;
+      if (!product.isActive) return true; // Idempotent archive.
 
-    // GIH items are historical check records. Keep them intact instead of
-    // deleting history or letting PostgreSQL return a raw foreign-key error.
-    const inGihHistory = await prisma.gihItem.count({ where: { productId } });
-    if (inGihHistory > 0) {
-      return res.status(409).json({
-        error: `Нельзя удалить продукт: он встречается в ${inGihHistory} записях истории GIH. Исторические проверки сохранены.`
-      });
-    }
+      // Remove the product only from live configuration. GIH records and
+      // monthly-check rows are retained as historical data.
+      await tx.templateItem.deleteMany({ where: { productId } });
+      await tx.roomCustom.deleteMany({ where: { productId } });
+      await tx.replacementItem.deleteMany({ where: { productId } });
+      await tx.roomProductStatus.deleteMany({ where: { productId } });
+      await tx.product.update({ where: { id: productId }, data: { isActive: false } });
+      return true;
+    });
 
-    await prisma.product.delete({ where: { id: productId } });
-    res.json({ ok: true });
+    if (!archived) return res.status(404).json({ error: 'Продукт не найден.' });
+    res.json({ ok: true, archived: true });
   } catch (err) {
-    console.error('DELETE products error:', err);
-    if (err?.code === 'P2003') {
-      return res.status(409).json({
-        error: 'Нельзя удалить продукт: он связан с сохранёнными записями. Данные истории не были изменены.'
-      });
-    }
+    console.error('ARCHIVE product error:', err);
     res.status(500).json({ error: err.message });
   }
 });
