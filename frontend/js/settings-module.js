@@ -61,7 +61,7 @@ return `
 <button class="btn btn-ghost edit-product-btn" data-id="${p.id}" title="Редактировать">
 <i data-lucide="pencil" class="w-4 h-4"></i>
 </button>
-<button class="btn btn-ghost delete-product-btn" data-id="${p.id}" data-name="${safeName}" title="Удалить" style="color: var(--danger);">
+<button class="btn btn-ghost delete-product-btn" data-id="${p.id}" data-name="${safeName}" title="Убрать из ассортимента" style="color: var(--danger);">
 <i data-lucide="trash-2" class="w-4 h-4"></i>
 </button>
 </div>
@@ -186,7 +186,7 @@ alert('Ошибка сохранения: ' + err.message);
 }
 }
 async function deleteProduct(id, name) {
-if (!confirm(`Удалить продукт "${name}"?`)) return;
+if (!confirm(`Убрать продукт "${name}" из текущего ассортимента? Он исчезнет из активных шаблонов и новых операций, но останется в истории.`)) return;
 try {
 await api().deleteProduct(id);
 await loadProducts();
