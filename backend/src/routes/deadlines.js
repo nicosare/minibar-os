@@ -32,6 +32,7 @@ router.get('/month-products', async (req, res) => {
     await purgeExpiredMonthChecks(prisma, offset);
     const now = new Date();
     const items = await prisma.productMonthCheck.findMany({
+      where: { product: { isActive: true } },
       include: { product: true },
       orderBy: { product: { name: 'asc' } }
     });
@@ -61,7 +62,7 @@ router.get('/month-products/manage', async (req, res) => {
     await purgeExpiredMonthChecks(prisma, offset);
     const [products, checks] = await Promise.all([
       prisma.product.findMany({
-        where: { hasExpiry: true },
+        where: { hasExpiry: true, isActive: true },
         orderBy: { name: 'asc' }
       }),
       prisma.productMonthCheck.findMany({ orderBy: [{ checkYear: 'asc' }, { checkMonth: 'asc' }] })
