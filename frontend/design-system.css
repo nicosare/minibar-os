@@ -541,3 +541,289 @@ table .history-room-link { min-width: 48px; min-height: 34px; padding: 5px 10px;
   background:#fff; color:#312e81; box-shadow:var(--shadow-panel);
   font-size:13px; font-weight:650;
 }
+
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Interaction polish: consistent motion, persistent work drawers and controls
+   ────────────────────────────────────────────────────────────────────────── */
+:root {
+  --motion-ease: cubic-bezier(.22, .72, .24, 1);
+  --motion-panel: 280ms var(--motion-ease);
+  --motion-control: 160ms ease;
+}
+
+/* Panel width, flex-basis AND min-width must transition together; otherwise
+   min-width snaps immediately and makes the opening look abrupt. */
+@media (min-width: 769px) {
+  .calc-drawer,
+  .inv-drawer,
+  .room-history-panel {
+    transition:
+      flex-basis var(--motion-panel),
+      width var(--motion-panel),
+      min-width var(--motion-panel),
+      box-shadow 220ms ease,
+      border-color 220ms ease,
+      border-left-width var(--motion-panel),
+      border-right-width var(--motion-panel);
+    will-change: flex-basis, width, min-width;
+  }
+
+  .calc-drawer,
+  .room-history-panel {
+    border-right: 0 solid var(--border);
+  }
+  .calc-drawer.open,
+  .room-history-panel.open {
+    border-right-width: 1px;
+  }
+  .inv-drawer {
+    border-left: 0 solid var(--border) !important;
+  }
+  .inv-drawer.open {
+    border-left-width: 1px !important;
+  }
+}
+
+/* All drawer/modal close controls share one visual specification. Legacy
+   class names remain for event handlers, while the styling is centralized. */
+button.panel-close-btn,
+button.room-history-close,
+button.sheet-close,
+button.inv-drawer-close,
+button.ms-close-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 36px !important;
+  width: 36px !important;
+  min-width: 36px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px !important;
+  background: #fff !important;
+  color: var(--text-secondary) !important;
+  box-shadow: none !important;
+  line-height: 1 !important;
+  transform: none;
+  transition:
+    background var(--motion-control),
+    color var(--motion-control),
+    border-color var(--motion-control),
+    transform var(--motion-control) !important;
+  -webkit-tap-highlight-color: transparent;
+}
+button.panel-close-btn svg,
+button.room-history-close svg,
+button.sheet-close svg,
+button.inv-drawer-close svg,
+button.ms-close-btn svg {
+  display: block;
+  width: 16px !important;
+  height: 16px !important;
+  stroke-width: 1.8;
+}
+button.panel-close-btn:hover,
+button.room-history-close:hover,
+button.sheet-close:hover,
+button.inv-drawer-close:hover,
+button.ms-close-btn:hover {
+  background: var(--surface-hover) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-strong) !important;
+}
+button.panel-close-btn:active,
+button.room-history-close:active,
+button.sheet-close:active,
+button.inv-drawer-close:active,
+button.ms-close-btn:active {
+  transform: scale(.96) !important;
+}
+button.panel-close-btn:focus-visible,
+button.room-history-close:focus-visible,
+button.sheet-close:focus-visible,
+button.inv-drawer-close:focus-visible,
+button.ms-close-btn:focus-visible {
+  outline: 3px solid rgba(99, 102, 241, .24);
+  outline-offset: 2px;
+}
+
+/* The sidebar uses fixed icon anchors and animated labels. Avoid interpolating
+   justify-content and gap: those properties jump rather than animate. */
+@media (min-width: 769px) {
+  aside.sidebar {
+    flex: 0 0 240px;
+    width: 240px;
+    min-width: 240px;
+    max-width: 240px;
+    transition:
+      flex-basis 260ms var(--motion-ease),
+      width 260ms var(--motion-ease),
+      min-width 260ms var(--motion-ease),
+      max-width 260ms var(--motion-ease);
+    will-change: width, flex-basis;
+  }
+  aside.sidebar:not(.is-expanded) {
+    flex-basis: 76px;
+    width: 76px;
+    min-width: 76px;
+    max-width: 76px;
+  }
+
+  aside.sidebar .sidebar-brand {
+    position: relative !important;
+    display: block !important;
+    width: 100%;
+    height: 40px;
+    min-height: 40px;
+    padding: 0 !important;
+    overflow: hidden;
+  }
+  aside.sidebar .sidebar-brand-icon {
+    position: absolute !important;
+    top: 1px;
+    left: calc(50% - 19px);
+    width: 38px !important;
+    height: 38px !important;
+    margin: 0 !important;
+    transition: left 260ms var(--motion-ease), background var(--motion-control) !important;
+  }
+  aside.sidebar.is-expanded .sidebar-brand-icon {
+    left: 0;
+  }
+  aside.sidebar .sidebar-brand-text {
+    position: absolute !important;
+    top: 10px;
+    left: 48px;
+    display: block;
+    max-width: 180px;
+    margin: 0 !important;
+    overflow: hidden;
+    opacity: 1;
+    transform: translateX(0);
+    transition:
+      max-width 260ms var(--motion-ease),
+      opacity 180ms ease,
+      transform 260ms var(--motion-ease);
+    pointer-events: none;
+  }
+  aside.sidebar:not(.is-expanded) .sidebar-brand-text {
+    max-width: 0;
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+
+  aside.sidebar nav .nav-item,
+  aside.sidebar.is-expanded nav .nav-item,
+  aside.sidebar:not(.is-expanded) nav .nav-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start !important;
+    gap: 0 !important;
+    height: 42px;
+    min-height: 42px;
+    padding: 0 10px !important;
+    overflow: hidden;
+    transition:
+      background-color var(--motion-control),
+      color var(--motion-control),
+      border-color var(--motion-control);
+  }
+  aside.sidebar nav .nav-item .nav-icon {
+    position: absolute;
+    top: 50%;
+    left: calc(50% - 9px);
+    width: 18px;
+    height: 18px;
+    margin: 0 !important;
+    flex: 0 0 18px;
+    transform: translateY(-50%);
+    transition: left 260ms var(--motion-ease), color var(--motion-control);
+  }
+  aside.sidebar.is-expanded nav .nav-item .nav-icon {
+    left: 12px;
+  }
+
+  aside.sidebar nav .nav-item span:not(.badge),
+  aside.sidebar.is-expanded nav .nav-item span:not(.badge),
+  aside.sidebar:not(.is-expanded) nav .nav-item span:not(.badge) {
+    display: inline-block;
+    max-width: 180px;
+    margin-left: 30px;
+    overflow: hidden;
+    opacity: 1;
+    transform: translateX(0);
+    white-space: nowrap;
+    transition:
+      max-width 260ms var(--motion-ease),
+      opacity 180ms ease,
+      transform 260ms var(--motion-ease);
+  }
+  aside.sidebar:not(.is-expanded) nav .nav-item span:not(.badge) {
+    max-width: 0;
+    opacity: 0;
+    transform: translateX(-5px);
+  }
+  aside.sidebar nav .nav-item .badge {
+    transition: transform 220ms var(--motion-ease), opacity 180ms ease;
+  }
+
+  /* Expanded means the arrow points left to collapse; collapsed means right to expand. */
+  aside.sidebar .sidebar-brand-toggle-icon {
+    transition: opacity 180ms ease, transform 240ms var(--motion-ease) !important;
+    transform: scale(.8) rotate(180deg);
+  }
+  aside.sidebar.is-expanded .sidebar-brand-toggle-icon {
+    transform: scale(.8) rotate(0deg);
+  }
+  aside.sidebar:not(.is-expanded) .sidebar-brand:hover .sidebar-brand-toggle-icon,
+  aside.sidebar:not(.is-expanded) .sidebar-brand:focus-visible .sidebar-brand-toggle-icon {
+    opacity: 1;
+    transform: scale(1) rotate(180deg);
+  }
+  aside.sidebar.is-expanded .sidebar-brand:hover .sidebar-brand-toggle-icon,
+  aside.sidebar.is-expanded .sidebar-brand:focus-visible .sidebar-brand-toggle-icon {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* Consistent hover/press feedback for ordinary actions without changing the
+   special geometry of product counters, tabs or drag handles. */
+.btn,
+.history-view-tab,
+.settings-tab,
+.history-filter-button,
+.history-date-arrow,
+.history-current-date,
+button.icon-button {
+  transition:
+    color var(--motion-control),
+    background-color var(--motion-control),
+    border-color var(--motion-control),
+    box-shadow var(--motion-control),
+    transform var(--motion-control);
+}
+.btn:not(:disabled):active,
+.history-view-tab:not(:disabled):active,
+.settings-tab:not(:disabled):active,
+.history-filter-button:not(:disabled):active,
+.history-date-arrow:not(:disabled):active,
+.history-current-date:not(:disabled):active,
+button.icon-button:not(:disabled):active {
+  transform: scale(.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
