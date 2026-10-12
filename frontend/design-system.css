@@ -621,8 +621,8 @@ button.panel-close-btn svg,
 button.room-history-close svg,
 button.sheet-close svg,
 button.inv-drawer-close svg,
-button.ms-close-btn,
-button.history-calendar-close,
+button.ms-close-btn svg,
+button.history-calendar-close svg,
 button.gih-x svg {
   display: block;
   width: 16px !important;
@@ -633,8 +633,8 @@ button.panel-close-btn:hover,
 button.room-history-close:hover,
 button.sheet-close:hover,
 button.inv-drawer-close:hover,
-button.ms-close-btn,
-button.history-calendar-close,
+button.ms-close-btn:hover,
+button.history-calendar-close:hover,
 button.gih-x:hover {
   background: var(--surface-hover) !important;
   color: var(--text-primary) !important;
@@ -644,8 +644,8 @@ button.panel-close-btn:active,
 button.room-history-close:active,
 button.sheet-close:active,
 button.inv-drawer-close:active,
-button.ms-close-btn,
-button.history-calendar-close,
+button.ms-close-btn:active,
+button.history-calendar-close:active,
 button.gih-x:active {
   transform: scale(.96) !important;
 }
@@ -653,8 +653,8 @@ button.panel-close-btn:focus-visible,
 button.room-history-close:focus-visible,
 button.sheet-close:focus-visible,
 button.inv-drawer-close:focus-visible,
-button.ms-close-btn,
-button.history-calendar-close,
+button.ms-close-btn:focus-visible,
+button.history-calendar-close:focus-visible,
 button.gih-x:focus-visible {
   outline: 3px solid rgba(99, 102, 241, .24);
   outline-offset: 2px;
