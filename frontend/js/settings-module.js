@@ -372,6 +372,22 @@ opts.onReorder(ids);
 }
 function target_gt_index(d, index) { return d.target > index; }
 }
+function refreshAddProductOptions(container) {
+const select = container?.querySelector('.add-product-select');
+if (!select) return;
+const presentIds = new Set(
+  [...container.querySelectorAll('.template-item')]
+    .map(item => parseInt(item.dataset.productId, 10))
+);
+select.replaceChildren(new Option('+ Добавить продукт...', ''));
+products
+  .filter(product => !presentIds.has(product.id))
+  .forEach(product => {
+    const label = `${product.emoji || product.name.charAt(0).toUpperCase()} ${product.name} ${product.volume || ''} ${product.unit || 'шт'} (${product.category || 'Напитки'})`;
+    select.add(new Option(label, String(product.id)));
+  });
+}
+
 function getTemplateState(category) {
 const container = document.querySelector(`.template-items-container[data-category="${category}"]`);
 if (!container) return { templateId: null, items: [] };
@@ -435,7 +451,12 @@ if (input) { const v = parseInt(input.value); if (v > 0) input.value = v - 1; }
 return;
 }
 const removeBtn = e.target.closest('.remove-item-btn');
-if (removeBtn) { removeBtn.closest('.template-item')?.remove(); return; }
+if (removeBtn) {
+const container = removeBtn.closest('.template-items-container');
+removeBtn.closest('.template-item')?.remove();
+refreshAddProductOptions(container);
+return;
+}
 const saveBtn = e.target.closest('.save-template-btn');
 if (saveBtn) {
 const category = saveBtn.closest('.template-items-container').dataset.category;
@@ -474,6 +495,7 @@ item.innerHTML = `
 <button class="remove-item-btn w-7 h-7 rounded-md hover:bg-rose-50 flex items-center justify-center text-rose-500" data-product-id="${productId}"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
 `;
 list.appendChild(item);
+refreshAddProductOptions(e.target.closest('.template-items-container'));
 e.target.value = '';
 if (window.lucide) lucide.createIcons();
 }
