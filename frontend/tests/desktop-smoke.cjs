@@ -137,6 +137,11 @@ const targets = {
     const calcDrawer = page.locator('#calc-drawer');
     await calcDrawer.waitFor({ state: 'visible', timeout: 5000 });
     assert.equal(await calcDrawer.getAttribute('aria-hidden'), 'false', 'calculator drawer should open');
+    assert.equal(
+      await page.locator('#cd-close').evaluate(el => Math.round(el.getBoundingClientRect().width)),
+      36,
+      'calculator close control should use the shared 36px size'
+    );
     const calcProduct = page.locator('#cd-grid .cd-product[data-product-id="1"]');
     await calcProduct.waitFor({ state: 'visible', timeout: 10000 });
     await calcProduct.click();
@@ -173,6 +178,11 @@ const targets = {
     await page.locator('#deadlines-month-products-btn').waitFor({ state: 'visible', timeout: 5000 });
     await page.locator('#deadlines-month-products-btn').click();
     await page.locator('#deadline-month-modal-backdrop:not(.hidden)').waitFor({ state: 'visible', timeout: 5000 });
+    assert.equal(
+      await page.locator('#deadline-month-modal-close').evaluate(el => Math.round(el.getBoundingClientRect().width)),
+      36,
+      'modal close control should use the shared 36px size'
+    );
     const periodInput = page.locator('.month-check-input').first();
     await periodInput.waitFor({ state: 'visible', timeout: 5000 });
     await periodInput.fill('1126');
@@ -201,6 +211,11 @@ const targets = {
     await page.evaluate(() => window.App.historyModule.openRoomHistory(101, 500));
     const roomHistory = page.locator('#room-history-panel');
     await page.waitForFunction(() => document.querySelector('#room-history-panel')?.getAttribute('aria-hidden') === 'false');
+    assert.equal(
+      await page.locator('[data-room-history-close]').evaluate(el => Math.round(el.getBoundingClientRect().width)),
+      36,
+      'room history close control should use the shared 36px size'
+    );
     assert.match(await page.locator('#room-history-title').innerText(), /500/);
     await page.locator('.nav-item[data-route="deadlines"]').click();
     await page.waitForFunction(() => document.getElementById('view-deadlines')?.classList.contains('active'));
