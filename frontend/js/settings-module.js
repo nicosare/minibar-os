@@ -190,6 +190,7 @@ if (!confirm(`Убрать продукт "${name}" из текущего асс
 try {
 await api().deleteProduct(id);
 await loadProducts();
+await loadTemplates();
 } catch (err) {
 alert(err.message);
 }
