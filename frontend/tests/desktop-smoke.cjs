@@ -112,7 +112,26 @@ const targets = {
     assert.match(designSystemResponse.contentType, /text\/css/i, 'design-system.css must be served as CSS');
     assert.ok(parseFloat(await page.locator('.sidebar').evaluate(el => getComputedStyle(el).width)) > 200,
       'expanded desktop sidebar should have a usable width');
-    console.log('PASS: desktop shell and design-system.css load correctly');
+
+    const sidebar = page.locator('.sidebar');
+    const sidebarToggle = page.locator('[data-sidebar-toggle]');
+    const sidebarArrow = page.locator('.sidebar-brand-toggle-icon');
+    await sidebarToggle.hover();
+    await page.waitForTimeout(280);
+    const expandedArrowMatrix = await sidebarArrow.evaluate(el => getComputedStyle(el).transform);
+    await sidebarToggle.click();
+    await page.waitForTimeout(300);
+    assert.ok(parseFloat(await sidebar.evaluate(el => getComputedStyle(el).width)) < 100,
+      'collapsed sidebar should animate to its narrow width');
+    const collapsedArrowMatrix = await sidebarArrow.evaluate(el => getComputedStyle(el).transform);
+    assert.notEqual(collapsedArrowMatrix, expandedArrowMatrix,
+      'sidebar expansion arrow should rotate when collapsed');
+    await sidebarToggle.click();
+    await page.waitForTimeout(300);
+    assert.ok(parseFloat(await sidebar.evaluate(el => getComputedStyle(el).width)) > 200,
+      'sidebar should expand smoothly back to its full width');
+
+    console.log('PASS: desktop shell, design-system.css and sidebar motion load correctly');
 
     await page.locator('.nav-item[data-route="calculator"]').click();
     const calcDrawer = page.locator('#calc-drawer');
@@ -124,6 +143,18 @@ const targets = {
     await page.locator('#cd-grid .cd-badge').waitFor({ state: 'visible', timeout: 3000 });
     assert.match(await page.locator('#cd-count').innerText(), /1 позици/);
     assert.match(await page.locator('#cd-total').innerText(), /150/);
+    const calcMotion = await calcDrawer.evaluate(el => ({
+      properties: getComputedStyle(el).transitionProperty.split(',').map(value => value.trim()),
+      duration: getComputedStyle(el).transitionDuration
+    }));
+    assert.ok(calcMotion.properties.includes('min-width'),
+      'drawer min-width must transition with width and flex-basis');
+    assert.match(calcMotion.duration, /0\.2[5-9]s|0\.3s/,
+      'drawer should use a non-zero, smooth transition duration');
+    await page.locator('.nav-item[data-route="deadlines"]').click();
+    await page.waitForFunction(() => document.getElementById('view-deadlines')?.classList.contains('active'));
+    assert.equal(await calcDrawer.getAttribute('aria-hidden'), 'false',
+      'calculator drawer must remain open when switching tabs');
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => document.querySelector('#calc-drawer')?.getAttribute('aria-hidden') === 'true');
     console.log('PASS: calculator adds a product, updates total and closes with Escape');
@@ -171,6 +202,10 @@ const targets = {
     const roomHistory = page.locator('#room-history-panel');
     await page.waitForFunction(() => document.querySelector('#room-history-panel')?.getAttribute('aria-hidden') === 'false');
     assert.match(await page.locator('#room-history-title').innerText(), /500/);
+    await page.locator('.nav-item[data-route="deadlines"]').click();
+    await page.waitForFunction(() => document.getElementById('view-deadlines')?.classList.contains('active'));
+    assert.equal(await roomHistory.getAttribute('aria-hidden'), 'false',
+      'room history drawer must remain open when switching tabs');
     await page.locator('[data-room-history-close]').click();
     await page.waitForFunction(() => document.querySelector('#room-history-panel')?.getAttribute('aria-hidden') === 'true');
     console.log('PASS: room-history panel opens, shows the selected room and closes');
