@@ -49,15 +49,7 @@ try {
       product_category = COALESCE(gi.product_category, p.category)
     FROM products AS p
     WHERE p.id = gi.product_id
-      AND (
-        gi.product_name IS NULL OR
-        gi.product_price IS NULL OR
-        gi.product_volume IS NULL OR
-        gi.product_unit IS NULL OR
-        gi.product_emoji IS NULL OR
-        gi.product_bg_color IS NULL OR
-        gi.product_category IS NULL
-      );
+      AND gi.product_name IS NULL;
   `);
   console.log('Database initialized successfully.');
 } catch (error) {
