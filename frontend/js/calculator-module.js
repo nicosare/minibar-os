@@ -281,7 +281,7 @@ function getQty(productId) {
   drawer.innerHTML =
     '<div class="cd-head">' +
       '<span class="cd-title"><i data-lucide="calculator" aria-hidden="true"></i> Калькулятор</span>' +
-      '<button type="button" id="cd-close" class="sheet-close" aria-label="Закрыть"><i data-lucide="x"></i></button>' +
+      '<button type="button" id="cd-close" class="sheet-close panel-close-btn" aria-label="Закрыть"><i data-lucide="x"></i></button>' +
     '</div>' +
     '<div class="cd-body"><div id="cd-grid" class="cd-grid"></div></div>' +
     '<div class="cd-bill">' +
