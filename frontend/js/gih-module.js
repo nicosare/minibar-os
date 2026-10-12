@@ -26,7 +26,7 @@ const roomById = id => rooms.find(r=>r.id===id);
 function norm(c){
   return { id:c.id, roomId:c.roomId, number:c.room?c.room.number:'—', date:c.checkDate||c.createdAt,
     gihRoomStatus:c.gihRoomStatus, notes:c.notes||'', _mode:c.gihRoomStatus||null,
-    gihItems:(c.gihItems||[]).map(it=>({ id:it.id, productId:it.productId, name:it.productName || (it.product?it.product.name:'Продукт'), emoji:it.productEmoji || (it.product?it.product.emoji:null), bgColor:it.productBgColor || (it.product?it.product.bgColor:'slate'), itemStatus:it.itemStatus||'pending' })) };
+    gihItems:(c.gihItems||[]).map(it=>{ const hasSnapshot=it.productName!==null && it.productName!==undefined; return { id:it.id, productId:it.productId, name:hasSnapshot?it.productName:(it.product?it.product.name:'Продукт'), emoji:hasSnapshot?it.productEmoji:(it.product?it.product.emoji:null), bgColor:hasSnapshot?it.productBgColor:(it.product?it.product.bgColor:'slate'), itemStatus:it.itemStatus||'pending' }; }) };
 }
 async function load(){
   const previousDrafts = drafts.slice();
