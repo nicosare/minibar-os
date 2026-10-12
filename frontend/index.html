@@ -7,7 +7,7 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.0/index.css" />
 <link rel="stylesheet" href="styles.css??v=m78" />
-<link rel="stylesheet" href="design-system.css??v=ds5" />
+<link rel="stylesheet" href="design-system.css??v=ds6" />
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body class="antialiased">
@@ -463,7 +463,7 @@
         <h3 class="text-lg font-bold text-slate-900">Номер <span id="deadline-modal-room-number"></span></h3>
         <p class="text-xs text-slate-500 mt-0.5" id="deadline-modal-room-info"></p>
       </div>
-      <button onclick="App.deadlinesModule.closeModal()" class="btn btn-ghost">
+      <button type="button" onclick="App.deadlinesModule.closeModal()" class="btn btn-ghost panel-close-btn" aria-label="Закрыть окно срока">
         <i data-lucide="x" class="w-4 h-4"></i>
       </button>
     </div>
@@ -499,7 +499,7 @@
       <div class="ms-handle modal-sheet-handle"></div>
       <div class="ms-header-row">
         <span class="ms-title">Добавление сроков</span>
-        <button id="deadline-month-modal-close" class="ms-close-btn" type="button" aria-label="Закрыть">
+        <button id="deadline-month-modal-close" class="ms-close-btn panel-close-btn" type="button" aria-label="Закрыть">
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
       </div>
@@ -683,7 +683,7 @@
       <div class="ms-handle modal-sheet-handle"></div>
       <div class="ms-header-row">
         <span id="product-modal-title" class="ms-title">Новый продукт</span>
-        <button onclick="App.settingsModule.closeProductModal()" class="ms-close-btn" type="button" aria-label="Закрыть">
+        <button onclick="App.settingsModule.closeProductModal()" class="ms-close-btn panel-close-btn" type="button" aria-label="Закрыть">
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
       </div>
@@ -770,14 +770,14 @@
 <script src="js/app-core.js??v=m66"></script>
 <script src="js/excise-module.js??v=m73"></script>
 <script src="js/deadlines-module.js??v=m76"></script>
-<script src="js/settings-module.js??v=m74"></script>
-<script src="js/calculator-module.js??v=m78"></script>
-<script src="js/inventory-module.js??v=m75"></script>
+<script src="js/settings-module.js??v=m75"></script>
+<script src="js/calculator-module.js??v=m79"></script>
+<script src="js/inventory-module.js??v=m76"></script>
 <script src="js/dashboard-module.js??v=m66"></script>
 <script src="js/lists-module.js??v=m70"></script>
-<script src="js/history-module.js??v=m77"></script>
+<script src="js/history-module.js??v=m78"></script>
 <script src="js/route-handlers.js??v=m70"></script>
-<script src="js/gih-module.js??v=m74"></script>
+<script src="js/gih-module.js??v=m75"></script>
 <script src="js/live-sync.js??v=m73"></script>
 <script src="js/init.js??v=m70"></script>
 
