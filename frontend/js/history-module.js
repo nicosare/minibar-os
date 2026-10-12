@@ -736,7 +736,7 @@ App.historyModule = (() => {
       '<div class="history-calendar" role="dialog" aria-modal="true" aria-label="Выбор даты Истории">' +
         '<div class="history-calendar-header">' +
           '<div><div class="history-calendar-eyebrow">История операций</div><div class="history-calendar-title" id="history-calendar-title"></div></div>' +
-          '<button type="button" class="history-calendar-close" data-calendar-action="close" aria-label="Закрыть календарь"><i data-lucide="x"></i></button>' +
+          '<button type="button" class="history-calendar-close panel-close-btn" data-calendar-action="close" aria-label="Закрыть календарь"><i data-lucide="x"></i></button>' +
         '</div>' +
         '<div class="history-calendar-month-nav">' +
           '<button type="button" data-calendar-action="prev-month" aria-label="Предыдущий месяц"><i data-lucide="chevron-left"></i></button>' +
