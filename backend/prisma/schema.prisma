@@ -17,6 +17,7 @@ model Product {
   bgColor    String?  @default("slate") @map("bg_color")
   category   String?  @default("Напитки")
   hasExpiry  Boolean  @default(true) @map("has_expiry")
+  isActive   Boolean  @default(true) @map("is_active")
   sortOrder    Int       @default(0) @map("sort_order")
   createdAt  DateTime @default(now()) @map("created_at")
 
@@ -161,6 +162,13 @@ model GihItem {
   productId  Int       @map("product_id")
   itemStatus String    @default("pending") @map("item_status")
   notes      String?
+  productName     String?  @map("product_name")
+  productPrice    Float?   @map("product_price")
+  productVolume   Float?   @map("product_volume")
+  productUnit     String?  @map("product_unit")
+  productEmoji    String?  @map("product_emoji")
+  productBgColor  String?  @map("product_bg_color")
+  productCategory String?  @map("product_category")
 
   check   Check   @relation(fields: [checkId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
