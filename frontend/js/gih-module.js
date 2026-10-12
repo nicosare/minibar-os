@@ -112,7 +112,7 @@ function renderFactory(){
         <input id="gih-finput" class="gih-ac-input" inputmode="numeric" autocomplete="off" placeholder="Номер комнаты…" value="${escapeHtml(factory.input||'')}">
         <div id="gih-ac" class="gih-ac"></div>
       </div>
-      <button type="button" class="gih-x" data-act="fclose" aria-label="Закрыть"><i data-lucide="x" class="w-4 h-4"></i></button>
+      <button type="button" class="gih-x panel-close-btn" data-act="fclose" aria-label="Закрыть"><i data-lucide="x" class="w-4 h-4"></i></button>
     </div>
     <div class="gih-fbody">
       <div class="gih-fgrid">${gridHtml}</div>
