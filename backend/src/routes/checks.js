@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma.js';
 const router = Router();
 
 // Capture product details on each GIH line so later catalog edits never rewrite history.
-async function snapshotGihItems(db, requestedItems) {
+async function snapshotGihItems(db, requestedItems, existingCounts = new Map()) {
   const normalized = (Array.isArray(requestedItems) ? requestedItems : []).map(item => {
     const productId = Number.parseInt(item?.productId, 10);
     if (!Number.isInteger(productId) || productId <= 0) {
@@ -24,6 +24,16 @@ async function snapshotGihItems(db, requestedItems) {
     const error = new Error('Один из продуктов больше не существует. Обновите запись и попробуйте снова.');
     error.statusCode = 400;
     throw error;
+  }
+
+  const requestedCounts = new Map();
+  normalized.forEach(item => requestedCounts.set(item.productId, (requestedCounts.get(item.productId) || 0) + item.qty));
+  for (const product of products) {
+    if (!product.isActive && (requestedCounts.get(product.id) || 0) > (existingCounts.get(product.id) || 0)) {
+      const error = new Error('Архивный продукт нельзя добавлять в новые записи. Удалите его из текущей записи или обновите страницу.');
+      error.statusCode = 409;
+      throw error;
+    }
   }
 
   const rows = [];
@@ -235,7 +245,10 @@ router.put('/:id', async (req, res) => {
     if (status === 'done') data.checkDate = new Date();
     const check = await prisma.$transaction(async tx => {
       if (Array.isArray(gihItems)) {
-        const create = await snapshotGihItems(tx, gihItems);
+        const existingItems = await tx.gihItem.findMany({ where: { checkId: id }, select: { productId: true } });
+        const existingCounts = new Map();
+        existingItems.forEach(item => existingCounts.set(item.productId, (existingCounts.get(item.productId) || 0) + 1));
+        const create = await snapshotGihItems(tx, gihItems, existingCounts);
         await tx.gihItem.deleteMany({ where: { checkId: id } });
         if (create.length) await tx.gihItem.createMany({ data: create.map(item => ({ ...item, checkId: id })) });
       } else if (Array.isArray(pills)) {
