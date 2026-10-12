@@ -2,6 +2,50 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 const router = Router();
 
+// Capture product details on each GIH line so later catalog edits never rewrite history.
+async function snapshotGihItems(db, requestedItems) {
+  const normalized = (Array.isArray(requestedItems) ? requestedItems : []).map(item => {
+    const productId = Number.parseInt(item?.productId, 10);
+    if (!Number.isInteger(productId) || productId <= 0) {
+      const error = new Error('В записи указан некорректный продукт.');
+      error.statusCode = 400;
+      throw error;
+    }
+    const qty = Math.max(0, Number.parseInt(item?.qty, 10) || 1);
+    return { productId, qty };
+  }).filter(item => item.qty > 0);
+
+  if (!normalized.length) return [];
+  const uniqueIds = [...new Set(normalized.map(item => item.productId))];
+  const products = await db.product.findMany({ where: { id: { in: uniqueIds } } });
+  const byId = new Map(products.map(product => [product.id, product]));
+  const missingId = uniqueIds.find(id => !byId.has(id));
+  if (missingId) {
+    const error = new Error('Один из продуктов больше не существует. Обновите запись и попробуйте снова.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const rows = [];
+  for (const item of normalized) {
+    const product = byId.get(item.productId);
+    for (let index = 0; index < item.qty; index += 1) {
+      rows.push({
+        productId: product.id,
+        itemStatus: 'pending',
+        productName: product.name,
+        productPrice: product.price,
+        productVolume: product.volume,
+        productUnit: product.unit,
+        productEmoji: product.emoji,
+        productBgColor: product.bgColor,
+        productCategory: product.category
+      });
+    }
+  }
+  return rows;
+}
+
 function dateRangeFromQuery(query, maxDays = 33) {
   const hasFrom = query.from !== undefined && query.from !== '';
   const hasTo = query.to !== undefined && query.to !== '';
@@ -171,12 +215,13 @@ router.post('/', async (req, res) => {
   try {
     const b = req.body || {};
     const data = { roomId: parseInt(b.roomId, 10), type: b.type || 'gih', status: b.status || 'draft', gihRoomStatus: b.gihRoomStatus || null, notes: b.notes || null };
-    const items = [];
-    (b.gihItems || []).forEach(it => { const q = Math.max(0, parseInt(it.qty, 10) || 1); for (let k = 0; k < q; k++) items.push({ productId: parseInt(it.productId, 10), itemStatus: 'pending' }); });
+    const items = await snapshotGihItems(prisma, b.gihItems || []);
     if (items.length) data.gihItems = { create: items };
     const check = await prisma.check.create({ data, include: { room: true, gihItems: { include: { product: true } } } });
     res.json(check);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    res.status(e.statusCode || 500).json({ error: e.message });
+  }
 });
 router.put('/:id', async (req, res) => {
   try {
@@ -190,17 +235,18 @@ router.put('/:id', async (req, res) => {
     if (status === 'done') data.checkDate = new Date();
     const check = await prisma.$transaction(async tx => {
       if (Array.isArray(gihItems)) {
+        const create = await snapshotGihItems(tx, gihItems);
         await tx.gihItem.deleteMany({ where: { checkId: id } });
-        const create = [];
-        gihItems.forEach(it => { const q = Math.max(0, parseInt(it.qty, 10) || 1); for (let k = 0; k < q; k++) create.push({ checkId: id, productId: parseInt(it.productId, 10), itemStatus: 'pending' }); });
-        if (create.length) await tx.gihItem.createMany({ data: create });
+        if (create.length) await tx.gihItem.createMany({ data: create.map(item => ({ ...item, checkId: id })) });
       } else if (Array.isArray(pills)) {
         await Promise.all(pills.map(p => tx.gihItem.update({ where: { id: parseInt(p.id, 10) }, data: { itemStatus: p.itemStatus } })));
       }
       return tx.check.update({ where: { id }, data, include: { room: true, gihItems: { include: { product: true } } } });
     });
     res.json(check);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    res.status(e.statusCode || 500).json({ error: e.message });
+  }
 });
 router.delete('/:id', async (req, res) => {
   try { await prisma.check.delete({ where: { id: parseInt(req.params.id, 10) } }); res.json({ ok: true }); }
