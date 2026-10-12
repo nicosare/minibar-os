@@ -423,6 +423,8 @@ function openDrawer() {
   if (!drawer) return;
   drawer.inert = false;
   drawer.setAttribute('aria-hidden', 'false');
+  // A newly inserted drawer needs a closed-layout frame before transitioning open.
+  void drawer.offsetWidth;
   drawer.classList.add('open');
   drawerOpen = true;
   setCalcNavHighlight(true);
@@ -458,8 +460,8 @@ function guardCalculatorRoute() {
       setTimeout(() => { if (App.router) App.router.go(previousRoute, false); }, 0);
       return;
     }
+    // The calculator is a persistent work panel. Navigating between views must not discard it.
     lastNonCalcRoute = route;
-    if (drawerOpen) closeDrawer();
   });
 }
 async function loadProducts() {
