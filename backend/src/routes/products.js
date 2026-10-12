@@ -59,6 +59,7 @@ router.put('/reorder', async (req, res) => {
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
 router.put('/:id', async (req, res) => {
   try {
     const { name, price, volume, unit, hasExpiry, emoji, bgColor, category } = req.body;
@@ -85,15 +86,35 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const productId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(productId) || productId <= 0) {
+      return res.status(400).json({ error: 'Некорректный ID продукта.' });
+    }
+
     const inTemplate = await prisma.templateItem.count({ where: { productId } });
     if (inTemplate > 0) {
-      return res.status(400).json({
-        error: `Продукт используется в ${inTemplate} шаблон(ах). Сначала удалите его из шаблонов.`
+      return res.status(409).json({
+        error: `Нельзя удалить продукт: он используется в ${inTemplate} элементах шаблонов. Сначала удалите его из шаблонов.`
       });
     }
+
+    // GIH items are historical check records. Keep them intact instead of
+    // deleting history or letting PostgreSQL return a raw foreign-key error.
+    const inGihHistory = await prisma.gihItem.count({ where: { productId } });
+    if (inGihHistory > 0) {
+      return res.status(409).json({
+        error: `Нельзя удалить продукт: он встречается в ${inGihHistory} записях истории GIH. Исторические проверки сохранены.`
+      });
+    }
+
     await prisma.product.delete({ where: { id: productId } });
     res.json({ ok: true });
   } catch (err) {
+    console.error('DELETE products error:', err);
+    if (err?.code === 'P2003') {
+      return res.status(409).json({
+        error: 'Нельзя удалить продукт: он связан с сохранёнными записями. Данные истории не были изменены.'
+      });
+    }
     res.status(500).json({ error: err.message });
   }
 });
