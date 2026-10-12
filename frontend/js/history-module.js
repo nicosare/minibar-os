@@ -99,7 +99,7 @@ App.historyModule = (() => {
   function getProductList(check) {
     const counts = new Map();
     (check.gihItems || []).forEach(item => {
-      const name = item.product ? item.product.name : 'Продукт';
+      const name = item.productName || (item.product ? item.product.name : 'Продукт');
       counts.set(name, (counts.get(name) || 0) + 1);
     });
     return Array.from(counts.entries()).map(([name, qty]) =>
@@ -124,7 +124,7 @@ App.historyModule = (() => {
     (check.gihItems || []).forEach(item => {
       const rawStatus = String(item.itemStatus || 'pending');
       const status = GIH_STATUSES[rawStatus] ? rawStatus : 'pending';
-      const name = item.product ? item.product.name : 'Продукт';
+      const name = item.productName || (item.product ? item.product.name : 'Продукт');
       if (!groups.has(status)) groups.set(status, new Map());
       const products = groups.get(status);
       products.set(name, (products.get(name) || 0) + 1);
