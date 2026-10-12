@@ -643,7 +643,7 @@ App.historyModule = (() => {
       '<div class="room-history-drawer" role="dialog" aria-modal="false" aria-labelledby="room-history-title">' +
       '<div class="room-history-header"><div><div class="room-history-kicker">История номера</div>' +
       '<h2 class="room-history-title" id="room-history-title">Номер</h2></div>' +
-      '<button type="button" class="room-history-close" data-room-history-close aria-label="Закрыть историю номера"><i data-lucide="x"></i></button></div>' +
+      '<button type="button" class="room-history-close panel-close-btn" data-room-history-close aria-label="Закрыть историю номера"><i data-lucide="x"></i></button></div>' +
       '<div class="room-history-body" id="room-history-body"><div class="room-history-loading">Загрузка истории…</div></div></div>';
     main.parentElement.insertBefore(panel, main);
     panel.addEventListener('click', event => {
@@ -703,6 +703,8 @@ App.historyModule = (() => {
     panel.inert = false;
     title.textContent = 'Номер ' + String(number || '—');
     body.innerHTML = '<div class="room-history-loading"><i data-lucide="loader-2"></i><span>Загрузка истории…</span></div>';
+    // Ensure the initial closed state is committed so first open animates like subsequent opens.
+    void panel.offsetWidth;
     panel.classList.add('open');
     panel.setAttribute('aria-hidden', 'false');
     document.body.classList.add('room-history-open');
@@ -927,11 +929,7 @@ App.historyModule = (() => {
     document.addEventListener('keydown', event => {
       if (event.key === 'Escape') closeRoomHistory();
     });
-    if (window.App && App.events) {
-      App.events.on('route:change', route => {
-        if (route !== 'history' && route !== 'gih') closeRoomHistory();
-      });
-    }
+    // Room history is a persistent work panel; route changes must not close it.
 
     search && search.addEventListener('input', () => {
       if (state.searchTimer) clearTimeout(state.searchTimer);
