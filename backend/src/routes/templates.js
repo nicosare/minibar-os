@@ -67,6 +67,18 @@ router.put('/:id/items', async (req, res) => {
         throw error;
       }
 
+      if (normalizedItems.length > 0) {
+        const archived = await tx.product.findFirst({
+          where: { id: { in: normalizedItems.map(item => item.productId) }, isActive: false },
+          select: { id: true }
+        });
+        if (archived) {
+          const error = new Error('Архивный продукт нельзя добавить в активный шаблон. Обновите страницу.');
+          error.statusCode = 409;
+          throw error;
+        }
+      }
+
       await tx.templateItem.deleteMany({ where: { templateId } });
       if (normalizedItems.length > 0) {
         await tx.templateItem.createMany({ data: normalizedItems });
