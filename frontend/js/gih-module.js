@@ -282,8 +282,10 @@ function renderFactory(){
     }
   }
 
-  if (window.lucide) lucide.createIcons();
+  // Start history loading before icon hydration so an icon-rendering hiccup
+  // cannot leave the inline history permanently in the loading state.
   if (room) loadRecentRoomHistory(room.id);
+  if (window.lucide) lucide.createIcons();
 }
 
 function selectRoom(id){
