@@ -50,7 +50,8 @@ App.historyModule = (() => {
     dnd: { label: 'DND', cls: 'bg-slate-100 text-slate-700 border-slate-200' },
     all_in_place: { label: 'Всё на месте', cls: 'bg-sky-50 text-sky-700 border-sky-200' },
     all_out: { label: 'Всё выложили', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
-    empty: { label: 'Опустошён', cls: 'bg-rose-50 text-rose-700 border-rose-200' }
+    empty: { label: 'Опустошён', cls: 'bg-rose-50 text-rose-700 border-rose-200' },
+    not_checked: { label: 'Не проверен', cls: 'bg-slate-100 text-slate-600 border-slate-200' }
   };
 
   const GIH_STATUSES = {
@@ -104,6 +105,9 @@ App.historyModule = (() => {
 
   function gihSummary(check) {
     const mode = String(check && check.gihRoomStatus || '');
+    if (mode === 'not_checked') {
+      return { label: 'Не проверен', cls: 'gih-summary-not-checked' };
+    }
     if (mode === 'dnd' || mode === 'empty') {
       const meta = modeMeta(mode);
       return { label: meta.label, cls: 'gih-summary-special ' + (mode === 'dnd' ? 'gih-summary-dnd' : 'gih-summary-empty') };
@@ -144,6 +148,7 @@ App.historyModule = (() => {
 
   function renderProducts(check) {
     if (check.type !== 'gih') return '<span class="text-slate-400">—</span>';
+    if (check.gihRoomStatus === 'not_checked') return '<span class="text-slate-400">Позиции не проверялись</span>';
 
     const groups = new Map();
     (check.gihItems || []).forEach(item => {
