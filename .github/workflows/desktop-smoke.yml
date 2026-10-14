@@ -1,4 +1,4 @@
-name: Desktop frontend smoke test
+name: Minibar OS CI/CD
 
 on:
   workflow_dispatch:
@@ -10,15 +10,22 @@ on:
       - main
     paths:
       - 'frontend/**'
-      - '.github/workflows/desktop-smoke.yml'
+      - 'backend/**'
+      - 'miniapp/**'
+      - 'vk-proxy/**'
+      - 'vk-bot/**'
+      - 'scripts/deploy-production.sh'
+      - 'docker-compose.yml'
+      - '.github/workflows/**'
 
 permissions:
   contents: read
 
 jobs:
   desktop-smoke:
+    name: Browser smoke tests and production image builds
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
       - name: Check out repository
@@ -61,24 +68,38 @@ jobs:
       - name: Run desktop browser smoke tests
         run: node frontend/tests/desktop-smoke.cjs
 
+      - name: Build all production service images
+        run: |
+          docker build -t minibar-os-ci-backend ./backend
+          docker build -t minibar-os-ci-miniapp ./miniapp
+          docker build -t minibar-os-ci-vk-proxy ./vk-proxy
+          docker build -t minibar-os-ci-vk-bot ./vk-bot
+
+      - name: Check backend JavaScript syntax
+        shell: bash
+        run: |
+          while IFS= read -r -d '' file; do
+            node --check "$file"
+          done < <(find backend/src vk-proxy vk-bot -type f -name '*.js' -print0)
+
       - name: Show frontend logs on failure
         if: failure()
         run: docker logs minibar-frontend-smoke || true
 
-      - name: Stop frontend
+      - name: Stop smoke-test containers
         if: always()
         run: |
           docker rm -f minibar-frontend-smoke minibar-smoke-backend || true
           docker network rm minibar-os-smoke || true
 
   deploy:
-    name: Deploy to VPS
+    name: Deploy changed components to production
     needs: desktop-smoke
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main'))
     permissions:
       contents: write
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Check out deployment commit
@@ -86,7 +107,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check deployment credentials
+      - name: Validate deployment credentials
         id: credentials
         shell: bash
         env:
@@ -95,20 +116,22 @@ jobs:
           VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
         run: |
           if [[ -z "$VPS_HOST" || -z "$VPS_SSH_PRIVATE_KEY" || -z "$VPS_KNOWN_HOSTS" ]]; then
-            echo "::notice::VPS deployment secrets are not configured yet; skipping deployment."
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "ready=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "## Production deployment: FAILED"
+              echo
+              echo "Deployment credentials are missing. No server changes were made."
+              echo "Configure VPS_HOST, VPS_SSH_PRIVATE_KEY and VPS_KNOWN_HOSTS in GitHub Actions secrets."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::VPS deployment secrets are missing. Deployment cannot be reported as successful."
+            exit 1
           fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
 
-      - name: Advance deployment ref for the existing VPS deploy script
-        if: steps.credentials.outputs.ready == 'true'
+      - name: Advance the server deployment ref
         shell: bash
-        run: |
-          git push origin HEAD:refs/heads/design/desktop-unification
+        run: git push origin HEAD:refs/heads/design/desktop-unification
 
       - name: Configure SSH
-        if: steps.credentials.outputs.ready == 'true'
         shell: bash
         env:
           VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
@@ -120,24 +143,45 @@ jobs:
           printf '%s\n' "$VPS_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
           chmod 600 "$HOME/.ssh/known_hosts"
 
-      - name: Deploy on VPS
-        if: steps.credentials.outputs.ready == 'true'
+      - name: Deploy on VPS and capture the result
+        id: deploy_result
         shell: bash
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
         run: |
-          for attempt in 1 2; do
-            if ssh -i "$HOME/.ssh/id_ed25519" \
-              -o IdentitiesOnly=yes \
-              -o BatchMode=yes \
-              -o StrictHostKeyChecking=yes \
-              -o ConnectTimeout=15 \
-              "minibar-deploy@$VPS_HOST" deploy; then
-              exit 0
-            fi
-            if [[ "$attempt" -lt 2 ]]; then
-              echo "Deployment command failed on attempt $attempt; retrying in 3 seconds."
-              sleep 3
-            fi
-          done
-          exit 1
+          set -o pipefail
+          log_file="$RUNNER_TEMP/minibar-deploy.log"
+          if ssh -i "$HOME/.ssh/id_ed25519" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=15 \
+            "minibar-deploy@$VPS_HOST" deploy 2>&1 | tee "$log_file"; then
+            {
+              echo "## Production deployment: SUCCESS"
+              echo
+              echo "- Commit: `$GITHUB_SHA`"
+              echo "- Deployment output:"
+              echo '~~~text'
+              tail -n 30 "$log_file"
+              echo '~~~'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "## Production deployment: FAILED"
+              echo
+              echo "- Commit: `$GITHUB_SHA`"
+              echo "- The remote deploy command failed. Review the output below."
+              echo '~~~text'
+              tail -n 80 "$log_file"
+              echo '~~~'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+      - name: Report the deployment result
+        if: always()
+        shell: bash
+        run: |
+          echo "Workflow: $GITHUB_WORKFLOW" >> "$GITHUB_STEP_SUMMARY"
+          echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> "$GITHUB_STEP_SUMMARY"
