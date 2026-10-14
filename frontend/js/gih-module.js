@@ -139,6 +139,15 @@ async function load(){
   try {
     const [r, checks] = await Promise.all([api().getRooms(), api().getGihChecks()]);
     rooms = r || [];
+    // If the user entered an exact room number before the room list finished loading,
+    // resolve it now instead of requiring them to retype it.
+    const typedRoomNumber = String(factory.input || '').trim();
+    const exactTypedRoom = typedRoomNumber ? rooms.find(room => String(room.number) === typedRoomNumber) : null;
+    if (!factory.roomId && exactTypedRoom) {
+      factory.roomId = exactTypedRoom.id;
+      factory.input = String(exactTypedRoom.number);
+      factory.counts = {};
+    }
     let all = checks || [];
     const today = localDayKey(new Date());
     const expiredDrafts = all.filter(c => {
