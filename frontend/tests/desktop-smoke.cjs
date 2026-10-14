@@ -111,7 +111,6 @@ const targets = {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   const pageErrors = [];
-  const browserConsole = [];
   const apiCalls = [];
   let savedPeriodPayload = null;
   const savedGihPayloads = [];
@@ -119,7 +118,6 @@ const targets = {
   let designSystemResponse = null;
 
   page.on('pageerror', error => pageErrors.push(error.message));
-  page.on('console', message => browserConsole.push(message.type() + ': ' + message.text()));
   page.on('response', response => {
     if (new URL(response.url()).pathname.endsWith('/design-system.css')) {
       designSystemResponse = {
@@ -134,7 +132,7 @@ const targets = {
     const url = new URL(request.url());
     const path = url.pathname.replace(/^\/minibar-os\/api/, '') || '/';
     const method = request.method();
-    apiCalls.push({ path, method, query: url.searchParams.toString() });
+    apiCalls.push({ path, method });
 
     if (path === '/events') {
       await route.abort();
@@ -371,21 +369,11 @@ const targets = {
     await roomInput.fill('500');
     const recentStrip = page.locator('#gih-room-recent');
     await recentStrip.waitFor({ state: 'visible', timeout: 5000 });
-    try {
-      await page.waitForFunction(() => {
-        const element = document.querySelector('#gih-room-recent-items');
-        return element && !element.innerText.includes('Загрузка истории…');
-      }, null, { timeout: 5000 });
-    } catch (error) {
-      console.log('DEBUG GIH recent history text: ' + await page.locator('#gih-room-recent-items').innerText());
-      console.log('DEBUG room-history API calls: ' + JSON.stringify(apiCalls.filter(call => call.path === '/checks/history')));
-      throw error;
-    }
+    await page.waitForFunction(() => {
+      const element = document.querySelector('#gih-room-recent-items');
+      return element && !element.innerText.includes('Загрузка истории…');
+    }, null, { timeout: 5000 });
     const recentText = await page.locator('#gih-room-recent-items').innerText();
-    if (recentText.includes('История недоступна')) {
-      console.log('DEBUG browser console: ' + JSON.stringify(browserConsole.slice(-20)));
-      console.log('DEBUG room-history API calls: ' + JSON.stringify(apiCalls.filter(call => call.path === '/checks/history')));
-    }
     assert.match(recentText, /\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}/,
       'every history record should show its date and time');
     assert.match(recentText, /Пополнено:\s*Кола/,
@@ -443,12 +431,20 @@ const targets = {
 
     const inPlaceCard = page.locator('#gih-drafts .gih-card[data-did="701"]');
     await inPlaceCard.waitFor({ state: 'visible', timeout: 5000 });
+    page.once('dialog', dialog => dialog.accept('Комментарий к проверке'));
+    await inPlaceCard.locator('[data-act="notes"]').click();
+    for (let attempt = 0; attempt < 40 && !savedGihPayloads.some(entry => entry.id === 701 && Object.prototype.hasOwnProperty.call(entry.payload, 'notes')); attempt += 1) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    const savedDraftNote = savedGihPayloads.find(entry => entry.id === 701 && Object.prototype.hasOwnProperty.call(entry.payload, 'notes'));
+    assert.ok(savedDraftNote, 'editing a draft comment should persist it immediately');
+    assert.equal(savedDraftNote.payload.notes, 'Комментарий к проверке');
     await inPlaceCard.locator('[data-act="mode"][data-mode="all_in_place"]').click();
     await inPlaceCard.locator('[data-act="save"]').click();
     for (let attempt = 0; attempt < 40 && !savedGihPayloads.some(entry => entry.id === 701); attempt += 1) {
       await new Promise(resolve => setTimeout(resolve, 50));
     }
-    const inPlaceSave = savedGihPayloads.find(entry => entry.id === 701);
+    const inPlaceSave = savedGihPayloads.find(entry => entry.id === 701 && Array.isArray(entry.payload.pills));
     assert.ok(inPlaceSave, 'saving “Всё на месте” should update the GIH record');
     assert.deepEqual(inPlaceSave.payload.pills, [{ id: 7011, itemStatus: 'in_place' }],
       '“Всё на месте” should assign the “На месте” status to every product');
