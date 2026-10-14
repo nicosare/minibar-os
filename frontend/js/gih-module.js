@@ -12,9 +12,10 @@ const effectiveItemStatus = (item, mode) => modeItemStatus(mode) || (item && ite
 const ITEM = { pending:{cls:'gih-st-pending'}, replenished:{cls:'gih-st-replenished'}, in_place:{cls:'gih-st-inplace'}, out:{cls:'gih-st-out'}, not_replenished:{cls:'gih-st-not'} };
 const ITEM_FULL = { pending:'Не размечено', replenished:'Пополнено', in_place:'На месте', out:'Выложили', not_replenished:'Не пополнено' };
 const MODES = [ {key:'dnd',label:'DND'}, {key:'all_in_place',label:'Всё на месте'}, {key:'all_out',label:'Всё выложили'}, {key:'empty',label:'Опустошён'} ];
-const MODE_LABEL = { dnd:'DND', all_in_place:'Всё на месте', all_out:'Всё выложили', empty:'Опустошён' };
+const MODE_LABEL = { dnd:'DND', all_in_place:'Всё на месте', all_out:'Всё выложили', empty:'Опустошён', not_checked:'Не проверен' };
 let rooms = [], drafts = [], dones = [];
 const recentHistoryCache = new Map();
+let dayRolloverTimer = null;
 let factory = { roomId:null, input:'', counts:{}, editId:null, _mode:null, _notes:'' };
 let loaded = false, bound = false;
 const locallyEditedDraftIds = new Set();
@@ -25,16 +26,23 @@ const canSave = d => modeActive(d) || ((d.gihItems||[]).length>0 && (d.gihItems|
 const timeStr = iso => { if(!iso) return ''; const d=new Date(iso); return d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}); };
 const dateShort = () => { const d=new Date(); const p=(n)=>String(n).padStart(2,'0'); return p(d.getDate())+'.'+p(d.getMonth()+1)+'.'+String(d.getFullYear()).slice(2); };
 const roomById = id => rooms.find(r=>r.id===id);
-function recentEntryText(check) {
+function recentEntryHtml(check) {
   const date = new Date(check.checkDate || check.createdAt || '');
-  const dateText = Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString('ru-RU', { day:'2-digit', month:'2-digit', year:'numeric' });
-  const time = Number.isNaN(date.getTime()) ? '—' : date.toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' });
-  let summary = 'Проверка';
+  const validDate = Number.isFinite(date.getTime());
+  const dateText = validDate
+    ? date.toLocaleDateString('ru-RU', { day:'2-digit', month:'2-digit', year:'numeric' }) + ' ' +
+      date.toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' })
+    : 'Дата неизвестна';
+  let summaryText = 'Проверка';
+  let summaryHtml = '<span class="gih-recent-operation">Проверка</span>';
   if (check.type === 'emptied' || check.type === 'vk_emptied') {
-    summary = 'Опустошение';
+    summaryText = 'Опустошение';
+    summaryHtml = '<span class="gih-recent-empty-operation">Опустошение</span>';
   } else if (check.type === 'gih') {
-    if (check.gihRoomStatus) {
-      summary = 'GIH · ' + (MODE_LABEL[check.gihRoomStatus] || check.gihRoomStatus);
+    const mode = check.gihRoomStatus;
+    if (mode) {
+      summaryText = 'GIH · ' + (MODE_LABEL[mode] || mode);
+      summaryHtml = '<span class="gih-recent-prefix">GIH</span><span class="gih-recent-separator"> · </span><span class="gih-recent-mode">' + escapeHtml(MODE_LABEL[mode] || mode) + '</span>';
     } else {
       const labels = {
         replenished:'Пополнено',
@@ -47,25 +55,37 @@ function recentEntryText(check) {
       (Array.isArray(check.gihItems) ? check.gihItems : []).forEach(item => {
         const status = item.itemStatus || 'pending';
         const name = item.productName || (item.product && item.product.name) || 'Продукт';
-        (groups[status] = groups[status] || []).push(name);
+        (groups[status] = groups[status] || {});
+        groups[status][name] = (groups[status][name] || 0) + 1;
       });
       const order = ['replenished','in_place','out','not_replenished','pending'];
-      const detail = order.filter(status => groups[status] && groups[status].length)
-        .map(status => labels[status] + ': ' + groups[status].join(', ')).join(' · ');
-      summary = 'GIH · ' + (detail || 'Нет позиций');
+      const details = order.filter(status => groups[status] && Object.keys(groups[status]).length).map(status => {
+        const products = Object.entries(groups[status]).map(([name, qty]) => escapeHtml(name) + (qty > 1 ? ' ×' + qty : '')).join(', ');
+        return {
+          text: labels[status] + ': ' + Object.entries(groups[status]).map(([name, qty]) => name + (qty > 1 ? ' ×' + qty : '')).join(', '),
+          html: '<span class="gih-recent-status gih-recent-' + status + '">' + labels[status] + ':</span> <span class="gih-recent-products">' + products + '</span>'
+        };
+      });
+      summaryText = 'GIH · ' + (details.map(item => item.text).join(' · ') || 'Нет позиций');
+      summaryHtml = '<span class="gih-recent-prefix">GIH</span><span class="gih-recent-separator"> · </span>' +
+        (details.map(item => item.html).join('<span class="gih-recent-separator"> · </span>') || '<span class="gih-recent-operation">Нет позиций</span>');
     }
   }
-  return dateText + ' ' + time + ' · ' + summary;
+  const note = String(check.notes || '').trim();
+  const plainText = dateText + ' · ' + summaryText + (note ? ' · ' + note.replace(/\s+/g, ' ') : '');
+  return '<div class="gih-room-recent-entry" title="' + escapeHtml(plainText) + '">' +
+    '<span class="gih-room-recent-date">' + escapeHtml(dateText) + '</span>' +
+    '<span class="gih-recent-separator">·</span>' +
+    '<span class="gih-room-recent-summary">' + summaryHtml + '</span>' +
+    (note ? '<span class="gih-room-recent-note">· ' + escapeHtml(note).replace(/\s*\n\s*/g, ' ') + '</span>' : '') +
+    '</div>';
 }
 function recentHistoryContent(roomId) {
   const state = recentHistoryCache.get(Number(roomId));
   if (!state || state.loading) return '<span class="gih-room-recent-empty">Загрузка истории…</span>';
   if (state.error) return '<span class="gih-room-recent-empty">История недоступна</span>';
   if (!state.items.length) return '<span class="gih-room-recent-empty">Записей пока нет</span>';
-  return state.items.map(check => {
-    const text = recentEntryText(check);
-    return '<span class="gih-room-recent-entry" title="' + escapeHtml(text) + '">' + escapeHtml(text) + '</span>';
-  }).join('');
+  return state.items.map(recentEntryHtml).join('');
 }
 function updateRecentHistoryStrip(roomId) {
   const strip = $('gih-room-recent');
@@ -73,14 +93,40 @@ function updateRecentHistoryStrip(roomId) {
   if (!strip || !content || strip.dataset.roomId !== String(roomId)) return;
   content.innerHTML = recentHistoryContent(roomId);
 }
+function localDayKey(value) {
+  const date = value instanceof Date ? value : new Date(value || '');
+  if (!Number.isFinite(date.getTime())) return '';
+  return String(date.getFullYear()).padStart(4, '0') + '-' +
+    String(date.getMonth() + 1).padStart(2, '0') + '-' +
+    String(date.getDate()).padStart(2, '0');
+}
+function isToday(value) {
+  const key = localDayKey(value);
+  return !!key && key === localDayKey(new Date());
+}
+function scheduleDayRollover() {
+  if (dayRolloverTimer) window.clearTimeout(dayRolloverTimer);
+  const now = new Date();
+  const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+  dayRolloverTimer = window.setTimeout(async () => {
+    await load();
+    scheduleDayRollover();
+  }, Math.max(1000, nextMidnight.getTime() - now.getTime()));
+}
 async function loadRecentRoomHistory(roomId) {
   const id = Number(roomId);
   const current = recentHistoryCache.get(id);
   if (current && (current.loading || current.loaded)) return;
   recentHistoryCache.set(id, { loading:true, loaded:false, error:false, items:[] });
-  updateRecentHistoryStrip(id);
   try {
-    const response = await api().getRoomHistory(id);
+    // Keep UI-refresh errors inside the same guard as network errors so the strip
+    // never remains stuck at "Загрузка истории…" after a failed refresh.
+    updateRecentHistoryStrip(id);
+    const currentApi = api();
+    if (!currentApi || typeof currentApi.getRoomHistory !== 'function') {
+      throw new Error('API helper getRoomHistory is unavailable');
+    }
+    const response = await currentApi.getRoomHistory(id);
     const items = Array.isArray(response) ? response : (Array.isArray(response && response.items) ? response.items : []);
     items.sort((a, b) => {
       const aTime = new Date(a.checkDate || a.createdAt || 0).getTime() || 0;
@@ -101,14 +147,54 @@ function norm(c){
 }
 async function load(){
   const previousDrafts = drafts.slice();
+  const localDraftById = new Map(previousDrafts.map(d => [d.id, d]));
   try {
     const [r, checks] = await Promise.all([api().getRooms(), api().getGihChecks()]);
     rooms = r || [];
-    const all = checks || [];
-    const nextDrafts = all.filter(c => (c.status || 'draft') === 'draft').map(norm);
-    const nextDones = all.filter(c => (c.status || 'draft') === 'done').map(norm);
+    // If the user entered an exact room number before the room list finished loading,
+    // resolve it now instead of requiring them to retype it.
+    const typedRoomNumber = String(factory.input || '').trim();
+    const exactTypedRoom = typedRoomNumber ? rooms.find(room => String(room.number) === typedRoomNumber) : null;
+    if (!factory.roomId && exactTypedRoom) {
+      factory.roomId = exactTypedRoom.id;
+      factory.input = String(exactTypedRoom.number);
+      factory.counts = {};
+    }
+    let all = checks || [];
+    const today = localDayKey(new Date());
+    const expiredDrafts = all.filter(c => {
+      if ((c.status || 'draft') !== 'draft') return false;
+      const createdDay = localDayKey(c.createdAt || c.checkDate);
+      return !!createdDay && createdDay < today;
+    });
+
+    let archivedAny = false;
+    for (const check of expiredDrafts) {
+      const local = localDraftById.get(check.id);
+      try {
+        await api().updateGihCheck(check.id, {
+          status: 'done',
+          gihRoomStatus: 'not_checked',
+          notes: local ? (local.notes || null) : (check.notes || null)
+        });
+        archivedAny = true;
+        locallyEditedDraftIds.delete(check.id);
+      } catch (archiveError) {
+        // Keep the record in the database and retry on the next refresh.
+        console.error('Не удалось перенести старый черновик GIH в историю:', check.id, archiveError);
+      }
+    }
+    if (archivedAny) all = (await api().getGihChecks()) || all;
+
+    const nextDrafts = all.filter(c =>
+      (c.status || 'draft') === 'draft' && isToday(c.createdAt || c.checkDate)
+    ).map(norm);
+    const nextDones = all.filter(c =>
+      (c.status || 'draft') === 'done' &&
+      c.gihRoomStatus !== 'not_checked' &&
+      isToday(c.checkDate || c.createdAt)
+    ).map(norm);
     const nextDraftById = new Map(nextDrafts.map(d => [d.id, d]));
-    const localDraftById = new Map(previousDrafts.map(d => [d.id, d]));
 
     // A remote invalidation must not erase unsaved edits in an open GIH draft.
     for (const id of [...locallyEditedDraftIds]) {
@@ -142,6 +228,7 @@ function render(){
   const td = document.getElementById('gih-title-date'); if (td) td.textContent = dateShort();
   const sub = $('gih-date');
   if (sub) sub.textContent = drafts.length+' '+pluralize(drafts.length,['черновик','черновика','черновиков'])+' · '+dones.length+' '+pluralize(dones.length,['закрыта','закрыты','закрытых']);
+  if (factory.roomId) loadRecentRoomHistory(factory.roomId);
   renderFactory(); renderDrafts(); renderDones();
   if (window.lucide) lucide.createIcons();
 }
@@ -203,12 +290,12 @@ function renderFactory(){
   }
 
   if (window.lucide) lucide.createIcons();
-  if (room) loadRecentRoomHistory(room.id);
 }
 
 function selectRoom(id){
   factory.roomId=id; factory.counts={};
   const r=roomById(id); factory.input = r?String(r.number):factory.input;
+  loadRecentRoomHistory(id);
   const currentInput = $('gih-finput');
   const shouldKeepFocus = !!currentInput && document.activeElement === currentInput;
   renderFactory();
@@ -435,7 +522,20 @@ function bind(){
     if(!d) return;
     if(act==='edit-draft'){ openFactoryEdit(d); return; }
     if(act==='save'){ saveDraft(d.id); return; }
-    if(act==='notes'){ const next = window.prompt('Комментарий к номеру', d.notes||''); if(next===null) return; d.notes=next; locallyEditedDraftIds.add(d.id); patchDraftCard(d); return; }
+    if(act==='notes'){
+      const next = window.prompt('Комментарий к номеру', d.notes||'');
+      if(next===null) return;
+      d.notes=next;
+      locallyEditedDraftIds.add(d.id);
+      patchDraftCard(d);
+      api().updateGihCheck(d.id, { notes: next.trim() || null }).then(() => {
+        locallyEditedDraftIds.delete(d.id);
+      }).catch(error => {
+        console.error('Не удалось сохранить комментарий GIH:', error);
+        showToast('Комментарий не удалось сохранить');
+      });
+      return;
+    }
     if(act==='mode'){ if(productsDirty(d))return; const k=b.dataset.mode; d._mode=d._mode===k?null:k; locallyEditedDraftIds.add(d.id); patchDraftCard(d); return; }
     if(act==='pill'){ if(modeActive(d))return; const iid=parseInt(b.dataset.iid,10); const it=d.gihItems.find(x=>x.id===iid); if(!it)return; const i=CYCLE.indexOf(it.itemStatus); it.itemStatus=CYCLE[(i+1)%CYCLE.length]; locallyEditedDraftIds.add(d.id); patchDraftCard(d); return; }
   });
@@ -455,11 +555,11 @@ function bind(){
     if(b.dataset.act==='del') del(id);
   });
 }
-function init(){ bind(); load(); }
+function init(){ bind(); load(); scheduleDayRollover(); }
 App.badges.register('gih', async ()=>{
   try {
     const checks = await api().getGihChecks();
-    return (checks || []).filter(c => (c.status || 'draft') === 'draft').length;
+    return (checks || []).filter(c => (c.status || 'draft') === 'draft' && isToday(c.createdAt || c.checkDate)).length;
   } catch(e) {
     return drafts.length;
   }
