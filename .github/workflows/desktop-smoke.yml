@@ -170,7 +170,7 @@ jobs:
             {
               echo "## Production deployment: FAILED"
               echo
-              echo "- Commit: `$GITHUB_SHA`"
+              echo "- Commit: $GITHUB_SHA"
               echo "- The remote deploy command failed. Review the output below."
               echo '~~~text'
               tail -n 80 "$log_file"
