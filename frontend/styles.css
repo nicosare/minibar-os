@@ -2574,3 +2574,22 @@ gap:10px !important; padding:6px 10px !important;
 .gih-fcat-grid{ grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr)) !important; align-items:stretch; }
 .gih-fitem{ align-items:flex-start !important; height:auto !important; min-height:42px; }
 .gih-fitem-name{ white-space:normal !important; overflow:visible !important; text-overflow:clip !important; overflow-wrap:anywhere !important; word-break:normal !important; line-height:1.3 !important; height:auto !important; min-height:0 !important; }
+
+
+/* Muted accents and centered room-history control for the GIH helper strip. */
+.gih-room-recent-open{ align-self:center !important; }
+.gih-room-recent-date{ color:#7c8491; font-variant-numeric:tabular-nums; }
+.gih-recent-separator{ color:#c0c6cf; margin:0 3px; }
+.gih-recent-prefix{ color:#7f82a8; font-weight:650; }
+.gih-recent-operation{ color:#64748b; }
+.gih-recent-mode{ color:#607f93; font-weight:600; }
+.gih-recent-status{ font-weight:600; }
+.gih-recent-products{ color:#65707e; }
+.gih-recent-replenished{ color:#5c8c73; }
+.gih-recent-in_place{ color:#5b8299; }
+.gih-recent-out{ color:#6f7c8c; }
+.gih-recent-not_replenished{ color:#aa7680; }
+.gih-recent-pending{ color:#8b94a1; }
+.gih-recent-empty-operation{ color:#9b777b; }
+.gih-room-recent-note{ color:#858c96; font-style:italic; }
+.gih-summary-not-checked{ background:#f1f5f9; color:#64748b; border-color:#d5dbe3; }
