@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - design/desktop-unification
+      - main
   pull_request:
     branches:
       - main
@@ -74,11 +74,18 @@ jobs:
   deploy:
     name: Deploy to VPS
     needs: desktop-smoke
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/design/desktop-unification')
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
+      - name: Check out deployment commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Check deployment credentials
         id: credentials
         shell: bash
@@ -93,6 +100,12 @@ jobs:
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Advance deployment ref for the existing VPS deploy script
+        if: steps.credentials.outputs.ready == 'true'
+        shell: bash
+        run: |
+          git push origin HEAD:refs/heads/design/desktop-unification
 
       - name: Configure SSH
         if: steps.credentials.outputs.ready == 'true'
