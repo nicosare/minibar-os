@@ -111,6 +111,7 @@ const targets = {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   const pageErrors = [];
+  const browserConsole = [];
   const apiCalls = [];
   let savedPeriodPayload = null;
   const savedGihPayloads = [];
@@ -118,6 +119,7 @@ const targets = {
   let designSystemResponse = null;
 
   page.on('pageerror', error => pageErrors.push(error.message));
+  page.on('console', message => browserConsole.push(message.type() + ': ' + message.text()));
   page.on('response', response => {
     if (new URL(response.url()).pathname.endsWith('/design-system.css')) {
       designSystemResponse = {
@@ -380,6 +382,10 @@ const targets = {
       throw error;
     }
     const recentText = await page.locator('#gih-room-recent-items').innerText();
+    if (recentText.includes('История недоступна')) {
+      console.log('DEBUG browser console: ' + JSON.stringify(browserConsole.slice(-20)));
+      console.log('DEBUG room-history API calls: ' + JSON.stringify(apiCalls.filter(call => call.path === '/checks/history')));
+    }
     assert.match(recentText, /\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}/,
       'every history record should show its date and time');
     assert.match(recentText, /Пополнено:\s*Кола/,
