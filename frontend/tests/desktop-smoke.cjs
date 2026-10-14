@@ -235,6 +235,9 @@ const targets = {
     assert.ok(parseFloat(await page.locator('.sidebar').evaluate(el => getComputedStyle(el).width)) > 200,
       'expanded desktop sidebar should have a usable width');
 
+    const navigationAccentTransitionGuard = await page.addStyleTag({
+      content: '.nav-item, .nav-item .nav-icon { transition: none !important; }'
+    });
     const navigationAccentChecks = await page.evaluate(() => {
       const links = [...document.querySelectorAll('.nav-item')];
       const originalActive = links.map(link => link.classList.contains('active'));
@@ -267,6 +270,7 @@ const targets = {
       links.forEach((link, index) => link.classList.toggle('active', originalActive[index]));
       return result;
     });
+    await navigationAccentTransitionGuard.evaluate(element => element.remove());
     for (const check of navigationAccentChecks) {
       assert.equal(check.badgeColor, check.expectedColor, `${check.route} badge should keep its defined accent`);
       assert.equal(check.activeColor, check.expectedColor, `${check.route} active label should match its badge accent; diagnostics=${JSON.stringify(check)}`);
