@@ -14,7 +14,7 @@ const ITEM_FULL = { pending:'Не размечено', replenished:'Пополн
 const MODES = [ {key:'dnd',label:'DND'}, {key:'all_in_place',label:'Всё на месте'}, {key:'all_out',label:'Всё выложили'}, {key:'empty',label:'Опустошён'} ];
 const MODE_LABEL = { dnd:'DND', all_in_place:'Всё на месте', all_out:'Всё выложили', empty:'Опустошён' };
 let rooms = [], drafts = [], dones = [];
-let factoryOpen = false;
+const recentHistoryCache = new Map();
 let factory = { roomId:null, input:'', counts:{}, editId:null, _mode:null, _notes:'' };
 let loaded = false, bound = false;
 const locallyEditedDraftIds = new Set();
@@ -25,6 +25,74 @@ const canSave = d => modeActive(d) || ((d.gihItems||[]).length>0 && (d.gihItems|
 const timeStr = iso => { if(!iso) return ''; const d=new Date(iso); return d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}); };
 const dateShort = () => { const d=new Date(); const p=(n)=>String(n).padStart(2,'0'); return p(d.getDate())+'.'+p(d.getMonth()+1)+'.'+String(d.getFullYear()).slice(2); };
 const roomById = id => rooms.find(r=>r.id===id);
+function recentEntryText(check) {
+  const date = new Date(check.checkDate || check.createdAt || '');
+  const time = Number.isNaN(date.getTime()) ? '—' : date.toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' });
+  let summary = 'Проверка';
+  if (check.type === 'emptied' || check.type === 'vk_emptied') {
+    summary = 'Опустошение';
+  } else if (check.type === 'gih') {
+    if (check.gihRoomStatus) {
+      summary = 'GIH · Режим: ' + (MODE_LABEL[check.gihRoomStatus] || check.gihRoomStatus);
+    } else {
+      const labels = {
+        replenished:'Пополнено',
+        in_place:'На месте',
+        out:'Выложили',
+        not_replenished:'Не пополнено',
+        pending:'Не размечено'
+      };
+      const groups = {};
+      (Array.isArray(check.gihItems) ? check.gihItems : []).forEach(item => {
+        const status = item.itemStatus || 'pending';
+        const name = item.productName || (item.product && item.product.name) || 'Продукт';
+        (groups[status] = groups[status] || []).push(name);
+      });
+      const order = ['replenished','in_place','out','not_replenished','pending'];
+      const detail = order.filter(status => groups[status] && groups[status].length)
+        .map(status => labels[status] + ': ' + groups[status].join(', ')).join(' · ');
+      summary = 'GIH · ' + (detail || 'Нет позиций');
+    }
+  }
+  return time + ' · ' + summary;
+}
+function recentHistoryContent(roomId) {
+  const state = recentHistoryCache.get(Number(roomId));
+  if (!state || state.loading) return '<span class="gih-room-recent-empty">Загрузка истории…</span>';
+  if (state.error) return '<span class="gih-room-recent-empty">История недоступна</span>';
+  if (!state.items.length) return '<span class="gih-room-recent-empty">Записей пока нет</span>';
+  return state.items.map(check => {
+    const text = recentEntryText(check);
+    return '<span class="gih-room-recent-entry" title="' + escapeHtml(text) + '">' + escapeHtml(text) + '</span>';
+  }).join('');
+}
+function updateRecentHistoryStrip(roomId) {
+  const strip = $('gih-room-recent');
+  const content = $('gih-room-recent-items');
+  if (!strip || !content || strip.dataset.roomId !== String(roomId)) return;
+  content.innerHTML = recentHistoryContent(roomId);
+}
+async function loadRecentRoomHistory(roomId) {
+  const id = Number(roomId);
+  const current = recentHistoryCache.get(id);
+  if (current && (current.loading || current.loaded)) return;
+  recentHistoryCache.set(id, { loading:true, loaded:false, error:false, items:[] });
+  updateRecentHistoryStrip(id);
+  try {
+    const response = await api().getRoomHistory(id);
+    const items = Array.isArray(response) ? response : (Array.isArray(response && response.items) ? response.items : []);
+    items.sort((a, b) => {
+      const aTime = new Date(a.checkDate || a.createdAt || 0).getTime() || 0;
+      const bTime = new Date(b.checkDate || b.createdAt || 0).getTime() || 0;
+      return bTime - aTime || Number(b.id || 0) - Number(a.id || 0);
+    });
+    recentHistoryCache.set(id, { loading:false, loaded:true, error:false, items:items.slice(0, 3) });
+  } catch (error) {
+    console.error('GIH recent room history error', error);
+    recentHistoryCache.set(id, { loading:false, loaded:true, error:true, items:[] });
+  }
+  updateRecentHistoryStrip(id);
+}
 function norm(c){
   return { id:c.id, roomId:c.roomId, number:c.room?c.room.number:'—', date:c.checkDate||c.createdAt,
     gihRoomStatus:c.gihRoomStatus, notes:c.notes||'', _mode:c.gihRoomStatus||null,
@@ -78,7 +146,6 @@ function render(){
 }
 function renderFactory(){
   const box = $('gih-factory'); if(!box) return;
-  if(!factoryOpen){ box.classList.add('hidden'); box.innerHTML=''; return; }
   box.classList.remove('hidden');
 
   const prevInput = $('gih-finput');
@@ -91,7 +158,6 @@ function renderFactory(){
   const byCat = {};
   items.forEach(it=>{ const c=(it.product&&it.product.category)||'Напитки'; (byCat[c]=byCat[c]||[]).push(it); });
   const totalQty = Object.values(factory.counts).reduce((s,n)=>s+(n||0),0);
-  const prodCount = Object.values(factory.counts).filter(n=>n>0).length;
   const gridHtml = room
     ? (CATS.filter(c=>byCat[c]&&byCat[c].length).map(c=>`
       <div class="gih-fcat">
@@ -112,15 +178,16 @@ function renderFactory(){
       <div class="gih-ac-field">
         <i data-lucide="search" class="w-4 h-4 gih-ac-ico"></i>
         <input id="gih-finput" class="gih-ac-input" inputmode="numeric" autocomplete="off" placeholder="Номер комнаты…" value="${escapeHtml(factory.input||'')}">
-        <div id="gih-ac" class="gih-ac"></div>
       </div>
-      <button type="button" class="gih-x panel-close-btn" data-act="fclose" aria-label="Закрыть"><i data-lucide="x" class="w-4 h-4"></i></button>
     </div>
+    ${room ? `<div class="gih-room-recent" id="gih-room-recent" data-room-id="${room.id}">
+      <button type="button" class="gih-room-recent-open" data-act="open-room-history" data-history-room-id="${room.id}" data-history-room-number="${escapeHtml(String(room.number))}" title="Открыть историю номера" aria-label="Открыть историю номера"><i data-lucide="history" class="w-4 h-4"></i></button>
+      <div class="gih-room-recent-items" id="gih-room-recent-items" aria-live="polite">${recentHistoryContent(room.id)}</div>
+    </div>` : ''}
     <div class="gih-fbody">
-      <div class="gih-fgrid">${gridHtml}</div>
+      <div id="gih-fgrid" class="gih-fgrid">${gridHtml}</div>
     </div>
     <div class="gih-ffoot">
-      <span class="gih-ffoot-info">${room?('<b>'+escapeHtml(String(room.number))+'</b> · '):''}${prodCount} ${pluralize(prodCount,['позиция','позиции','позиций'])} · ${totalQty} шт</span>
       <button type="button" class="btn btn-primary" data-act="fcreate" ${factory.roomId&&totalQty>0?'':'disabled'}><i data-lucide="${isEdit?'save':'plus'}" class="w-4 h-4"></i> ${isEdit?'Сохранить изменения':'Создать запись'}</button>
     </div>`;
 
@@ -135,14 +202,9 @@ function renderFactory(){
   }
 
   if (window.lucide) lucide.createIcons();
+  if (room) loadRecentRoomHistory(room.id);
 }
 
-function acHtml(val){
-  const v=(val||'').trim(); if(!v) return '';
-  const matches = rooms.filter(r=>String(r.number).startsWith(v)).slice(0,8);
-  if(!matches.length) return '<div class="gih-ac-empty">Номер не найден</div>';
-  return '<div class="gih-ac-list">'+matches.map(r=>`<button type="button" class="gih-ac-item" data-act="fpick" data-rid="${r.id}"><span class="gih-ac-num">${r.number}</span><span class="gih-ac-cat">${r.category==='lux'?'Люкс':'Стандарт'}</span></button>`).join('')+'</div>';
-}
 function selectRoom(id){
   factory.roomId=id; factory.counts={};
   const r=roomById(id); factory.input = r?String(r.number):factory.input;
@@ -158,7 +220,6 @@ function selectRoom(id){
       });
     }
   }
-  const ac=$('gih-ac'); if(ac) ac.innerHTML='';
 }
 function legendWrap(){
   return `<div class="gih-legend">
@@ -226,7 +287,7 @@ function draftHtml(d){
 function renderDrafts(){
   const box=$('gih-drafts'); if(!box) return;
   if(!drafts.length){
-    box.innerHTML = (!dones.length && !factoryOpen) ? `<div class="gih-empty"><div class="gih-empty-orb"><i data-lucide="clipboard-check" class="w-7 h-7"></i></div><div class="gih-empty-t">Нет активных проверок</div><div class="gih-empty-s">Создайте новую запись, чтобы начать проверку минибаров</div></div>` : '';
+    box.innerHTML = !dones.length ? `<div class="gih-empty"><div class="gih-empty-orb"><i data-lucide="clipboard-check" class="w-7 h-7"></i></div><div class="gih-empty-t">Нет активных проверок</div></div>` : '';
     if (window.lucide) lucide.createIcons(); return;
   }
   box.innerHTML = `<div class="gih-zone-t"><span>Несохранённые</span><b>${drafts.length}</b></div><div class="gih-cards">${drafts.map(draftHtml).join('')}</div>`;
@@ -301,13 +362,17 @@ async function createFactory(){
       await api().createGihCheck({ roomId:factory.roomId, type:'gih', status:'draft', gihItems:items });
       showToast('Запись создана');
     }
-    factory={ roomId:null, input:'', counts:{}, editId:null, _mode:null, _notes:'' }; factoryOpen=false; await load();
+    const savedRoomId = factory.roomId;
+    factory={ roomId:null, input:'', counts:{}, editId:null, _mode:null, _notes:'' };
+    if (savedRoomId) recentHistoryCache.delete(Number(savedRoomId));
+    await load();
+    const nextInput = $('gih-finput'); if (nextInput) nextInput.focus();
   }catch(err){ console.error(err); showToast('Не удалось сохранить'); }
 }
 function openFactoryEdit(d){
   const counts={}; (d.gihItems||[]).forEach(it=>{ counts[it.productId]=(counts[it.productId]||0)+1; });
   factory={ editId:d.id, roomId:d.roomId, input:String(d.number), counts:counts, _mode:d._mode, _notes:d.notes||'' };
-  factoryOpen=true; render();
+  render();
 }
 async function saveDraft(id){
   const d=drafts.find(x=>x.id===id); if(!d||!canSave(d)) return;
@@ -323,12 +388,16 @@ async function del(id){
 }
 function bind(){
   if(bound) return; bound=true;
-  $('gih-new-btn')?.addEventListener('click', ()=>{ factoryOpen=!factoryOpen; if(factoryOpen) factory={roomId:null,input:'',counts:{},editId:null,_mode:null,_notes:''}; render(); if(factoryOpen){ const i=$('gih-finput'); if(i) i.focus(); } });
   const fac=$('gih-factory');
   fac?.addEventListener('click', e=>{
     const b=e.target.closest('[data-act]'); if(!b) return; const act=b.dataset.act;
-    if(act==='fclose'){ factoryOpen=false; render(); return; }
-    if(act==='fpick'){ selectRoom(parseInt(b.dataset.rid,10)); return; }
+    if(act==='open-room-history'){
+      const roomId = parseInt(b.dataset.historyRoomId,10);
+      if(Number.isInteger(roomId) && roomId > 0 && App.historyModule){
+        App.historyModule.openRoomHistory(roomId, b.dataset.historyRoomNumber || factory.input);
+      }
+      return;
+    }
     if(act==='ftap'){ const pid=+b.dataset.pid; const max=+b.dataset.max||99; let q=factory.counts[pid]||0; q = q>=max?0:q+1; factory.counts[pid]=q; renderFactory(); return; }
     if(act==='fcreate'){ createFactory(); return; }
   });
@@ -336,11 +405,16 @@ function bind(){
     if(e.target.id!=='gih-finput') return;
     factory.input=e.target.value; const v=factory.input.trim();
     const exact=v?rooms.find(r=>String(r.number)===v):null;
-    if(exact){ selectRoom(exact.id); return; }
-    // avoid full re-render on each keystroke to preserve focus
-    factory.roomId=null; factory.counts={}; const caret=e.target.selectionStart;
-    const ac=$('gih-ac'); if(ac) ac.innerHTML=acHtml(v);
-    try{ e.target.setSelectionRange(caret, caret); }catch(_){}
+    if(exact){
+      if (factory.roomId !== exact.id) selectRoom(exact.id);
+      return;
+    }
+    // Clear the previous room's products without showing partial-number suggestions.
+    factory.roomId=null; factory.counts={};
+    const grid=$('gih-fgrid'); if(grid) grid.innerHTML='';
+    const createButton=$('gih-factory')?.querySelector('[data-act="fcreate"]');
+    if(createButton) createButton.disabled=true;
+    const recent=$('gih-room-recent'); if(recent) recent.remove();
   });
   const dr=$('gih-drafts');
   dr?.addEventListener('click', e=>{
