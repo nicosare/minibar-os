@@ -297,10 +297,10 @@ const targets = {
     await page.locator('.nav-item[data-route="history"]').click();
     await page.locator('#history-list-container').waitFor({ state: 'visible', timeout: 5000 });
     await page.locator('.history-records-table tbody tr').first().waitFor({ state: 'visible', timeout: 5000 });
-    assert.equal((await page.locator('.history-records-table thead th').first().innerText()).trim(), 'Время',
+    assert.equal((await page.locator('.history-records-table thead th').first().innerText()).trim().toLocaleLowerCase('ru-RU'), 'время',
       'history should show only a time column because rows are grouped by day');
     assert.match((await page.locator('.history-records-table tbody tr').first().locator('td').first().innerText()).trim(),
-      /^\\d{2}:\\d{2}$/, 'history timestamp should contain the time without the date');
+      /^\d{2}:\d{2}$/, 'history timestamp should contain the time without the date');
     await page.evaluate(() => window.App.historyModule.openRoomHistory(101, 500));
     const roomHistory = page.locator('#room-history-panel');
     await page.waitForFunction(() => document.querySelector('#room-history-panel')?.getAttribute('aria-hidden') === 'false');
