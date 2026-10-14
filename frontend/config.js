@@ -153,6 +153,10 @@ const api = {
   async getGihChecks() {
     return apiRequest(`/checks?type=gih&_t=${Date.now()}`, { cache: 'no-store' });
   },
+  async getRoomHistory(roomId) {
+    const params = new URLSearchParams({ operation:'room', roomId:String(roomId), _t:String(Date.now()) });
+    return apiRequest(`/checks/history?${params.toString()}`, { cache: 'no-store' });
+  },
   async createGihCheck(payload) {
     return apiRequest('/checks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
   },

@@ -19,7 +19,7 @@ const rooms = [{
   floor: 5,
   category: 'standard',
   expiryStatus: 'neutral',
-  template: { items: [{ qty: 5, product }] }
+  template: { items: [{ qty: 5, productId: product.id, product }] }
 }];
 
 const makeGihDraft = id => ({
@@ -79,6 +79,21 @@ const gihHistoryRecords = [
   makeGihHistoryRecord(602, ['replenished', 'not_replenished', 'out'], ['Вода', 'Сок', 'Тоник']),
   makeGihHistoryRecord(603, ['not_replenished', 'out', 'in_place'], ['Кола', 'Пеппер', 'Боржоми'])
 ];
+const roomHistoryRecords = [
+  makeGihHistoryRecord(1, ['replenished', 'in_place', 'out'], ['Кола', 'Пеппер', 'Боржоми']),
+  makeGihHistoryRecord(2, ['out', 'out'], ['Кола', 'Вода'], 'all_out'),
+  {
+    id: 3,
+    roomId: 101,
+    type: 'emptied',
+    status: 'done',
+    checkDate: new Date(Date.now() - 3000).toISOString(),
+    createdAt: new Date(Date.now() - 3000).toISOString(),
+    room: { number: 500 },
+    notes: null,
+    gihItems: []
+  }
+];
 const monthProducts = [{ ...product, monthChecks: [] }];
 const stats = {
   currentYear: new Date().getFullYear(),
@@ -99,6 +114,7 @@ const targets = {
   const apiCalls = [];
   let savedPeriodPayload = null;
   const savedGihPayloads = [];
+  const savedGihCreates = [];
   let designSystemResponse = null;
 
   page.on('pageerror', error => pageErrors.push(error.message));
@@ -162,37 +178,16 @@ const targets = {
           total: 1
         };
       } else if (operation === 'room') {
-        body = {
-          items: [{
-            id: 52,
-            roomId: 101,
-            type: 'gih',
-            status: 'done',
-            checkDate: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            gihRoomStatus: null,
-            room: { number: 500 },
-            gihItems: [{
-              id: 5201,
-              productId: product.id,
-              itemStatus: 'pending',
-              productName: product.name,
-              productPrice: product.price,
-              productVolume: product.volume,
-              productUnit: product.unit,
-              productEmoji: product.emoji,
-              productBgColor: product.bgColor,
-              productCategory: product.category,
-              product
-            }]
-          }],
-          total: 1
-        };
+        body = { items: roomHistoryRecords, total: roomHistoryRecords.length };
       } else if (operation === 'gih') {
         body = { items: gihHistoryRecords, total: gihHistoryRecords.length };
       } else {
         body = { items: [], total: 0 };
       }
+    } else if (path === '/checks' && method === 'POST') {
+      const payload = request.postDataJSON();
+      savedGihCreates.push(payload);
+      body = { id: 703, ...payload, createdAt: new Date().toISOString(), checkDate: new Date().toISOString(), room: { number: 500 } };
     } else if (path === '/checks' && method === 'GET' && url.searchParams.get('type') === 'gih') {
       body = gihChecks;
     } else if (/^\/checks\/\d+$/.test(path) && method === 'PUT') {
@@ -355,6 +350,48 @@ const targets = {
     console.log('PASS: room-history panel opens, shows the selected room and closes');
 
     await page.locator('.nav-item[data-route="gih"]').click();
+    const gihFactory = page.locator('#gih-factory');
+    await gihFactory.waitFor({ state: 'visible', timeout: 5000 });
+    assert.equal(await page.locator('#gih-new-btn').count(), 0,
+      'GIH creator should be permanently available without a “New entry” button');
+    assert.doesNotMatch(await gihFactory.innerText(), /позици|шт/i,
+      'the creator footer should not show product-position or piece counts');
+    const roomInput = page.locator('#gih-finput');
+    await roomInput.fill('5');
+    assert.equal(await page.locator('.gih-ac-item, .gih-ac-list').count(), 0,
+      'typing a partial room number must not show room suggestions');
+    await roomInput.fill('500');
+    const recentStrip = page.locator('#gih-room-recent');
+    await recentStrip.waitFor({ state: 'visible', timeout: 5000 });
+    await page.waitForFunction(() => document.querySelector('#gih-room-recent-items')?.innerText.includes('Пополнено: Кола'));
+    const recentText = await page.locator('#gih-room-recent-items').innerText();
+    assert.match(recentText, /Пополнено: Кола/);
+    assert.match(recentText, /На месте: Пеппер/);
+    assert.match(recentText, /Выложили: Боржоми/);
+    assert.match(recentText, /Режим: Всё выложили/);
+    assert.match(recentText, /Опустошение/);
+    assert.ok(await recentStrip.evaluate(el => el.getBoundingClientRect().height <= 42),
+      'the recent-history strip should stay thin and unobtrusive');
+    await recentStrip.locator('[data-act="open-room-history"]').click();
+    await page.waitForFunction(() => document.querySelector('#room-history-panel')?.getAttribute('aria-hidden') === 'false');
+    assert.match(await page.locator('#room-history-title').innerText(), /500/);
+    await page.locator('[data-room-history-close]').click();
+    await page.waitForFunction(() => document.querySelector('#room-history-panel')?.getAttribute('aria-hidden') === 'true');
+
+    await gihFactory.locator('.gih-fitem[data-pid="1"]').click();
+    await gihFactory.locator('[data-act="fcreate"]').click();
+    for (let attempt = 0; attempt < 40 && !savedGihCreates.length; attempt += 1) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    assert.equal(savedGihCreates.length, 1, 'creating a GIH record should submit it to the API');
+    assert.deepEqual(savedGihCreates[0], {
+      roomId: 101, type: 'gih', status: 'draft', gihItems: [{ productId: 1, qty: 1 }]
+    });
+    await page.waitForFunction(() => document.querySelector('#gih-factory') && !document.querySelector('#gih-factory').classList.contains('hidden') && document.querySelector('#gih-finput')?.value === '');
+    assert.equal(await page.locator('#gih-room-recent').count(), 0,
+      'the creator should reset for the next room after a successful save');
+    console.log('PASS: permanent GIH creator, exact room lookup, thin recent history and reset after create');
+
     const inPlaceCard = page.locator('#gih-drafts .gih-card[data-did="701"]');
     await inPlaceCard.waitFor({ state: 'visible', timeout: 5000 });
     await inPlaceCard.locator('[data-act="mode"][data-mode="all_in_place"]').click();
