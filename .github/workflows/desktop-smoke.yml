@@ -1,6 +1,7 @@
 name: Desktop frontend smoke test
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - design/desktop-unification
@@ -73,7 +74,7 @@ jobs:
   deploy:
     name: Deploy to VPS
     needs: desktop-smoke
-    if: github.event_name == 'push' && github.ref == 'refs/heads/design/desktop-unification'
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/design/desktop-unification')
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
