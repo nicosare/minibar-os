@@ -160,7 +160,7 @@ jobs:
             {
               echo "## Production deployment: SUCCESS"
               echo
-              echo "- Commit: `$GITHUB_SHA`"
+              echo "- Commit: $GITHUB_SHA"
               echo "- Deployment output:"
               echo '~~~text'
               tail -n 30 "$log_file"
