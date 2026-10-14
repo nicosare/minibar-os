@@ -222,6 +222,7 @@ function render(){
   const td = document.getElementById('gih-title-date'); if (td) td.textContent = dateShort();
   const sub = $('gih-date');
   if (sub) sub.textContent = drafts.length+' '+pluralize(drafts.length,['черновик','черновика','черновиков'])+' · '+dones.length+' '+pluralize(dones.length,['закрыта','закрыты','закрытых']);
+  if (factory.roomId) loadRecentRoomHistory(factory.roomId);
   renderFactory(); renderDrafts(); renderDones();
   if (window.lucide) lucide.createIcons();
 }
@@ -282,15 +283,13 @@ function renderFactory(){
     }
   }
 
-  // Start history loading before icon hydration so an icon-rendering hiccup
-  // cannot leave the inline history permanently in the loading state.
-  if (room) loadRecentRoomHistory(room.id);
   if (window.lucide) lucide.createIcons();
 }
 
 function selectRoom(id){
   factory.roomId=id; factory.counts={};
   const r=roomById(id); factory.input = r?String(r.number):factory.input;
+  loadRecentRoomHistory(id);
   const currentInput = $('gih-finput');
   const shouldKeepFocus = !!currentInput && document.activeElement === currentInput;
   renderFactory();
