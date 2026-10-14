@@ -126,9 +126,18 @@ jobs:
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
         run: |
-          ssh -i "$HOME/.ssh/id_ed25519" \
-            -o IdentitiesOnly=yes \
-            -o BatchMode=yes \
-            -o StrictHostKeyChecking=yes \
-            -o ConnectTimeout=15 \
-            "minibar-deploy@$VPS_HOST" deploy
+          for attempt in 1 2; do
+            if ssh -i "$HOME/.ssh/id_ed25519" \
+              -o IdentitiesOnly=yes \
+              -o BatchMode=yes \
+              -o StrictHostKeyChecking=yes \
+              -o ConnectTimeout=15 \
+              "minibar-deploy@$VPS_HOST" deploy; then
+              exit 0
+            fi
+            if [[ "$attempt" -lt 2 ]]; then
+              echo "Deployment command failed on attempt $attempt; retrying in 3 seconds."
+              sleep 3
+            fi
+          done
+          exit 1
