@@ -235,6 +235,49 @@ const targets = {
     assert.ok(parseFloat(await page.locator('.sidebar').evaluate(el => getComputedStyle(el).width)) > 200,
       'expanded desktop sidebar should have a usable width');
 
+    const navigationAccentTransitionGuard = await page.addStyleTag({
+      content: '.nav-item, .nav-item .nav-icon { transition: none !important; }'
+    });
+    const navigationAccentChecks = await page.evaluate(() => {
+      const links = [...document.querySelectorAll('.nav-item')];
+      const originalActive = links.map(link => link.classList.contains('active'));
+      const cases = [
+        ['excise', 'excise-badge', 'rgb(146, 64, 14)'],
+        ['deadlines', 'deadlines-badge', 'rgb(153, 27, 27)'],
+        ['arrivals', 'arrivals-badge', 'rgb(6, 95, 70)'],
+        ['departures', 'departures-badge', 'rgb(30, 64, 175)'],
+        ['gih', 'gih-badge', 'rgb(55, 48, 163)'],
+        ['empty', 'empty-badge', 'rgb(159, 18, 57)'],
+        ['inventory', 'inventory-badge', 'rgb(7, 89, 133)']
+      ];
+      const result = cases.map(([route, badgeId, expectedColor]) => {
+        links.forEach(link => link.classList.toggle('active', link.dataset.route === route));
+        const link = links.find(node => node.dataset.route === route);
+        const badge = document.getElementById(badgeId);
+        return {
+          route,
+          expectedColor,
+          hasAccent: link.hasAttribute('data-accent'),
+          accentValue: link.dataset.accent,
+          matchesAccentSelector: link.matches('.nav-item.active[data-accent]'),
+          navActiveVariable: getComputedStyle(link).getPropertyValue('--nav-active-color').trim(),
+          resolvedAccentVariable: getComputedStyle(link).getPropertyValue('--accent').trim(),
+          activeColor: getComputedStyle(link).color,
+          iconColor: getComputedStyle(link.querySelector('.nav-icon')).color,
+          badgeColor: getComputedStyle(badge).color
+        };
+      });
+      links.forEach((link, index) => link.classList.toggle('active', originalActive[index]));
+      return result;
+    });
+    await navigationAccentTransitionGuard.evaluate(element => element.remove());
+    for (const check of navigationAccentChecks) {
+      assert.equal(check.badgeColor, check.expectedColor, `${check.route} badge should keep its defined accent`);
+      assert.equal(check.activeColor, check.expectedColor, `${check.route} active label should match its badge accent; diagnostics=${JSON.stringify(check)}`);
+      assert.equal(check.iconColor, check.expectedColor, `${check.route} active icon should match its badge accent`);
+    }
+    console.log('PASS: active sidebar labels and icons match each colored badge');
+
     const sidebar = page.locator('.sidebar');
     const sidebarToggle = page.locator('[data-sidebar-toggle]');
     const sidebarArrow = page.locator('.sidebar-brand-toggle-icon');

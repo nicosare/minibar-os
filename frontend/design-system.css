@@ -837,3 +837,14 @@ button.icon-button:not(:disabled):active {
     transition-duration: .01ms !important;
   }
 }
+
+
+/* Sidebar active colors: styles.css is intentionally loaded before this file. */
+.nav-item.active[data-accent] {
+  color: var(--nav-active-color, var(--accent)) !important;
+  background: var(--nav-active-bg, var(--accent-soft)) !important;
+  border-color: color-mix(in srgb, var(--nav-active-color, var(--accent)) 18%, white) !important;
+}
+.nav-item.active[data-accent] .nav-icon {
+  color: var(--nav-active-color, var(--accent)) !important;
+}
