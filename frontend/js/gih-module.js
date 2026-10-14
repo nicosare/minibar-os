@@ -112,9 +112,15 @@ async function loadRecentRoomHistory(roomId) {
   const current = recentHistoryCache.get(id);
   if (current && (current.loading || current.loaded)) return;
   recentHistoryCache.set(id, { loading:true, loaded:false, error:false, items:[] });
-  updateRecentHistoryStrip(id);
   try {
-    const response = await api().getRoomHistory(id);
+    // Keep UI-refresh errors inside the same guard as network errors so the strip
+    // never remains stuck at "Загрузка истории…" after a failed refresh.
+    updateRecentHistoryStrip(id);
+    const currentApi = api();
+    if (!currentApi || typeof currentApi.getRoomHistory !== 'function') {
+      throw new Error('API helper getRoomHistory is unavailable');
+    }
+    const response = await currentApi.getRoomHistory(id);
     const items = Array.isArray(response) ? response : (Array.isArray(response && response.items) ? response.items : []);
     items.sort((a, b) => {
       const aTime = new Date(a.checkDate || a.createdAt || 0).getTime() || 0;
