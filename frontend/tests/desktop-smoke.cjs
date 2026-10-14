@@ -369,11 +369,15 @@ const targets = {
     await roomInput.fill('500');
     const recentStrip = page.locator('#gih-room-recent');
     await recentStrip.waitFor({ state: 'visible', timeout: 5000 });
-    await page.waitForFunction(() => document.querySelector('#gih-room-recent-items')?.innerText.includes('Пополнено: Кола'));
+    await page.waitForFunction(() => {
+      const element = document.querySelector('#gih-room-recent-items');
+      return element && !element.innerText.includes('Загрузка истории…');
+    });
     const recentText = await page.locator('#gih-room-recent-items').innerText();
     assert.match(recentText, /\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}/,
       'every history record should show its date and time');
-    assert.match(recentText, /Пополнено: Кола/);
+    assert.match(recentText, /Пополнено:\s*Кола/,
+      'inline GIH history should summarize products by status; rendered text was: ' + recentText);
     assert.match(recentText, /На месте: Пеппер/);
     assert.match(recentText, /Выложили: Боржоми/);
     assert.match(recentText, /GIH · Всё выложили/);
