@@ -80,7 +80,7 @@ const gihHistoryRecords = [
   makeGihHistoryRecord(603, ['not_replenished', 'out', 'in_place'], ['Кола', 'Пеппер', 'Боржоми'])
 ];
 const roomHistoryRecords = [
-  makeGihHistoryRecord(1, ['replenished', 'in_place', 'out'], ['Кола', 'Пеппер', 'Боржоми']),
+  { ...makeGihHistoryRecord(1, ['replenished', 'in_place', 'out'], ['Кола', 'Пеппер', 'Боржоми']), notes: 'Проверить остатки перед выездом' },
   makeGihHistoryRecord(2, ['out', 'out'], ['Кола', 'Вода'], 'all_out'),
   {
     id: 3,
@@ -206,6 +206,11 @@ const targets = {
           : item)
       } : check);
       body = gihChecks.find(check => check.id === id) || { success: true };
+      if (payload.gihRoomStatus === 'not_checked' && body && body.id) {
+        const archived = { ...body, status: 'done', gihRoomStatus: 'not_checked' };
+        if (!gihHistoryRecords.some(check => check.id === id)) gihHistoryRecords.push(archived);
+        if (!roomHistoryRecords.some(check => check.id === id)) roomHistoryRecords.push(archived);
+      }
     } else if (path === '/checks') {
       body = [];
     } else if (path === '/excises' || path === '/lists' || path === '/templates') {
@@ -373,10 +378,17 @@ const targets = {
     assert.match(recentText, /GIH · Всё выложили/);
     assert.doesNotMatch(recentText, /Режим:/, 'mode history should not repeat the word “Режим”');
     assert.match(recentText, /Опустошение/);
+    assert.match(recentText, /Проверить остатки перед выездом/,
+      'inline room history should also display a saved record comment');
     assert.equal(await recentStrip.locator('.gih-room-recent-entry').count(), 3,
       'the latest three records should each occupy their own row');
     assert.equal(await recentStrip.locator('.gih-room-recent-entry').first().evaluate(el => getComputedStyle(el).display), 'block',
       'recent records should be stacked vertically');
+    assert.equal(await recentStrip.locator('.gih-room-recent-open').evaluate(el => getComputedStyle(el).alignSelf), 'center',
+      'the history drawer button should be vertically centered beside the three history rows');
+    assert.notEqual(await recentStrip.locator('.gih-room-recent-note').first().evaluate(el => getComputedStyle(el).color),
+      await recentStrip.locator('.gih-room-recent-entry').first().evaluate(el => getComputedStyle(el).color),
+      'comments and status accents should have their own subdued color');
     assert.ok(await recentStrip.evaluate(el => el.getBoundingClientRect().height < 120),
       'the recent-history strip should remain compact and unobtrusive');
     await recentStrip.locator('[data-act="open-room-history"]').click();
@@ -481,6 +493,49 @@ const targets = {
       'the “Выложили” highlight must use the same color in GIH cards and History'
     );
     console.log('PASS: GIH history displays time, aggregate statuses and matching product colors');
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setHours(12, 0, 0, 0);
+    const staleDraft = {
+      ...makeGihDraft(704),
+      checkDate: yesterday.toISOString(),
+      createdAt: yesterday.toISOString(),
+      notes: 'Заметка старого черновика'
+    };
+    const staleSaved = {
+      ...makeGihHistoryRecord(705, ['replenished'], ['Старая сохранённая запись']),
+      checkDate: yesterday.toISOString(),
+      createdAt: yesterday.toISOString()
+    };
+    gihChecks.push(staleDraft, staleSaved);
+    await page.evaluate(() => window.App.gihModule.refresh());
+    for (let attempt = 0; attempt < 40 && !savedGihPayloads.some(entry => entry.id === 704 && entry.payload.gihRoomStatus === 'not_checked'); attempt += 1) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    const archivePayload = savedGihPayloads.find(entry => entry.id === 704 && entry.payload.gihRoomStatus === 'not_checked');
+    assert.ok(archivePayload, 'a previous-day draft should be converted into a completed history record');
+    assert.equal(archivePayload.payload.status, 'done');
+    assert.equal(archivePayload.payload.notes, 'Заметка старого черновика',
+      'archiving a previous-day draft should preserve its comment');
+    const archivedCheck = gihChecks.find(check => check.id === 704);
+    assert.equal(archivedCheck.status, 'done');
+    assert.equal(archivedCheck.gihRoomStatus, 'not_checked');
+    assert.equal(await page.locator('#gih-drafts .gih-card[data-did="704"]').count(), 0,
+      'previous-day drafts should not remain on the GIH tab');
+    assert.equal(await page.locator('#gih-dones .gih-card[data-did="704"]').count(), 0,
+      'archived unchecked records should be hidden from saved GIH cards');
+    assert.equal(await page.locator('#gih-dones .gih-card[data-did="705"]').count(), 0,
+      'previous-day saved cards should disappear from the GIH tab without being deleted');
+
+    await page.evaluate(() => window.App.historyModule.refresh());
+    await page.waitForFunction(() => document.querySelector('.history-records-table')?.innerText.includes('Не проверен'));
+    const archivedHistory = page.locator('.history-records-table');
+    assert.match(await archivedHistory.innerText(), /Заметка старого черновика/,
+      'the archived record and its comment should remain in GIH history');
+    assert.ok(gihHistoryRecords.some(check => check.id === 704 && check.gihRoomStatus === 'not_checked'),
+      'archiving should retain a history record instead of deleting it');
+    console.log('PASS: day rollover hides old saved cards and archives stale drafts as “Не проверен”');
 
     assert.deepEqual(pageErrors, [], 'browser JavaScript should not throw uncaught errors');
     console.log('PASS: no uncaught browser JavaScript errors');
