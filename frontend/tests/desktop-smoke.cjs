@@ -47,6 +47,38 @@ const makeGihDraft = id => ({
   }]
 });
 let gihChecks = [makeGihDraft(701), makeGihDraft(702)];
+const makeGihHistoryRecord = (id, statuses, names, mode = null) => ({
+  id,
+  roomId: 101,
+  type: 'gih',
+  status: 'done',
+  checkDate: new Date(Date.now() - id * 1000).toISOString(),
+  createdAt: new Date(Date.now() - id * 1000).toISOString(),
+  gihRoomStatus: mode,
+  notes: null,
+  room: { number: 500 },
+  gihItems: statuses.map((itemStatus, index) => {
+    const itemProduct = { ...product, id: id * 100 + index, name: names[index] };
+    return {
+      id: id * 1000 + index,
+      productId: itemProduct.id,
+      itemStatus,
+      productName: itemProduct.name,
+      productPrice: itemProduct.price,
+      productVolume: itemProduct.volume,
+      productUnit: itemProduct.unit,
+      productEmoji: itemProduct.emoji,
+      productBgColor: itemProduct.bgColor,
+      productCategory: itemProduct.category,
+      product: itemProduct
+    };
+  })
+});
+const gihHistoryRecords = [
+  makeGihHistoryRecord(601, ['replenished', 'in_place', 'out'], ['Кола', 'Пеппер', 'Боржоми']),
+  makeGihHistoryRecord(602, ['replenished', 'not_replenished', 'out'], ['Вода', 'Сок', 'Тоник']),
+  makeGihHistoryRecord(603, ['not_replenished', 'out', 'in_place'], ['Кола', 'Пеппер', 'Боржоми'])
+];
 const monthProducts = [{ ...product, monthChecks: [] }];
 const stats = {
   currentYear: new Date().getFullYear(),
@@ -156,6 +188,8 @@ const targets = {
           }],
           total: 1
         };
+      } else if (operation === 'gih') {
+        body = { items: gihHistoryRecords, total: gihHistoryRecords.length };
       } else {
         body = { items: [], total: 0 };
       }
@@ -337,6 +371,10 @@ const targets = {
     assert.match(await inPlaceDone.innerText(), /На месте/);
     assert.match(await inPlaceDone.innerText(), /Вода/);
     assert.doesNotMatch(await inPlaceDone.innerText(), /Не размечено/);
+    assert.doesNotMatch(await inPlaceDone.innerText(), /Всё на месте/,
+      'saved GIH cards should show product statuses instead of the “Всё на месте” mode label');
+    assert.equal(await inPlaceCard.locator('[data-act="edit"]').count(), 0,
+      'saved GIH cards must not expose an edit action');
 
     const outCard = page.locator('#gih-drafts .gih-card[data-did="702"]');
     await outCard.waitFor({ state: 'visible', timeout: 5000 });
@@ -354,7 +392,38 @@ const targets = {
     assert.match(await outDone.innerText(), /Выложили/);
     assert.match(await outDone.innerText(), /Вода/);
     assert.doesNotMatch(await outDone.innerText(), /Не размечено/);
-    console.log('PASS: GIH modes persist and display per-product statuses');
+    assert.doesNotMatch(await outDone.innerText(), /Всё выложили/,
+      'saved GIH cards should show product statuses instead of the “Всё выложили” mode label');
+    assert.equal(await outCard.locator('[data-act="edit"]').count(), 0,
+      'saved GIH cards must not expose an edit action');
+    console.log('PASS: saved GIH cards hide general modes and cannot be edited');
+
+    await page.locator('.nav-item[data-route="history"]').click();
+    await page.waitForFunction(() => document.getElementById('view-history')?.classList.contains('active'));
+    await page.locator('[data-history-view="gih"]').click();
+    const gihTable = page.locator('.history-records-table');
+    await gihTable.waitFor({ state: 'visible', timeout: 5000 });
+    const gihHeaders = await gihTable.locator('thead th').allInnerTexts();
+    assert.equal(gihHeaders[0].trim().toLocaleLowerCase('ru-RU'), 'время',
+      'GIH history should include a time column');
+    await page.waitForFunction(() => document.querySelectorAll('.history-records-table tbody tr').length === 3);
+    const summaryText = (await gihTable.locator('tbody').innerText());
+    assert.match(summaryText, /Пополнен/,
+      'replenished + in-place/out products should yield “Пополнен”');
+    assert.match(summaryText, /Частично пополнен/,
+      'replenished + not-replenished products should yield “Частично пополнен”');
+    assert.match(summaryText, /Проверен/,
+      'without any replenished products, status should be “Проверен”');
+    assert.doesNotMatch(summaryText, /По продуктам|Всё на месте|Всё выложили/,
+      'history should display aggregate statuses rather than general mode labels');
+    const historyOutPanel = page.locator('.history-gih-status-panel[data-status="out"]').first();
+    const savedOutLine = outDone.locator('.gih-done-line.gih-st-out');
+    assert.equal(
+      await historyOutPanel.evaluate(el => getComputedStyle(el).backgroundColor),
+      await savedOutLine.evaluate(el => getComputedStyle(el).backgroundColor),
+      'the “Выложили” highlight must use the same color in GIH cards and History'
+    );
+    console.log('PASS: GIH history displays time, aggregate statuses and matching product colors');
 
     assert.deepEqual(pageErrors, [], 'browser JavaScript should not throw uncaught errors');
     console.log('PASS: no uncaught browser JavaScript errors');
