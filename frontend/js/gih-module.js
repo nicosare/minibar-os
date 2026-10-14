@@ -522,7 +522,20 @@ function bind(){
     if(!d) return;
     if(act==='edit-draft'){ openFactoryEdit(d); return; }
     if(act==='save'){ saveDraft(d.id); return; }
-    if(act==='notes'){ const next = window.prompt('Комментарий к номеру', d.notes||''); if(next===null) return; d.notes=next; locallyEditedDraftIds.add(d.id); patchDraftCard(d); return; }
+    if(act==='notes'){
+      const next = window.prompt('Комментарий к номеру', d.notes||'');
+      if(next===null) return;
+      d.notes=next;
+      locallyEditedDraftIds.add(d.id);
+      patchDraftCard(d);
+      api().updateGihCheck(d.id, { notes: next.trim() || null }).then(() => {
+        locallyEditedDraftIds.delete(d.id);
+      }).catch(error => {
+        console.error('Не удалось сохранить комментарий GIH:', error);
+        showToast('Комментарий не удалось сохранить');
+      });
+      return;
+    }
     if(act==='mode'){ if(productsDirty(d))return; const k=b.dataset.mode; d._mode=d._mode===k?null:k; locallyEditedDraftIds.add(d.id); patchDraftCard(d); return; }
     if(act==='pill'){ if(modeActive(d))return; const iid=parseInt(b.dataset.iid,10); const it=d.gihItems.find(x=>x.id===iid); if(!it)return; const i=CYCLE.indexOf(it.itemStatus); it.itemStatus=CYCLE[(i+1)%CYCLE.length]; locallyEditedDraftIds.add(d.id); patchDraftCard(d); return; }
   });
