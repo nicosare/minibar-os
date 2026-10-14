@@ -254,6 +254,11 @@ const targets = {
         return {
           route,
           expectedColor,
+          hasAccent: link.hasAttribute('data-accent'),
+          accentValue: link.dataset.accent,
+          matchesAccentSelector: link.matches('.nav-item.active[data-accent]'),
+          navActiveVariable: getComputedStyle(link).getPropertyValue('--nav-active-color').trim(),
+          resolvedAccentVariable: getComputedStyle(link).getPropertyValue('--accent').trim(),
           activeColor: getComputedStyle(link).color,
           iconColor: getComputedStyle(link.querySelector('.nav-icon')).color,
           badgeColor: getComputedStyle(badge).color
@@ -264,7 +269,7 @@ const targets = {
     });
     for (const check of navigationAccentChecks) {
       assert.equal(check.badgeColor, check.expectedColor, `${check.route} badge should keep its defined accent`);
-      assert.equal(check.activeColor, check.expectedColor, `${check.route} active label should match its badge accent`);
+      assert.equal(check.activeColor, check.expectedColor, `${check.route} active label should match its badge accent; diagnostics=${JSON.stringify(check)}`);
       assert.equal(check.iconColor, check.expectedColor, `${check.route} active icon should match its badge accent`);
     }
     console.log('PASS: active sidebar labels and icons match each colored badge');
