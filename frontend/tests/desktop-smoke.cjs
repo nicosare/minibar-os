@@ -22,6 +22,31 @@ const rooms = [{
   template: { items: [{ qty: 5, product }] }
 }];
 
+const makeGihDraft = id => ({
+  id,
+  roomId: 101,
+  type: 'gih',
+  status: 'draft',
+  checkDate: new Date().toISOString(),
+  createdAt: new Date().toISOString(),
+  gihRoomStatus: null,
+  notes: null,
+  room: { number: 500 },
+  gihItems: [{
+    id: id * 10 + 1,
+    productId: product.id,
+    itemStatus: 'pending',
+    productName: product.name,
+    productPrice: product.price,
+    productVolume: product.volume,
+    productUnit: product.unit,
+    productEmoji: product.emoji,
+    productBgColor: product.bgColor,
+    productCategory: product.category,
+    product
+  }]
+});
+let gihChecks = [makeGihDraft(701), makeGihDraft(702)];
 const monthProducts = [{ ...product, monthChecks: [] }];
 const stats = {
   currentYear: new Date().getFullYear(),
@@ -41,6 +66,7 @@ const targets = {
   const pageErrors = [];
   const apiCalls = [];
   let savedPeriodPayload = null;
+  const savedGihPayloads = [];
   let designSystemResponse = null;
 
   page.on('pageerror', error => pageErrors.push(error.message));
@@ -88,7 +114,69 @@ const targets = {
     } else if (path === '/deadlines/replacement-summary') {
       body = { items: [], totalQty: 0 };
     } else if (path === '/checks/history') {
-      body = { items: [], total: 0 };
+      const operation = url.searchParams.get('operation');
+      if (operation === 'daily') {
+        body = {
+          items: [{
+            id: 51,
+            roomId: 101,
+            type: 'check',
+            status: 'done',
+            checkDate: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            room: { number: 500 },
+            notes: 'Тестовая запись'
+          }],
+          total: 1
+        };
+      } else if (operation === 'room') {
+        body = {
+          items: [{
+            id: 52,
+            roomId: 101,
+            type: 'gih',
+            status: 'done',
+            checkDate: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            gihRoomStatus: null,
+            room: { number: 500 },
+            gihItems: [{
+              id: 5201,
+              productId: product.id,
+              itemStatus: 'pending',
+              productName: product.name,
+              productPrice: product.price,
+              productVolume: product.volume,
+              productUnit: product.unit,
+              productEmoji: product.emoji,
+              productBgColor: product.bgColor,
+              productCategory: product.category,
+              product
+            }]
+          }],
+          total: 1
+        };
+      } else {
+        body = { items: [], total: 0 };
+      }
+    } else if (path === '/checks' && method === 'GET' && url.searchParams.get('type') === 'gih') {
+      body = gihChecks;
+    } else if (/^\/checks\/\d+$/.test(path) && method === 'PUT') {
+      const id = Number(path.split('/').pop());
+      const payload = request.postDataJSON();
+      savedGihPayloads.push({ id, payload });
+      const itemUpdates = new Map((payload.pills || []).map(item => [Number(item.id), item.itemStatus]));
+      gihChecks = gihChecks.map(check => check.id === id ? {
+        ...check,
+        status: payload.status === undefined ? check.status : payload.status,
+        gihRoomStatus: payload.gihRoomStatus === undefined ? check.gihRoomStatus : payload.gihRoomStatus,
+        notes: payload.notes === undefined ? check.notes : payload.notes,
+        checkDate: payload.status === 'done' ? new Date().toISOString() : check.checkDate,
+        gihItems: check.gihItems.map(item => itemUpdates.has(item.id)
+          ? { ...item, itemStatus: itemUpdates.get(item.id) }
+          : item)
+      } : check);
+      body = gihChecks.find(check => check.id === id) || { success: true };
     } else if (path === '/checks') {
       body = [];
     } else if (path === '/excises' || path === '/lists' || path === '/templates') {
@@ -208,6 +296,11 @@ const targets = {
 
     await page.locator('.nav-item[data-route="history"]').click();
     await page.locator('#history-list-container').waitFor({ state: 'visible', timeout: 5000 });
+    await page.locator('.history-records-table tbody tr').first().waitFor({ state: 'visible', timeout: 5000 });
+    assert.equal((await page.locator('.history-records-table thead th').first().innerText()).trim().toLocaleLowerCase('ru-RU'), 'время',
+      'history should show only a time column because rows are grouped by day');
+    assert.match((await page.locator('.history-records-table tbody tr').first().locator('td').first().innerText()).trim(),
+      /^\d{2}:\d{2}$/, 'history timestamp should contain the time without the date');
     await page.evaluate(() => window.App.historyModule.openRoomHistory(101, 500));
     const roomHistory = page.locator('#room-history-panel');
     await page.waitForFunction(() => document.querySelector('#room-history-panel')?.getAttribute('aria-hidden') === 'false');
@@ -217,6 +310,8 @@ const targets = {
       'room history close control should use the shared 36px size'
     );
     assert.match(await page.locator('#room-history-title').innerText(), /500/);
+    assert.doesNotMatch(await roomHistory.innerText(), /По продуктам/,
+      'room history should not show the redundant “По продуктам” label for GIH');
     await page.locator('.nav-item[data-route="deadlines"]').click();
     await page.waitForFunction(() => document.getElementById('view-deadlines')?.classList.contains('active'));
     assert.equal(await roomHistory.getAttribute('aria-hidden'), 'false',
@@ -224,6 +319,42 @@ const targets = {
     await page.locator('[data-room-history-close]').click();
     await page.waitForFunction(() => document.querySelector('#room-history-panel')?.getAttribute('aria-hidden') === 'true');
     console.log('PASS: room-history panel opens, shows the selected room and closes');
+
+    await page.locator('.nav-item[data-route="gih"]').click();
+    const inPlaceCard = page.locator('#gih-drafts .gih-card[data-did="701"]');
+    await inPlaceCard.waitFor({ state: 'visible', timeout: 5000 });
+    await inPlaceCard.locator('[data-act="mode"][data-mode="all_in_place"]').click();
+    await inPlaceCard.locator('[data-act="save"]').click();
+    for (let attempt = 0; attempt < 40 && !savedGihPayloads.some(entry => entry.id === 701); attempt += 1) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    const inPlaceSave = savedGihPayloads.find(entry => entry.id === 701);
+    assert.ok(inPlaceSave, 'saving “Всё на месте” should update the GIH record');
+    assert.deepEqual(inPlaceSave.payload.pills, [{ id: 7011, itemStatus: 'in_place' }],
+      '“Всё на месте” should assign the “На месте” status to every product');
+    const inPlaceDone = page.locator('#gih-dones .gih-card[data-did="701"] .gih-done-body');
+    await inPlaceDone.waitFor({ state: 'visible', timeout: 5000 });
+    assert.match(await inPlaceDone.innerText(), /На месте/);
+    assert.match(await inPlaceDone.innerText(), /Вода/);
+    assert.doesNotMatch(await inPlaceDone.innerText(), /Не размечено/);
+
+    const outCard = page.locator('#gih-drafts .gih-card[data-did="702"]');
+    await outCard.waitFor({ state: 'visible', timeout: 5000 });
+    await outCard.locator('[data-act="mode"][data-mode="all_out"]').click();
+    await outCard.locator('[data-act="save"]').click();
+    for (let attempt = 0; attempt < 40 && !savedGihPayloads.some(entry => entry.id === 702); attempt += 1) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    const outSave = savedGihPayloads.find(entry => entry.id === 702);
+    assert.ok(outSave, 'saving “Всё выложили” should update the GIH record');
+    assert.deepEqual(outSave.payload.pills, [{ id: 7021, itemStatus: 'out' }],
+      '“Всё выложили” should assign the “Выложили” status to every product');
+    const outDone = page.locator('#gih-dones .gih-card[data-did="702"] .gih-done-body');
+    await outDone.waitFor({ state: 'visible', timeout: 5000 });
+    assert.match(await outDone.innerText(), /Выложили/);
+    assert.match(await outDone.innerText(), /Вода/);
+    assert.doesNotMatch(await outDone.innerText(), /Не размечено/);
+    console.log('PASS: GIH modes persist and display per-product statuses');
 
     assert.deepEqual(pageErrors, [], 'browser JavaScript should not throw uncaught errors');
     console.log('PASS: no uncaught browser JavaScript errors');
