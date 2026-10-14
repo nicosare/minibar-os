@@ -19,7 +19,7 @@ const rooms = [{
   floor: 5,
   category: 'standard',
   expiryStatus: 'neutral',
-  template: { items: [{ qty: 5, product }] }
+  template: { items: [{ qty: 5, productId: product.id, product }] }
 }];
 
 const makeGihDraft = id => ({
