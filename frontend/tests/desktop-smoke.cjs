@@ -19,7 +19,7 @@ const rooms = [{
   floor: 5,
   category: 'standard',
   expiryStatus: 'neutral',
-  template: { items: [{ qty: 5, productId: product.id, product }] }
+  template: { items: [{ qty: 5, productId: product.id, product: { ...product, name: 'Минеральная вода газированная 0,5 литра' } }] }
 }];
 
 const makeGihDraft = id => ({
@@ -365,18 +365,38 @@ const targets = {
     await recentStrip.waitFor({ state: 'visible', timeout: 5000 });
     await page.waitForFunction(() => document.querySelector('#gih-room-recent-items')?.innerText.includes('Пополнено: Кола'));
     const recentText = await page.locator('#gih-room-recent-items').innerText();
+    assert.match(recentText, /\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}/,
+      'every history record should show its date and time');
     assert.match(recentText, /Пополнено: Кола/);
     assert.match(recentText, /На месте: Пеппер/);
     assert.match(recentText, /Выложили: Боржоми/);
-    assert.match(recentText, /Режим: Всё выложили/);
+    assert.match(recentText, /GIH · Всё выложили/);
+    assert.doesNotMatch(recentText, /Режим:/, 'mode history should not repeat the word “Режим”');
     assert.match(recentText, /Опустошение/);
-    assert.ok(await recentStrip.evaluate(el => el.getBoundingClientRect().height <= 42),
-      'the recent-history strip should stay thin and unobtrusive');
+    assert.equal(await recentStrip.locator('.gih-room-recent-entry').count(), 3,
+      'the latest three records should each occupy their own row');
+    assert.equal(await recentStrip.locator('.gih-room-recent-entry').first().evaluate(el => getComputedStyle(el).display), 'block',
+      'recent records should be stacked vertically');
+    assert.ok(await recentStrip.evaluate(el => el.getBoundingClientRect().height < 120),
+      'the recent-history strip should remain compact and unobtrusive');
     await recentStrip.locator('[data-act="open-room-history"]').click();
     await page.waitForFunction(() => document.querySelector('#room-history-panel')?.getAttribute('aria-hidden') === 'false');
     assert.match(await page.locator('#room-history-title').innerText(), /500/);
     await page.locator('[data-room-history-close]').click();
     await page.waitForFunction(() => document.querySelector('#room-history-panel')?.getAttribute('aria-hidden') === 'true');
+
+    const fullProductName = gihFactory.locator('.gih-fitem-name');
+    await fullProductName.waitFor({ state: 'visible', timeout: 5000 });
+    assert.equal((await fullProductName.innerText()).trim(), 'Минеральная вода газированная 0,5 литра',
+      'the complete product name should remain visible rather than being truncated');
+    const productNameStyles = await fullProductName.evaluate(el => ({
+      whiteSpace: getComputedStyle(el).whiteSpace,
+      textOverflow: getComputedStyle(el).textOverflow,
+      overflow: getComputedStyle(el).overflow
+    }));
+    assert.equal(productNameStyles.whiteSpace, 'normal', 'product names should wrap across lines');
+    assert.equal(productNameStyles.textOverflow, 'clip', 'product names should not use ellipsis');
+    assert.equal(productNameStyles.overflow, 'visible', 'product-name overflow should not be hidden');
 
     await gihFactory.locator('.gih-fitem[data-pid="1"]').click();
     await gihFactory.locator('[data-act="fcreate"]').click();
