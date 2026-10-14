@@ -102,6 +102,25 @@ App.historyModule = (() => {
     return String(item && item.itemStatus || 'pending');
   }
 
+  function gihSummary(check) {
+    const mode = String(check && check.gihRoomStatus || '');
+    if (mode === 'dnd' || mode === 'empty') {
+      const meta = modeMeta(mode);
+      return { label: meta.label, cls: 'gih-summary-special ' + (mode === 'dnd' ? 'gih-summary-dnd' : 'gih-summary-empty') };
+    }
+
+    const statuses = (check && Array.isArray(check.gihItems) ? check.gihItems : [])
+      .map(item => effectiveGihItemStatus(check, item));
+    const hasReplenished = statuses.includes('replenished');
+    const hasNotReplenished = statuses.includes('not_replenished');
+
+    // A check with no replenished products is "Проверен", even if some items
+    // remain unfilled. Partial replenishment requires both statuses to be present.
+    if (!hasReplenished) return { label: 'Проверен', cls: 'gih-summary-checked' };
+    if (hasNotReplenished) return { label: 'Частично пополнен', cls: 'gih-summary-partial' };
+    return { label: 'Пополнен', cls: 'gih-summary-replenished' };
+  }
+
   function getProductList(check) {
     const counts = new Map();
     (check.gihItems || []).forEach(item => {
@@ -522,12 +541,9 @@ App.historyModule = (() => {
   }
 
   function renderGihStatus(check) {
-    if (!check.gihRoomStatus) {
-      return '<span class="inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-semibold bg-slate-100 text-slate-700 border-slate-200">По продуктам</span>';
-    }
-    const mode = modeMeta(check.gihRoomStatus);
-    return '<span class="inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-semibold ' +
-      mode.cls + '">' + escapeHtml(mode.label) + '</span>';
+    const summary = gihSummary(check);
+    return '<span class="inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-semibold gih-summary-badge ' +
+      summary.cls + '">' + escapeHtml(summary.label) + '</span>';
   }
 
   function renderGihProductsCell(check) {
@@ -552,7 +568,7 @@ App.historyModule = (() => {
         '<td class="p-3 sm:p-4 pr-4 sm:pr-6 align-top min-w-[240px]">' + renderDeadlineDetails(check) + '</td></tr>';
     }
     if (state.view === 'gih') {
-      return start + room +
+      return start + date + room +
         '<td class="p-3 sm:p-4 align-top">' + renderGihStatus(check) + '</td>' +
         '<td class="p-3 sm:p-4 pr-4 sm:pr-6 align-top min-w-[260px]">' + renderGihProductsCell(check) + '</td></tr>';
     }
@@ -573,7 +589,7 @@ App.historyModule = (() => {
     if (!container) return;
     const room = currentRoomQuery();
     const records = sortRecords(state.records, Boolean(room));
-    const columnCount = state.view === 'deadlines' ? 5 : state.view === 'gih' ? 3 : 4;
+    const columnCount = state.view === 'deadlines' ? 5 : 4;
 
     if (countEl) countEl.textContent = room ? 'Найдено: ' + state.total
       : (state.view === 'deadlines' ? 'Изменений за день: ' : 'Записей за день: ') + state.total;
@@ -621,7 +637,7 @@ App.historyModule = (() => {
         '<th class="p-3 sm:p-4">Действие</th><th class="p-3 sm:p-4">Изменение статуса</th>' +
         '<th class="p-3 sm:p-4 pr-4 sm:pr-6">Подробности</th>';
     } else if (state.view === 'gih') {
-      tableHeader = '<th class="p-3 sm:p-4 pl-4 sm:pl-6">Номер</th>' +
+      tableHeader = '<th class="p-3 sm:p-4 pl-4 sm:pl-6">Время</th><th class="p-3 sm:p-4">Номер</th>' +
         '<th class="p-3 sm:p-4">Статус GIH</th><th class="p-3 sm:p-4 pr-4 sm:pr-6">Продукты по статусам</th>';
     } else {
       tableHeader = '<th class="p-3 sm:p-4 pl-4 sm:pl-6">Время</th><th class="p-3 sm:p-4">Номер</th>' +
@@ -678,9 +694,7 @@ App.historyModule = (() => {
       const isGih = check.type === 'gih';
       let content = '';
       if (isGih) {
-        if (check.gihRoomStatus) {
-          content += '<div class="room-history-gih-status">' + renderGihStatus(check) + '</div>';
-        }
+        content += '<div class="room-history-gih-status">' + renderGihStatus(check) + '</div>';
         content += '<div class="room-history-products">' + renderProducts(check) + '</div>';
         if (notes) content += '<div class="room-history-note">' + escapeHtml(notes).replace(/\n/g, '<br>') + '</div>';
       } else if (notes) {
