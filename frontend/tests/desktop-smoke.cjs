@@ -357,6 +357,7 @@ const targets = {
     await page.locator('.nav-item[data-route="gih"]').click();
     const gihFactory = page.locator('#gih-factory');
     await gihFactory.waitFor({ state: 'visible', timeout: 5000 });
+    await page.locator('#gih-drafts .gih-card[data-did="701"]').waitFor({ state: 'visible', timeout: 5000 });
     assert.equal(await page.locator('#gih-new-btn').count(), 0,
       'GIH creator should be permanently available without a “New entry” button');
     assert.doesNotMatch(await gihFactory.innerText(), /позици|шт/i,
