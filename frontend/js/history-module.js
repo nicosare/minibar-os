@@ -96,6 +96,12 @@ App.historyModule = (() => {
     };
   }
 
+  function effectiveGihItemStatus(check, item) {
+    if (check && check.gihRoomStatus === 'all_in_place') return 'in_place';
+    if (check && check.gihRoomStatus === 'all_out') return 'out';
+    return String(item && item.itemStatus || 'pending');
+  }
+
   function getProductList(check) {
     const counts = new Map();
     (check.gihItems || []).forEach(item => {
@@ -122,7 +128,7 @@ App.historyModule = (() => {
 
     const groups = new Map();
     (check.gihItems || []).forEach(item => {
-      const rawStatus = String(item.itemStatus || 'pending');
+      const rawStatus = effectiveGihItemStatus(check, item);
       const status = GIH_STATUSES[rawStatus] ? rawStatus : 'pending';
       const name = item.productName || (item.product ? item.product.name : 'Продукт');
       if (!groups.has(status)) groups.set(status, new Map());
@@ -415,11 +421,10 @@ App.historyModule = (() => {
     });
   }
 
-  function formatDateTime(check) {
+  function formatTime(check) {
     const date = dateForCheck(check);
     if (!date) return '—';
-    return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
-      ' · ' + date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
   }
 
   function renderRoomButton(check) {
@@ -537,7 +542,7 @@ App.historyModule = (() => {
     const background = index % 2 === 0 ? 'bg-white' : 'bg-slate-50';
     const start = '<tr class="' + background + ' border-b border-slate-200 hover:bg-indigo-50/40 transition-colors">';
     const date = '<td class="p-3 sm:p-4 pl-4 sm:pl-6 text-slate-600 align-top whitespace-nowrap"><div class="font-medium text-slate-900">' +
-      escapeHtml(formatDateTime(check)) + '</div></td>';
+      escapeHtml(formatTime(check)) + '</div></td>';
     const room = '<td class="p-3 sm:p-4 align-top whitespace-nowrap">' + renderRoomButton(check) + '</td>';
 
     if (state.view === 'deadlines') {
@@ -612,14 +617,14 @@ App.historyModule = (() => {
 
     let tableHeader;
     if (state.view === 'deadlines') {
-      tableHeader = '<th class="p-3 sm:p-4 pl-4 sm:pl-6">Дата и время</th><th class="p-3 sm:p-4">Номер / объект</th>' +
+      tableHeader = '<th class="p-3 sm:p-4 pl-4 sm:pl-6">Время</th><th class="p-3 sm:p-4">Номер / объект</th>' +
         '<th class="p-3 sm:p-4">Действие</th><th class="p-3 sm:p-4">Изменение статуса</th>' +
         '<th class="p-3 sm:p-4 pr-4 sm:pr-6">Подробности</th>';
     } else if (state.view === 'gih') {
       tableHeader = '<th class="p-3 sm:p-4 pl-4 sm:pl-6">Номер</th>' +
         '<th class="p-3 sm:p-4">Статус GIH</th><th class="p-3 sm:p-4 pr-4 sm:pr-6">Продукты по статусам</th>';
     } else {
-      tableHeader = '<th class="p-3 sm:p-4 pl-4 sm:pl-6">Дата и время</th><th class="p-3 sm:p-4">Номер</th>' +
+      tableHeader = '<th class="p-3 sm:p-4 pl-4 sm:pl-6">Время</th><th class="p-3 sm:p-4">Номер</th>' +
         '<th class="p-3 sm:p-4">Операция</th><th class="p-3 sm:p-4 pr-4 sm:pr-6">Подробности</th>';
     }
 
@@ -673,7 +678,9 @@ App.historyModule = (() => {
       const isGih = check.type === 'gih';
       let content = '';
       if (isGih) {
-        content += '<div class="room-history-gih-status">' + renderGihStatus(check) + '</div>';
+        if (check.gihRoomStatus) {
+          content += '<div class="room-history-gih-status">' + renderGihStatus(check) + '</div>';
+        }
         content += '<div class="room-history-products">' + renderProducts(check) + '</div>';
         if (notes) content += '<div class="room-history-note">' + escapeHtml(notes).replace(/\n/g, '<br>') + '</div>';
       } else if (notes) {
