@@ -87,6 +87,12 @@ function recentHistoryContent(roomId) {
   if (!state.items.length) return '<span class="gih-room-recent-empty">Записей пока нет</span>';
   return state.items.map(recentEntryHtml).join('');
 }
+function updateRecentHistoryStrip(roomId) {
+  const strip = $('gih-room-recent');
+  const content = $('gih-room-recent-items');
+  if (!strip || !content || strip.dataset.roomId !== String(roomId)) return;
+  content.innerHTML = recentHistoryContent(roomId);
+}
 function localDayKey(value) {
   const date = value instanceof Date ? value : new Date(value || '');
   if (!Number.isFinite(date.getTime())) return '';
