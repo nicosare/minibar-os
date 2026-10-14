@@ -27,13 +27,14 @@ const dateShort = () => { const d=new Date(); const p=(n)=>String(n).padStart(2,
 const roomById = id => rooms.find(r=>r.id===id);
 function recentEntryText(check) {
   const date = new Date(check.checkDate || check.createdAt || '');
+  const dateText = Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString('ru-RU', { day:'2-digit', month:'2-digit', year:'numeric' });
   const time = Number.isNaN(date.getTime()) ? '—' : date.toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' });
   let summary = 'Проверка';
   if (check.type === 'emptied' || check.type === 'vk_emptied') {
     summary = 'Опустошение';
   } else if (check.type === 'gih') {
     if (check.gihRoomStatus) {
-      summary = 'GIH · Режим: ' + (MODE_LABEL[check.gihRoomStatus] || check.gihRoomStatus);
+      summary = 'GIH · ' + (MODE_LABEL[check.gihRoomStatus] || check.gihRoomStatus);
     } else {
       const labels = {
         replenished:'Пополнено',
@@ -54,7 +55,7 @@ function recentEntryText(check) {
       summary = 'GIH · ' + (detail || 'Нет позиций');
     }
   }
-  return time + ' · ' + summary;
+  return dateText + ' ' + time + ' · ' + summary;
 }
 function recentHistoryContent(roomId) {
   const state = recentHistoryCache.get(Number(roomId));
