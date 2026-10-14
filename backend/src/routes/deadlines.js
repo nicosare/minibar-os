@@ -32,6 +32,7 @@ router.get('/month-products', async (req, res) => {
     await purgeExpiredMonthChecks(prisma, offset);
     const now = new Date();
     const items = await prisma.productMonthCheck.findMany({
+      where: { product: { is: { isActive: true } } },
       include: { product: true },
       orderBy: { product: { name: 'asc' } }
     });
@@ -61,7 +62,7 @@ router.get('/month-products/manage', async (req, res) => {
     await purgeExpiredMonthChecks(prisma, offset);
     const [products, checks] = await Promise.all([
       prisma.product.findMany({
-        where: { hasExpiry: true },
+        where: { hasExpiry: true, isActive: true },
         orderBy: { name: 'asc' }
       }),
       prisma.productMonthCheck.findMany({ orderBy: [{ checkYear: 'asc' }, { checkMonth: 'asc' }] })
@@ -98,8 +99,8 @@ router.put('/month-products/:productId', async (req, res) => {
       return res.status(400).json({ error: 'Укажите период в формате MM.YY (например 11.26)' });
     }
 
-    const product = await prisma.product.findUnique({ where: { id: productId } });
-    if (!product) return res.status(404).json({ error: 'Продукт не найден' });
+    const product = await prisma.product.findFirst({ where: { id: productId, isActive: true } });
+    if (!product) return res.status(404).json({ error: 'Активный продукт не найден' });
 
     if (checkId) {
       const existing = await prisma.productMonthCheck.findFirst({

@@ -99,7 +99,7 @@ App.historyModule = (() => {
   function getProductList(check) {
     const counts = new Map();
     (check.gihItems || []).forEach(item => {
-      const name = item.product ? item.product.name : 'Продукт';
+      const name = item.productName || (item.product ? item.product.name : 'Продукт');
       counts.set(name, (counts.get(name) || 0) + 1);
     });
     return Array.from(counts.entries()).map(([name, qty]) =>
@@ -124,7 +124,7 @@ App.historyModule = (() => {
     (check.gihItems || []).forEach(item => {
       const rawStatus = String(item.itemStatus || 'pending');
       const status = GIH_STATUSES[rawStatus] ? rawStatus : 'pending';
-      const name = item.product ? item.product.name : 'Продукт';
+      const name = item.productName || (item.product ? item.product.name : 'Продукт');
       if (!groups.has(status)) groups.set(status, new Map());
       const products = groups.get(status);
       products.set(name, (products.get(name) || 0) + 1);
@@ -638,12 +638,12 @@ App.historyModule = (() => {
     panel.id = 'room-history-panel';
     panel.className = 'room-history-panel';
     panel.setAttribute('aria-hidden', 'true');
+    panel.inert = true;
     panel.innerHTML =
       '<div class="room-history-drawer" role="dialog" aria-modal="false" aria-labelledby="room-history-title">' +
       '<div class="room-history-header"><div><div class="room-history-kicker">История номера</div>' +
       '<h2 class="room-history-title" id="room-history-title">Номер</h2></div>' +
-      '<button type="button" class="room-history-close" data-room-history-close aria-label="Закрыть историю номера"><i data-lucide="x"></i></button></div>' +
-      '<div class="room-history-subtitle">Ежедневные операции и GIH. События раздела «Сроки» здесь не отображаются.</div>' +
+      '<button type="button" class="room-history-close panel-close-btn" data-room-history-close aria-label="Закрыть историю номера"><i data-lucide="x"></i></button></div>' +
       '<div class="room-history-body" id="room-history-body"><div class="room-history-loading">Загрузка истории…</div></div></div>';
     main.parentElement.insertBefore(panel, main);
     panel.addEventListener('click', event => {
@@ -657,14 +657,14 @@ App.historyModule = (() => {
     if (!panel) return;
     panel.classList.remove('open');
     panel.setAttribute('aria-hidden', 'true');
+    panel.inert = true;
     document.body.classList.remove('room-history-open');
     requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
   }
 
   function renderRoomHistoryCards(items) {
     if (!items.length) {
-      return '<div class="room-history-empty"><i data-lucide="history"></i><strong>Записей пока нет</strong>' +
-        '<span>Для этого номера не сохранено ежедневных операций или GIH.</span></div>';
+      return '<div class="room-history-empty"><i data-lucide="history"></i><strong>Записей пока нет</strong></div>';
     }
     return items.map((check, index) => {
       const date = dateForCheck(check);
@@ -678,8 +678,6 @@ App.historyModule = (() => {
         if (notes) content += '<div class="room-history-note">' + escapeHtml(notes).replace(/\n/g, '<br>') + '</div>';
       } else if (notes) {
         content += '<div class="room-history-note">' + escapeHtml(notes).replace(/\n/g, '<br>') + '</div>';
-      } else {
-        content += '<div class="room-history-note is-muted">Подробности не указаны</div>';
       }
       const dateText = date
         ? date.toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' }) + ' · ' +
@@ -695,13 +693,18 @@ App.historyModule = (() => {
   async function openRoomHistory(roomId, number) {
     const id = Number(roomId);
     if (!Number.isInteger(id) || id <= 0) return;
+    if (window.App && App.calculatorModule && App.calculatorModule.closeDrawer) App.calculatorModule.closeDrawer();
+    if (window.App && App.inventoryModule && App.inventoryModule.closeDrawer) App.inventoryModule.closeDrawer();
     ensureRoomHistoryDrawer();
     const panel = document.getElementById('room-history-panel');
     const title = document.getElementById('room-history-title');
     const body = document.getElementById('room-history-body');
     if (!panel || !body) return;
+    panel.inert = false;
     title.textContent = 'Номер ' + String(number || '—');
     body.innerHTML = '<div class="room-history-loading"><i data-lucide="loader-2"></i><span>Загрузка истории…</span></div>';
+    // Ensure the initial closed state is committed so first open animates like subsequent opens.
+    void panel.offsetWidth;
     panel.classList.add('open');
     panel.setAttribute('aria-hidden', 'false');
     document.body.classList.add('room-history-open');
@@ -733,7 +736,7 @@ App.historyModule = (() => {
       '<div class="history-calendar" role="dialog" aria-modal="true" aria-label="Выбор даты Истории">' +
         '<div class="history-calendar-header">' +
           '<div><div class="history-calendar-eyebrow">История операций</div><div class="history-calendar-title" id="history-calendar-title"></div></div>' +
-          '<button type="button" class="history-calendar-close" data-calendar-action="close" aria-label="Закрыть календарь"><i data-lucide="x"></i></button>' +
+          '<button type="button" class="history-calendar-close panel-close-btn" data-calendar-action="close" aria-label="Закрыть календарь"><i data-lucide="x"></i></button>' +
         '</div>' +
         '<div class="history-calendar-month-nav">' +
           '<button type="button" data-calendar-action="prev-month" aria-label="Предыдущий месяц"><i data-lucide="chevron-left"></i></button>' +
@@ -926,6 +929,7 @@ App.historyModule = (() => {
     document.addEventListener('keydown', event => {
       if (event.key === 'Escape') closeRoomHistory();
     });
+    // Room history is a persistent work panel; route changes must not close it.
 
     search && search.addEventListener('input', () => {
       if (state.searchTimer) clearTimeout(state.searchTimer);

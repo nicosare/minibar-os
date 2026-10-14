@@ -132,11 +132,6 @@ function updateStats() {
   setText('excise-stat-valid-pct', pct(valid));
   setText('excise-stat-invalid-pct', pct(invalid));
   
-  // Mobile stats bar
-  setText('excise-mstat-total', total);
-  setText('excise-mstat-valid', valid);
-  setText('excise-mstat-invalid', invalid);
-  
   // Обновляем бейдж в сайдбаре
   if (App.badges) {
     App.badges.update('excise');

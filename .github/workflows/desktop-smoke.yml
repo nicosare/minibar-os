@@ -1,0 +1,121 @@
+name: Desktop frontend smoke test
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - design/desktop-unification
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/desktop-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  desktop-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Build frontend image
+        run: docker build -t minibar-os-frontend-smoke ./frontend
+
+      - name: Create isolated Docker network
+        run: docker network create minibar-os-smoke
+
+      - name: Start backend hostname stub
+        run: docker run -d --name minibar-smoke-backend --network minibar-os-smoke --network-alias backend nginx:alpine
+
+      - name: Start frontend
+        run: docker run -d --name minibar-frontend-smoke --network minibar-os-smoke -p 8080:80 minibar-os-frontend-smoke
+
+      - name: Wait for frontend
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8080/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs minibar-smoke-backend || true
+          docker logs minibar-frontend-smoke
+          exit 1
+
+      - name: Run desktop browser smoke tests
+        run: node frontend/tests/desktop-smoke.cjs
+
+      - name: Show frontend logs on failure
+        if: failure()
+        run: docker logs minibar-frontend-smoke || true
+
+      - name: Stop frontend
+        if: always()
+        run: |
+          docker rm -f minibar-frontend-smoke minibar-smoke-backend || true
+          docker network rm minibar-os-smoke || true
+
+  deploy:
+    name: Deploy to VPS
+    needs: desktop-smoke
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/design/desktop-unification')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check deployment credentials
+        id: credentials
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          if [[ -z "$VPS_HOST" || -z "$VPS_SSH_PRIVATE_KEY" || -z "$VPS_KNOWN_HOSTS" ]]; then
+            echo "::notice::VPS deployment secrets are not configured yet; skipping deployment."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure SSH
+        if: steps.credentials.outputs.ready == 'true'
+        shell: bash
+        env:
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+
+      - name: Deploy on VPS
+        if: steps.credentials.outputs.ready == 'true'
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          ssh -i "$HOME/.ssh/id_ed25519" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=15 \
+            "minibar-deploy@$VPS_HOST" deploy

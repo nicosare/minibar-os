@@ -57,6 +57,7 @@
 
   function activeEditorBlocksRefresh(route) {
     const active = document.activeElement;
+
     if (route === 'settings') {
       const modal = document.getElementById('product-modal-backdrop');
       if (modal && !modal.classList.contains('hidden')) return true;
@@ -73,14 +74,9 @@
       if (factory && !factory.classList.contains('hidden')) return true;
       if (active && active.id === 'gih-finput') return true;
     }
-    if (route === 'calculator') {
-      const billModal = document.getElementById('calculator-bill-modal');
-      if (billModal && !billModal.classList.contains('hidden')) return true;
-      if (active && /^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName) &&
-          (active.closest('#view-calculator') || active.closest('#calc-drawer') || active.closest('#calculator-bill-modal'))) {
-        return true;
-      }
-    }
+    if (route === 'calculator' && active &&
+        /^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName) &&
+        (active.closest('#view-calculator') || active.closest('#calc-drawer'))) return true;
     return false;
   }
 

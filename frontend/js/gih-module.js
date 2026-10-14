@@ -26,7 +26,7 @@ const roomById = id => rooms.find(r=>r.id===id);
 function norm(c){
   return { id:c.id, roomId:c.roomId, number:c.room?c.room.number:'—', date:c.checkDate||c.createdAt,
     gihRoomStatus:c.gihRoomStatus, notes:c.notes||'', _mode:c.gihRoomStatus||null,
-    gihItems:(c.gihItems||[]).map(it=>({ id:it.id, productId:it.productId, name:it.product?it.product.name:'Продукт', emoji:it.product?it.product.emoji:null, bgColor:it.product?it.product.bgColor:'slate', itemStatus:it.itemStatus||'pending' })) };
+    gihItems:(c.gihItems||[]).map(it=>{ const hasSnapshot=it.productName!==null && it.productName!==undefined; return { id:it.id, productId:it.productId, name:hasSnapshot?it.productName:(it.product?it.product.name:'Продукт'), emoji:hasSnapshot?it.productEmoji:(it.product?it.product.emoji:null), bgColor:hasSnapshot?it.productBgColor:(it.product?it.product.bgColor:'slate'), itemStatus:it.itemStatus||'pending' }; }) };
 }
 async function load(){
   const previousDrafts = drafts.slice();
@@ -103,7 +103,7 @@ function renderFactory(){
             </button>`; }).join('')}
         </div>
       </div>`).join('')) || '<div class="gih-fempty">У этого номера нет шаблона наполнения</div>'
-    : '<div class="gih-fempty">Введите номер, чтобы увидеть продукты его шаблона</div>';
+    : '';
   const isEdit = !!factory.editId;
   box.innerHTML = `
     <div class="gih-fhead">
@@ -112,7 +112,7 @@ function renderFactory(){
         <input id="gih-finput" class="gih-ac-input" inputmode="numeric" autocomplete="off" placeholder="Номер комнаты…" value="${escapeHtml(factory.input||'')}">
         <div id="gih-ac" class="gih-ac"></div>
       </div>
-      <button type="button" class="gih-x" data-act="fclose" aria-label="Закрыть"><i data-lucide="x" class="w-4 h-4"></i></button>
+      <button type="button" class="gih-x panel-close-btn" data-act="fclose" aria-label="Закрыть"><i data-lucide="x" class="w-4 h-4"></i></button>
     </div>
     <div class="gih-fbody">
       <div class="gih-fgrid">${gridHtml}</div>

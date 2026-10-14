@@ -5,7 +5,7 @@ const router = Router();
 
 router.get('/', async (req, res) => {
   try {
-    const products = await prisma.product.findMany({ orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] });
+    const products = await prisma.product.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] });
     res.json(products);
   } catch (err) {
     console.error('GET products error:', err);
@@ -15,8 +15,8 @@ router.get('/', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    const product = await prisma.product.findUnique({
-      where: { id: parseInt(req.params.id, 10) }
+    const product = await prisma.product.findFirst({
+      where: { id: parseInt(req.params.id, 10), isActive: true }
     });
     if (!product) return res.status(404).json({ error: 'Not found' });
     res.json(product);
@@ -59,8 +59,12 @@ router.put('/reorder', async (req, res) => {
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
 router.put('/:id', async (req, res) => {
   try {
+    const productId = parseInt(req.params.id, 10);
+    const current = await prisma.product.findFirst({ where: { id: productId, isActive: true } });
+    if (!current) return res.status(404).json({ error: 'Активный продукт не найден.' });
     const { name, price, volume, unit, hasExpiry, emoji, bgColor, category } = req.body;
     const product = await prisma.product.update({
       where: { id: parseInt(req.params.id, 10) },
@@ -85,15 +89,29 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const productId = parseInt(req.params.id, 10);
-    const inTemplate = await prisma.templateItem.count({ where: { productId } });
-    if (inTemplate > 0) {
-      return res.status(400).json({
-        error: `Продукт используется в ${inTemplate} шаблон(ах). Сначала удалите его из шаблонов.`
-      });
+    if (!Number.isInteger(productId) || productId <= 0) {
+      return res.status(400).json({ error: 'Некорректный ID продукта.' });
     }
-    await prisma.product.delete({ where: { id: productId } });
-    res.json({ ok: true });
+
+    const archived = await prisma.$transaction(async (tx) => {
+      const product = await tx.product.findUnique({ where: { id: productId } });
+      if (!product) return false;
+      if (!product.isActive) return true; // Idempotent archive.
+
+      // Remove the product only from live configuration. GIH records and
+      // monthly-check rows are retained as historical data.
+      await tx.templateItem.deleteMany({ where: { productId } });
+      await tx.roomCustom.deleteMany({ where: { productId } });
+      await tx.replacementItem.deleteMany({ where: { productId } });
+      await tx.roomProductStatus.deleteMany({ where: { productId } });
+      await tx.product.update({ where: { id: productId }, data: { isActive: false } });
+      return true;
+    });
+
+    if (!archived) return res.status(404).json({ error: 'Продукт не найден.' });
+    res.json({ ok: true, archived: true });
   } catch (err) {
+    console.error('ARCHIVE product error:', err);
     res.status(500).json({ error: err.message });
   }
 });
