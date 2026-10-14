@@ -20,7 +20,7 @@ current_branch="$(git branch --show-current)"
 [[ "$current_branch" == "$DEPLOY_BRANCH" ]] || fail "Expected branch $DEPLOY_BRANCH, found '$current_branch'. Refusing to switch branches automatically."
 
 log "Fetching origin/$DEPLOY_BRANCH"
-git fetch --prune origin "$DEPLOY_BRANCH"
+git fetch origin "$DEPLOY_BRANCH"
 target_sha="$(git rev-parse "origin/$DEPLOY_BRANCH")"
 current_sha="$(git rev-parse HEAD)"
 [[ "$current_sha" == "$target_sha" || "$(git merge-base "$current_sha" "$target_sha")" == "$current_sha" ]] || fail "Server checkout is not a fast-forward ancestor of the deployment ref. Resolve repository state manually; no reset was performed."
