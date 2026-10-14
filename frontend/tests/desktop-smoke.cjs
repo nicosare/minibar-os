@@ -132,7 +132,7 @@ const targets = {
     const url = new URL(request.url());
     const path = url.pathname.replace(/^\/minibar-os\/api/, '') || '/';
     const method = request.method();
-    apiCalls.push({ path, method });
+    apiCalls.push({ path, method, query: url.searchParams.toString() });
 
     if (path === '/events') {
       await route.abort();
@@ -369,10 +369,16 @@ const targets = {
     await roomInput.fill('500');
     const recentStrip = page.locator('#gih-room-recent');
     await recentStrip.waitFor({ state: 'visible', timeout: 5000 });
-    await page.waitForFunction(() => {
-      const element = document.querySelector('#gih-room-recent-items');
-      return element && !element.innerText.includes('Загрузка истории…');
-    });
+    try {
+      await page.waitForFunction(() => {
+        const element = document.querySelector('#gih-room-recent-items');
+        return element && !element.innerText.includes('Загрузка истории…');
+      }, null, { timeout: 5000 });
+    } catch (error) {
+      console.log('DEBUG GIH recent history text: ' + await page.locator('#gih-room-recent-items').innerText());
+      console.log('DEBUG room-history API calls: ' + JSON.stringify(apiCalls.filter(call => call.path === '/checks/history')));
+      throw error;
+    }
     const recentText = await page.locator('#gih-room-recent-items').innerText();
     assert.match(recentText, /\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}/,
       'every history record should show its date and time');
