@@ -1,543 +1,785 @@
-const assert = require('node:assert/strict');
-const { chromium } = require('playwright');
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MiniBar OS</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.0/index.css" />
+<link rel="stylesheet" href="styles.css??v=m82" />
+<link rel="stylesheet" href="design-system.css??v=ds7" />
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body class="antialiased">
 
-const product = {
-  id: 1,
-  name: 'Вода',
-  price: 150,
-  category: 'Напитки',
-  volume: 0.5,
-  unit: 'л',
-  emoji: '💧',
-  bgColor: 'blue',
-  hasExpiry: true
-};
+<div id="app-shell" class="app-shell">
+  <!-- Sidebar -->
+  <aside class="sidebar bg-white border-r border-slate-200 flex flex-col is-expanded">
+    <div class="p-5 border-b border-slate-100">
+      <button type="button" class="sidebar-brand flex items-center gap-2 w-full text-left" aria-label="Свернуть/развернуть меню" data-sidebar-toggle>
+        <span class="sidebar-brand-icon w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0 relative">
+          <i data-lucide="box" class="sidebar-brand-main-icon w-5 h-5 text-white"></i>
+          <i data-lucide="chevron-left" class="sidebar-brand-toggle-icon w-4 h-4 text-white"></i>
+        </span>
+        <span class="sidebar-brand-text font-bold text-slate-900 whitespace-nowrap">MiniBar OS</span>
+      </button>
+    </div>
+    <nav class="flex-1 p-3 overflow-y-auto scrollbar">
+      <!-- Обзор -->
+      <a data-route="dashboard" data-accent="indigo" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-pointer">
+        <i data-lucide="layout-dashboard" class="nav-icon w-4 h-4 text-slate-500"></i>
+        <span>Обзор</span>
+      </a>
+    
+      <div class="my-2 border-t border-slate-100"></div>
+    
+      <!-- Акцизы и Сроки -->
+      <a data-route="excise" data-accent="amber" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-pointer">
+        <i data-lucide="stamp" class="nav-icon w-4 h-4 text-slate-500"></i>
+        <span>Акцизы</span>
+        <span id="excise-badge" class="ml-auto badge badge-warning hidden">0</span>
+      </a>
+      <a data-route="deadlines" data-accent="rose" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-pointer">
+        <i data-lucide="calendar" class="nav-icon w-4 h-4 text-slate-500"></i>
+        <span>Сроки</span>
+        <span id="deadlines-badge" class="ml-auto badge badge-danger hidden">0</span>
+      </a>
+    
+      <div class="my-2 border-t border-slate-100"></div>
+    
+      <!-- Операции с номерами -->
+      <a data-route="arrivals" data-accent="emerald" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-pointer">
+        <i data-lucide="plane-landing" class="nav-icon w-4 h-4 text-slate-500"></i>
+        <span>Заезды</span>
+        <span id="arrivals-badge" class="ml-auto badge badge-success hidden">0</span>
+      </a>
+      <a data-route="departures" data-accent="sky" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-pointer">
+        <i data-lucide="plane-takeoff" class="nav-icon w-4 h-4 text-slate-500"></i>
+        <span>Выезды</span>
+        <span id="departures-badge" class="ml-auto badge badge-info hidden">0</span>
+      </a>
+      <a data-route="gih" data-accent="violet" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-pointer">
+        <i data-lucide="clipboard-check" class="nav-icon w-4 h-4 text-slate-500"></i>
+        <span>GIH</span>
+        <span id="gih-badge" class="ml-auto badge badge-primary hidden">0</span>
+      </a>
+    
+      <div class="my-2 border-t border-slate-100"></div>
+    
+      <!-- Отчёты -->
+      <a data-route="history" data-accent="slate" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-pointer">
+        <i data-lucide="history" class="nav-icon w-4 h-4 text-slate-500"></i>
+        <span>История</span>
+        <span id="history-badge" class="ml-auto badge badge-muted hidden">0</span>
+      </a>
+      <a data-route="empty" data-accent="pink" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-pointer">
+        <i data-lucide="alert-circle" class="nav-icon w-4 h-4 text-slate-500"></i>
+        <span>Пустые</span>
+        <span id="empty-badge" class="ml-auto badge badge-rose hidden">0</span>
+      </a>
+    
+      <div class="my-2 border-t border-slate-100"></div>
+    
+      <!-- Инструменты -->
+      <a data-route="calculator" data-accent="teal" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-pointer">
+        <i data-lucide="calculator" class="nav-icon w-4 h-4 text-slate-500"></i>
+        <span>Калькулятор</span>
+      </a>
+      <a data-route="inventory" data-accent="blue" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-pointer">
+        <i data-lucide="clipboard-list" class="nav-icon w-4 h-4 text-slate-500"></i>
+        <span>Инвентаризация</span>
+        <span id="inventory-badge" class="ml-auto badge badge-blue hidden">0</span>
+      </a>
+    
+      <div class="my-2 border-t border-slate-100"></div>
+    
+      <!-- Настройки -->
+      <a data-route="settings" data-accent="zinc" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-pointer">
+        <i data-lucide="settings" class="nav-icon w-4 h-4 text-slate-500"></i>
+        <span>Настройки</span>
+      </a>
+    </nav>
+  </aside>
 
-const rooms = [{
-  id: 101,
-  number: 500,
-  floor: 5,
-  category: 'standard',
-  expiryStatus: 'neutral',
-  template: { items: [{ qty: 5, productId: product.id, product: { ...product, name: 'Минеральная вода газированная 0,5 литра' } }] }
-}];
+  <!-- Main Content -->
+  <main class="flex-1 overflow-y-auto scrollbar">
 
-const makeGihDraft = id => ({
-  id,
-  roomId: 101,
-  type: 'gih',
-  status: 'draft',
-  checkDate: new Date().toISOString(),
-  createdAt: new Date().toISOString(),
-  gihRoomStatus: null,
-  notes: null,
-  room: { number: 500 },
-  gihItems: [{
-    id: id * 10 + 1,
-    productId: product.id,
-    itemStatus: 'pending',
-    productName: product.name,
-    productPrice: product.price,
-    productVolume: product.volume,
-    productUnit: product.unit,
-    productEmoji: product.emoji,
-    productBgColor: product.bgColor,
-    productCategory: product.category,
-    product
-  }]
-});
-let gihChecks = [makeGihDraft(701), makeGihDraft(702)];
-const makeGihHistoryRecord = (id, statuses, names, mode = null) => ({
-  id,
-  roomId: 101,
-  type: 'gih',
-  status: 'done',
-  checkDate: new Date(Date.now() - id * 1000).toISOString(),
-  createdAt: new Date(Date.now() - id * 1000).toISOString(),
-  gihRoomStatus: mode,
-  notes: null,
-  room: { number: 500 },
-  gihItems: statuses.map((itemStatus, index) => {
-    const itemProduct = { ...product, id: id * 100 + index, name: names[index] };
-    return {
-      id: id * 1000 + index,
-      productId: itemProduct.id,
-      itemStatus,
-      productName: itemProduct.name,
-      productPrice: itemProduct.price,
-      productVolume: itemProduct.volume,
-      productUnit: itemProduct.unit,
-      productEmoji: itemProduct.emoji,
-      productBgColor: itemProduct.bgColor,
-      productCategory: itemProduct.category,
-      product: itemProduct
-    };
-  })
-});
-const gihHistoryRecords = [
-  makeGihHistoryRecord(601, ['replenished', 'in_place', 'out'], ['Кола', 'Пеппер', 'Боржоми']),
-  makeGihHistoryRecord(602, ['replenished', 'not_replenished', 'out'], ['Вода', 'Сок', 'Тоник']),
-  makeGihHistoryRecord(603, ['not_replenished', 'out', 'in_place'], ['Кола', 'Пеппер', 'Боржоми'])
-];
-const roomHistoryRecords = [
-  { ...makeGihHistoryRecord(1, ['replenished', 'in_place', 'out'], ['Кола', 'Пеппер', 'Боржоми']), notes: 'Проверить остатки перед выездом' },
-  makeGihHistoryRecord(2, ['out', 'out'], ['Кола', 'Вода'], 'all_out'),
-  {
-    id: 3,
-    roomId: 101,
-    type: 'emptied',
-    status: 'done',
-    checkDate: new Date(Date.now() - 3000).toISOString(),
-    createdAt: new Date(Date.now() - 3000).toISOString(),
-    room: { number: 500 },
-    notes: null,
-    gihItems: []
-  }
-];
-const monthProducts = [{ ...product, monthChecks: [] }];
-const stats = {
-  currentYear: new Date().getFullYear(),
-  currentMonth: new Date().getMonth() + 1,
-  current: [],
-  previous: []
-};
-const targets = {
-  today: { target: 1, processed: 0, percentage: 0 },
-  tomorrow: { target: 1, daysLeft: 10 },
-  summary: { badCount: 0, totalRooms: 1, goodCount: 0 }
-};
+<div class="workspace page-container">
+      
+      <!-- DASHBOARD -->
+      <section id="view-dashboard" class="tab-content fade-in">
+        <div class="mb-8">
+          <h1 class="text-3xl font-bold text-slate-900">Обзор</h1>
+          </div>
 
-(async () => {
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
-  const pageErrors = [];
-  const apiCalls = [];
-  let savedPeriodPayload = null;
-  const savedGihPayloads = [];
-  const savedGihCreates = [];
-  let designSystemResponse = null;
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div class="bg-white rounded-xl p-6 border border-slate-100">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-semibold text-slate-900">Выручка за сегодня</h3>
+              </div>
+            <div class="text-3xl font-bold text-slate-900" id="dashboard-revenue">₽ 0</div>
+            </div>
+          <div class="bg-white rounded-xl p-6 border border-slate-100">
+            <h3 class="font-semibold text-slate-900 mb-4">Топ продукты минибаров</h3>
+            <div class="space-y-3" id="dashboard-top-products">
+              <div class="text-center py-6 text-slate-400 text-sm">Загрузка...</div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl p-6 border border-slate-100">
+            <h3 class="font-semibold text-slate-900 mb-4">Последние события</h3>
+            <div class="space-y-3" id="dashboard-recent-events">
+              <div class="text-center py-6 text-slate-400 text-sm">Загрузка...</div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-  page.on('pageerror', error => pageErrors.push(error.message));
-  page.on('response', response => {
-    if (new URL(response.url()).pathname.endsWith('/design-system.css')) {
-      designSystemResponse = {
-        status: response.status(),
-        contentType: response.headers()['content-type'] || ''
-      };
-    }
-  });
+      <!-- EXCISE -->
+<section id="view-excise" class="tab-content fade-in">
+  
+  <!-- Заголовок с кнопкой -->
+  <div class="flex items-start justify-between mb-6">
+    <h1 class="text-2xl font-bold text-slate-900">Акцизы</h1>
+    <div class="flex gap-2">
+      <button id="excise-copy-all-btn" class="btn btn-outline">
+        <i data-lucide="copy" class="w-4 h-4"></i> Копировать все
+      </button>
+      <button id="excise-clear-all-btn" class="btn btn-outline" style="color: var(--danger);">
+        <i data-lucide="trash-2" class="w-4 h-4"></i> Очистить все
+      </button>
+    </div>
+  </div>
 
-  await page.route('**/minibar-os/api/**', async route => {
-    const request = route.request();
-    const url = new URL(request.url());
-    const path = url.pathname.replace(/^\/minibar-os\/api/, '') || '/';
-    const method = request.method();
-    apiCalls.push({ path, method });
+  <!-- Статистика (3 блока с градиентами) -->
+  <div class="grid grid-cols-3 gap-4 mb-6 excise-stats-grid">
+    <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl p-5 text-white shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-medium uppercase tracking-wider opacity-90">Всего</span>
+        <i data-lucide="layers" class="w-5 h-5 opacity-80"></i>
+      </div>
+      <div class="text-3xl font-bold" id="excise-stat-total">0</div>
+      <div class="text-xs opacity-80 mt-1">акцизных марок</div>
+    </div>
+    <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-5 text-white shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-medium uppercase tracking-wider opacity-90">Валидные</span>
+        <i data-lucide="check-circle" class="w-5 h-5 opacity-80"></i>
+      </div>
+      <div class="text-3xl font-bold" id="excise-stat-valid">0</div>
+      <div class="text-xs opacity-80 mt-1" id="excise-stat-valid-pct">0%</div>
+    </div>
+    <div class="bg-gradient-to-br from-rose-500 to-rose-600 rounded-xl p-5 text-white shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-medium uppercase tracking-wider opacity-90">Невалидные</span>
+        <i data-lucide="alert-circle" class="w-5 h-5 opacity-80"></i>
+      </div>
+      <div class="text-3xl font-bold" id="excise-stat-invalid">0</div>
+      <div class="text-xs opacity-80 mt-1" id="excise-stat-invalid-pct">0%</div>
+    </div>
+  </div>
 
-    if (path === '/events') {
-      await route.abort();
-      return;
-    }
+  <!-- Поле ввода -->
+  <div class="bg-white rounded-xl p-5 border border-slate-100 shadow-sm mb-6">
+    <div class="flex gap-3">
+      <div class="flex-1 relative">
+        <i data-lucide="scan-line" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+        <input 
+          type="text" 
+          id="excise-input"
+          placeholder="Введите или отсканируйте акцизную марку..."
+          class="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          autocomplete="off"
+        />
+      </div>
+      </div>
+  </div>
 
-    let body = {};
-    if (path === '/products' && method === 'GET') {
-      body = [product];
-    } else if (path === '/rooms' && method === 'GET') {
-      body = rooms;
-    } else if (/^\/rooms\/\d+\/product-statuses$/.test(path) && method === 'GET') {
-      body = [];
-    } else if (/^\/rooms\/\d+\/product-statuses$/.test(path)) {
-      body = { success: true };
-    } else if (path === '/deadlines/targets') {
-      body = targets;
-    } else if (path === '/deadlines/stats') {
-      body = stats;
-    } else if (path === '/deadlines/month-products/manage' && method === 'GET') {
-      body = monthProducts;
-    } else if (path === '/deadlines/month-products' && method === 'GET') {
-      body = [];
-    } else if (/^\/deadlines\/month-products\/\d+$/.test(path) && method === 'PUT') {
-      savedPeriodPayload = request.postDataJSON();
-      body = { success: true };
-    } else if (path === '/deadlines/replacement-summary') {
-      body = { items: [], totalQty: 0 };
-    } else if (path === '/checks/history') {
-      const operation = url.searchParams.get('operation');
-      if (operation === 'daily') {
-        body = {
-          items: [{
-            id: 51,
-            roomId: 101,
-            type: 'check',
-            status: 'done',
-            checkDate: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            room: { number: 500 },
-            notes: 'Тестовая запись'
-          }],
-          total: 1
-        };
-      } else if (operation === 'room') {
-        body = { items: roomHistoryRecords, total: roomHistoryRecords.length };
-      } else if (operation === 'gih') {
-        body = { items: gihHistoryRecords, total: gihHistoryRecords.length };
-      } else {
-        body = { items: [], total: 0 };
-      }
-    } else if (path === '/checks' && method === 'POST') {
-      const payload = request.postDataJSON();
-      savedGihCreates.push(payload);
-      body = { id: 703, ...payload, createdAt: new Date().toISOString(), checkDate: new Date().toISOString(), room: { number: 500 } };
-    } else if (path === '/checks' && method === 'GET' && url.searchParams.get('type') === 'gih') {
-      body = gihChecks;
-    } else if (/^\/checks\/\d+$/.test(path) && method === 'PUT') {
-      const id = Number(path.split('/').pop());
-      const payload = request.postDataJSON();
-      savedGihPayloads.push({ id, payload });
-      const itemUpdates = new Map((payload.pills || []).map(item => [Number(item.id), item.itemStatus]));
-      gihChecks = gihChecks.map(check => check.id === id ? {
-        ...check,
-        status: payload.status === undefined ? check.status : payload.status,
-        gihRoomStatus: payload.gihRoomStatus === undefined ? check.gihRoomStatus : payload.gihRoomStatus,
-        notes: payload.notes === undefined ? check.notes : payload.notes,
-        checkDate: payload.status === 'done' ? new Date().toISOString() : check.checkDate,
-        gihItems: check.gihItems.map(item => itemUpdates.has(item.id)
-          ? { ...item, itemStatus: itemUpdates.get(item.id) }
-          : item)
-      } : check);
-      body = gihChecks.find(check => check.id === id) || { success: true };
-      if (payload.gihRoomStatus === 'not_checked' && body && body.id) {
-        const archived = { ...body, status: 'done', gihRoomStatus: 'not_checked' };
-        if (!gihHistoryRecords.some(check => check.id === id)) gihHistoryRecords.push(archived);
-        if (!roomHistoryRecords.some(check => check.id === id)) roomHistoryRecords.push(archived);
-      }
-    } else if (path === '/checks') {
-      body = [];
-    } else if (path === '/excises' || path === '/lists' || path === '/templates') {
-      body = [];
-    }
+  <!-- Сетка акцизов в стиле номеров -->
+  <div id="excise-list-container" class="bg-white rounded-xl p-5 border border-slate-100 shadow-sm">
+    <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+      <div class="flex items-center gap-2">
+        <i data-lucide="list" class="w-4 h-4 text-slate-500"></i>
+        <h3 class="font-semibold text-slate-900 text-sm">Список акцизов</h3>
+      </div>
+      <span class="text-xs text-slate-500" id="excise-list-count">0 марок</span>
+    </div>
+    <div id="excise-list" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+      <!-- Карточки акцизов будут рендериться здесь -->
+    </div>
+    <div id="excise-empty-state" class="hidden text-center py-12 text-slate-400">
+      <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
+      <p class="text-sm">Нет добавленных акцизов</p>
+      
+    </div>
+  </div>
+</section>
 
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify(body)
-    });
-  });
+      <!-- ARRIVALS -->
+<section id="view-arrivals" class="tab-content fade-in">
+  <div class="flex items-start justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900">Заезды</h1>
+      </div>
+</div>
 
-  try {
-    await page.goto('http://127.0.0.1:8080/', { waitUntil: 'domcontentloaded' });
-    await page.locator('.sidebar').waitFor({ state: 'visible', timeout: 10000 });
-    await page.waitForFunction(() => Boolean(window.App && window.api), null, { timeout: 10000 });
+  <div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-xl p-5 border border-slate-100">
+      <div class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Всего заездов</div>
+      <div class="text-2xl font-bold" id="arrivals-stat-total">0</div>
+    </div>
+    <div class="bg-white rounded-xl p-5 border border-slate-100">
+      <div class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">VIP (Люкс)</div>
+      <div class="text-2xl font-bold text-indigo-600" id="arrivals-stat-vip">0</div>
+    </div>
+    <div class="bg-white rounded-xl p-5 border border-slate-100">
+      <div class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Стандарт</div>
+      <div class="text-2xl font-bold" id="arrivals-stat-standard">0</div>
+    </div>
+    <div class="bg-white rounded-xl p-5 border border-slate-100">
+      <div class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Этаж 5-10</div>
+      <div class="text-2xl font-bold" id="arrivals-stat-low-floors">0</div>
+    </div>
+  </div>
 
-    assert.ok(designSystemResponse, 'design-system.css must be requested by the browser');
-    assert.equal(designSystemResponse.status, 200, 'design-system.css must be served successfully');
-    assert.match(designSystemResponse.contentType, /text\/css/i, 'design-system.css must be served as CSS');
-    assert.ok(parseFloat(await page.locator('.sidebar').evaluate(el => getComputedStyle(el).width)) > 200,
-      'expanded desktop sidebar should have a usable width');
+  <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+    <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+      <h3 class="font-semibold text-slate-900">Список заездов</h3>
+      <input type="text" id="arrivals-search" placeholder="Поиск по номеру..." class="px-3 py-2 border border-slate-200 rounded-lg text-sm w-64" />
+    </div>
+    <div id="arrivals-list-container">
+      <div class="p-8 text-center text-slate-400">
+        <i data-lucide="plane-landing" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
+        <p>Загрузка заездов...</p>
+      </div>
+    </div>
+  </div>
+</section>
 
-    const sidebar = page.locator('.sidebar');
-    const sidebarToggle = page.locator('[data-sidebar-toggle]');
-    const sidebarArrow = page.locator('.sidebar-brand-toggle-icon');
-    await sidebarToggle.hover();
-    await page.waitForTimeout(280);
-    const expandedArrowMatrix = await sidebarArrow.evaluate(el => getComputedStyle(el).transform);
-    await sidebarToggle.click();
-    await page.waitForTimeout(300);
-    assert.ok(parseFloat(await sidebar.evaluate(el => getComputedStyle(el).width)) < 100,
-      'collapsed sidebar should animate to its narrow width');
-    const collapsedArrowMatrix = await sidebarArrow.evaluate(el => getComputedStyle(el).transform);
-    assert.notEqual(collapsedArrowMatrix, expandedArrowMatrix,
-      'sidebar expansion arrow should rotate when collapsed');
-    await sidebarToggle.click();
-    await page.waitForTimeout(300);
-    assert.ok(parseFloat(await sidebar.evaluate(el => getComputedStyle(el).width)) > 200,
-      'sidebar should expand smoothly back to its full width');
+<!-- DEPARTURES -->
+<section id="view-departures" class="tab-content fade-in">
+  <div class="flex items-start justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900">Выезды</h1>
+      </div>
+</div>
 
-    console.log('PASS: desktop shell, design-system.css and sidebar motion load correctly');
+  <div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-xl p-5 border border-slate-100">
+      <div class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Всего выездов</div>
+      <div class="text-2xl font-bold" id="departures-stat-total">0</div>
+    </div>
+    <div class="bg-white rounded-xl p-5 border border-slate-100">
+      <div class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Проверено</div>
+      <div class="text-2xl font-bold text-emerald-600" id="departures-stat-checked">0</div>
+    </div>
+    <div class="bg-white rounded-xl p-5 border border-slate-100">
+      <div class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Ожидают</div>
+      <div class="text-2xl font-bold text-amber-600" id="departures-stat-pending">0</div>
+    </div>
+    <div class="bg-white rounded-xl p-5 border border-slate-100">
+      <div class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Люкс номера</div>
+      <div class="text-2xl font-bold text-indigo-600" id="departures-stat-lux">0</div>
+    </div>
+  </div>
 
-    await page.locator('.nav-item[data-route="calculator"]').click();
-    const calcDrawer = page.locator('#calc-drawer');
-    await calcDrawer.waitFor({ state: 'visible', timeout: 5000 });
-    assert.equal(await calcDrawer.getAttribute('aria-hidden'), 'false', 'calculator drawer should open');
-    assert.equal(
-      await page.locator('#cd-close').evaluate(el => Math.round(el.getBoundingClientRect().width)),
-      36,
-      'calculator close control should use the shared 36px size'
-    );
-    const calcProduct = page.locator('#cd-grid .cd-product[data-product-id="1"]');
-    await calcProduct.waitFor({ state: 'visible', timeout: 10000 });
-    await calcProduct.click();
-    await page.locator('#cd-grid .cd-badge').waitFor({ state: 'visible', timeout: 3000 });
-    assert.match(await page.locator('#cd-count').innerText(), /1 позици/);
-    assert.match(await page.locator('#cd-total').innerText(), /150/);
-    const calcMotion = await calcDrawer.evaluate(el => ({
-      properties: getComputedStyle(el).transitionProperty.split(',').map(value => value.trim()),
-      duration: getComputedStyle(el).transitionDuration
-    }));
-    assert.ok(calcMotion.properties.includes('min-width'),
-      'drawer min-width must transition with width and flex-basis');
-    assert.match(calcMotion.duration, /0\.2[5-9]s|0\.3s/,
-      'drawer should use a non-zero, smooth transition duration');
-    await page.locator('.nav-item[data-route="deadlines"]').click();
-    await page.waitForFunction(() => document.getElementById('view-deadlines')?.classList.contains('active'));
-    assert.equal(await calcDrawer.getAttribute('aria-hidden'), 'false',
-      'calculator drawer must remain open when switching tabs');
-    await page.keyboard.press('Escape');
-    await page.waitForFunction(() => document.querySelector('#calc-drawer')?.getAttribute('aria-hidden') === 'true');
-    console.log('PASS: calculator adds a product, updates total and closes with Escape');
+  <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+    <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+      <h3 class="font-semibold text-slate-900">Номера к выезду</h3>
+      <input type="text" id="departures-search" placeholder="Поиск по номеру..." class="px-3 py-2 border border-slate-200 rounded-lg text-sm w-64" />
+    </div>
+    <div id="departures-list-container">
+      <div class="p-8 text-center text-slate-400">
+        <i data-lucide="plane-takeoff" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
+        <p>Загрузка выездов...</p>
+      </div>
+    </div>
+  </div>
+</section>
 
-    await page.locator('.nav-item[data-route="inventory"]').click();
-    await page.locator('#inventory-summary-toggle').waitFor({ state: 'visible', timeout: 5000 });
-    await page.locator('#inventory-summary-toggle').click();
-    const invDrawer = page.locator('#inv-drawer');
-    await invDrawer.waitFor({ state: 'visible', timeout: 5000 });
-    await page.waitForFunction(() => document.querySelector('#inv-drawer')?.getAttribute('aria-hidden') === 'false');
-    await page.keyboard.press('Escape');
-    await page.waitForFunction(() => document.querySelector('#inv-drawer')?.getAttribute('aria-hidden') === 'true');
-    console.log('PASS: inventory summary drawer opens and closes with Escape');
+<!-- GIH -->
+<section id="view-gih" class="tab-content fade-in">
+  <div class="gih-head">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900 gih-title">GIH <span id="gih-title-date" class="gih-title-date"></span></h1>
+      </div>
+  </div>
+  <div id="gih-factory" class="gih-factory"></div>
+  <div id="gih-drafts" class="gih-zone"></div>
+  <div id="gih-dones" class="gih-zone"></div>
+</section>
 
-    await page.locator('.nav-item[data-route="deadlines"]').click();
-    await page.locator('#deadlines-month-products-btn').waitFor({ state: 'visible', timeout: 5000 });
-    await page.locator('#deadlines-month-products-btn').click();
-    await page.locator('#deadline-month-modal-backdrop:not(.hidden)').waitFor({ state: 'visible', timeout: 5000 });
-    assert.equal(
-      await page.locator('#deadline-month-modal-close').evaluate(el => Math.round(el.getBoundingClientRect().width)),
-      36,
-      'modal close control should use the shared 36px size'
-    );
-    const periodInput = page.locator('.month-check-input').first();
-    await periodInput.waitFor({ state: 'visible', timeout: 5000 });
-    await periodInput.fill('1126');
-    assert.equal(await periodInput.inputValue(), '11.26', 'month input should format MMYY as MM.YY');
-    await page.locator('.month-check-save-btn').first().click();
-    for (let attempt = 0; attempt < 30 && !savedPeriodPayload; attempt += 1) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
-    assert.ok(savedPeriodPayload, 'saving a month period should issue a PUT request');
-    assert.equal(savedPeriodPayload.period, '11.26', 'the API payload should contain the formatted period');
-    await page.locator('#deadline-month-modal-close').click();
-    await page.waitForFunction(() => document.getElementById('deadline-month-modal-backdrop')?.classList.contains('hidden'));
+<!-- INVENTORY -->
+<section id="view-inventory" class="tab-content fade-in">
+<div class="flex items-start justify-between mb-6">
+<h1 class="text-2xl font-bold text-slate-900">Инвентаризация</h1><button id="inventory-summary-toggle" class="btn btn-outline inv-summary-toggle"><i data-lucide="clipboard-list" class="w-4 h-4"></i> Сводка <span id="inventory-toggle-count" class="inv-toggle-count hidden">0</span></button>
+</div>
+<!-- Вкладки категорий скрыты: порядок берётся из настроек -->
+<div class="cat-tabs blue" id="inventory-tabs"></div>
 
-    await page.locator('.room-cell').first().waitFor({ state: 'visible', timeout: 5000 });
-    await page.locator('.room-cell').first().click();
-    await page.locator('#deadline-modal-backdrop:not(.hidden)').waitFor({ state: 'visible', timeout: 5000 });
-    assert.equal((await page.locator('#deadline-modal-room-number').innerText()).trim(), '500');
-    await page.locator('#deadline-modal-backdrop').getByRole('button', { name: /В порядке/ }).click();
-    await page.waitForFunction(() => document.getElementById('deadline-modal-backdrop')?.classList.contains('hidden'));
-    assert.ok(apiCalls.some(call => call.path === '/rooms/101/product-statuses' && call.method === 'DELETE'),
-      'setting a room to valid should send a clear-status request');
-    console.log('PASS: expiry periods format and save; room status editor works with a mock API');
+  <div class="split-layout">
+    <!-- Продукты -->
+    <div id="inventory-products-container" class="products-grid"></div>
 
-    await page.locator('.nav-item[data-route="history"]').click();
-    await page.locator('#history-list-container').waitFor({ state: 'visible', timeout: 5000 });
-    await page.locator('.history-records-table tbody tr').first().waitFor({ state: 'visible', timeout: 5000 });
-    assert.equal((await page.locator('.history-records-table thead th').first().innerText()).trim().toLocaleLowerCase('ru-RU'), 'время',
-      'history should show only a time column because rows are grouped by day');
-    assert.match((await page.locator('.history-records-table tbody tr').first().locator('td').first().innerText()).trim(),
-      /^\d{2}:\d{2}$/, 'history timestamp should contain the time without the date');
-    await page.evaluate(() => window.App.historyModule.openRoomHistory(101, 500));
-    const roomHistory = page.locator('#room-history-panel');
-    await page.waitForFunction(() => document.querySelector('#room-history-panel')?.getAttribute('aria-hidden') === 'false');
-    assert.equal(
-      await page.locator('[data-room-history-close]').evaluate(el => Math.round(el.getBoundingClientRect().width)),
-      36,
-      'room history close control should use the shared 36px size'
-    );
-    assert.match(await page.locator('#room-history-title').innerText(), /500/);
-    assert.doesNotMatch(await roomHistory.innerText(), /По продуктам/,
-      'room history should not show the redundant “По продуктам” label for GIH');
-    await page.locator('.nav-item[data-route="deadlines"]').click();
-    await page.waitForFunction(() => document.getElementById('view-deadlines')?.classList.contains('active'));
-    assert.equal(await roomHistory.getAttribute('aria-hidden'), 'false',
-      'room history drawer must remain open when switching tabs');
-    await page.locator('[data-room-history-close]').click();
-    await page.waitForFunction(() => document.querySelector('#room-history-panel')?.getAttribute('aria-hidden') === 'true');
-    console.log('PASS: room-history panel opens, shows the selected room and closes');
+    <!-- Сводка (десктоп) -->
+    <aside class="side-panel">
+      <div class="side-panel-header">
+        <span class="side-panel-title">Сводка</span>
+        <button id="inventory-clear-btn" class="btn btn-ghost btn-sm">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Очистить
+        </button>
+      </div>
+      <div id="inventory-summary-empty" class="side-panel-empty">
+        <i data-lucide="clipboard-list"></i>
+        <p>Нет данных</p>
+      </div>
+      <div id="inventory-summary-list" class="side-panel-body hidden"></div><div class="side-panel-footer"><div class="total-row"><span class="total-row-label">Позиций</span><span class="total-row-value" id="inventory-total-count">0</span></div></div></aside>
+  </div>
 
-    await page.locator('.nav-item[data-route="gih"]').click();
-    const gihFactory = page.locator('#gih-factory');
-    await gihFactory.waitFor({ state: 'visible', timeout: 5000 });
-    assert.equal(await page.locator('#gih-new-btn').count(), 0,
-      'GIH creator should be permanently available without a “New entry” button');
-    assert.doesNotMatch(await gihFactory.innerText(), /позици|шт/i,
-      'the creator footer should not show product-position or piece counts');
-    const roomInput = page.locator('#gih-finput');
-    await roomInput.fill('5');
-    assert.equal(await page.locator('.gih-ac-item, .gih-ac-list').count(), 0,
-      'typing a partial room number must not show room suggestions');
-    await roomInput.fill('500');
-    const recentStrip = page.locator('#gih-room-recent');
-    await recentStrip.waitFor({ state: 'visible', timeout: 5000 });
-    await page.waitForFunction(() => document.querySelector('#gih-room-recent-items')?.innerText.includes('Пополнено: Кола'));
-    const recentText = await page.locator('#gih-room-recent-items').innerText();
-    assert.match(recentText, /\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}/,
-      'every history record should show its date and time');
-    assert.match(recentText, /Пополнено: Кола/);
-    assert.match(recentText, /На месте: Пеппер/);
-    assert.match(recentText, /Выложили: Боржоми/);
-    assert.match(recentText, /GIH · Всё выложили/);
-    assert.doesNotMatch(recentText, /Режим:/, 'mode history should not repeat the word “Режим”');
-    assert.match(recentText, /Опустошение/);
-    assert.match(recentText, /Проверить остатки перед выездом/,
-      'inline room history should also display a saved record comment');
-    assert.equal(await recentStrip.locator('.gih-room-recent-entry').count(), 3,
-      'the latest three records should each occupy their own row');
-    assert.equal(await recentStrip.locator('.gih-room-recent-entry').first().evaluate(el => getComputedStyle(el).display), 'block',
-      'recent records should be stacked vertically');
-    assert.ok(await recentStrip.evaluate(el => el.getBoundingClientRect().height < 120),
-      'the recent-history strip should remain compact and unobtrusive');
-    await recentStrip.locator('[data-act="open-room-history"]').click();
-    await page.waitForFunction(() => document.querySelector('#room-history-panel')?.getAttribute('aria-hidden') === 'false');
-    assert.match(await page.locator('#room-history-title').innerText(), /500/);
-    await page.locator('[data-room-history-close]').click();
-    await page.waitForFunction(() => document.querySelector('#room-history-panel')?.getAttribute('aria-hidden') === 'true');
+  
+</section>
 
-    const fullProductName = gihFactory.locator('.gih-fitem-name');
-    await fullProductName.waitFor({ state: 'visible', timeout: 5000 });
-    assert.equal((await fullProductName.innerText()).trim(), 'Минеральная вода газированная 0,5 литра',
-      'the complete product name should remain visible rather than being truncated');
-    const productNameStyles = await fullProductName.evaluate(el => ({
-      whiteSpace: getComputedStyle(el).whiteSpace,
-      textOverflow: getComputedStyle(el).textOverflow,
-      overflow: getComputedStyle(el).overflow
-    }));
-    assert.equal(productNameStyles.whiteSpace, 'normal', 'product names should wrap across lines');
-    assert.equal(productNameStyles.textOverflow, 'clip', 'product names should not use ellipsis');
-    assert.equal(productNameStyles.overflow, 'visible', 'product-name overflow should not be hidden');
+      <!-- DEADLINES -->
+<section id="view-deadlines" class="tab-content fade-in">
+  <div class="flex items-start justify-between mb-6">
+    <h1 class="text-2xl font-bold text-slate-900">Сроки годности</h1>
+    <div class="flex items-center gap-2">
+      <button id="deadlines-month-products-btn" class="btn btn-outline">
+        <i data-lucide="calendar-check" class="w-4 h-4"></i> Добавить сроки
+      </button>
+      <button id="deadlines-reset-all-btn" class="btn btn-outline" style="color: var(--danger);">
+        <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Сбросить все номера
+      </button>
+    </div>
+  </div>
 
-    await gihFactory.locator('.gih-fitem[data-pid="1"]').click();
-    await gihFactory.locator('[data-act="fcreate"]').click();
-    for (let attempt = 0; attempt < 40 && !savedGihCreates.length; attempt += 1) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
-    assert.equal(savedGihCreates.length, 1, 'creating a GIH record should submit it to the API');
-    assert.deepEqual(savedGihCreates[0], {
-      roomId: 101, type: 'gih', status: 'draft', gihItems: [{ productId: 1, qty: 1 }]
-    });
-    await page.waitForFunction(() => document.querySelector('#gih-factory') && !document.querySelector('#gih-factory').classList.contains('hidden') && document.querySelector('#gih-finput')?.value === '');
-    assert.equal(await page.locator('#gih-room-recent').count(), 0,
-      'the creator should reset for the next room after a successful save');
-    console.log('PASS: permanent GIH creator, exact room lookup, thin recent history and reset after create');
+  <!-- Статистика -->
+  <div class="grid grid-cols-4 gap-4 mb-4">
+    <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-5 text-white shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-medium uppercase tracking-wider opacity-90">В порядке</span>
+        <i data-lucide="check-circle" class="w-5 h-5 opacity-80"></i>
+      </div>
+      <div class="text-3xl font-bold" id="stat-valid">0</div>
+      <div class="text-xs opacity-80 mt-1" id="stat-valid-pct">0%</div>
+    </div>
+    <div class="bg-gradient-to-br from-sky-500 to-sky-600 rounded-xl p-5 text-white shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-medium uppercase tracking-wider opacity-90">Пустые</span>
+        <i data-lucide="inbox" class="w-5 h-5 opacity-80"></i>
+      </div>
+      <div class="text-3xl font-bold" id="stat-empty">0</div>
+      <div class="text-xs opacity-80 mt-1" id="stat-empty-pct">0%</div>
+    </div>
+    <div class="bg-gradient-to-br from-rose-500 to-rose-600 rounded-xl p-5 text-white shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-medium uppercase tracking-wider opacity-90">Заменить</span>
+        <i data-lucide="alert-triangle" class="w-5 h-5 opacity-80"></i>
+      </div>
+      <div class="text-3xl font-bold" id="stat-needs-replacement">0</div>
+      <div class="text-xs opacity-80 mt-1" id="stat-needs-pct">0%</div>
+    </div>
+    <div class="bg-gradient-to-br from-slate-500 to-slate-600 rounded-xl p-5 text-white shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-medium uppercase tracking-wider opacity-90">Проверить</span>
+        <i data-lucide="clock" class="w-5 h-5 opacity-80"></i>
+      </div>
+      <div class="text-3xl font-bold" id="stat-neutral">0</div>
+      <div class="text-xs opacity-80 mt-1" id="stat-neutral-pct">0%</div>
+    </div>
+  </div>
 
-    const inPlaceCard = page.locator('#gih-drafts .gih-card[data-did="701"]');
-    await inPlaceCard.waitFor({ state: 'visible', timeout: 5000 });
-    await inPlaceCard.locator('[data-act="mode"][data-mode="all_in_place"]').click();
-    await inPlaceCard.locator('[data-act="save"]').click();
-    for (let attempt = 0; attempt < 40 && !savedGihPayloads.some(entry => entry.id === 701); attempt += 1) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
-    const inPlaceSave = savedGihPayloads.find(entry => entry.id === 701);
-    assert.ok(inPlaceSave, 'saving “Всё на месте” should update the GIH record');
-    assert.deepEqual(inPlaceSave.payload.pills, [{ id: 7011, itemStatus: 'in_place' }],
-      '“Всё на месте” should assign the “На месте” status to every product');
-    const inPlaceDone = page.locator('#gih-dones .gih-card[data-did="701"] .gih-done-body');
-    await inPlaceDone.waitFor({ state: 'visible', timeout: 5000 });
-    assert.match(await inPlaceDone.innerText(), /На месте/);
-    assert.match(await inPlaceDone.innerText(), /Вода/);
-    assert.doesNotMatch(await inPlaceDone.innerText(), /Не размечено/);
-    assert.doesNotMatch(await inPlaceDone.innerText(), /Всё на месте/,
-      'saved GIH cards should show product statuses instead of the “Всё на месте” mode label');
-    assert.equal(await inPlaceCard.locator('[data-act="edit"]').count(), 0,
-      'saved GIH cards must not expose an edit action');
+  <!-- Динамика -->
+  <div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="col-span-3 bg-white rounded-xl p-5 border border-slate-100 shadow-sm">
+  <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center gap-2">
+        <i data-lucide="trending-up" class="w-4 h-4 text-slate-500"></i>
+        <h3 class="font-semibold text-slate-900">Динамика проверок</h3>
+      </div>
+    </div>
+    <!-- Нижний ряд: График + Цели (ДВА ОТДЕЛЬНЫХ БЛОКА) -->
+  
+  <!-- БЛОК 1: График (занимает 3/4 ширины) -->
+    <div id="stat-dynamics" class="h-64">
+      <canvas id="deadlines-chart" class="w-full h-full"></canvas>
+    </div>
+</div>
 
-    const outCard = page.locator('#gih-drafts .gih-card[data-did="702"]');
-    await outCard.waitFor({ state: 'visible', timeout: 5000 });
-    await outCard.locator('[data-act="mode"][data-mode="all_out"]').click();
-    await outCard.locator('[data-act="save"]').click();
-    for (let attempt = 0; attempt < 40 && !savedGihPayloads.some(entry => entry.id === 702); attempt += 1) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
-    const outSave = savedGihPayloads.find(entry => entry.id === 702);
-    assert.ok(outSave, 'saving “Всё выложили” should update the GIH record');
-    assert.deepEqual(outSave.payload.pills, [{ id: 7021, itemStatus: 'out' }],
-      '“Всё выложили” should assign the “Выложили” status to every product');
-    const outDone = page.locator('#gih-dones .gih-card[data-did="702"] .gih-done-body');
-    await outDone.waitFor({ state: 'visible', timeout: 5000 });
-    assert.match(await outDone.innerText(), /Выложили/);
-    assert.match(await outDone.innerText(), /Вода/);
-    assert.doesNotMatch(await outDone.innerText(), /Не размечено/);
-    assert.doesNotMatch(await outDone.innerText(), /Всё выложили/,
-      'saved GIH cards should show product statuses instead of the “Всё выложили” mode label');
-    assert.equal(await outCard.locator('[data-act="edit"]').count(), 0,
-      'saved GIH cards must not expose an edit action');
-    console.log('PASS: saved GIH cards hide general modes and cannot be edited');
+<!-- БЛОК 2: Цели (занимает 1/4 ширины) — ОТДЕЛЬНЫЙ РАВНОПРАВНЫЙ БЛОК -->
+<div class="col-span-1 bg-white rounded-xl p-5 border border-slate-100 shadow-sm">
+  <div id="targets-container">
+    <div class="flex items-center justify-center py-12 text-slate-400">
+      <i data-lucide="loader-2" class="w-5 h-5 animate-spin mr-2"></i>
+    </div>
+  </div>
+</div>
+</div>
 
-    await page.locator('.nav-item[data-route="history"]').click();
-    await page.waitForFunction(() => document.getElementById('view-history')?.classList.contains('active'));
-    await page.locator('[data-history-view="gih"]').click();
-    const gihTable = page.locator('.history-records-table');
-    await gihTable.waitFor({ state: 'visible', timeout: 5000 });
-    const gihHeaders = await gihTable.locator('thead th').allInnerTexts();
-    assert.equal(gihHeaders[0].trim().toLocaleLowerCase('ru-RU'), 'время',
-      'GIH history should include a time column');
-    await page.waitForFunction(() => document.querySelectorAll('.history-records-table tbody tr').length === 3);
-    const summaryText = (await gihTable.locator('tbody').innerText());
-    assert.match(summaryText, /Пополнен/,
-      'replenished + in-place/out products should yield “Пополнен”');
-    assert.match(summaryText, /Частично пополнен/,
-      'replenished + not-replenished products should yield “Частично пополнен”');
-    assert.match(summaryText, /Проверен/,
-      'without any replenished products, status should be “Проверен”');
-    assert.doesNotMatch(summaryText, /По продуктам|Всё на месте|Всё выложили/,
-      'history should display aggregate statuses rather than general mode labels');
-    const historyOutPanel = page.locator('.history-gih-status-panel[data-status="out"]').first();
-    const savedOutLine = outDone.locator('.gih-done-line.gih-st-out');
-    assert.equal(
-      await historyOutPanel.evaluate(el => getComputedStyle(el).backgroundColor),
-      await savedOutLine.evaluate(el => getComputedStyle(el).backgroundColor),
-      'the “Выложили” highlight must use the same color in GIH cards and History'
-    );
-    console.log('PASS: GIH history displays time, aggregate statuses and matching product colors');
 
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    yesterday.setHours(12, 0, 0, 0);
-    const staleDraft = {
-      ...makeGihDraft(704),
-      checkDate: yesterday.toISOString(),
-      createdAt: yesterday.toISOString(),
-      notes: 'Заметка старого черновика'
-    };
-    const staleSaved = {
-      ...makeGihHistoryRecord(705, ['replenished'], ['Старая сохранённая запись']),
-      checkDate: yesterday.toISOString(),
-      createdAt: yesterday.toISOString()
-    };
-    gihChecks.push(staleDraft, staleSaved);
-    await page.evaluate(() => window.App.gihModule.refresh());
-    for (let attempt = 0; attempt < 40 && !savedGihPayloads.some(entry => entry.id === 704 && entry.payload.gihRoomStatus === 'not_checked'); attempt += 1) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
-    const archivePayload = savedGihPayloads.find(entry => entry.id === 704 && entry.payload.gihRoomStatus === 'not_checked');
-    assert.ok(archivePayload, 'a previous-day draft should be converted into a completed history record');
-    assert.equal(archivePayload.payload.status, 'done');
-    assert.equal(archivePayload.payload.notes, 'Заметка старого черновика',
-      'archiving a previous-day draft should preserve its comment');
-    const archivedCheck = gihChecks.find(check => check.id === 704);
-    assert.equal(archivedCheck.status, 'done');
-    assert.equal(archivedCheck.gihRoomStatus, 'not_checked');
-    assert.equal(await page.locator('#gih-drafts .gih-card[data-did="704"]').count(), 0,
-      'previous-day drafts should not remain on the GIH tab');
-    assert.equal(await page.locator('#gih-dones .gih-card[data-did="704"]').count(), 0,
-      'archived unchecked records should be hidden from saved GIH cards');
-    assert.equal(await page.locator('#gih-dones .gih-card[data-did="705"]').count(), 0,
-      'previous-day saved cards should disappear from the GIH tab without being deleted');
+  <!-- Продукты месяца + Требуют замены -->
+  <div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="col-span-1 bg-white rounded-xl p-5 border border-slate-100 shadow-sm flex flex-col min-h-[140px]">
+      <div class="flex items-center gap-2 mb-3">
+        <i data-lucide="calendar-check" class="w-4 h-4 text-slate-500"></i>
+        <h3 class="font-semibold text-slate-900 text-sm">На проверку</h3>
+      </div>
+      <div id="deadlines-month-products-container" class="flex-1">
+        <div class="flex items-center justify-center py-6 text-slate-400 text-xs">
+          <i data-lucide="loader-2" class="w-4 h-4 animate-spin mr-2"></i> Загрузка...
+        </div>
+      </div>
+    </div>
+    <div class="col-span-3 bg-white rounded-xl p-5 border border-slate-100 shadow-sm">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-500"></i>
+          <h3 class="font-semibold text-slate-900 text-sm">Требуют замены</h3>
+        </div>
+        <span id="deadlines-replacement-total" class="text-xs font-medium text-rose-600"></span>
+      </div>
+      <div id="deadlines-replacement-container">
+        <div class="flex items-center justify-center py-6 text-slate-400 text-xs">
+          <i data-lucide="loader-2" class="w-4 h-4 animate-spin mr-2"></i> Загрузка...
+        </div>
+      </div>
+    </div>
+  </div>
 
-    await page.evaluate(() => window.App.historyModule.refresh());
-    await page.waitForFunction(() => document.querySelector('.history-records-table')?.innerText.includes('Не проверен'));
-    const archivedHistory = page.locator('.history-records-table');
-    assert.match(await archivedHistory.innerText(), /Заметка старого черновика/,
-      'the archived record and its comment should remain in GIH history');
-    assert.ok(gihHistoryRecords.some(check => check.id === 704 && check.gihRoomStatus === 'not_checked'),
-      'archiving should retain a history record instead of deleting it');
-    console.log('PASS: day rollover hides old saved cards and archives stale drafts as “Не проверен”');
+  <!-- Сетка номеров -->
+  <div id="deadlines-floors-container" class="space-y-3">
+    <div class="flex items-center justify-center py-12 text-slate-400">
+      <i data-lucide="loader-2" class="w-6 h-6 animate-spin mr-2"></i>
+      Загрузка номеров...
+    </div>
+  </div>
+</section>
 
-    assert.deepEqual(pageErrors, [], 'browser JavaScript should not throw uncaught errors');
-    console.log('PASS: no uncaught browser JavaScript errors');
-  } finally {
-    await browser.close();
-  }
-})().catch(error => {
-  console.error(error);
-  process.exitCode = 1;
-});
+<!-- Модальное окно -->
+<div id="deadline-modal-backdrop" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[85vh] overflow-hidden flex flex-col fade-in">
+    <div class="p-4 border-b border-slate-100 flex items-start justify-between">
+      <div>
+        <h3 class="text-lg font-bold text-slate-900">Номер <span id="deadline-modal-room-number"></span></h3>
+        <p class="text-xs text-slate-500 mt-0.5" id="deadline-modal-room-info"></p>
+      </div>
+      <button type="button" onclick="App.deadlinesModule.closeModal()" class="btn btn-ghost panel-close-btn" aria-label="Закрыть окно срока">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+      <div id="deadline-modal-products" class="p-4 overflow-y-auto scrollbar flex-1">
+      </div>
+
+    <div class="p-4 border-t border-slate-100 bg-slate-50">
+      <div class="flex items-center justify-between">
+        <button onclick="App.deadlinesModule.reset()" class="btn btn-outline">
+          <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Сброс
+        </button>
+        <div class="flex gap-2">
+          <button onclick="App.deadlinesModule.setEmpty()" class="btn bg-sky-500 hover:bg-sky-600 text-white">
+            <i data-lucide="inbox" class="w-4 h-4"></i> Опустошён
+          </button>
+          <button onclick="App.deadlinesModule.setValid()" class="btn bg-emerald-500 hover:bg-emerald-600 text-white">
+            <i data-lucide="check-circle" class="w-4 h-4"></i> В порядке
+          </button>
+          <button onclick="App.deadlinesModule.save()" class="btn btn-primary">
+            <i data-lucide="save" class="w-4 h-4"></i> Сохранить
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Модальное окно: продукты месяца -->
+<div id="deadline-month-modal-backdrop" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-hidden flex flex-col fade-in">
+    <div class="ms-drag-zone modal-center-drag-zone">
+      <div class="ms-handle modal-sheet-handle"></div>
+      <div class="ms-header-row">
+        <span class="ms-title">Добавление сроков</span>
+        <button id="deadline-month-modal-close" class="ms-close-btn panel-close-btn" type="button" aria-label="Закрыть">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+    <div id="deadline-month-modal-list" class="p-4 overflow-y-auto scrollbar flex-1 space-y-2">
+      <div class="flex items-center justify-center py-8 text-slate-400 text-sm">
+        <i data-lucide="loader-2" class="w-5 h-5 animate-spin mr-2"></i> Загрузка...
+      </div>
+    </div>
+  </div>
+</div>
+
+      <!-- HISTORY -->
+      <section id="view-history" class="tab-content fade-in">
+        <div class="mb-8">
+          <h1 class="text-2xl font-bold text-slate-900">История операций</h1>
+          </div>
+        <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+          <div class="p-4 sm:p-5 border-b border-slate-100">
+            <div class="flex flex-col gap-4">
+              <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                <div class="history-view-tabs" role="tablist" aria-label="Раздел истории">
+                  <button type="button" class="history-view-tab active" data-history-view="daily" role="tab" aria-selected="true">
+                    <i data-lucide="calendar-check" class="w-4 h-4"></i><span>Ежедневные</span>
+                  </button>
+                  <button type="button" class="history-view-tab" data-history-view="deadlines" role="tab" aria-selected="false">
+                    <i data-lucide="calendar-clock" class="w-4 h-4"></i><span>Сроки</span>
+                  </button>
+                  <button type="button" class="history-view-tab" data-history-view="gih" role="tab" aria-selected="false">
+                    <i data-lucide="package-check" class="w-4 h-4"></i><span>GIH</span>
+                  </button>
+                </div>
+                <div class="flex flex-col sm:flex-row sm:items-center gap-2 min-w-0">
+                  <div class="history-search-wrap min-w-0 flex-1">
+                    <i data-lucide="search" class="w-4 h-4 text-slate-400"></i>
+                    <input type="text" inputmode="numeric" autocomplete="off" id="history-search" placeholder="Поиск номера во всей истории" aria-label="Поиск номера во всей истории" />
+                    <button type="button" id="history-search-clear" class="history-search-clear hidden" aria-label="Очистить поиск"><i data-lucide="x" class="w-4 h-4"></i></button>
+                  </div>
+                  <button type="button" id="history-sort-toggle" class="btn btn-outline history-sort-toggle">
+                    <i data-lucide="arrow-down-up" class="w-4 h-4"></i><span id="history-sort-label">По номерам</span>
+                  </button>
+                </div>
+              </div>
+
+              <div id="history-daily-filters" class="history-daily-filters" role="group" aria-label="Тип ежедневных операций">
+                <button type="button" class="history-filter-button active" data-history-daily-filter="all" aria-pressed="true">Все</button>
+                <button type="button" class="history-filter-button" data-history-daily-filter="emptied" aria-pressed="false"><i data-lucide="circle-slash" class="w-3.5 h-3.5"></i>Опустошения</button>
+              </div>
+
+              <div id="history-date-row" class="history-date-row">
+                <button type="button" id="history-prev-day" class="history-date-arrow" aria-label="Предыдущий день"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                <button type="button" id="history-current-date" class="history-current-date" aria-haspopup="dialog" aria-label="Выбрать дату">
+                  <span class="history-current-date-main"><i data-lucide="calendar-days" class="w-4 h-4"></i><span id="history-current-date-label">Сегодня</span></span>
+                  <span id="history-date-count" class="history-current-date-count">0 записей</span>
+                </button>
+                <button type="button" id="history-next-day" class="history-date-arrow" aria-label="Следующий день" disabled><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+              </div>
+              <div class="flex items-center justify-between gap-3 flex-wrap">
+                <div class="text-xs text-slate-500" id="history-results-count">Загрузка истории…</div>
+          </div>
+            </div>
+          </div>
+          <div id="history-list-container">
+            <div class="p-5 text-center text-slate-400">Загрузка...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- EMPTY -->
+      <section id="view-empty" class="tab-content fade-in">
+        <div class="mb-8">
+          <h1 class="text-2xl font-bold text-slate-900">Пустые минибары</h1>
+          </div>
+        <div id="empty-rooms-container">
+          <div class="flex items-center justify-center py-12">
+            <div class="text-slate-400">
+              <i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto mb-2"></i>
+              <p class="text-sm">Загрузка данных...</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CALCULATOR -->
+      <section id="view-calculator" class="tab-content fade-in">
+  <!-- Вкладки категорий -->
+  <div class="cat-tabs teal" id="calculator-tabs"></div>
+
+  <div class="split-layout">
+    <!-- Продукты -->
+    <div id="calculator-products-container" class="products-grid"></div>
+
+    <!-- Счёт (десктоп) -->
+    <aside class="side-panel">
+      <div class="side-panel-header">
+        <span class="side-panel-title">Счёт</span>
+        <button id="calculator-clear-btn" class="btn btn-ghost btn-sm">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Очистить
+        </button>
+      </div>
+      <div id="calculator-bill-empty" class="side-panel-empty">
+        <i data-lucide="shopping-cart"></i>
+        <p>Счёт пуст</p>
+      </div>
+      <div id="calculator-bill-list" class="side-panel-body hidden"></div>
+      <div class="side-panel-footer">
+        <div class="total-row">
+          <span class="total-row-label" id="calculator-bill-count">0 позиций</span>
+          <span class="total-row-value" id="calculator-bill-total">0 ₽</span>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  
+</section>
+
+      <!-- SETTINGS -->
+      <section id="view-settings" class="tab-content fade-in">
+        <div class="flex items-start justify-between mb-6">
+          <h1 class="text-2xl font-bold text-slate-900">Настройки</h1>
+        </div>
+
+        <div class="flex gap-1 bg-slate-100 rounded-lg p-1 w-fit mb-6">
+          <button data-settings-tab="products" class="settings-tab active" role="tab" aria-selected="true">Продукты</button>
+          <button data-settings-tab="templates" class="settings-tab" role="tab" aria-selected="false">Шаблоны наполнения</button>
+        </div>
+
+        <div id="settings-products" class="settings-panel">
+          <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+            <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+              <h3 class="font-semibold text-slate-900">Список продуктов</h3>
+              <button id="add-product-btn" class="btn btn-primary">
+                <i data-lucide="plus" class="w-4 h-4"></i> Добавить продукт
+              </button>
+            </div>
+            <div id="products-table-container" class="p-5">
+              <div class="flex items-center justify-center py-12 text-slate-400">
+                <i data-lucide="loader-2" class="w-6 h-6 animate-spin"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="settings-templates" class="settings-panel hidden">
+          <div class="grid grid-cols-2 gap-6">
+            <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+              <div class="p-5 border-b border-slate-100 bg-slate-50">
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                  <h3 class="font-semibold text-slate-900">Стандарт</h3>
+                </div>
+              </div>
+              <div class="p-5 template-items-container" data-category="standard">
+                <div class="text-center py-8 text-slate-400 text-sm">Загрузка...</div>
+              </div>
+            </div>
+            <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+              <div class="p-5 border-b border-slate-100 bg-slate-50">
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                  <h3 class="font-semibold text-slate-900">Люкс</h3>
+                </div>
+              </div>
+              <div class="p-5 template-items-container" data-category="lux">
+                <div class="text-center py-8 text-slate-400 text-sm">Загрузка...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- Модальное окно продукта -->
+<div id="product-modal-backdrop" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 fade-in">
+    <div class="ms-drag-zone modal-center-drag-zone">
+      <div class="ms-handle modal-sheet-handle"></div>
+      <div class="ms-header-row">
+        <span id="product-modal-title" class="ms-title">Новый продукт</span>
+        <button onclick="App.settingsModule.closeProductModal()" class="ms-close-btn panel-close-btn" type="button" aria-label="Закрыть">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+    <form id="product-form" class="space-y-3">
+      <input type="hidden" id="product-id" />
+      <div>
+        <label class="text-xs font-medium text-slate-600 mb-1.5 block">Название *</label>
+        <input id="product-name" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="Heineken 0.33" />
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-medium text-slate-600 mb-1.5 block">Категория</label>
+          <select id="product-category" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white">
+            <option value="Дверца">Дверца</option>
+            <option value="Напитки">Напитки</option>
+            <option value="Алкоголь">Алкоголь</option>
+            <option value="Соки">Соки</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-medium text-slate-600 mb-1.5 block">Единица</label>
+          <select id="product-unit" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white">
+            <option value="шт">шт</option>
+            <option value="л">л</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-medium text-slate-600 mb-1.5 block">Объём *</label>
+          <input id="product-volume" type="number" step="0.001" min="0" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="0.33" />
+        </div>
+        <div>
+          <label class="text-xs font-medium text-slate-600 mb-1.5 block">Цена (₽) *</label>
+          <input id="product-price" type="number" step="0.01" min="0" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="450" />
+        </div>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-slate-600 mb-1.5 block">Эмодзи и цвет фона</label>
+        <div class="flex items-center gap-2">
+          <input id="product-emoji" class="w-9 h-9 border border-slate-200 rounded-lg text-xl text-center cursor-pointer hover:bg-slate-50" placeholder="📦" maxlength="4" />
+          <div id="product-color-picker" class="flex flex-wrap gap-2 flex-1">
+            <button type="button" class="color-option w-9 h-9 rounded-lg border-2 border-transparent hover:scale-110 transition" data-color="amber" style="background: #fef3c7;"></button>
+            <button type="button" class="color-option w-9 h-9 rounded-lg border-2 border-transparent hover:scale-110 transition" data-color="red" style="background: #fee2e2;"></button>
+            <button type="button" class="color-option w-9 h-9 rounded-lg border-2 border-transparent hover:scale-110 transition" data-color="blue" style="background: #dbeafe;"></button>
+            <button type="button" class="color-option w-9 h-9 rounded-lg border-2 border-transparent hover:scale-110 transition" data-color="yellow" style="background: #fef9c3;"></button>
+            <button type="button" class="color-option w-9 h-9 rounded-lg border-2 border-transparent hover:scale-110 transition" data-color="purple" style="background: #f3e8ff;"></button>
+            <button type="button" class="color-option w-9 h-9 rounded-lg border-2 border-transparent hover:scale-110 transition" data-color="emerald" style="background: #d1fae5;"></button>
+            <button type="button" class="color-option w-9 h-9 rounded-lg border-2 border-transparent hover:scale-110 transition" data-color="rose" style="background: #ffe4e6;"></button>
+            <button type="button" class="color-option w-9 h-9 rounded-lg border-2 border-transparent hover:scale-110 transition" data-color="orange" style="background: #ffedd5;"></button>
+            <button type="button" class="color-option w-9 h-9 rounded-lg border-2 border-transparent hover:scale-110 transition" data-color="slate" style="background: #f1f5f9;"></button>
+          </div>
+        </div>
+        <input type="hidden" id="product-bg-color" value="slate" />
+      </div>
+      
+      <div>
+        <label class="text-xs font-medium text-slate-600 mb-1.5 block">Предпросмотр</label>
+        <div id="product-preview" class="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+          <div id="preview-icon" class="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center text-2xl">📦</div>
+          <div class="flex-1">
+            <div id="preview-name" class="text-sm font-semibold text-slate-900">Название продукта</div>
+            <div id="preview-details" class="text-xs text-slate-500 mt-0.5">0.33 шт · 450 ₽</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-2 pt-1">
+        <input id="product-has-expiry" type="checkbox" class="w-4 h-4 rounded border-slate-300" checked />
+        <label for="product-has-expiry" class="text-sm">Есть срок годности</label>
+      </div>
+      <div class="flex justify-end gap-2 pt-3">
+        <button type="button" onclick="App.settingsModule.closeProductModal()" class="btn btn-outline">Отмена</button>
+        <button type="submit" class="btn btn-primary">Сохранить</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<script src="config.js??v=m67"></script>
+<script src="js/utils.js??v=m66"></script>
+<script src="js/app-core.js??v=m66"></script>
+<script src="js/excise-module.js??v=m73"></script>
+<script src="js/deadlines-module.js??v=m76"></script>
+<script src="js/settings-module.js??v=m75"></script>
+<script src="js/calculator-module.js??v=m79"></script>
+<script src="js/inventory-module.js??v=m76"></script>
+<script src="js/dashboard-module.js??v=m66"></script>
+<script src="js/lists-module.js??v=m70"></script>
+<script src="js/history-module.js??v=m82"></script>
+<script src="js/route-handlers.js??v=m70"></script>
+<script src="js/gih-module.js??v=m81"></script>
+<script src="js/live-sync.js??v=m73"></script>
+<script src="js/init.js??v=m70"></script>
+
+
+</body>
+</html>
