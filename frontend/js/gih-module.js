@@ -254,7 +254,8 @@ function formatDoneText(items){
 function doneBody(d){
 const items = d.gihItems||[];
 const itemsText = formatDoneText(items);
-const modeTag = d.gihRoomStatus ? `<span class="gih-mode-tag gih-m-${d.gihRoomStatus}">${MODE_LABEL[d.gihRoomStatus]||d.gihRoomStatus}</span>` : '';
+const showsModeTag = d.gihRoomStatus && !modeItemStatus(d.gihRoomStatus);
+const modeTag = showsModeTag ? `<span class="gih-mode-tag gih-m-${d.gihRoomStatus}">${MODE_LABEL[d.gihRoomStatus]||d.gihRoomStatus}</span>` : '';
 const note = (d.notes && d.notes.trim()) ? `<div class="gih-done-note">${escapeHtml(d.notes)}</div>` : '';
 if (d.gihRoomStatus) {
   const assignedStatus = modeItemStatus(d.gihRoomStatus);
@@ -276,7 +277,6 @@ function doneHtml(d){
       <button type="button" class="gih-card-num gih-room-history-link" data-history-room-id="${d.roomId}" data-history-room-number="${escapeHtml(String(d.number))}" title="Открыть историю номера">${escapeHtml(String(d.number))}</button>
       <span class="gih-card-time">${timeStr(d.date)}</span>
       <div class="gih-card-actions">
-        <button type="button" class="gih-iconbtn" data-act="edit" data-id="${d.id}" title="Редактировать"><i data-lucide="pencil" class="w-4 h-4"></i></button>
         <button type="button" class="gih-iconbtn" data-act="del" data-id="${d.id}" title="Удалить"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
       </div>
     </div>
@@ -315,10 +315,6 @@ async function saveDraft(id){
   const payload={ status:'done', gihRoomStatus:d._mode||null, notes:(d.notes&&d.notes.trim())?d.notes.trim():null, pills: assignedStatus ? d.gihItems.map(it=>({ id:it.id, itemStatus:assignedStatus })) : (d._mode ? [] : d.gihItems.map(it=>({ id:it.id, itemStatus:it.itemStatus }))) };
   try{ await api().updateGihCheck(id, payload); locallyEditedDraftIds.delete(id); showToast('Сохранено'); await load(); }
   catch(err){ console.error(err); showToast('Не удалось сохранить'); }
-}
-async function editDone(id){
-  try{ await api().updateGihCheck(id, { status:'draft', gihRoomStatus:null }); showToast('Открыто для редактирования'); await load(); }
-  catch(err){ console.error(err); showToast('Не удалось открыть'); }
 }
 async function del(id){
   if(!confirm('Удалить запись?')) return;
@@ -381,7 +377,6 @@ function bind(){
       return;
     }
     const b=e.target.closest('[data-act]'); if(!b) return; const id=parseInt(b.dataset.id,10);
-    if(b.dataset.act==='edit') editDone(id);
     if(b.dataset.act==='del') del(id);
   });
 }
