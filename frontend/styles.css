@@ -51,31 +51,31 @@
 /* Акцизы — янтарный */
 .nav-item.active[data-accent="amber"] {
   --nav-active-bg: #fffbeb;
-  --nav-active-color: #d97706;
+  --nav-active-color: #92400e;
 }
 
 /* Сроки — красный */
 .nav-item.active[data-accent="rose"] {
   --nav-active-bg: #fff1f2;
-  --nav-active-color: #e11d48;
+  --nav-active-color: #991b1b;
 }
 
 /* Arrivals — зелёный */
 .nav-item.active[data-accent="emerald"] {
   --nav-active-bg: #ecfdf5;
-  --nav-active-color: #059669;
+  --nav-active-color: #065f46;
 }
 
 /* Departures — голубой */
 .nav-item.active[data-accent="sky"] {
   --nav-active-bg: #f0f9ff;
-  --nav-active-color: #0284c7;
+  --nav-active-color: #1e40af;
 }
 
 /* GIH — фиолетовый */
 .nav-item.active[data-accent="violet"] {
   --nav-active-bg: #f5f3ff;
-  --nav-active-color: #7c3aed;
+  --nav-active-color: #3730a3;
 }
 
 /* История — серый */
@@ -87,7 +87,7 @@
 /* Пустые — розовый */
 .nav-item.active[data-accent="pink"] {
   --nav-active-bg: #fdf2f8;
-  --nav-active-color: #db2777;
+  --nav-active-color: #9f1239;
 }
 
 /* Калькулятор — бирюзовый */
@@ -99,7 +99,7 @@
 /* Инвентаризация — синий */
 .nav-item.active[data-accent="blue"] {
   --nav-active-bg: #eff6ff;
-  --nav-active-color: #2563eb;
+  --nav-active-color: #075985;
 }
 
 /* Настройки — темно-серый */
