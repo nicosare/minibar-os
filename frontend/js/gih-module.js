@@ -7,6 +7,8 @@ const cc = c => colorMap[c] || 'bg-slate-100';
 const emo = p => (p && p.emoji) || (p && p.name ? p.name.charAt(0) : '•');
 const CATS = ['Дверца','Напитки','Алкоголь','Соки'];
 const CYCLE = ['pending','replenished','in_place','out','not_replenished'];
+const modeItemStatus = mode => mode === 'all_in_place' ? 'in_place' : mode === 'all_out' ? 'out' : null;
+const effectiveItemStatus = (item, mode) => modeItemStatus(mode) || (item && item.itemStatus) || 'pending';
 const ITEM = { pending:{cls:'gih-st-pending'}, replenished:{cls:'gih-st-replenished'}, in_place:{cls:'gih-st-inplace'}, out:{cls:'gih-st-out'}, not_replenished:{cls:'gih-st-not'} };
 const ITEM_FULL = { pending:'Не размечено', replenished:'Пополнено', in_place:'На месте', out:'Выложили', not_replenished:'Не пополнено' };
 const MODES = [ {key:'dnd',label:'DND'}, {key:'all_in_place',label:'Всё на месте'}, {key:'all_out',label:'Всё выложили'}, {key:'empty',label:'Опустошён'} ];
@@ -165,9 +167,10 @@ function legendWrap(){
     <span><i class="gih-lg-out"></i>Выложили</span>
     <span><i class="gih-lg-not"></i>Не пополнено</span></div>`;
 }
-function pillHtml(it, disabled){
-  const m = ITEM[it.itemStatus]||ITEM.pending;
-  return `<button type="button" class="gih-pill ${m.cls}" data-act="pill" data-iid="${it.id}" ${disabled?'disabled':''} title="${ITEM_FULL[it.itemStatus]}">
+function pillHtml(it, disabled, mode){
+  const status = effectiveItemStatus(it, mode);
+  const m = ITEM[status]||ITEM.pending;
+  return `<button type="button" class="gih-pill ${m.cls}" data-act="pill" data-iid="${it.id}" ${disabled?'disabled':''} title="${ITEM_FULL[status]}">
     <span class="gih-pill-emo ${cc(it.bgColor)}">${emo(it)}</span><span class="gih-pill-name">${escapeHtml(it.name)}</span></button>`;
 }
 function noteBtnHtml(d){
@@ -175,7 +178,7 @@ function noteBtnHtml(d){
 }
 function pillsWrap(d){
   const mOn = modeActive(d);
-  const inner = (d.gihItems||[]).length ? d.gihItems.map(it=>pillHtml(it, mOn)).join('') : '<div class="gih-mini-empty">Нет позиций</div>';
+  const inner = (d.gihItems||[]).length ? d.gihItems.map(it=>pillHtml(it, mOn, d._mode)).join('') : '<div class="gih-mini-empty">Нет позиций</div>';
   return `<div class="gih-pills${mOn?' locked':''}" data-role="pills" data-did="${d.id}">${inner}</div>`;
 }
 function modesWrap(d){
@@ -229,10 +232,10 @@ function renderDrafts(){
   box.innerHTML = `<div class="gih-zone-t"><span>Несохранённые</span><b>${drafts.length}</b></div><div class="gih-cards">${drafts.map(draftHtml).join('')}</div>`;
   if (window.lucide) lucide.createIcons();
 }
-function formatDoneItems(items){
+function formatDoneItems(items, mode = null){
   const groups = {};
   items.forEach(it => {
-    const status = it.itemStatus || 'pending';
+    const status = effectiveItemStatus(it, mode);
     groups[status] = groups[status] || {};
     groups[status][it.name] = (groups[status][it.name] || 0) + 1;
   });
@@ -254,6 +257,11 @@ const itemsText = formatDoneText(items);
 const modeTag = d.gihRoomStatus ? `<span class="gih-mode-tag gih-m-${d.gihRoomStatus}">${MODE_LABEL[d.gihRoomStatus]||d.gihRoomStatus}</span>` : '';
 const note = (d.notes && d.notes.trim()) ? `<div class="gih-done-note">${escapeHtml(d.notes)}</div>` : '';
 if (d.gihRoomStatus) {
+  const assignedStatus = modeItemStatus(d.gihRoomStatus);
+  if (assignedStatus) {
+    const statusItems = formatDoneItems(items, d.gihRoomStatus);
+    return `<div class="gih-done-products gih-done-withmode">${modeTag}${statusItems}${note}</div>`;
+  }
   const comment = itemsText ? `<div class="gih-done-comment">${itemsText}</div>` : '';
   return `<div class="gih-done-products gih-done-withmode">${modeTag}${comment}${note}</div>`;
 }
@@ -303,7 +311,8 @@ function openFactoryEdit(d){
 }
 async function saveDraft(id){
   const d=drafts.find(x=>x.id===id); if(!d||!canSave(d)) return;
-  const payload={ status:'done', gihRoomStatus:d._mode||null, notes:(d.notes&&d.notes.trim())?d.notes.trim():null, pills: d._mode ? [] : d.gihItems.map(it=>({ id:it.id, itemStatus:it.itemStatus })) };
+  const assignedStatus = modeItemStatus(d._mode);
+  const payload={ status:'done', gihRoomStatus:d._mode||null, notes:(d.notes&&d.notes.trim())?d.notes.trim():null, pills: assignedStatus ? d.gihItems.map(it=>({ id:it.id, itemStatus:assignedStatus })) : (d._mode ? [] : d.gihItems.map(it=>({ id:it.id, itemStatus:it.itemStatus }))) };
   try{ await api().updateGihCheck(id, payload); locallyEditedDraftIds.delete(id); showToast('Сохранено'); await load(); }
   catch(err){ console.error(err); showToast('Не удалось сохранить'); }
 }
