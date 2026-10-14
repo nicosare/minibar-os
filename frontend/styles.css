@@ -2505,6 +2505,14 @@ gap:10px !important; padding:6px 10px !important;
 .gih-room-history-link:hover { color:#4f46e5; text-decoration:underline; text-underline-offset:3px; }
 .gih-room-history-link:focus-visible,.history-room-link:focus-visible,.room-history-close:focus-visible { outline:3px solid #a5b4fc; outline-offset:2px; }
 
+/* GIH summary statuses are reused in the main history table and room drawer. */
+.gih-summary-badge { white-space:nowrap; }
+.gih-summary-replenished { background:#ecfdf5; color:#047857; border-color:#a7f3d0; }
+.gih-summary-partial { background:#fff7ed; color:#c2410c; border-color:#fed7aa; }
+.gih-summary-checked { background:#f1f5f9; color:#475569; border-color:#cbd5e1; }
+.gih-summary-special.gih-summary-dnd { background:#fef2f2; color:#b91c1c; border-color:#fecaca; }
+.gih-summary-special.gih-summary-empty { background:#fffbeb; color:#b45309; border-color:#fde68a; }
+
 /* GIH products by status — clean status panels shared with room history. */
 .history-gih-groups { display:flex; flex-direction:column; gap:8px; min-width:230px; }
 .history-gih-status-panel {
@@ -2514,10 +2522,10 @@ gap:10px !important; padding:6px 10px !important;
   background:var(--gih-panel-bg,#f8fafc);
   min-width:0;
 }
-.history-gih-status-panel[data-status="replenished"] { --gih-panel-bg:#ecfdf5; --gih-panel-border:#a7f3d0; --gih-panel-heading:#047857; --gih-chip-bg:#d1fae5; --gih-chip-text:#065f46; }
-.history-gih-status-panel[data-status="in_place"] { --gih-panel-bg:#f0f9ff; --gih-panel-border:#bae6fd; --gih-panel-heading:#0369a1; --gih-chip-bg:#e0f2fe; --gih-chip-text:#075985; }
-.history-gih-status-panel[data-status="out"] { --gih-panel-bg:#fffbeb; --gih-panel-border:#fde68a; --gih-panel-heading:#b45309; --gih-chip-bg:#fef3c7; --gih-chip-text:#92400e; }
-.history-gih-status-panel[data-status="not_replenished"] { --gih-panel-bg:#fff1f2; --gih-panel-border:#fecdd3; --gih-panel-heading:#be123c; --gih-chip-bg:#ffe4e6; --gih-chip-text:#9f1239; }
+.history-gih-status-panel[data-status="replenished"] { --gih-panel-bg:rgba(16,185,129,.08); --gih-panel-border:rgba(16,185,129,.28); --gih-panel-heading:#047857; --gih-chip-bg:#d1fae5; --gih-chip-text:#065f46; }
+.history-gih-status-panel[data-status="in_place"] { --gih-panel-bg:rgba(14,165,233,.08); --gih-panel-border:rgba(14,165,233,.28); --gih-panel-heading:#0369a1; --gih-chip-bg:#e0f2fe; --gih-chip-text:#075985; }
+.history-gih-status-panel[data-status="out"] { --gih-panel-bg:rgba(100,116,139,.06); --gih-panel-border:rgba(100,116,139,.24); --gih-panel-heading:#475569; --gih-chip-bg:#e2e8f0; --gih-chip-text:#334155; }
+.history-gih-status-panel[data-status="not_replenished"] { --gih-panel-bg:rgba(244,63,94,.08); --gih-panel-border:rgba(244,63,94,.28); --gih-panel-heading:#be123c; --gih-chip-bg:#ffe4e6; --gih-chip-text:#9f1239; }
 .history-gih-status-panel[data-status="pending"] { --gih-panel-bg:#f8fafc; --gih-panel-border:#e2e8f0; --gih-chip-bg:#e2e8f0; --gih-chip-text:#334155; }
 .history-gih-status-heading {
   margin:0 0 7px;
