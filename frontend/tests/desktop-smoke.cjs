@@ -294,7 +294,7 @@ const targets = {
       'both valid marks should be classified as valid');
     assert.equal(await page.locator('#excise-list .excise-card.invalid').count(), 1,
       'the invalid mark should remain visible but not be exported');
-    assert.equal(await page.locator('#excise-list .excise-card.valid .excise-meta-status').innerText(), 'Валидна');
+    assert.equal(await page.locator('#excise-list .excise-card.valid .excise-meta-status').first().innerText(), 'Валидна');
     assert.equal(await page.locator('#excise-list .excise-card.invalid .excise-meta-status').innerText(), 'Проверить марку');
     assert.equal(await page.locator('#excise-list .excise-card.valid').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(255, 255, 255)',
       'valid excise cards should use the shared neutral card surface');
