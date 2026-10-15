@@ -839,24 +839,24 @@ let savedDeparturesPrint = null;
       'there should be a single PDF upload button in the whole tab');
     assert.ok(await page.locator('#departures-work-list .departure-floor-badge').count() > 0,
       'the worklist should use floor sections and room tiles like the Deadlines tab');
-    assert.ok(await page.locator('#departures-checked-list .departure-floor-badge').count() > 0,
-      'the checked-today list should also be grouped into floor sections');
-    assert.equal(await page.locator('#departures-checked-list .departure-room-match-tag').count(), 0,
-      'the checked-today list should not show “Есть в PDF” labels');
+    assert.equal(await page.locator('#departures-checked-list').count(), 0,
+      'the checked-today room list should no longer be displayed');
+    assert.equal(await page.locator('#departures-work-list .departure-room-meta').count(), 0,
+      'worklist tiles should not show product category or status text');
     assert.equal(await page.locator('#departures-work-footer #departures-print-btn').count(), 1,
       'the print button should be below the working room list');
     assert.ok(await page.locator('#departures-work-footer').evaluate(footer =>
       !!(document.getElementById('departures-work-list').compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING)),
       'the print footer should come after the working list');
+    assert.equal(await page.locator('#departures-work-footer button').first().getAttribute('id'), 'departures-print-btn',
+      'the print button should be the leftmost footer control');
+    assert.equal(await page.locator('#departures-work-footer').evaluate(el => getComputedStyle(el).justifyContent), 'flex-start',
+      'the print footer should be left-aligned');
 
-    const checkedEmpty = page.locator('#departures-checked-list [data-room-number="500"]');
-    assert.ok((await checkedEmpty.getAttribute('class')).includes('is-empty'),
-      'emptied rooms should be blue only in the checked-today list');
-    assert.ok((await checkedEmpty.getAttribute('class')).includes('is-auto-excluded'),
-      'rooms from the PDF that are already checked today should be outlined in the checked list');
     const workEmpty = page.locator('#departures-work-list [data-departures-room="504"]');
-    assert.ok(!(await workEmpty.getAttribute('class')).includes('status-empty'),
-      'an emptied room in the worklist must not inherit the blue checked-list styling');
+    assert.ok(!(await workEmpty.getAttribute('class')).includes('is-empty') &&
+      !(await workEmpty.getAttribute('class')).includes('status-empty'),
+      'the worklist should not inherit the checked-list empty-state color');
     await page.locator('#departures-work-list [data-departures-room="504"]').hover();
     const workTransform = await page.locator('#departures-work-list [data-departures-room="504"]').evaluate(el => getComputedStyle(el).transform);
     assert.ok(workTransform === 'none' || workTransform === 'matrix(1, 0, 0, 1, 0, 0)',
@@ -905,6 +905,19 @@ let savedDeparturesPrint = null;
       'arrival rooms should have an arrow in the print view');
     assert.match(await printPopup.locator('body').innerText(), /пустой/,
       'rooms emptied in the system should have a “пустой” label in the print view');
+    assert.equal(await printPopup.locator('.page-container').count(), 1,
+      'print should use one legacy page container for up to 72 rooms');
+    assert.equal(await printPopup.locator('.page-column').count(), 2,
+      'a legacy print page should have two columns');
+    assert.equal(await printPopup.locator('.print-table').count(), 2,
+      'each legacy print column should have a print table');
+    const legacyPrintStyle = await printPopup.locator('style').innerText();
+    assert.ok(legacyPrintStyle.includes('@page { size: A4 landscape; margin: 1cm; }'),
+      'print page size and margins should match the minibars version');
+    assert.ok(legacyPrintStyle.includes('height:16px; vertical-align:middle'),
+      'printed table row height should match the minibars version');
+    assert.ok(legacyPrintStyle.includes('padding-top:1cm; padding-left:1cm; padding-right:1cm'),
+      'print column padding should match the minibars version');
     assert.doesNotMatch(await printPopup.locator('body').innerText(), /502/,
       'resident rooms must be omitted from the print view');
 
@@ -915,8 +928,8 @@ let savedDeparturesPrint = null;
       'a newly checked room should be removed from an already loaded worklist');
     assert.equal((await page.locator('#departures-stat-checked').innerText()).trim(), '3',
       'live refresh should update checked-today statistics');
-    assert.ok((await page.locator('#departures-checked-list [data-room-number="504"]').getAttribute('class')).includes('is-auto-excluded'),
-      'newly checked rooms present in the PDF should receive the auto-exclusion outline');
+    assert.equal(await page.locator('#departures-checked-list').count(), 0,
+      'newly checked rooms should update exclusions without showing a separate checked-today list');
 
     await page.locator('#departures-reset-btn').click();
     await page.waitForFunction(() => document.getElementById('departures-file-name')?.textContent === 'PDF ещё не загружен');
@@ -940,7 +953,7 @@ let savedDeparturesPrint = null;
       'the print history row should show a dash instead of a room number');
     assert.match(await printHistoryRow.innerText(), /Количество номеров в итоговом списке: 2/,
       'the print history details should store the final count');
-    console.log('PASS: departures Deadlines-style floor/colors, quiet worklist, print footer, PDF reset/persistence and print history');
+    console.log('PASS: departures without checked list, unlabeled worklist, legacy print geometry, PDF reset/persistence and print history');
 
     assert.deepEqual(pageErrors, [], 'browser JavaScript should not throw uncaught errors');
     console.log('PASS: no uncaught browser JavaScript errors');
