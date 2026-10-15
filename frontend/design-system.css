@@ -1462,3 +1462,204 @@ button.departure-room-tile:focus-visible { outline: 3px solid rgba(99,102,241,.2
   #view-departures .departures-work-footer { padding: 12px; align-items: center; }
   #view-departures .departures-work-footer #departures-print-btn { min-width: 132px; }
 }
+
+
+/* Departures refinement: isolated floor cards, lightweight hover, and compact notifications. */
+#view-departures .departures-feedback {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 10080;
+  width: min(420px, calc(100vw - 36px));
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  color: #334155;
+  background: #f8fafc;
+  box-shadow: 0 12px 36px rgba(15, 23, 42, .16);
+  font-size: 13px;
+  line-height: 1.45;
+}
+#view-departures .departures-feedback[hidden],
+#view-departures .departures-feedback.is-success { display: none !important; }
+#view-departures .departures-feedback.is-warning {
+  color: #92400e;
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+#view-departures .departures-feedback.is-error {
+  color: #991b1b;
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+#view-departures .departures-feedback.is-info {
+  color: #334155;
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+#view-departures .departures-stats-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+#view-departures .departures-stat-card { padding: 16px 18px; }
+#view-departures .departures-stat-value { margin-top: 10px; }
+#view-departures .departures-work-panel {
+  margin-bottom: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+#view-departures .departures-panel-header {
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  box-shadow: var(--shadow-card);
+}
+#view-departures .departures-manual-add {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 0 0 12px;
+  padding: 14px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  box-shadow: var(--shadow-card);
+}
+#view-departures .departures-manual-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  flex: 0 0 auto;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 740;
+}
+#view-departures .departures-manual-title svg { width: 17px; height: 17px; color: #0284c7; }
+#view-departures .departures-manual-fields {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+#view-departures #departures-manual-room-number {
+  width: 148px;
+  height: 38px;
+  padding: 0 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+#view-departures #departures-manual-room-number:focus {
+  outline: 2px solid rgba(14, 165, 233, .18);
+  border-color: #38bdf8;
+}
+#view-departures .departures-manual-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 650;
+  cursor: pointer;
+}
+#view-departures .departures-manual-checkbox input {
+  width: 15px;
+  height: 15px;
+  accent-color: #0284c7;
+}
+#view-departures .departures-manual-fields .btn { min-height: 38px; white-space: nowrap; }
+#view-departures .departures-room-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0;
+}
+#view-departures .departure-floor-section {
+  margin: 0;
+  padding: 16px 20px;
+  border: 1px solid #f1f5f9;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+}
+#view-departures .departure-floor-heading {
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+#view-departures .departure-room-grid {
+  grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+  gap: 8px;
+}
+#view-departures .departure-room-tile {
+  width: 100%;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 4px;
+  border-radius: 8px;
+  transition: all .15s ease;
+  animation: none !important;
+}
+#view-departures button.departure-room-tile:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+  z-index: 2;
+}
+#view-departures button.departure-room-tile:active,
+#view-departures button.departure-room-tile:active:hover {
+  transform: none !important;
+  animation: none !important;
+}
+#view-departures button.departure-room-tile:disabled {
+  opacity: 1;
+  cursor: default;
+}
+#view-departures .departure-manual-slot { position: relative; min-width: 0; }
+#view-departures .departure-manual-slot > .departure-room-tile { width: 100%; }
+#view-departures .departure-manual-remove {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid rgba(100, 116, 139, .20);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, .75);
+  color: #64748b;
+  opacity: .78;
+  cursor: pointer;
+}
+#view-departures .departure-manual-remove:hover {
+  background: #fff;
+  color: #b91c1c;
+  opacity: 1;
+}
+#view-departures .departure-manual-remove svg { width: 12px; height: 12px; }
+#view-departures .departures-work-footer { margin-top: 14px; }
+@media (max-width: 1100px) {
+  #view-departures .departures-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #view-departures .departures-manual-add { align-items: flex-start; flex-direction: column; gap: 12px; }
+  #view-departures .departures-manual-fields { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
+}
+@media (max-width: 560px) {
+  #view-departures .departures-stats-grid { grid-template-columns: minmax(0, 1fr); }
+  #view-departures .departures-panel-header { align-items: flex-start; flex-direction: column; }
+  #view-departures .departure-floor-section { padding: 14px; }
+  #view-departures .departure-floor-heading { align-items: flex-start; }
+  #view-departures #departures-manual-room-number { flex: 1 1 100%; width: 100%; }
+}
