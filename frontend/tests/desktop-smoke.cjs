@@ -1023,6 +1023,8 @@ let savedDeparturesPrint = null;
     await page.locator('#departures-print-btn').click();
     const manualPrintPopup = await manualPrintPopupPromise;
     await manualPrintPopup.waitForLoadState('domcontentloaded').catch(() => {});
+    await manualPrintPopup.waitForFunction(() => document.body?.innerText.includes('Departures of'), null, { timeout: 10000 });
+    await page.waitForFunction(() => savedDeparturesPrint?.count === 1, null, { timeout: 10000 });
     assert.match(await manualPrintPopup.locator('body').innerText(), /→ 500/,
       'manual rooms should print as arrivals');
     assert.match(await manualPrintPopup.locator('body').innerText(), /опустошить/,
@@ -1030,6 +1032,7 @@ let savedDeparturesPrint = null;
     assert.equal(savedDeparturesPrint.count, 1,
       'manual-only print should audit the count of manually added rooms');
     await page.locator('[data-departures-manual-remove="500"]').click();
+    await page.waitForFunction(() => document.querySelectorAll('#departures-work-list [data-manual-room="500"]').length === 0);
     assert.equal(await page.locator('#departures-work-list [data-manual-room="500"]').count(), 0,
       'manual rooms can be removed from the worklist');
     console.log('PASS: departures manual arrival guard, emptying override, and manual-only print');
