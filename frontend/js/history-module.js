@@ -366,8 +366,12 @@ App.historyModule = (() => {
       const data = await fetchJson('/checks/history', params);
       if (sequence !== state.requestSequence) return;
 
-      state.records = Array.isArray(data.items) ? data.items : [];
-      state.total = Number(data.total);
+      const returnedItems = Array.isArray(data.items) ? data.items : [];
+      // Keep exact room matches in the UI even if an older API still returns partial matches.
+      state.records = room
+        ? returnedItems.filter(check => roomNumber(check).trim() === room)
+        : returnedItems;
+      state.total = room ? state.records.length : Number(data.total);
       if (!Number.isFinite(state.total)) state.total = state.records.length;
       updateControls();
       renderHistory();
