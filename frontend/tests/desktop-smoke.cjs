@@ -887,6 +887,16 @@ let savedDeparturesPrint = null;
     assert.doesNotMatch(await printPopup.locator('body').innerText(), /502/,
       'resident rooms must be omitted from the print view');
 
+    // Simulate another number arriving from VK after a PDF is already loaded.
+    departuresChecks.push({ number: '504', checkedAt: new Date().toISOString(), emptied: true });
+    await page.evaluate(() => window.App.departuresModule.refresh());
+    assert.equal(await page.locator('#departures-work-list [data-departures-room="504"]').count(), 0,
+      'a newly checked room should be removed from an already loaded worklist');
+    assert.equal((await page.locator('#departures-stat-checked').innerText()).trim(), '3',
+      'live refresh should update checked-today statistics');
+    assert.ok((await page.locator('#departures-checked-list [data-room-number="504"]').getAttribute('class')).includes('is-auto-excluded'),
+      'newly checked rooms present in the PDF should receive the auto-exclusion outline');
+
     await page.locator('.nav-item[data-route="history"]').click();
     await page.locator('[data-history-view="daily"]').click();
     await page.evaluate(() => window.App.historyModule.refresh());
