@@ -937,3 +937,18 @@ button.icon-button:not(:disabled):active {
   outline: none !important;
   box-shadow: none !important;
 }
+
+/* Page title icons are neutral, independent of the active navigation accent. */
+.page-title-icon {
+  color: #0f172a !important;
+  stroke: currentColor !important;
+}
+
+/* The GIH date is part of the heading, so it shares the heading typography. */
+.gih-title .gih-title-date {
+  color: inherit !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+  letter-spacing: inherit !important;
+  line-height: inherit !important;
+}
