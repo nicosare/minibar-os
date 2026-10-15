@@ -118,79 +118,38 @@ App.departuresModule = (() => {
       }));
   }
 
-  function renderFloorSections(rooms, mode) {
+  function renderFloorSections(rooms) {
     if (!rooms.length) return '';
-    const byNumber = roomsByNumber();
-    const pdfSet = new Set(normalizePdfRooms());
     const sections = groupByFloor(rooms);
     return sections.map(section => {
-      const floorCounts = mode === 'checked'
-        ? {
-          neutral: section.rooms.filter(room => room.expiryStatus === 'neutral' || !room.expiryStatus).length,
-          valid: section.rooms.filter(room => room.expiryStatus === 'valid').length,
-          empty: section.rooms.filter(room => room.expiryStatus === 'empty').length,
-          needs: section.rooms.filter(room => room.expiryStatus === 'needs_replacement').length
-        }
-        : {
-          neutral: section.rooms.filter(room => !state.session.marks[roomNumber(room)]).length,
-          valid: section.rooms.filter(room => state.session.marks[roomNumber(room)] === 'arrival').length,
-          empty: 0,
-          needs: section.rooms.filter(room => state.session.marks[roomNumber(room)] === 'resident').length
-        };
+      const floorCounts = {
+        neutral: section.rooms.filter(room => !state.session.marks[roomNumber(room)]).length,
+        valid: section.rooms.filter(room => state.session.marks[roomNumber(room)] === 'arrival').length,
+        needs: section.rooms.filter(room => state.session.marks[roomNumber(room)] === 'resident').length
+      };
       const dot = (tone, count) => '<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full ' +
         tone + '"></span><span class="text-slate-600">' + count + '</span></span>';
       const floorIndicators = [
         dot('bg-slate-400', floorCounts.neutral),
         dot('bg-emerald-500', floorCounts.valid),
-        ...(mode === 'checked' ? [dot('bg-sky-500', floorCounts.empty)] : []),
         dot('bg-rose-500', floorCounts.needs)
       ].join('');
       const tiles = section.rooms.map(room => {
         const number = roomNumber(room);
         const mark = state.session.marks && state.session.marks[number];
-        const isCheckedEmpty = mode === 'checked' && room.expiryStatus === 'empty';
-        const alreadyInPdf = mode === 'checked' && pdfSet.has(number);
-        const classes = ['room-cell', 'departure-room-tile'];
-        if (mode === 'checked') {
-          classes.push('departure-checked-tile');
-          const status = ['neutral', 'valid', 'empty', 'needs_replacement'].includes(room.expiryStatus)
-            ? room.expiryStatus : 'neutral';
-          classes.push('status-' + status);
-          if (isCheckedEmpty) classes.push('is-empty');
-          if (alreadyInPdf) classes.push('is-auto-excluded');
-        } else {
-          classes.push('departure-work-tile');
-          if (mark === 'resident') classes.push('is-resident');
-          if (mark === 'arrival') classes.push('is-arrival');
-          if (state.pendingMarks.has(number)) classes.push('is-saving');
-        }
-
-        const meta = room.category === 'lux' ? 'Люкс' : 'Стандарт';
-        let secondary = '<span class="departure-room-meta">' + escapeHtml(meta) + '</span>';
-        if (mode === 'checked') {
-          const checked = (state.data.checkedToday || []).find(item => String(item.number) === number);
-          secondary = '<span class="departure-room-time">' + escapeHtml(formatTime(checked && checked.checkedAt)) + '</span>';
-          if (isCheckedEmpty) {
-            secondary += '<span class="departure-room-empty-tag"><i data-lucide="droplet"></i>Пустой</span>';
-          }
-        } else {
-          const label = mark === 'resident' ? 'Жилой' : mark === 'arrival' ? 'На заезд' : meta;
-          secondary = '<span class="departure-room-meta">' + escapeHtml(label) + '</span>';
-        }
-
-        if (mode === 'checked') {
-          return '<div class="' + classes.join(' ') + '" data-room-number="' + escapeHtml(number) + '">' +
-            '<span class="departure-room-number">' + escapeHtml(number) + '</span>' +
-            secondary + '</div>';
-        }
-        const aria = mark === 'resident' ? 'Номер ' + number + ', жилой. Следующий клик — на заезд.' :
-          mark === 'arrival' ? 'Номер ' + number + ', на заезд. Следующий клик сбрасывает отметку.' :
-          'Номер ' + number + ', без отметки. Первый клик исключает номер как жилой.';
+        const classes = ['room-cell', 'departure-room-tile', 'departure-work-tile'];
+        if (mark === 'resident') classes.push('is-resident');
+        if (mark === 'arrival') classes.push('is-arrival');
+        if (state.pendingMarks.has(number)) classes.push('is-saving');
+        const aria = mark === 'resident'
+          ? 'Номер ' + number + ', отметка жилой. Следующий клик — на заезд.'
+          : mark === 'arrival'
+            ? 'Номер ' + number + ', отметка на заезд. Следующий клик сбрасывает отметку.'
+            : 'Номер ' + number + ', без отметки. Первый клик исключает номер как жилой.';
         return '<button type="button" class="' + classes.join(' ') + '" data-departures-room="' +
           escapeHtml(number) + '" aria-label="' + escapeHtml(aria) + '"' +
           (state.pendingMarks.has(number) ? ' disabled' : '') + '>' +
-          '<span class="departure-room-number">' + escapeHtml(number) + '</span>' +
-          secondary + '</button>';
+          '<span class="departure-room-number">' + escapeHtml(number) + '</span></button>';
       }).join('');
       return '<section class="floor-section departure-floor-section" aria-label="' + escapeHtml(section.floor) + ' этаж">' +
         '<div class="floor-header departure-floor-heading"><div class="flex items-center gap-2">' +
@@ -200,26 +159,6 @@ App.departuresModule = (() => {
         '<div class="flex gap-2 text-xs departure-floor-indicators">' + floorIndicators + '</div></div>' +
         '<div class="rooms-grid departure-room-grid">' + tiles + '</div></section>';
     }).join('');
-  }
-
-  function renderCheckedRooms() {
-    const container = document.getElementById('departures-checked-list');
-    const count = document.getElementById('departures-checked-count');
-    if (!container) return;
-
-    const byNumber = roomsByNumber();
-    const checked = (state.data.checkedToday || [])
-      .map(item => byNumber.get(String(item.number)))
-      .filter(Boolean)
-      .sort((a, b) => Number(a.floor) - Number(b.floor) || Number(a.number) - Number(b.number));
-
-    if (count) count.textContent = String(checked.length);
-    if (!checked.length) {
-      container.innerHTML = '<div class="departures-empty-state"><span class="departures-empty-icon"><i data-lucide="messages-square"></i></span>' +
-        '<strong>Сегодня пока нет проверенных номеров</strong><span>Номера появятся здесь автоматически после сообщений в беседе.</span></div>';
-    } else {
-      container.innerHTML = renderFloorSections(checked, 'checked');
-    }
   }
 
   function renderWorkingRooms() {
@@ -249,7 +188,7 @@ App.departuresModule = (() => {
       container.innerHTML = '<div class="departures-empty-state"><span class="departures-empty-icon"><i data-lucide="check-circle-2"></i></span>' +
         '<strong>Все номера из PDF уже проверены</strong><span>В сегодняшней очереди больше нет номеров для проверки.</span></div>';
     } else {
-      container.innerHTML = renderFloorSections(rooms, 'work');
+      container.innerHTML = renderFloorSections(rooms);
     }
   }
 
@@ -280,7 +219,6 @@ App.departuresModule = (() => {
 
   function render() {
     renderStats();
-    renderCheckedRooms();
     renderWorkingRooms();
     if (window.lucide) {
       try { window.lucide.createIcons(); } catch (_) {}
@@ -482,56 +420,64 @@ App.departuresModule = (() => {
   }
 
   function buildPrintDocument(finalRooms) {
-    const date = formatDate(SESSION_DATE());
-    const pages = Math.max(1, Math.ceil(finalRooms.length / 72));
+    // Legacy minibars Departures print geometry: A4 landscape, 1cm margins,
+    // two columns and 36 fixed-height rows per column.
+    const dateString = new Date().toLocaleDateString('ru-RU');
+    const pages = [];
+    const pageCount = Math.ceil(finalRooms.length / 72);
     const roomMap = roomsByNumber();
-    let html = '<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Departures ' +
-      escapeHtml(date) + '</title><style>' +
-      '@page{size:A4 landscape;margin:10mm}' +
-      'html,body{margin:0;padding:0;color:#111;font-family:"Times New Roman",serif}' +
-      'body{font-size:10pt}.departure-print-page{display:flex;gap:8mm;width:100%;min-height:185mm;page-break-after:always;break-after:page}' +
-      '.departure-print-page:last-child{page-break-after:auto;break-after:auto}' +
-      '.departure-print-column{flex:1;min-width:0}' +
-      '.departure-print-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:10pt}' +
-      '.departure-print-table th,.departure-print-table td{height:4.35mm;padding:0 2px;border:1px solid #111;vertical-align:middle}' +
-      '.departure-print-table th{height:6mm;text-align:center;background:#f1f1f1;font-weight:700}' +
-      '.departure-print-table .number{width:48px;text-align:center;font-weight:700;white-space:nowrap}' +
-      '.departure-print-table .details{padding-left:5px;overflow-wrap:anywhere}' +
-      '.departure-print-table .empty-label{font-size:9pt}' +
-      '@media screen{body{padding:10mm;background:#fff}.departure-print-page{min-height:185mm;margin-bottom:10mm;box-shadow:0 1px 8px #bbb;padding:0}}' +
-      '</style></head><body>';
 
-    for (let pageIndex = 0; pageIndex < pages; pageIndex += 1) {
-      const pageItems = finalRooms.slice(pageIndex * 72, pageIndex * 72 + 72);
+    for (let pageNum = 0; pageNum < pageCount; pageNum += 1) {
+      const pageItems = finalRooms.slice(pageNum * 72, pageNum * 72 + 72);
       const left = pageItems.slice(0, 36);
       const right = pageItems.slice(36, 72);
       while (left.length < 36) left.push(null);
       while (right.length < 36) right.push(null);
-
-      const renderColumn = column => {
-        let rows = '';
-        for (const item of column) {
-          if (!item) {
-            rows += '<tr><td class="number">&nbsp;</td><td class="details">&nbsp;</td></tr>';
-            continue;
-          }
-          const number = roomNumber(item);
-          const mark = state.session.marks[number];
-          const displayNumber = (mark === 'arrival' ? '→ ' : '') + number;
-          const isEmpty = roomMap.get(number)?.expiryStatus === 'empty';
-          const detail = isEmpty ? '<span class="empty-label">пустой</span>' : '&nbsp;';
-          rows += '<tr><td class="number">' + escapeHtml(displayNumber) +
-            '</td><td class="details">' + detail + '</td></tr>';
-        }
-        return '<div class="departure-print-column"><table class="departure-print-table"><thead><tr>' +
-          '<th class="number">№</th><th>Departures of ' + escapeHtml(date) +
-          '</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
-      };
-
-      html += '<section class="departure-print-page">' + renderColumn(left) + renderColumn(right) + '</section>';
+      pages.push([left, right]);
     }
-    html += '</body></html>';
-    return html;
+
+    let htmlContent = '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+      '<title>Departures ' + escapeHtml(dateString) + '</title><style>' +
+      '@page { size: A4 landscape; margin: 1cm; }' +
+      'body { font-family: Times New Roman, serif; margin: 0; padding: 0; }' +
+      '.page-container { display:flex; justify-content:space-around; width:100%; height:95vh; page-break-after:always; }' +
+      '.page-column { flex:1; padding-top:1cm; padding-left:1cm; padding-right:1cm; box-sizing:border-box; }' +
+      '.print-table { width:100%; border-collapse:collapse; font-size:10px; }' +
+      '.print-table th, .print-table td { border:1px solid #000; padding:0px; height:16px; vertical-align:middle; }' +
+      '.print-table th { background:#f0f0f0; font-weight:bold; text-align:center; }' +
+      '.print-table .number-col { width:50px; text-align:center; }' +
+      '.print-table .departures-col { width:auto; text-align:left; padding-left:6px; }' +
+      '.subtext { display:block; font-size:10px; color:#111; margin-top:2px; }' +
+      '</style></head><body>';
+
+    const renderColumn = column => {
+      let rows = '';
+      for (const item of column) {
+        if (!item) {
+          rows += '<tr><td class="number-col">&nbsp;</td><td class="departures-col">&nbsp;</td></tr>';
+          continue;
+        }
+        const number = roomNumber(item);
+        const mark = state.session.marks[number];
+        const displayNumber = (mark === 'arrival' ? '→ ' : '') + number;
+        const isEmpty = roomMap.get(number)?.expiryStatus === 'empty';
+        const cellText = isEmpty ? '<span class="subtext">пустой</span>' : '&nbsp;';
+        rows += '<tr><td class="number-col"><strong><font size="2">' +
+          escapeHtml(displayNumber) + '</font></strong></td>' +
+          '<td class="departures-col">' + cellText + '</td></tr>';
+      }
+      return '<div class="page-column"><table class="print-table"><thead><tr>' +
+        '<th class="number-col"><font size="2">№</font></th>' +
+        '<th class="departures-col" style="text-align: center;"><font size="2">Departures of ' +
+        escapeHtml(dateString) + '</font></th></tr></thead><tbody>' + rows +
+        '</tbody></table></div>';
+    };
+
+    pages.forEach(([left, right]) => {
+      htmlContent += '<div class="page-container">' + renderColumn(left) + renderColumn(right) + '</div>';
+    });
+    htmlContent += '</body></html>';
+    return htmlContent;
   }
 
   async function printDepartures() {
