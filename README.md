@@ -52,6 +52,7 @@ VK Mini App ──> VK API Proxy ──> VK API
 - frontend/js/history-module.js — история.
 - frontend/js/calculator-module.js — калькулятор.
 - frontend/js/inventory-module.js, frontend/js/lists-module.js — инвентаризация и списки.
+- frontend/js/departures-module.js — ежедневный процесс «Выезды»: PDF Opera, проверенные из VK, отметки по этажам и печать Departures.
 - frontend/js/dashboard-module.js, frontend/js/settings-module.js — главная панель и настройки.
 - frontend/js/live-sync.js — подписка на live-события и связь событий с доменами интерфейса.
 - frontend/tests/desktop-smoke.cjs — браузерные smoke-тесты desktop-интерфейса.
@@ -83,6 +84,7 @@ Frontend — модульный vanilla JavaScript. Перед добавлен�
 - /api/checks — проверки, включая GIH-сценарии.
 - /api/excises — акцизы.
 - /api/lists — списки.
+- /api/departures — данные выездов за текущий календарный день, общая сессия PDF/ручных отметок и аудит печати.
 - /api/miniapp — операции Mini App.
 - /api/vk-bot — внутренние операции бота.
 - /api/events — поток live-событий Server-Sent Events (SSE).
@@ -103,6 +105,8 @@ Frontend — модульный vanilla JavaScript. Перед добавлен�
 ## 4. Live-обновления
 
 Приложение использует SSE через /api/events, чтобы изменения отображались без ручного обновления страницы.
+
+Сессия вкладки «Выезды» хранится в существующей таблице `settings` под отдельным ключом `departures-session-v1`, поэтому для неё не требуется изменение Prisma-схемы. При переходе на новый календарный день backend создаёт чистую сессию; сам PDF не хранится, сохраняются имя файла, распознанные номера и ручные отметки. Изменения сессии распространяются через общий live-механизм.
 
 - backend/src/lib/prisma.js отслеживает операции изменения данных и регистрирует события.
 - backend/src/lib/live-events.js определяет публикацию событий и их домены.
