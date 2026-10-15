@@ -70,7 +70,9 @@ function getQty(productId) {
     });
     return CATEGORY_ORDER.map(name => ({
       name,
-      items: (grouped[name] || []).sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+      // API returns products in the persisted settings order (sortOrder).
+      // Keep that order within each category instead of sorting alphabetically.
+      items: grouped[name] || []
     }));
   }
 
@@ -133,16 +135,11 @@ function getQty(productId) {
     if (window.lucide) lucide.createIcons();
   }
 
-  // Плоский список для шторки: без категорий, но в логичном порядке
+  // Плоский список для шторки: категории идут в фиксированном порядке,
+  // продукты внутри категории — в порядке, заданном в настройках.
   function sortedFlatProducts() {
-    const catIndex = (p) => {
-      const i = CATEGORY_ORDER.indexOf(p.category || 'Напитки');
-      return i === -1 ? 99 : i;
-    };
-    return [...products].sort((a, b) => {
-      const d = catIndex(a) - catIndex(b);
-      return d !== 0 ? d : a.name.localeCompare(b.name, 'ru');
-    });
+    const byCategory = getProductsByCategory();
+    return byCategory.flatMap(group => group.items);
   }
 
   function getBillEntries() {

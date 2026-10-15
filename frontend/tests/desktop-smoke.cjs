@@ -12,6 +12,13 @@ const product = {
   bgColor: 'blue',
   hasExpiry: true
 };
+const calculatorProducts = [
+  { ...product, id: 14, name: 'Орехи', category: 'Дверца', sortOrder: 0 },
+  { ...product, id: 2, name: 'Тоник', category: 'Напитки', sortOrder: 1 },
+  { ...product, sortOrder: 2 },
+  { ...product, id: 12, name: 'Виски', category: 'Алкоголь', sortOrder: 3 },
+  { ...product, id: 13, name: 'Сок', category: 'Соки', sortOrder: 4 }
+];
 
 const rooms = [{
   id: 101,
@@ -151,7 +158,7 @@ const targets = {
 
     let body = {};
     if (path === '/products' && method === 'GET') {
-      body = [product];
+      body = calculatorProducts;
     } else if (path === '/rooms' && method === 'GET') {
       body = rooms;
     } else if (/^\/rooms\/\d+\/product-statuses$/.test(path) && method === 'GET') {
@@ -271,8 +278,14 @@ const targets = {
       height: getComputedStyle(icon).height,
       strokeWidth: getComputedStyle(icon).strokeWidth
     }));
-    assert.deepEqual(titleIconStyle, { width: '24px', height: '24px', strokeWidth: '2.5px' },
-      'page title icons should be 24px and use a bolder stroke');
+    assert.deepEqual(titleIconStyle, { width: '28px', height: '28px', strokeWidth: '2.75px' },
+      'page title icons should be larger and use a bolder stroke');
+    const calculatorIconStyle = await page.locator('#view-calculator .page-title-icon').evaluate(icon => ({
+      width: getComputedStyle(icon).width,
+      height: getComputedStyle(icon).height
+    }));
+    assert.deepEqual(calculatorIconStyle, { width: '20px', height: '20px' },
+      'calculator title icon should remain smaller than other page icons');
     assert.deepEqual(await page.locator('[data-history-view]').evaluateAll(nodes => nodes.map(node => node.dataset.historyView)),
       ['daily', 'gih', 'deadlines'], 'history subtabs should be ordered Daily, GIH, Deadlines');
 
@@ -397,6 +410,17 @@ const targets = {
 
     console.log('PASS: desktop shell, design-system.css and sidebar motion load correctly');
 
+    await page.locator('.nav-item[data-route="settings"]').click();
+    await page.locator('#products-table-container .settings-product-category').first().waitFor({ state: 'visible', timeout: 5000 });
+    const settingsCategoryOrder = await page.locator('#products-table-container .settings-product-category')
+      .evaluateAll(nodes => nodes.map(node => node.dataset.productCategory));
+    assert.deepEqual(settingsCategoryOrder, ['Дверца', 'Напитки', 'Алкоголь', 'Соки'],
+      'settings products should be grouped in the shared category order');
+    const settingsDrinkOrder = await page.locator('#products-table-container .settings-product-category[data-product-category="Напитки"] .prod-row')
+      .evaluateAll(nodes => nodes.map(node => node.querySelector('.prod-row-name').textContent.trim()));
+    assert.deepEqual(settingsDrinkOrder, ['Тоник', 'Вода'],
+      'settings should preserve configured order within a category instead of sorting alphabetically');
+
     await page.locator('.nav-item[data-route="calculator"]').click();
     const calcDrawer = page.locator('#calc-drawer');
     await calcDrawer.waitFor({ state: 'visible', timeout: 5000 });
@@ -408,6 +432,10 @@ const targets = {
     );
     const calcProduct = page.locator('#cd-grid .cd-product[data-product-id="1"]');
     await calcProduct.waitFor({ state: 'visible', timeout: 10000 });
+    const calculatorProductOrder = await page.locator('#cd-grid .cd-product')
+      .evaluateAll(nodes => nodes.map(node => Number(node.dataset.productId)));
+    assert.deepEqual(calculatorProductOrder, [14, 2, 1, 12, 13],
+      'calculator should follow settings category order and saved product order within each category');
     await calcProduct.click();
     await page.locator('#cd-grid .cd-badge').waitFor({ state: 'visible', timeout: 3000 });
     assert.match(await page.locator('#cd-count').innerText(), /1 позици/);

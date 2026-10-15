@@ -35,7 +35,16 @@ const container = document.getElementById('products-table-container');
 if (container) container.innerHTML = '<div class="text-center py-12 text-rose-500 text-sm">Ошибка загрузки</div>';
 }
 }
-// ── Список продуктов: карточки с перетаскиванием (вместо таблицы) ──
+// ── Список продуктов: категории и перетаскивание внутри каждой категории ──
+const PRODUCT_CATEGORIES = ['Дверца', 'Напитки', 'Алкоголь', 'Соки'];
+function getProductsByCategory() {
+const grouped = Object.fromEntries(PRODUCT_CATEGORIES.map(category => [category, []]));
+products.forEach(product => {
+const category = PRODUCT_CATEGORIES.includes(product.category) ? product.category : 'Напитки';
+grouped[category].push(product);
+});
+return PRODUCT_CATEGORIES.map(name => ({ name, items: grouped[name] }));
+}
 function renderProductsList() {
 const container = document.getElementById('products-table-container');
 if (!container) return;
@@ -43,12 +52,20 @@ if (products.length === 0) {
 container.innerHTML = '<div class="text-center py-12 text-slate-400 text-sm">Нет продуктов</div>';
 return;
 }
-container.innerHTML = `<div class="prod-list">${products.map(p => {
+const groups = getProductsByCategory();
+container.innerHTML = `<div class="settings-product-groups">
+${groups.map(group => `
+<section class="settings-product-category" data-product-category="${group.name}">
+<header class="settings-product-category-header">
+<h4>${group.name}</h4>
+<span>${group.items.length}</span>
+</header>
+${group.items.length ? `<div class="prod-list" data-category="${group.name}">${group.items.map(p => {
 const emoji = p.emoji || p.name.charAt(0).toUpperCase();
 const safeName = String(p.name).replace(/"/g, '&quot;');
 return `
 <div class="prod-row" data-product-id="${p.id}">
-<div class="drag-handle" title="Перетащить"><i data-lucide="grip-vertical" class="w-4 h-4 pointer-events-none"></i></div>
+<div class="drag-handle" title="Перетащить внутри категории"><i data-lucide="grip-vertical" class="w-4 h-4 pointer-events-none"></i></div>
 <div class="prod-row-main">
 <div class="prod-row-emoji ${getColorClass(p.bgColor)}">${emoji}</div>
 <div class="prod-row-info">
@@ -66,20 +83,30 @@ return `
 </button>
 </div>
 </div>`;
-}).join('')}</div>`;
+}).join('')}</div>` : '<div class="settings-product-empty">В этой категории пока нет продуктов</div>'}
+</section>`).join('')}
+</div>`;
 if (window.lucide) lucide.createIcons();
-const listEl = container.querySelector('.prod-list');
+container.querySelectorAll('.prod-list').forEach(listEl => {
 initListDrag(listEl, {
 itemSel: '.prod-row',
 handleSel: '.drag-handle',
 getId: el => el.dataset.productId,
-onReorder: (ids) => {
-const map = new Map(products.map(p => [String(p.id), p]));
-products = ids.map(id => map.get(String(id))).filter(Boolean);
+onReorder: ids => {
+const category = listEl.dataset.category;
+const current = getProductsByCategory();
+const group = current.find(item => item.name === category);
+if (group) {
+const map = new Map(group.items.map(p => [String(p.id), p]));
+group.items = ids.map(id => map.get(String(id))).filter(Boolean);
+}
+products = current.flatMap(item => item.items);
+const order = products.map(p => p.id);
 if (window.api && api().reorderProducts) {
-api().reorderProducts(ids).catch(err => console.error('reorderProducts error', err));
+api().reorderProducts(order).catch(err => console.error('reorderProducts error', err));
 }
 }
+});
 });
 }
 function openProductModal(product = null) {
