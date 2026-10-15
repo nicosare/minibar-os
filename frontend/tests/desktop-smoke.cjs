@@ -296,7 +296,7 @@ const targets = {
       'the invalid mark should remain visible but not be exported');
     assert.equal(await page.locator('#excise-list .excise-card.valid .excise-meta-status').first().innerText(), 'Валидна');
     assert.equal(await page.locator('#excise-list .excise-card.invalid .excise-meta-status').innerText(), 'Проверить марку');
-    assert.equal(await page.locator('#excise-list .excise-card.valid').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(255, 255, 255)',
+    assert.equal(await page.locator('#excise-list .excise-card.valid').first().evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(255, 255, 255)',
       'valid excise cards should use the shared neutral card surface');
     assert.equal(await page.locator('#excise-copy-all-btn').count(), 0,
       'the obsolete copy-all action should be removed');
