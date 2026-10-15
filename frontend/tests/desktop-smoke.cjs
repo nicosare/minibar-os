@@ -884,7 +884,6 @@ let savedDeparturesPrint = null;
       const properties = element => {
         const style = getComputedStyle(element);
         return {
-          height: style.height,
           minHeight: style.minHeight,
           padding: style.padding,
           borderRadius: style.borderRadius,
