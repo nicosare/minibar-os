@@ -124,6 +124,30 @@ const targets = {
   summary: { badCount: 0, totalRooms: 1, goodCount: 0 }
 };
 
+const departuresDate = new Date();
+const departuresDateKey = departuresDate.getFullYear() + '-' +
+  String(departuresDate.getMonth() + 1).padStart(2, '0') + '-' +
+  String(departuresDate.getDate()).padStart(2, '0');
+const departuresRooms = [
+  { id: 101, number: 500, floor: 5, category: 'standard', expiryStatus: 'empty' },
+  { id: 102, number: 502, floor: 5, category: 'standard', expiryStatus: 'neutral' },
+  { id: 103, number: 503, floor: 5, category: 'lux', expiryStatus: 'neutral' },
+  { id: 104, number: 504, floor: 5, category: 'standard', expiryStatus: 'empty' },
+  { id: 105, number: 701, floor: 7, category: 'standard', expiryStatus: 'neutral' }
+];
+const departuresChecks = [
+  { number: '500', checkedAt: new Date().toISOString(), emptied: true },
+  { number: '701', checkedAt: new Date(Date.now() - 60000).toISOString(), emptied: false }
+];
+let departuresSession = {
+  dateKey: departuresDateKey,
+  fileName: 'OperaPrint.pdf',
+  pdfRooms: ['500', '502', '503', '504', '701'],
+  marks: { '502': 'resident', '503': 'arrival' }
+};
+let departuresPrintHistoryRecord = null;
+let savedDeparturesPrint = null;
+
 (async () => {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
@@ -165,6 +189,42 @@ const targets = {
       body = [];
     } else if (/^\/rooms\/\d+\/product-statuses$/.test(path)) {
       body = { success: true };
+    } else if (path === '/departures' && method === 'GET') {
+      body = {
+        dateKey: departuresDateKey,
+        rooms: departuresRooms,
+        checkedToday: departuresChecks,
+        session: departuresSession
+      };
+    } else if (path === '/departures/session/pdf' && method === 'POST') {
+      const payload = request.postDataJSON();
+      departuresSession = {
+        ...departuresSession,
+        fileName: payload.fileName,
+        pdfRooms: payload.rooms.map(String)
+      };
+      body = { ok: true, session: departuresSession };
+    } else if (path === '/departures/session/mark' && method === 'PATCH') {
+      const payload = request.postDataJSON();
+      const marks = { ...departuresSession.marks };
+      if (payload.mark) marks[String(payload.number)] = payload.mark;
+      else delete marks[String(payload.number)];
+      departuresSession = { ...departuresSession, marks };
+      body = { ok: true, session: departuresSession };
+    } else if (path === '/departures/print' && method === 'POST') {
+      savedDeparturesPrint = request.postDataJSON();
+      departuresPrintHistoryRecord = {
+        id: 990,
+        roomId: null,
+        type: 'departures_print',
+        status: 'done',
+        checkDate: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        room: null,
+        notes: 'Количество номеров в итоговом списке: ' + savedDeparturesPrint.count,
+        gihItems: []
+      };
+      body = { ok: true, id: 990, checkDate: new Date().toISOString() };
     } else if (path === '/deadlines/targets') {
       body = targets;
     } else if (path === '/deadlines/stats') {
@@ -183,19 +243,18 @@ const targets = {
       if (url.searchParams.has('room')) {
         body = { items: roomSearchRecords, total: roomSearchRecords.length };
       } else if (operation === 'daily') {
-        body = {
-          items: [{
-            id: 51,
-            roomId: 101,
-            type: 'check',
-            status: 'done',
-            checkDate: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            room: { number: 500 },
-            notes: 'Тестовая запись'
-          }],
-          total: 1
-        };
+        const dailyItems = [{
+          id: 51,
+          roomId: 101,
+          type: 'check',
+          status: 'done',
+          checkDate: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          room: { number: 500 },
+          notes: 'Тестовая запись'
+        }];
+        if (departuresPrintHistoryRecord) dailyItems.unshift(departuresPrintHistoryRecord);
+        body = { items: dailyItems, total: dailyItems.length };
       } else if (operation === 'room') {
         body = { items: roomHistoryRecords, total: roomHistoryRecords.length };
       } else if (operation === 'gih') {
@@ -756,6 +815,98 @@ const targets = {
     assert.ok(gihHistoryRecords.some(check => check.id === 704 && check.gihRoomStatus === 'not_checked'),
       'archiving should retain a history record instead of deleting it');
     console.log('PASS: day rollover hides old saved cards and archives stale drafts as “Не проверен”');
+
+    await page.locator('.nav-item[data-route="departures"]').click();
+    await page.waitForFunction(() => document.getElementById('view-departures')?.classList.contains('active'));
+    await page.waitForFunction(() => document.getElementById('departures-stat-final')?.textContent === '2');
+    assert.equal((await page.locator('#departures-stat-checked').innerText()).trim(), '2',
+      'checked-today statistics should count unique verified rooms');
+    assert.equal((await page.locator('#departures-stat-pdf').innerText()).trim(), '5',
+      'PDF statistics should count recognized rooms before exclusions');
+    assert.equal((await page.locator('#departures-stat-auto-excluded').innerText()).trim(), '2',
+      'rooms verified today should be auto-excluded from the PDF worklist');
+    assert.equal((await page.locator('#departures-stat-manual-excluded').innerText()).trim(), '1',
+      'manual resident marks should be counted separately');
+    assert.equal((await page.locator('#departures-stat-arrival').innerText()).trim(), '1',
+      'arrival marks should be counted separately');
+    assert.equal((await page.locator('#departures-stat-final').innerText()).trim(), '2',
+      'the print count should include arrival marks but exclude residents');
+
+    const checkedEmpty = page.locator('#departures-checked-list [data-room-number="500"]');
+    assert.ok((await checkedEmpty.getAttribute('class')).includes('is-empty'),
+      'emptied rooms should be blue only in the checked-today list');
+    assert.ok((await checkedEmpty.getAttribute('class')).includes('is-auto-excluded'),
+      'rooms from the PDF that are already checked today should be outlined in the checked list');
+    const workEmpty = page.locator('#departures-work-list [data-departures-room="504"]');
+    assert.ok(!(await workEmpty.getAttribute('class')).includes('is-empty'),
+      'an emptied room in the worklist must not inherit the blue checked-list styling');
+
+    const cycleRoom = page.locator('#departures-work-list [data-departures-room="504"]');
+    await cycleRoom.click();
+    assert.ok((await page.locator('#departures-work-list [data-departures-room="504"]').getAttribute('class')).includes('is-resident'),
+      'first click should mark a room as resident');
+    await page.locator('#departures-work-list [data-departures-room="504"]').click();
+    assert.ok((await page.locator('#departures-work-list [data-departures-room="504"]').getAttribute('class')).includes('is-arrival'),
+      'second click should mark a room as arrival');
+    await page.locator('#departures-work-list [data-departures-room="504"]').click();
+    assert.ok(!(await page.locator('#departures-work-list [data-departures-room="504"]').getAttribute('class')).includes('is-arrival'),
+      'third click should clear the manual mark');
+
+    await page.evaluate(async () => {
+      await window.api.saveDeparturesPdf('OperaPrint-reloaded.pdf', ['500', '502', '503', '504', '701']);
+      await window.App.departuresModule.refresh();
+    });
+    assert.ok((await page.locator('#departures-work-list [data-departures-room="502"]').getAttribute('class')).includes('is-resident'),
+      'manual marks should remain after replacing the PDF');
+    assert.ok((await page.locator('#departures-work-list [data-departures-room="503"]').getAttribute('class')).includes('is-arrival'),
+      'arrival marks should remain after replacing the PDF');
+
+    // Restart the app from its entry point: the shared session should be restored from the API.
+    await page.goto('http://127.0.0.1:8080/', { waitUntil: 'domcontentloaded' });
+    await page.locator('.sidebar').waitFor({ state: 'visible', timeout: 10000 });
+    await page.locator('.nav-item[data-route="departures"]').click();
+    await page.waitForFunction(() => document.getElementById('departures-stat-final')?.textContent === '2');
+    assert.ok((await page.locator('#departures-work-list [data-departures-room="502"]').getAttribute('class')).includes('is-resident'),
+      'manual resident marks should survive a fresh page load');
+    assert.ok((await page.locator('#departures-work-list [data-departures-room="503"]').getAttribute('class')).includes('is-arrival'),
+      'arrival marks should survive a fresh page load');
+
+    const printPopupPromise = page.waitForEvent('popup');
+    await page.locator('#departures-print-btn').click();
+    const printPopup = await printPopupPromise;
+    for (let attempt = 0; attempt < 30 && !savedDeparturesPrint; attempt += 1) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    assert.ok(savedDeparturesPrint, 'printing should create an audit operation');
+    assert.equal(savedDeparturesPrint.count, 2, 'the print audit should store the number of rooms in the final list');
+    await printPopup.waitForLoadState('domcontentloaded').catch(() => {});
+    assert.match(await printPopup.locator('body').innerText(), /→ 503/,
+      'arrival rooms should have an arrow in the print view');
+    assert.match(await printPopup.locator('body').innerText(), /пустой/,
+      'rooms emptied in the system should have a “пустой” label in the print view');
+    assert.doesNotMatch(await printPopup.locator('body').innerText(), /502/,
+      'resident rooms must be omitted from the print view');
+
+    // Simulate another number arriving from VK after a PDF is already loaded.
+    departuresChecks.push({ number: '504', checkedAt: new Date().toISOString(), emptied: true });
+    await page.evaluate(() => window.App.departuresModule.refresh());
+    assert.equal(await page.locator('#departures-work-list [data-departures-room="504"]').count(), 0,
+      'a newly checked room should be removed from an already loaded worklist');
+    assert.equal((await page.locator('#departures-stat-checked').innerText()).trim(), '3',
+      'live refresh should update checked-today statistics');
+    assert.ok((await page.locator('#departures-checked-list [data-room-number="504"]').getAttribute('class')).includes('is-auto-excluded'),
+      'newly checked rooms present in the PDF should receive the auto-exclusion outline');
+
+    await page.locator('.nav-item[data-route="history"]').click();
+    await page.locator('[data-history-view="daily"]').click();
+    await page.evaluate(() => window.App.historyModule.refresh());
+    await page.waitForFunction(() => document.querySelector('.history-records-table')?.innerText.includes('Печать Departures'));
+    const printHistoryRow = page.locator('.history-records-table tbody tr').filter({ hasText: 'Печать Departures' }).first();
+    assert.match(await printHistoryRow.innerText(), /—/,
+      'the print history row should show a dash instead of a room number');
+    assert.match(await printHistoryRow.innerText(), /Количество номеров в итоговом списке: 2/,
+      'the print history details should store the final count');
+    console.log('PASS: departures live data, room marking cycle, PDF replacement persistence and print history');
 
     assert.deepEqual(pageErrors, [], 'browser JavaScript should not throw uncaught errors');
     console.log('PASS: no uncaught browser JavaScript errors');

@@ -73,6 +73,9 @@ App.historyModule = (() => {
   }
 
   function operationMeta(check) {
+    if (check.type === 'departures_print') {
+      return { label: 'Печать Departures', cls: 'bg-sky-50 text-sky-700 border-sky-200' };
+    }
     if (isEmptyType(check.type)) {
       return { label: 'Опустошение', cls: 'bg-rose-50 text-rose-700 border-rose-100' };
     }

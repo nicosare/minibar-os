@@ -9,6 +9,7 @@ import templatesRouter from './routes/templates.js';
 import checksRouter from './routes/checks.js';
 import excisesRouter from './routes/excises.js';
 import listsRouter from './routes/lists.js';
+import departuresRouter from './routes/departures.js';
 import miniappRouter from './routes/miniapp.js';
 import vkBotRouter from './routes/vk-bot.js';
 import eventsRouter from './routes/events.js';
@@ -37,6 +38,7 @@ export function createApp() {
   app.use('/api/checks', checksRouter);
   app.use('/api/excises', excisesRouter);
   app.use('/api/lists', listsRouter);
+  app.use('/api/departures', departuresRouter);
   app.use('/api/miniapp', miniappRouter);
   app.use('/api/vk-bot', vkBotRouter);
 
