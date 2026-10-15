@@ -142,18 +142,6 @@ const api = {
       body: JSON.stringify({ number, mark })
     });
   },
-  async addDeparturesManualRoom(number, emptied) {
-    return apiRequest('/departures/session/manual-room', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ number, emptied })
-    });
-  },
-  async removeDeparturesManualRoom(number) {
-    return apiRequest('/departures/session/manual-room/' + encodeURIComponent(number), {
-      method: 'DELETE'
-    });
-  },
   async logDeparturesPrint(count) {
     return apiRequest('/departures/print', {
       method: 'POST',
