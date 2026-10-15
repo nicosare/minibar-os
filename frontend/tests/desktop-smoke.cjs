@@ -299,7 +299,8 @@ const targets = {
     const downloadPromise = page.waitForEvent('download');
     await page.locator('#excise-download-btn').click();
     const exciseDownload = await downloadPromise;
-    assert.match(exciseDownload.suggestedFilename(), /^Акцизы мини-бар \\d{2}\\.\\d{2}\\.\\d{2}\\.xlsx$/,
+    assert.match(exciseDownload.suggestedFilename(), /^Акцизы мини-бар \d{2}\.\d{2}\.\d{2}\.xlsx$/,
+      'download should use the requested Russian title and DD.MM.YY date');
       'download should use the requested Russian title and DD.MM.YY date');
     const fs = require('node:fs');
     const workbook = fs.readFileSync(await exciseDownload.path());
@@ -322,7 +323,7 @@ const targets = {
       throw new Error(`Missing XLSX entry: ${wantedName}`);
     }
     const worksheetXml = readStoredZipEntry(workbook, 'xl/worksheets/sheet1.xml');
-    const exportedMarks = [...worksheetXml.matchAll(/<row r="\\d+"><c r="A\\d+" t="inlineStr"><is><t xml:space="preserve">(.*?)<\\/t><\\/is><\\/c><\\/row>/g)]
+    const exportedMarks = [...worksheetXml.matchAll(/<row r="\d+"><c r="A\d+" t="inlineStr"><is><t xml:space="preserve">(.*?)<\/t><\/is><\/c><\/row>/g)]
       .map(match => match[1].replace(/&apos;/g, "'").replace(/&quot;/g, '"').replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&'));
     assert.deepEqual(exportedMarks, ['12345678901234567890'],
       'Excel should contain only valid excises, one mark per row and no header or extra columns');
