@@ -848,3 +848,34 @@ button.icon-button:not(:disabled):active {
 .nav-item.active[data-accent] .nav-icon {
   color: var(--nav-active-color, var(--accent)) !important;
 }
+
+/* Route headings reuse the same icons as the sidebar, with a consistent baseline. */
+.page-title {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+.page-title-icon {
+  display: block;
+  flex: 0 0 auto;
+  width: 1.25rem;
+  height: 1.25rem;
+  stroke-width: 2;
+}
+
+/* The wrapper owns the single border; the nested input must stay borderless. */
+#view-history .history-search-wrap input {
+  min-height: 0 !important;
+  height: 38px !important;
+  padding: 0 4px 0 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  outline: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+#view-history .history-search-wrap input:focus {
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+}

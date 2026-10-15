@@ -100,6 +100,10 @@ const roomHistoryRecords = [
     gihItems: []
   }
 ];
+const roomSearchRecords = [
+  { ...makeGihHistoryRecord(811, ['out'], ['Тест 502']), id: 811, type: 'check', room: { number: 502 }, notes: null, gihItems: [] },
+  { ...makeGihHistoryRecord(812, ['out'], ['Тест 1502']), id: 812, type: 'check', room: { number: 1502 }, notes: null, gihItems: [] }
+];
 const monthProducts = [{ ...product, monthChecks: [] }];
 const stats = {
   currentYear: new Date().getFullYear(),
@@ -169,7 +173,9 @@ const targets = {
       body = { items: [], totalQty: 0 };
     } else if (path === '/checks/history') {
       const operation = url.searchParams.get('operation');
-      if (operation === 'daily') {
+      if (url.searchParams.has('room')) {
+        body = { items: roomSearchRecords, total: roomSearchRecords.length };
+      } else if (operation === 'daily') {
         body = {
           items: [{
             id: 51,
@@ -240,6 +246,36 @@ const targets = {
     assert.ok(designSystemResponse, 'design-system.css must be requested by the browser');
     assert.equal(designSystemResponse.status, 200, 'design-system.css must be served successfully');
     assert.match(designSystemResponse.contentType, /text\/css/i, 'design-system.css must be served as CSS');
+
+    const expectedPageIcons = [
+      ['dashboard', 'layout-dashboard'],
+      ['excise', 'stamp'],
+      ['arrivals', 'plane-landing'],
+      ['departures', 'plane-takeoff'],
+      ['gih', 'clipboard-check'],
+      ['inventory', 'clipboard-list'],
+      ['deadlines', 'calendar'],
+      ['history', 'history'],
+      ['empty', 'alert-circle'],
+      ['calculator', 'calculator'],
+      ['settings', 'settings']
+    ];
+    const pageIconAudit = await page.evaluate(routes => routes.map(([route, expected]) => {
+      const icon = document.querySelector('#view-' + route + ' .page-title [data-page-icon]');
+      return [route, icon ? icon.getAttribute('data-page-icon') : null, expected];
+    }), expectedPageIcons);
+    assert.deepEqual(pageIconAudit, expectedPageIcons.map(([route, icon]) => [route, icon, icon]),
+      'each main tab should display its matching sidebar icon in the page title');
+    assert.deepEqual(await page.locator('[data-history-view]').evaluateAll(nodes => nodes.map(node => node.dataset.historyView)),
+      ['daily', 'gih', 'deadlines'], 'history subtabs should be ordered Daily, GIH, Deadlines');
+
+    const searchFrame = await page.evaluate(() => ({
+      inputBorder: getComputedStyle(document.getElementById('history-search')).borderTopWidth,
+      wrapperBorder: getComputedStyle(document.querySelector('.history-search-wrap')).borderTopWidth
+    }));
+    assert.equal(searchFrame.inputBorder, '0px', 'history search input should not draw a second border');
+    assert.equal(searchFrame.wrapperBorder, '1px', 'history search should keep one shared wrapper border');
+
     assert.ok(parseFloat(await page.locator('.sidebar').evaluate(el => getComputedStyle(el).width)) > 200,
       'expanded desktop sidebar should have a usable width');
 
@@ -434,6 +470,23 @@ const targets = {
       'history should show only a time column because rows are grouped by day');
     assert.match((await page.locator('.history-records-table tbody tr').first().locator('td').first().innerText()).trim(),
       /^\d{2}:\d{2}$/, 'history timestamp should contain the time without the date');
+
+    await page.locator('#history-search').fill('502');
+    await page.waitForFunction(() => {
+      const numbers = [...document.querySelectorAll('.history-records-table [data-history-room-number]')]
+        .map(node => node.getAttribute('data-history-room-number'));
+      return numbers.length === 1 && numbers[0] === '502';
+    }, null, { timeout: 5000 });
+    const exactRoomMatches = await page.locator('.history-records-table [data-history-room-number]')
+      .evaluateAll(nodes => nodes.map(node => node.getAttribute('data-history-room-number')));
+    assert.deepEqual(exactRoomMatches, ['502'],
+      'searching 502 must never show partial match 1502, even if the API returns both');
+    assert.equal((await page.locator('#history-results-count').innerText()).trim(), 'Найдено: 1',
+      'the search count should reflect exact matches only');
+    await page.locator('#history-search-clear').click();
+    await page.waitForFunction(() => [...document.querySelectorAll('.history-records-table [data-history-room-number]')]
+      .some(node => node.getAttribute('data-history-room-number') === '500'), null, { timeout: 5000 });
+
     await page.evaluate(() => window.App.historyModule.openRoomHistory(101, 500));
     const roomHistory = page.locator('#room-history-panel');
     await page.waitForFunction(() => document.querySelector('#room-history-panel')?.getAttribute('aria-hidden') === 'false');
