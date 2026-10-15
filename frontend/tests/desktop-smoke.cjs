@@ -266,6 +266,13 @@ const targets = {
     }), expectedPageIcons);
     assert.deepEqual(pageIconAudit, expectedPageIcons.map(([route, icon]) => [route, icon, icon]),
       'each main tab should display its matching sidebar icon in the page title');
+    const titleIconStyle = await page.locator('#view-excise .page-title-icon').evaluate(icon => ({
+      width: getComputedStyle(icon).width,
+      height: getComputedStyle(icon).height,
+      strokeWidth: getComputedStyle(icon).strokeWidth
+    }));
+    assert.deepEqual(titleIconStyle, { width: '24px', height: '24px', strokeWidth: '2.5' },
+      'page title icons should be 24px and use a bolder stroke');
     assert.deepEqual(await page.locator('[data-history-view]').evaluateAll(nodes => nodes.map(node => node.dataset.historyView)),
       ['daily', 'gih', 'deadlines'], 'history subtabs should be ordered Daily, GIH, Deadlines');
 
