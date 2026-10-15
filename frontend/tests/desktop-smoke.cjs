@@ -339,9 +339,13 @@ let savedDeparturesPrint = null;
       nodes.map(icon => ({ name: icon.getAttribute('data-page-icon'), color: getComputedStyle(icon).color })));
     assert.ok(titleIconColors.length === expectedPageIcons.length && titleIconColors.every(icon => icon.color === 'rgb(15, 23, 42)'),
       'all page title icons should use the same neutral black color, diagnostics=' + JSON.stringify(titleIconColors));
+    await page.evaluate(() => window.lucide?.createIcons());
     await page.waitForFunction(() => {
       const icon = document.querySelector('#view-excise .page-title-icon');
-      return icon && icon.tagName.toLowerCase() === 'svg';
+      if (!icon || icon.tagName.toLowerCase() !== 'svg') return false;
+      const style = getComputedStyle(icon);
+      return style.width === '28px' && style.height === '28px' &&
+        style.strokeWidth === '2.75px' && style.color === 'rgb(15, 23, 42)';
     }, null, { timeout: 10000 });
     const titleIconStyle = await page.locator('#view-excise .page-title-icon').evaluate(icon => ({
       width: getComputedStyle(icon).width,
@@ -350,7 +354,8 @@ let savedDeparturesPrint = null;
       color: getComputedStyle(icon).color
     }));
     assert.deepEqual(titleIconStyle, { width: '28px', height: '28px', strokeWidth: '2.75px', color: 'rgb(15, 23, 42)' },
-      'page title icons should be larger, bold, and neutral black');
+      'page title icons should be larger, bold, and neutral black; svg=' +
+      await page.locator('#view-excise .page-title-icon').evaluate(icon => icon.outerHTML));
     const calculatorIconStyle = await page.locator('#view-calculator .page-title-icon').evaluate(icon => ({
       width: getComputedStyle(icon).width,
       height: getComputedStyle(icon).height
