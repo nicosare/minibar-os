@@ -339,6 +339,10 @@ let savedDeparturesPrint = null;
       nodes.map(icon => ({ name: icon.getAttribute('data-page-icon'), color: getComputedStyle(icon).color })));
     assert.ok(titleIconColors.length === expectedPageIcons.length && titleIconColors.every(icon => icon.color === 'rgb(15, 23, 42)'),
       'all page title icons should use the same neutral black color, diagnostics=' + JSON.stringify(titleIconColors));
+    await page.waitForFunction(() => {
+      const icon = document.querySelector('#view-excise .page-title-icon');
+      return icon && icon.tagName.toLowerCase() === 'svg';
+    }, null, { timeout: 10000 });
     const titleIconStyle = await page.locator('#view-excise .page-title-icon').evaluate(icon => ({
       width: getComputedStyle(icon).width,
       height: getComputedStyle(icon).height,
