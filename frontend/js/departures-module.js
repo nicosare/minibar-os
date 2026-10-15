@@ -4,12 +4,11 @@ App.departuresModule = (() => {
   const SESSION_DATE = () => localDateKey(new Date());
   const state = {
     data: { dateKey: '', rooms: [], checkedToday: [] },
-    session: { dateKey: SESSION_DATE(), fileName: '', pdfRooms: [], marks: {}, manualRooms: [] },
+    session: { dateKey: SESSION_DATE(), fileName: '', pdfRooms: [], marks: {} },
     initialized: false,
     requestSequence: 0,
     pendingMarks: new Set(),
     parsingPdf: false,
-    addingManualRoom: false,
     feedbackTimer: null,
     midnightTimer: null
   };
@@ -25,7 +24,7 @@ App.departuresModule = (() => {
   }
 
   function emptySession(dateKey) {
-    return { dateKey, fileName: '', pdfRooms: [], marks: {}, manualRooms: [] };
+    return { dateKey, fileName: '', pdfRooms: [], marks: {} };
   }
 
   function escapeHtml(value) {
@@ -86,17 +85,8 @@ App.departuresModule = (() => {
     return new Set((state.data.checkedToday || []).map(item => String(item.number)));
   }
 
-  function manualRoomMap() {
-    return new Map((state.session.manualRooms || []).map(item => [
-      String(item.number),
-      { number: String(item.number), emptied: item.emptied === true }
-    ]));
-  }
-
-  function roomMark(number, manualByNumber = manualRoomMap()) {
-    return manualByNumber.has(String(number))
-      ? 'arrival'
-      : (state.session.marks && state.session.marks[String(number)]) || null;
+  function roomMark(number) {
+    return (state.session.marks && state.session.marks[String(number)]) || null;
   }
 
   function normalizePdfRooms() {
@@ -116,14 +106,12 @@ App.departuresModule = (() => {
   function currentWorkingRooms() {
     const byNumber = roomsByNumber();
     const checked = checkedNumbers();
-    const visibleNumbers = new Set(normalizePdfRooms().filter(number => !checked.has(number)));
-    manualRoomMap().forEach((_, number) => visibleNumbers.add(number));
-    return [...visibleNumbers]
+    return normalizePdfRooms()
+      .filter(number => !checked.has(number))
       .map(number => byNumber.get(number))
       .filter(Boolean)
       .sort((a, b) => Number(a.floor) - Number(b.floor) || Number(a.number) - Number(b.number));
   }
-
 
   function groupByFloor(rooms) {
     const groups = new Map();
@@ -148,12 +136,11 @@ App.departuresModule = (() => {
   function renderFloorSections(rooms) {
     if (!rooms.length) return '';
     const sections = groupByFloor(rooms);
-    const manualByNumber = manualRoomMap();
     return sections.map(section => {
       const floorCounts = {
-        neutral: section.rooms.filter(room => !roomMark(roomNumber(room), manualByNumber)).length,
-        valid: section.rooms.filter(room => roomMark(roomNumber(room), manualByNumber) === 'arrival').length,
-        needs: section.rooms.filter(room => roomMark(roomNumber(room), manualByNumber) === 'resident').length
+        neutral: section.rooms.filter(room => !roomMark(roomNumber(room))).length,
+        valid: section.rooms.filter(room => roomMark(roomNumber(room)) === 'arrival').length,
+        needs: section.rooms.filter(room => roomMark(roomNumber(room)) === 'resident').length
       };
       const dot = (tone, count) => '<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full ' +
         tone + '"></span><span class="text-slate-600">' + count + '</span></span>';
@@ -164,24 +151,11 @@ App.departuresModule = (() => {
       ].join('');
       const tiles = section.rooms.map(room => {
         const number = roomNumber(room);
-        const manual = manualByNumber.get(number);
-        const mark = roomMark(number, manualByNumber);
+        const mark = roomMark(number);
         const classes = ['room-cell', 'departure-room-tile', 'departure-work-tile'];
         if (mark === 'resident') classes.push('is-resident');
         if (mark === 'arrival') classes.push('is-arrival');
-        if (manual) classes.push('is-manual');
         if (state.pendingMarks.has(number)) classes.push('is-saving');
-        if (manual) {
-          const description = manual.emptied
-            ? 'Номер ' + number + ' добавлен на заезд, опустошить при печати.'
-            : 'Номер ' + number + ' вручную добавлен на заезд.';
-          return '<div class="departure-manual-slot" data-manual-room="' + escapeHtml(number) + '">' +
-            '<button type="button" class="' + classes.join(' ') + '" disabled aria-label="' +
-            escapeHtml(description) + '"><span class="departure-room-number">' + escapeHtml(number) + '</span></button>' +
-            '<button type="button" class="departure-manual-remove" data-departures-manual-remove="' +
-            escapeHtml(number) + '" aria-label="Убрать вручную добавленный номер ' + escapeHtml(number) + '" title="Убрать из списка">' +
-            '<i data-lucide="x"></i></button></div>';
-        }
         const aria = mark === 'resident'
           ? 'Номер ' + number + ', отметка жилой. Следующий клик — на заезд.'
           : mark === 'arrival'
@@ -202,36 +176,31 @@ App.departuresModule = (() => {
     }).join('');
   }
 
-
   function renderWorkingRooms() {
     const container = document.getElementById('departures-work-list');
     const fileName = document.getElementById('departures-file-name');
     const printButton = document.getElementById('departures-print-btn');
     const resetButton = document.getElementById('departures-reset-btn');
     const finalCount = document.getElementById('departures-final-count');
-    const addButton = document.getElementById('departures-manual-add-btn');
     if (!container) return;
 
     if (fileName) fileName.textContent = state.session.fileName || 'PDF ещё не загружен';
     const rooms = currentWorkingRooms();
     const printableRooms = rooms.filter(room => roomMark(roomNumber(room)) !== 'resident');
-    if (printButton) printButton.disabled = !printableRooms.length || state.parsingPdf;
+    if (printButton) printButton.disabled = !state.session.fileName || !printableRooms.length || state.parsingPdf;
     if (resetButton) resetButton.disabled = !state.session.fileName || state.parsingPdf;
-    if (addButton) addButton.disabled = state.addingManualRoom || state.parsingPdf;
     if (finalCount) finalCount.textContent = String(printableRooms.length);
 
-    if (!rooms.length) {
-      const hasPdfRooms = Boolean(state.session.fileName && normalizePdfRooms().length);
-      container.innerHTML = hasPdfRooms
-        ? '<div class="departures-empty-state"><span class="departures-empty-icon"><i data-lucide="check-circle-2"></i></span>' +
-          '<strong>Все номера из PDF уже проверены</strong><span>В сегодняшней очереди больше нет номеров для проверки.</span></div>'
-        : '<div class="departures-empty-state"><span class="departures-empty-icon"><i data-lucide="file-up"></i></span>' +
-          '<strong>Загрузите PDF с выездами</strong><span>Можно также вручную добавить номер на заезд в форму выше.</span></div>';
+    if (!state.session.fileName || !state.session.pdfRooms.length) {
+      container.innerHTML = '<div class="departures-empty-state"><span class="departures-empty-icon"><i data-lucide="file-up"></i></span>' +
+        '<strong>PDF ещё не загружен</strong><span>Загрузите файл через кнопку вверху. Номера распределятся по этажам автоматически.</span></div>';
+    } else if (!rooms.length) {
+      container.innerHTML = '<div class="departures-empty-state"><span class="departures-empty-icon"><i data-lucide="check-circle-2"></i></span>' +
+        '<strong>Все номера из PDF уже проверены</strong><span>В сегодняшней очереди больше нет номеров для проверки.</span></div>';
     } else {
       container.innerHTML = renderFloorSections(rooms);
     }
   }
-
 
   function renderStats() {
     const pdfRooms = normalizePdfRooms();
@@ -301,13 +270,7 @@ App.departuresModule = (() => {
           dateKey: data.session.dateKey,
           fileName: String(data.session.fileName || ''),
           pdfRooms: Array.isArray(data.session.pdfRooms) ? data.session.pdfRooms.map(String) : [],
-          marks: data.session.marks && typeof data.session.marks === 'object' ? data.session.marks : {},
-          manualRooms: Array.isArray(data.session.manualRooms)
-            ? data.session.manualRooms.map(item => ({
-              number: String(item.number),
-              emptied: item.emptied === true
-            }))
-            : []
+          marks: data.session.marks && typeof data.session.marks === 'object' ? data.session.marks : {}
         }
         : emptySession(state.data.dateKey);
       hideFeedback();
@@ -434,54 +397,7 @@ App.departuresModule = (() => {
     }
   }
 
-  async function addManualRoom() {
-    if (state.addingManualRoom || state.parsingPdf) return;
-    const input = document.getElementById('departures-manual-room-number');
-    const checkbox = document.getElementById('departures-manual-emptied');
-    const raw = String(input?.value || '').trim();
-    if (!/^\d{1,4}$/.test(raw)) {
-      showFeedback('Введите номер комнаты (от 1 до 4 цифр).', 'warning');
-      input?.focus();
-      return;
-    }
-    const number = String(Number(raw));
-    const emptied = Boolean(checkbox?.checked);
-    if (checkedNumbers().has(number) && !emptied) {
-      showFeedback('Номер ' + number + ' уже проверяли сегодня. Чтобы всё равно добавить его, включите «Опустошить».', 'warning');
-      return;
-    }
 
-    state.addingManualRoom = true;
-    renderWorkingRooms();
-    try {
-      const response = await api().addDeparturesManualRoom(number, emptied);
-      state.session = response.session;
-      if (input) input.value = '';
-      if (checkbox) checkbox.checked = false;
-      hideFeedback();
-      render();
-    } catch (error) {
-      const type = error.status === 409 || /уже проверяли сегодня/i.test(error.message || '') ? 'warning' : 'error';
-      showFeedback(error.message || 'Не удалось добавить номер на заезд.', type);
-    } finally {
-      state.addingManualRoom = false;
-      render();
-    }
-  }
-
-  async function removeManualRoom(number) {
-    const key = String(number);
-    const original = manualRoomMap();
-    if (!original.has(key)) return;
-    try {
-      const response = await api().removeDeparturesManualRoom(key);
-      state.session = response.session;
-      hideFeedback();
-      render();
-    } catch (error) {
-      showFeedback(error.message || 'Не удалось убрать ручной номер.', 'error');
-    }
-  }
 
   function nextMark(current) {
     if (!current) return 'resident';
@@ -521,7 +437,6 @@ App.departuresModule = (() => {
     const pages = [];
     const pageCount = Math.ceil(finalRooms.length / 72);
     const roomMap = roomsByNumber();
-    const manualByNumber = manualRoomMap();
 
     for (let pageNum = 0; pageNum < pageCount; pageNum += 1) {
       const pageItems = finalRooms.slice(pageNum * 72, pageNum * 72 + 72);
@@ -554,13 +469,10 @@ App.departuresModule = (() => {
           continue;
         }
         const number = roomNumber(item);
-        const manual = manualByNumber.get(number);
-        const mark = roomMark(number, manualByNumber);
+        const mark = roomMark(number);
         const displayNumber = (mark === 'arrival' ? '→ ' : '') + number;
         const isEmpty = roomMap.get(number)?.expiryStatus === 'empty';
-        const cellText = manual?.emptied
-          ? '<span class="subtext">опустошить</span>'
-          : isEmpty ? '<span class="subtext">пустой</span>' : '&nbsp;';
+        const cellText = isEmpty ? '<span class="subtext">пустой</span>' : '&nbsp;';
         rows += '<tr><td class="number-col"><strong><font size="2">' +
           escapeHtml(displayNumber) + '</font></strong></td>' +
           '<td class="departures-col">' + cellText + '</td></tr>';
@@ -589,16 +501,16 @@ App.departuresModule = (() => {
 
     // Re-read the server session and current VK checks immediately before printing.
     await refresh();
-    if (!state.session.fileName && !manualRoomMap().size) {
+    if (!state.session.fileName) {
       printWindow.close();
-      showFeedback('Сначала загрузите PDF или вручную добавьте номер на заезд.', 'warning');
+      showFeedback('Сначала загрузите PDF с выездами.', 'warning');
       return;
     }
 
     const finalRooms = currentWorkingRooms().filter(room => roomMark(roomNumber(room)) !== 'resident');
     if (!finalRooms.length) {
       printWindow.close();
-      showFeedback('Нет номеров для печати. Добавьте номер на заезд или измените отметки.', 'warning');
+      showFeedback('Нет номеров для печати. Измените отметки.', 'warning');
       render();
       return;
     }
@@ -651,12 +563,7 @@ App.departuresModule = (() => {
       return;
     }
 
-    const removeManual = event.target.closest('[data-departures-manual-remove]');
-    if (removeManual) {
-      event.preventDefault();
-      removeManualRoom(String(removeManual.dataset.departuresManualRemove));
-      return;
-    }
+
 
     const room = event.target.closest('[data-departures-room]');
     if (room) {
@@ -670,11 +577,6 @@ App.departuresModule = (() => {
     const view = document.getElementById('view-departures');
     const input = document.getElementById('departures-pdf-input');
     if (view) view.addEventListener('click', onClick);
-    const manualForm = document.getElementById('departures-manual-form');
-    if (manualForm) manualForm.addEventListener('submit', event => {
-      event.preventDefault();
-      addManualRoom();
-    });
     if (input) {
       input.addEventListener('change', event => {
         handlePdfSelection(event.target.files && event.target.files[0]);
