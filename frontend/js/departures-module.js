@@ -251,6 +251,8 @@ App.departuresModule = (() => {
     });
     const finalCountElement = document.getElementById('departures-final-count');
     if (finalCountElement) finalCountElement.textContent = String(finalCount);
+    const finalStatElement = document.getElementById('departures-stat-final');
+    if (finalStatElement) finalStatElement.textContent = String(finalCount);
   }
 
 
