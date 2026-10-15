@@ -1501,9 +1501,30 @@ button.departure-room-tile:focus-visible { outline: 3px solid rgba(99,102,241,.2
 
 #view-departures .departures-stats-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
 }
-#view-departures .departures-stat-card { padding: 16px 18px; }
-#view-departures .departures-stat-value { margin-top: 10px; }
+#view-departures .departures-stat-card {
+  height: 118px;
+  min-height: 118px;
+  box-sizing: border-box;
+  padding: 18px 20px !important;
+  border-left-width: 3px;
+  border-radius: var(--radius-lg);
+}
+#view-departures .departures-stat-label {
+  min-height: 20px;
+  gap: 7px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+#view-departures .departures-stat-label svg { width: 15px; height: 15px; }
+#view-departures .departures-stat-value {
+  margin-top: 8px;
+  font-size: 30px;
+  line-height: 1.05;
+  letter-spacing: -.04em;
+}
 #view-departures .departures-work-panel {
   margin-bottom: 0;
   border: 0;
@@ -1519,66 +1540,7 @@ button.departure-room-tile:focus-visible { outline: 3px solid rgba(99,102,241,.2
   background: #fff;
   box-shadow: var(--shadow-card);
 }
-#view-departures .departures-manual-add {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  margin: 0 0 12px;
-  padding: 14px 18px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: #fff;
-  box-shadow: var(--shadow-card);
-}
-#view-departures .departures-manual-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  flex: 0 0 auto;
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 740;
-}
-#view-departures .departures-manual-title svg { width: 17px; height: 17px; color: #0284c7; }
-#view-departures .departures-manual-fields {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  min-width: 0;
-}
-#view-departures #departures-manual-room-number {
-  width: 148px;
-  height: 38px;
-  padding: 0 11px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  background: #fff;
-  color: var(--text-primary);
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-}
-#view-departures #departures-manual-room-number:focus {
-  outline: 2px solid rgba(14, 165, 233, .18);
-  border-color: #38bdf8;
-}
-#view-departures .departures-manual-checkbox {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  white-space: nowrap;
-  color: var(--text-secondary);
-  font-size: 12.5px;
-  font-weight: 650;
-  cursor: pointer;
-}
-#view-departures .departures-manual-checkbox input {
-  width: 15px;
-  height: 15px;
-  accent-color: #0284c7;
-}
-#view-departures .departures-manual-fields .btn { min-height: 38px; white-space: nowrap; }
+
 #view-departures .departures-room-list {
   display: flex;
   flex-direction: column;
@@ -1627,41 +1589,14 @@ button.departure-room-tile:focus-visible { outline: 3px solid rgba(99,102,241,.2
   opacity: 1;
   cursor: default;
 }
-#view-departures .departure-manual-slot { position: relative; min-width: 0; }
-#view-departures .departure-manual-slot > .departure-room-tile { width: 100%; }
-#view-departures .departure-manual-remove {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border: 1px solid rgba(100, 116, 139, .20);
-  border-radius: 5px;
-  background: rgba(255, 255, 255, .75);
-  color: #64748b;
-  opacity: .78;
-  cursor: pointer;
-}
-#view-departures .departure-manual-remove:hover {
-  background: #fff;
-  color: #b91c1c;
-  opacity: 1;
-}
-#view-departures .departure-manual-remove svg { width: 12px; height: 12px; }
+
 #view-departures .departures-work-footer { margin-top: 14px; }
 @media (max-width: 1100px) {
   #view-departures .departures-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  #view-departures .departures-manual-add { align-items: flex-start; flex-direction: column; gap: 12px; }
-  #view-departures .departures-manual-fields { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
 }
 @media (max-width: 560px) {
   #view-departures .departures-stats-grid { grid-template-columns: minmax(0, 1fr); }
   #view-departures .departures-panel-header { align-items: flex-start; flex-direction: column; }
   #view-departures .departure-floor-section { padding: 14px; }
   #view-departures .departure-floor-heading { align-items: flex-start; }
-  #view-departures #departures-manual-room-number { flex: 1 1 100%; width: 100%; }
 }
