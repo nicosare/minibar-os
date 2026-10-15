@@ -356,6 +356,13 @@ let savedDeparturesPrint = null;
     assert.deepEqual(titleIconStyle, { width: '28px', height: '28px', strokeWidth: '2.75px', color: 'rgb(15, 23, 42)' },
       'page title icons should be larger, bold, and neutral black; svg=' +
       await page.locator('#view-excise .page-title-icon').evaluate(icon => icon.outerHTML));
+    await page.waitForFunction(() => {
+      window.lucide?.createIcons();
+      const icon = document.querySelector('#view-calculator .page-title-icon');
+      if (!icon || icon.tagName.toLowerCase() !== 'svg') return false;
+      const style = getComputedStyle(icon);
+      return style.width === '20px' && style.height === '20px';
+    }, null, { timeout: 10000 });
     const calculatorIconStyle = await page.locator('#view-calculator .page-title-icon').evaluate(icon => ({
       width: getComputedStyle(icon).width,
       height: getComputedStyle(icon).height
