@@ -867,6 +867,8 @@ let savedDeparturesPrint = null;
       'file-import statistics should count recognized PDF rooms before exclusions');
     assert.equal((await page.locator('#departures-stat-auto-excluded').innerText()).trim(), '2',
       'rooms verified today should be excluded from the PDF worklist');
+    assert.equal((await page.locator('#departures-stat-final').innerText()).trim(), '2',
+      'the fourth statistic should show the real number of rooms to print');
     assert.equal(await page.locator('.departures-stat-card').count(), 4,
       'the statistics should show only the four requested cards');
     const statisticLabels = await page.locator('.departures-stat-label').allInnerTexts();
@@ -899,6 +901,7 @@ let savedDeparturesPrint = null;
       !(await workEmpty.getAttribute('class')).includes('status-empty'),
       'the worklist should not inherit the checked-list empty-state color');
     await page.locator('#departures-work-list [data-departures-room="504"]').hover();
+    await page.waitForTimeout(200);
     const workTransform = await page.locator('#departures-work-list [data-departures-room="504"]').evaluate(el => getComputedStyle(el).transform);
     assert.equal(workTransform, 'matrix(1, 0, 0, 1, 0, -2)',
       'hover should match the light lift used by the Deadlines room tiles');
@@ -1009,6 +1012,8 @@ let savedDeparturesPrint = null;
     await page.locator('#departures-manual-emptied').check();
     await page.locator('#departures-manual-form').evaluate(form => form.requestSubmit());
     await page.waitForFunction(() => document.querySelector('#departures-work-list [data-manual-room="500"]'));
+    assert.equal((await page.locator('#departures-stat-final').innerText()).trim(), '1',
+      'the print statistic should count a manually added room when no PDF is loaded');
     assert.equal(await page.locator('#departures-work-list [data-manual-room="500"]').count(), 1,
       'a checked room can be added when “Опустошить” is selected');
     assert.ok(await page.locator('#departures-print-btn').isEnabled(),
