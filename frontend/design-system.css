@@ -1421,8 +1421,8 @@ button.departure-room-tile:focus-visible { outline: 3px solid rgba(99,102,241,.2
 #view-departures .departures-work-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 14px;
+  justify-content: flex-start;
+  gap: 16px;
   padding: 13px 20px 18px;
   border-top: 1px solid #edf0f5;
   background: #fff;
