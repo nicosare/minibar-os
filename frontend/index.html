@@ -305,23 +305,6 @@
     </article>
   </div>
 
-  <section class="departures-panel">
-    <div class="departures-panel-header">
-      <div>
-        <h2><i data-lucide="messages-square"></i>Проверено сегодня</h2>
-        <p>Номера из беседы. Список обновляется автоматически.</p>
-      </div>
-      <span class="departures-panel-count" id="departures-checked-count">0</span>
-    </div>
-    <div class="departures-legend">
-      <span><span class="departures-legend-dot is-empty"></span>Минибар опустошён</span>
-      <span><span class="departures-legend-outline"></span>Номер исключён из PDF как уже проверенный</span>
-    </div>
-    <div id="departures-checked-list" class="departures-room-list">
-      <div class="departures-empty-state"><span class="departures-empty-icon"><i data-lucide="loader-circle"></i></span><strong>Загружаем проверки за сегодня…</strong></div>
-    </div>
-  </section>
-
   <section class="departures-panel departures-work-panel">
     <div class="departures-panel-header">
       <div>
@@ -332,16 +315,12 @@
         <span class="departures-file-name" id="departures-file-name">PDF ещё не загружен</span>
       </div>
     </div>
-    <div class="departures-legend">
-      <span><span class="departures-legend-dot is-resident"></span>Жилой — не печатается</span>
-      <span><span class="departures-legend-dot is-arrival"></span>На заезд — печатается со стрелкой</span>
-    </div>
     <div id="departures-work-list" class="departures-room-list">
       <div class="departures-empty-state"><span class="departures-empty-icon"><i data-lucide="file-up"></i></span><strong>Загрузите PDF с выездами</strong><span>Проверенные сегодня номера будут исключены автоматически.</span></div>
     </div>
     <div id="departures-work-footer" class="departures-work-footer">
-      <div class="departures-print-count"><span>К печати</span><span class="departures-panel-count" id="departures-final-count">0</span></div>
       <button type="button" class="btn btn-primary" id="departures-print-btn" disabled><i data-lucide="printer"></i>Печать списка</button>
+      <div class="departures-print-count"><span>К печати</span><span class="departures-panel-count" id="departures-final-count">0</span></div>
     </div>
   </section>
 </section>
