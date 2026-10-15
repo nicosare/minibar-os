@@ -368,15 +368,15 @@ let savedDeparturesPrint = null;
       if (!icon || icon.tagName.toLowerCase() !== 'svg') return false;
       const style = getComputedStyle(icon);
       return style.width === '28px' && style.height === '28px' &&
-        style.strokeWidth === '2.75px' && style.color === 'rgb(15, 23, 42)';
+        Number.parseFloat(style.strokeWidth) === 2.75 && style.color === 'rgb(15, 23, 42)';
     }, null, { timeout: 10000 });
     const titleIconStyle = await page.locator('#view-excise .page-title-icon').evaluate(icon => ({
       width: getComputedStyle(icon).width,
       height: getComputedStyle(icon).height,
-      strokeWidth: getComputedStyle(icon).strokeWidth,
+      strokeWidth: Number.parseFloat(getComputedStyle(icon).strokeWidth),
       color: getComputedStyle(icon).color
     }));
-    assert.deepEqual(titleIconStyle, { width: '28px', height: '28px', strokeWidth: '2.75px', color: 'rgb(15, 23, 42)' },
+    assert.deepEqual(titleIconStyle, { width: '28px', height: '28px', strokeWidth: 2.75, color: 'rgb(15, 23, 42)' },
       'page title icons should be larger, bold, and neutral black; svg=' +
       await page.locator('#view-excise .page-title-icon').evaluate(icon => icon.outerHTML));
     await page.waitForFunction(() => {
