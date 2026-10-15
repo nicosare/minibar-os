@@ -273,19 +273,39 @@ const targets = {
     }), expectedPageIcons);
     assert.deepEqual(pageIconAudit, expectedPageIcons.map(([route, icon]) => [route, icon, icon]),
       'each main tab should display its matching sidebar icon in the page title');
+    const titleIconColors = await page.locator('.page-title-icon').evaluateAll(nodes =>
+      nodes.map(icon => ({ name: icon.getAttribute('data-page-icon'), color: getComputedStyle(icon).color })));
+    assert.ok(titleIconColors.length === expectedPageIcons.length && titleIconColors.every(icon => icon.color === 'rgb(15, 23, 42)'),
+      'all page title icons should use the same neutral black color, diagnostics=' + JSON.stringify(titleIconColors));
     const titleIconStyle = await page.locator('#view-excise .page-title-icon').evaluate(icon => ({
       width: getComputedStyle(icon).width,
       height: getComputedStyle(icon).height,
-      strokeWidth: getComputedStyle(icon).strokeWidth
+      strokeWidth: getComputedStyle(icon).strokeWidth,
+      color: getComputedStyle(icon).color
     }));
-    assert.deepEqual(titleIconStyle, { width: '28px', height: '28px', strokeWidth: '2.75px' },
-      'page title icons should be larger and use a bolder stroke');
+    assert.deepEqual(titleIconStyle, { width: '28px', height: '28px', strokeWidth: '2.75px', color: 'rgb(15, 23, 42)' },
+      'page title icons should be larger, bold, and neutral black');
     const calculatorIconStyle = await page.locator('#view-calculator .page-title-icon').evaluate(icon => ({
       width: getComputedStyle(icon).width,
       height: getComputedStyle(icon).height
     }));
     assert.deepEqual(calculatorIconStyle, { width: '20px', height: '20px' },
       'calculator title icon should remain smaller than other page icons');
+    const gihTitleTypography = await page.evaluate(() => {
+      const title = getComputedStyle(document.querySelector('#view-gih .gih-title'));
+      const date = getComputedStyle(document.getElementById('gih-title-date'));
+      return {
+        titleFontSize: title.fontSize, dateFontSize: date.fontSize,
+        titleFontWeight: title.fontWeight, dateFontWeight: date.fontWeight,
+        titleColor: title.color, dateColor: date.color
+      };
+    });
+    assert.equal(gihTitleTypography.dateFontSize, gihTitleTypography.titleFontSize,
+      'the date beside GIH should use the same font size as the title');
+    assert.equal(gihTitleTypography.dateFontWeight, gihTitleTypography.titleFontWeight,
+      'the date beside GIH should use the same font weight as the title');
+    assert.equal(gihTitleTypography.dateColor, gihTitleTypography.titleColor,
+      'the date beside GIH should use the same text color as the title');
     assert.deepEqual(await page.locator('[data-history-view]').evaluateAll(nodes => nodes.map(node => node.dataset.historyView)),
       ['daily', 'gih', 'deadlines'], 'history subtabs should be ordered Daily, GIH, Deadlines');
 
