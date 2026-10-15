@@ -196,6 +196,9 @@ let savedDeparturesPrint = null;
         checkedToday: departuresChecks,
         session: departuresSession
       };
+    } else if (path === '/departures/session/reset-pdf' && method === 'POST') {
+      departuresSession = { ...departuresSession, fileName: '', pdfRooms: [] };
+      body = { ok: true, session: departuresSession };
     } else if (path === '/departures/session/pdf' && method === 'POST') {
       const payload = request.postDataJSON();
       departuresSession = {
@@ -832,6 +835,13 @@ let savedDeparturesPrint = null;
     assert.equal((await page.locator('#departures-stat-final').innerText()).trim(), '2',
       'the print count should include arrival marks but exclude residents');
 
+    assert.equal(await page.locator('#view-departures [data-departures-action="upload"]').count(), 1,
+      'there should be a single PDF upload button in the whole tab');
+    assert.ok(await page.locator('#departures-work-list .departure-floor-badge').count() > 0,
+      'the worklist should use floor sections and room tiles like the Deadlines tab');
+    assert.ok(await page.locator('#departures-checked-list .departure-floor-badge').count() > 0,
+      'the checked-today list should also be grouped into floor sections');
+
     const checkedEmpty = page.locator('#departures-checked-list [data-room-number="500"]');
     assert.ok((await checkedEmpty.getAttribute('class')).includes('is-empty'),
       'emptied rooms should be blue only in the checked-today list');
@@ -897,6 +907,19 @@ let savedDeparturesPrint = null;
     assert.ok((await page.locator('#departures-checked-list [data-room-number="504"]').getAttribute('class')).includes('is-auto-excluded'),
       'newly checked rooms present in the PDF should receive the auto-exclusion outline');
 
+    await page.locator('#departures-reset-btn').click();
+    await page.waitForFunction(() => document.getElementById('departures-file-name')?.textContent === 'PDF ещё не загружен');
+    assert.equal((await page.locator('#departures-stat-pdf').innerText()).trim(), '0',
+      'reset should clear the PDF room count');
+    assert.equal(await page.locator('#departures-work-list [data-departures-room]').count(), 0,
+      'reset should clear the working room list');
+    assert.ok(await page.locator('#departures-reset-btn').isDisabled(),
+      'reset should be disabled once no PDF is loaded');
+    assert.equal(await page.locator('#view-departures [data-departures-action="upload"]').count(), 1,
+      'the empty state should not create a second PDF upload button');
+    assert.equal(departuresSession.marks['502'], 'resident',
+      'reset should preserve manual marks for the next PDF upload');
+
     await page.locator('.nav-item[data-route="history"]').click();
     await page.locator('[data-history-view="daily"]').click();
     await page.evaluate(() => window.App.historyModule.refresh());
@@ -906,7 +929,7 @@ let savedDeparturesPrint = null;
       'the print history row should show a dash instead of a room number');
     assert.match(await printHistoryRow.innerText(), /Количество номеров в итоговом списке: 2/,
       'the print history details should store the final count');
-    console.log('PASS: departures live data, room marking cycle, PDF replacement persistence and print history');
+    console.log('PASS: departures live data, floor layout, room marking cycle, PDF reset/persistence and print history');
 
     assert.deepEqual(pageErrors, [], 'browser JavaScript should not throw uncaught errors');
     console.log('PASS: no uncaught browser JavaScript errors');
