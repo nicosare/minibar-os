@@ -22,6 +22,11 @@ const rooms = [{
   template: { items: [{ qty: 5, productId: product.id, product: { ...product, name: 'Минеральная вода газированная 0,5 литра' } }] }
 }];
 
+const exciseRecords = [
+  { id: 901, markNumber: '12345678901234567890', createdAt: new Date().toISOString() },
+  { id: 902, markNumber: 'INVALID-EXCISE', createdAt: new Date().toISOString() }
+];
+
 const makeGihDraft = id => ({
   id,
   roomId: 101,
@@ -213,6 +218,8 @@ const targets = {
       }
     } else if (path === '/checks') {
       body = [];
+    } else if (path === '/excises' && method === 'GET') {
+      body = exciseRecords;
     } else if (path === '/excises' || path === '/lists' || path === '/templates') {
       body = [];
     }
@@ -277,6 +284,50 @@ const targets = {
       assert.equal(check.iconColor, check.expectedColor, `${check.route} active icon should match its badge accent`);
     }
     console.log('PASS: active sidebar labels and icons match each colored badge');
+
+    await page.locator('.nav-item[data-route="excise"]').click();
+    await page.locator('#excise-list .excise-card').first().waitFor({ state: 'visible', timeout: 5000 });
+    assert.equal(await page.locator('#excise-list .excise-card').count(), 2,
+      'excise list should render both valid and invalid marks');
+    assert.equal(await page.locator('#excise-list .excise-card.valid .excise-meta-status').innerText(), 'Валидна');
+    assert.equal(await page.locator('#excise-list .excise-card.invalid .excise-meta-status').innerText(), 'Проверить марку');
+    assert.equal(await page.locator('#excise-list .excise-card.valid').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(255, 255, 255)',
+      'valid excise cards should use the shared neutral card surface');
+    assert.equal(await page.locator('#excise-copy-all-btn').count(), 0,
+      'the obsolete copy-all action should be removed');
+
+    const downloadPromise = page.waitForEvent('download');
+    await page.locator('#excise-download-btn').click();
+    const exciseDownload = await downloadPromise;
+    assert.match(exciseDownload.suggestedFilename(), /^Акцизы мини-бар \\d{2}\\.\\d{2}\\.\\d{2}\\.xlsx$/,
+      'download should use the requested Russian title and DD.MM.YY date');
+    const fs = require('node:fs');
+    const workbook = fs.readFileSync(await exciseDownload.path());
+    assert.equal(workbook.readUInt32LE(0), 0x04034b50, 'download should be an actual XLSX ZIP package');
+    function readStoredZipEntry(buffer, wantedName) {
+      let offset = 0;
+      while (offset + 30 <= buffer.length && buffer.readUInt32LE(offset) === 0x04034b50) {
+        const compression = buffer.readUInt16LE(offset + 8);
+        const compressedSize = buffer.readUInt32LE(offset + 18);
+        const nameLength = buffer.readUInt16LE(offset + 26);
+        const extraLength = buffer.readUInt16LE(offset + 28);
+        const name = buffer.subarray(offset + 30, offset + 30 + nameLength).toString('utf8');
+        const dataStart = offset + 30 + nameLength + extraLength;
+        if (name === wantedName) {
+          assert.equal(compression, 0, 'test XLSX entries should use stored ZIP data');
+          return buffer.subarray(dataStart, dataStart + compressedSize).toString('utf8');
+        }
+        offset = dataStart + compressedSize;
+      }
+      throw new Error(`Missing XLSX entry: ${wantedName}`);
+    }
+    const worksheetXml = readStoredZipEntry(workbook, 'xl/worksheets/sheet1.xml');
+    const exportedMarks = [...worksheetXml.matchAll(/<row r="\\d+"><c r="A\\d+" t="inlineStr"><is><t xml:space="preserve">(.*?)<\\/t><\\/is><\\/c><\\/row>/g)]
+      .map(match => match[1].replace(/&apos;/g, "'").replace(/&quot;/g, '"').replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&'));
+    assert.deepEqual(exportedMarks, ['12345678901234567890'],
+      'Excel should contain only valid excises, one mark per row and no header or extra columns');
+    assert.ok(!worksheetXml.includes('INVALID-EXCISE'), 'invalid marks must not be included in the workbook');
+    console.log('PASS: excise cards use the site style and download creates a valid-mark-only XLSX workbook');
 
     const sidebar = page.locator('.sidebar');
     const sidebarToggle = page.locator('[data-sidebar-toggle]');
