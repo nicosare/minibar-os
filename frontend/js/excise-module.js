@@ -42,68 +42,82 @@ let isProcessing = false;
   }
 
   function render() {
-  const list = document.getElementById('excise-list');
-  const emptyState = document.getElementById('excise-empty-state');
-  const countEl = document.getElementById('excise-list-count');
-  
-  if (!list) return;
+    const list = document.getElementById('excise-list');
+    const emptyState = document.getElementById('excise-empty-state');
+    const countEl = document.getElementById('excise-list-count');
+    if (!list) return;
 
-  if (excises.length === 0) {
-    list.innerHTML = '';
-    emptyState?.classList.remove('hidden');
-    if (countEl) countEl.textContent = '0 марок';
-  } else {
-    emptyState?.classList.add('hidden');
-    if (countEl) countEl.textContent = `${excises.length} ${pluralize(excises.length, ['марка', 'марки', 'марок'])}`;
-    
-    list.innerHTML = excises.map(e => {
-      const isValid = isValidMark(e.mark_number);
-      const statusClass = isValid ? 'valid' : 'invalid';
-      const date = new Date(e.created_at);
-      const timeStr = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
-      
-      const dateStr = `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth()+1).padStart(2, '0')}`;
-      const safeMark = String(e.mark_number).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-      return `
-        <div class="excise-card ${statusClass}" 
-             onclick="App.exciseModule.copyToClipboard('${safeMark}')"
-             title="Кликните, чтобы скопировать">
-          
-          <!-- Статус-иконка (видна всегда, кроме hover) -->
-          <div class="excise-status-icon">
-            ${isValid 
-              ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>'
-              : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>'
-            }
-          </div>
-          
-          <!-- Корзина при наведении -->
-          <div class="excise-delete-btn" 
-               onclick="event.stopPropagation(); App.exciseModule.deleteExcise('${e.id}')"
-               title="Удалить">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="3 6 5 6 21 6"></polyline>
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
-            </svg>
-          </div>
-          
-          <!-- Номер марки -->
-          <div class="excise-card-mark">${escapeHtml(e.mark_number)}</div>
-          
-          <!-- Мета -->
-          <div class="excise-card-meta">
-            <span class="excise-meta-status">${isValid ? '✓ Валидна' : '✕ Ошибка'}</span>
-            <span class="excise-meta-time">${timeStr}</span>
-<span class="excise-meta-date">${dateStr}</span>
-          </div>
-        </div>
-      `;
-    }).join('');
+    if (excises.length === 0) {
+      list.innerHTML = '';
+      emptyState?.classList.remove('hidden');
+      if (countEl) countEl.textContent = '0 марок';
+    } else {
+      emptyState?.classList.add('hidden');
+      if (countEl) countEl.textContent = `${excises.length} ${pluralize(excises.length, ['марка', 'марки', 'марок'])}`;
+
+      list.innerHTML = excises.map(e => {
+        const isValid = isValidMark(e.mark_number);
+        const statusClass = isValid ? 'valid' : 'invalid';
+        const date = new Date(e.created_at);
+        const validDate = Number.isFinite(date.getTime());
+        const timeStr = validDate ? date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '—';
+        const dateStr = validDate ? date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) : '—';
+        return `
+          <div class="excise-card ${statusClass}"
+               data-excise-id="${escapeHtml(String(e.id))}"
+               data-excise-mark="${escapeHtml(String(e.mark_number ?? ''))}"
+               title="Нажмите, чтобы скопировать марку"
+               role="button" tabindex="0"
+               aria-label="${isValid ? 'Валидная' : 'Невалидная'} акцизная марка">
+            <div class="excise-status-icon" aria-hidden="true">
+              ${isValid
+                ? '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+                : '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>'
+              }
+            </div>
+            <div class="excise-card-content">
+              <div class="excise-card-mark">${escapeHtml(String(e.mark_number ?? ''))}</div>
+              <div class="excise-card-meta">
+                <span class="excise-meta-status">${isValid ? 'Валидна' : 'Проверить марку'}</span>
+                <span class="excise-meta-time">${timeStr}</span>
+                <span class="excise-meta-date">${dateStr}</span>
+              </div>
+            </div>
+            <button class="excise-delete-btn" type="button"
+                    data-excise-delete-id="${escapeHtml(String(e.id))}"
+                    aria-label="Удалить акциз" title="Удалить">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                <path d="M10 11v6"></path><path d="M14 11v6"></path>
+                <path d="M9 6V4h6v2"></path>
+              </svg>
+            </button>
+          </div>`;
+      }).join('');
+
+      list.querySelectorAll('.excise-card').forEach(card => {
+        const copyMark = () => copyToClipboard(card.dataset.exciseMark || '');
+        card.addEventListener('click', copyMark);
+        card.addEventListener('keydown', event => {
+          if (event.target !== card) return;
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            copyMark();
+          }
+        });
+      });
+      list.querySelectorAll('[data-excise-delete-id]').forEach(button => {
+        button.addEventListener('click', event => {
+          event.stopPropagation();
+          deleteExcise(button.dataset.exciseDeleteId);
+        });
+      });
+    }
+
+    updateStats();
+    if (window.lucide) lucide.createIcons();
   }
-
-  updateStats();
-  if (window.lucide) lucide.createIcons();
-}
 
   function copyToClipboard(text) {
   navigator.clipboard.writeText(text).then(() => {
@@ -112,6 +126,105 @@ let isProcessing = false;
   }).catch(err => {
     console.error('Ошибка копирования:', err);
   });
+}
+
+function crc32(bytes) {
+  let crc = 0xffffffff;
+  for (let i = 0; i < bytes.length; i++) {
+    crc ^= bytes[i];
+    for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function concatBytes(parts) {
+  const result = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0));
+  let offset = 0;
+  for (const part of parts) { result.set(part, offset); offset += part.length; }
+  return result;
+}
+
+function createXlsxBytes(values) {
+  const encoder = new TextEncoder();
+  const xml = value => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+  const rows = values.map((value, index) => {
+    const row = index + 1;
+    return `<row r="${row}"><c r="A${row}" t="inlineStr"><is><t xml:space="preserve">${xml(value)}</t></is></c></row>`;
+  }).join('');
+  const entries = [
+    ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+      '<Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+      '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>'],
+    ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+    ['xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+      '<sheets><sheet name="Акцизы" sheetId="1" r:id="rId1"/></sheets></workbook>'],
+    ['xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>'],
+    ['xl/worksheets/sheet1.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>' + rows + '</sheetData></worksheet>']
+  ];
+  const localParts = [], centralParts = [];
+  let localOffset = 0;
+  for (const [name, content] of entries) {
+    const nameBytes = encoder.encode(name), data = encoder.encode(content), checksum = crc32(data);
+    const local = new Uint8Array(30 + nameBytes.length), localView = new DataView(local.buffer);
+    localView.setUint32(0, 0x04034b50, true); localView.setUint16(4, 20, true);
+    localView.setUint16(6, 0, true); localView.setUint16(8, 0, true);
+    localView.setUint16(10, 0, true); localView.setUint16(12, 0x0021, true);
+    localView.setUint32(14, checksum, true); localView.setUint32(18, data.length, true);
+    localView.setUint32(22, data.length, true); localView.setUint16(26, nameBytes.length, true);
+    localView.setUint16(28, 0, true); local.set(nameBytes, 30);
+    localParts.push(local, data);
+
+    const central = new Uint8Array(46 + nameBytes.length), centralView = new DataView(central.buffer);
+    centralView.setUint32(0, 0x02014b50, true); centralView.setUint16(4, 20, true);
+    centralView.setUint16(6, 20, true); centralView.setUint16(8, 0, true);
+    centralView.setUint16(10, 0, true); centralView.setUint16(12, 0, true);
+    centralView.setUint16(14, 0x0021, true); centralView.setUint32(16, checksum, true);
+    centralView.setUint32(20, data.length, true); centralView.setUint32(24, data.length, true);
+    centralView.setUint16(28, nameBytes.length, true); centralView.setUint16(30, 0, true);
+    centralView.setUint16(32, 0, true); centralView.setUint16(34, 0, true);
+    centralView.setUint16(36, 0, true); centralView.setUint32(38, 0, true);
+    centralView.setUint32(42, localOffset, true); central.set(nameBytes, 46);
+    centralParts.push(central);
+    localOffset += local.length + data.length;
+  }
+  const centralDirectory = concatBytes(centralParts);
+  const end = new Uint8Array(22), view = new DataView(end.buffer);
+  view.setUint32(0, 0x06054b50, true); view.setUint16(4, 0, true); view.setUint16(6, 0, true);
+  view.setUint16(8, entries.length, true); view.setUint16(10, entries.length, true);
+  view.setUint32(12, centralDirectory.length, true); view.setUint32(16, localOffset, true);
+  view.setUint16(20, 0, true);
+  return concatBytes([...localParts, centralDirectory, end]);
+}
+
+function downloadValid() {
+  const valid = excises.filter(e => isValidMark(e.mark_number)).map(e => String(e.mark_number).trim());
+  if (!valid.length) {
+    showToast?.('Нет валидных акцизов для скачивания', 'warning');
+    return;
+  }
+  try {
+    const blob = new Blob([createXlsxBytes(valid)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const now = new Date(), two = value => String(value).padStart(2, '0');
+    const date = `${two(now.getDate())}.${two(now.getMonth() + 1)}.${String(now.getFullYear()).slice(-2)}`;
+    const anchor = document.createElement('a'), url = URL.createObjectURL(blob);
+    anchor.href = url; anchor.download = `Акцизы мини-бар ${date}.xlsx`; anchor.style.display = 'none';
+    document.body.appendChild(anchor); anchor.click(); anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast?.(`Скачано акцизов: ${valid.length}`, 'success');
+  } catch (error) {
+    console.error('Не удалось сформировать Excel-файл с акцизами:', error);
+    showToast?.('Не удалось скачать файл с акцизами', 'error');
+  }
 }
 
 function updateStats() {
@@ -239,26 +352,6 @@ function updateStats() {
   }
 }
 
-  async function copyValid() {
-    const valid = excises.filter(e => isValidMark(e.mark_number)).map(e => e.mark_number);
-    if (valid.length === 0) {
-      alert('Нет валидных акцизов для копирования');
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(valid.join('\n'));
-      const shouldClear = confirm(`✓ Скопировано ${valid.length} акциз\n\nОчистить список после копирования?`);
-      if (shouldClear) {
-        await api().deleteAllExcises();
-        excises = [];
-        render();
-      }
-    } catch (err) {
-      alert('Не удалось скопировать');
-    }
-  }
-
   async function clearList() {
     if (excises.length === 0) return;
     if (!confirm(`Удалить все ${excises.length} акциз из базы данных?`)) return;
@@ -321,7 +414,7 @@ function updateStats() {
 
   function init() {
     if (!isInitialized) {
-      document.getElementById('excise-copy-all-btn')?.addEventListener('click', () => copyValid());
+      document.getElementById('excise-download-btn')?.addEventListener('click', () => downloadValid());
 
       document.getElementById('excise-clear-all-btn')?.addEventListener('click', () => clearList());
 
