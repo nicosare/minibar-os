@@ -178,6 +178,21 @@ router.get('/', async (req, res) => {
   }
 });
 
+router.post('/session/reset-pdf', async (req, res) => {
+  try {
+    const session = await updateSession(req, current => ({
+      ...current,
+      fileName: '',
+      pdfRooms: []
+      // Keep manual marks so reloading today's PDF restores them.
+    }));
+    res.json({ ok: true, session });
+  } catch (error) {
+    console.error('POST /api/departures/session/reset-pdf error:', error);
+    res.status(500).json({ error: error.message || 'Не удалось сбросить список PDF' });
+  }
+});
+
 router.post('/session/pdf', async (req, res) => {
   try {
     const fileName = String(req.body?.fileName || '').trim().slice(0, 240);

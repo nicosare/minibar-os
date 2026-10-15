@@ -132,6 +132,9 @@ const api = {
       body: JSON.stringify({ fileName, rooms })
     });
   },
+  async resetDeparturesPdf() {
+    return apiRequest('/departures/session/reset-pdf', { method: 'POST' });
+  },
   async setDeparturesMark(number, mark) {
     return apiRequest('/departures/session/mark', {
       method: 'PATCH',

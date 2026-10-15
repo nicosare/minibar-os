@@ -265,8 +265,9 @@
     </div>
     <div class="departures-toolbar">
       <input id="departures-pdf-input" type="file" accept="application/pdf,.pdf" hidden />
-      <button type="button" class="btn btn-outline" data-departures-action="upload"><i data-lucide="upload"></i>Загрузить PDF</button>
-      <button type="button" class="btn btn-primary" id="departures-print-btn" disabled><i data-lucide="printer"></i>Печать Departures</button>
+      <button type="button" class="btn btn-outline" id="departures-upload-btn" data-departures-action="upload"><i data-lucide="upload"></i>Загрузить PDF</button>
+      <button type="button" class="btn btn-outline" id="departures-reset-btn" disabled><i data-lucide="rotate-ccw"></i>Сбросить</button>
+      <button type="button" class="btn btn-primary" id="departures-print-btn" disabled><i data-lucide="printer"></i>Печать</button>
     </div>
   </div>
 
@@ -279,12 +280,12 @@
       <div class="departures-stat-caption">Уникальных номеров из беседы</div>
     </article>
     <article class="departures-stat-card" data-tone="neutral">
-      <div class="departures-stat-label"><i data-lucide="file-text"></i>Номеров в PDF</div>
+      <div class="departures-stat-label"><i data-lucide="file-text"></i>В PDF</div>
       <div class="departures-stat-value" id="departures-stat-pdf">0</div>
       <div class="departures-stat-caption">Распознанных комнат в выгрузке</div>
     </article>
     <article class="departures-stat-card" data-tone="blue">
-      <div class="departures-stat-label"><i data-lucide="shield-check"></i>Исключено автоматически</div>
+      <div class="departures-stat-label"><i data-lucide="shield-check"></i>Автоисключено</div>
       <div class="departures-stat-value" id="departures-stat-auto-excluded">0</div>
       <div class="departures-stat-caption">Уже проверены сегодня</div>
     </article>
@@ -299,7 +300,7 @@
       <div class="departures-stat-caption">Приоритетная проверка</div>
     </article>
     <article class="departures-stat-card" data-tone="indigo">
-      <div class="departures-stat-label"><i data-lucide="printer"></i>Итоговый список</div>
+      <div class="departures-stat-label"><i data-lucide="printer"></i>К печати</div>
       <div class="departures-stat-value" id="departures-stat-final">0</div>
       <div class="departures-stat-caption">Номеров попадёт в печать</div>
     </article>

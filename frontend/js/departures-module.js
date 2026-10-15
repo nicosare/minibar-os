@@ -172,8 +172,10 @@ App.departuresModule = (() => {
           secondary + '</button>';
       }).join('');
       return '<section class="departure-floor-section" aria-label="' + escapeHtml(section.floor) + ' этаж">' +
-        '<div class="departure-floor-heading"><span>' + escapeHtml(section.floor) + ' этаж</span>' +
-        '<span class="departure-floor-count">' + section.rooms.length + '</span></div>' +
+        '<div class="departure-floor-heading"><div class="departure-floor-title-wrap">' +
+        '<span class="departure-floor-badge">' + escapeHtml(section.floor) + '</span>' +
+        '<div class="departure-floor-title-block"><span class="departure-floor-title">Этаж ' + escapeHtml(section.floor) + '</span>' +
+        '<span class="departure-floor-subtitle">' + section.rooms.length + ' номеров</span></div></div></div>' +
         '<div class="departure-room-grid">' + tiles + '</div></section>';
     }).join('');
   }
@@ -202,16 +204,17 @@ App.departuresModule = (() => {
     const container = document.getElementById('departures-work-list');
     const fileName = document.getElementById('departures-file-name');
     const printButton = document.getElementById('departures-print-btn');
+    const resetButton = document.getElementById('departures-reset-btn');
     const finalCount = document.getElementById('departures-final-count');
     if (!container) return;
 
     if (fileName) fileName.textContent = state.session.fileName || 'PDF ещё не загружен';
     if (printButton) printButton.disabled = !state.session.fileName || state.parsingPdf;
+    if (resetButton) resetButton.disabled = !state.session.fileName || state.parsingPdf;
 
     if (!state.session.fileName || !state.session.pdfRooms.length) {
       container.innerHTML = '<div class="departures-empty-state"><span class="departures-empty-icon"><i data-lucide="file-up"></i></span>' +
-        '<strong>Загрузите PDF с выездами</strong><span>После обработки номера автоматически распределятся по этажам, а уже проверенные сегодня исключатся.</span>' +
-        '<button type="button" class="btn btn-primary" data-departures-action="upload"><i data-lucide="upload"></i>Выбрать PDF</button></div>';
+        '<strong>PDF ещё не загружен</strong><span>Загрузите файл через кнопку вверху. Номера распределятся по этажам автоматически.</span></div>';
       if (finalCount) finalCount.textContent = '0';
       return;
     }
@@ -409,6 +412,23 @@ App.departuresModule = (() => {
     }
   }
 
+  async function resetPdf() {
+    if (state.parsingPdf || !state.session.fileName) return;
+    state.parsingPdf = true;
+    renderWorkingRooms();
+    try {
+      const result = await api().resetDeparturesPdf();
+      state.session = result.session;
+      hideFeedback();
+      showFeedback('PDF сброшен. Номера из файла очищены, ручные отметки сохранены.', 'success');
+    } catch (error) {
+      showFeedback(error.message || 'Не удалось сбросить список PDF.', 'error');
+    } finally {
+      state.parsingPdf = false;
+      render();
+    }
+  }
+
   function nextMark(current) {
     if (!current) return 'resident';
     if (current === 'resident') return 'arrival';
@@ -542,6 +562,13 @@ App.departuresModule = (() => {
     if (upload) {
       event.preventDefault();
       document.getElementById('departures-pdf-input')?.click();
+      return;
+    }
+
+    const reset = event.target.closest('#departures-reset-btn');
+    if (reset) {
+      event.preventDefault();
+      resetPdf();
       return;
     }
 
