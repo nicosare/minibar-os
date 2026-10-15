@@ -7,7 +7,7 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.0/index.css" />
 <link rel="stylesheet" href="styles.css?v=m86" />
-<link rel="stylesheet" href="design-system.css?v=ds14" />
+<link rel="stylesheet" href="design-system.css?v=ds15" />
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
 </head>
@@ -261,7 +261,6 @@
   <div class="departures-page-header">
     <div>
       <h1 class="page-title text-2xl font-bold text-slate-900"><i data-lucide="plane-takeoff" data-page-icon="plane-takeoff" class="page-title-icon" aria-hidden="true"></i>Выезды</h1>
-      <div class="departures-page-date"><i data-lucide="calendar-days"></i><span id="departures-date">—</span></div>
     </div>
     <div class="departures-toolbar">
       <input id="departures-pdf-input" type="file" accept="application/pdf,.pdf" hidden />
@@ -276,32 +275,18 @@
     <article class="departures-stat-card" data-tone="blue">
       <div class="departures-stat-label"><i data-lucide="check-check"></i>Проверено сегодня</div>
       <div class="departures-stat-value" id="departures-stat-checked">0</div>
-      <div class="departures-stat-caption">Уникальных номеров из беседы</div>
     </article>
     <article class="departures-stat-card" data-tone="neutral">
-      <div class="departures-stat-label"><i data-lucide="file-text"></i>В PDF</div>
+      <div class="departures-stat-label"><i data-lucide="file-text"></i>Загружено из файла</div>
       <div class="departures-stat-value" id="departures-stat-pdf">0</div>
-      <div class="departures-stat-caption">Распознанных комнат в выгрузке</div>
     </article>
     <article class="departures-stat-card" data-tone="blue">
-      <div class="departures-stat-label"><i data-lucide="shield-check"></i>Автоисключено</div>
+      <div class="departures-stat-label"><i data-lucide="shield-check"></i>Исключено</div>
       <div class="departures-stat-value" id="departures-stat-auto-excluded">0</div>
-      <div class="departures-stat-caption">Уже проверены сегодня</div>
-    </article>
-    <article class="departures-stat-card" data-tone="red">
-      <div class="departures-stat-label"><i data-lucide="ban"></i>Жилые</div>
-      <div class="departures-stat-value" id="departures-stat-manual-excluded">0</div>
-      <div class="departures-stat-caption">Исключены вручную</div>
-    </article>
-    <article class="departures-stat-card" data-tone="green">
-      <div class="departures-stat-label"><i data-lucide="arrow-right"></i>На заезд</div>
-      <div class="departures-stat-value" id="departures-stat-arrival">0</div>
-      <div class="departures-stat-caption">Приоритетная проверка</div>
     </article>
     <article class="departures-stat-card" data-tone="indigo">
       <div class="departures-stat-label"><i data-lucide="printer"></i>К печати</div>
       <div class="departures-stat-value" id="departures-stat-final">0</div>
-      <div class="departures-stat-caption">Номеров попадёт в печать</div>
     </article>
   </div>
 
@@ -315,6 +300,23 @@
         <span class="departures-file-name" id="departures-file-name">PDF ещё не загружен</span>
       </div>
     </div>
+    <form id="departures-manual-form" class="departures-manual-add" autocomplete="off">
+      <label class="departures-manual-title" for="departures-manual-room-number">
+        <i data-lucide="plus-circle" aria-hidden="true"></i>
+        <span>Добавить номер на заезд</span>
+      </label>
+      <div class="departures-manual-fields">
+        <input id="departures-manual-room-number" type="text" inputmode="numeric" maxlength="4"
+          pattern="[0-9]{1,4}" placeholder="Номер комнаты" aria-label="Номер комнаты" />
+        <label class="departures-manual-checkbox" for="departures-manual-emptied">
+          <input id="departures-manual-emptied" type="checkbox" />
+          <span>Опустошить</span>
+        </label>
+        <button type="submit" class="btn btn-primary" id="departures-manual-add-btn">
+          <i data-lucide="plus"></i>Добавить на заезд
+        </button>
+      </div>
+    </form>
     <div id="departures-work-list" class="departures-room-list">
       <div class="departures-empty-state"><span class="departures-empty-icon"><i data-lucide="file-up"></i></span><strong>Загрузите PDF с выездами</strong><span>Проверенные сегодня номера будут исключены автоматически.</span></div>
     </div>
@@ -794,7 +796,7 @@
 </div>
 
 
-<script src="config.js?v=m68"></script>
+<script src="config.js?v=m69"></script>
 <script src="js/utils.js??v=m66"></script>
 <script src="js/app-core.js??v=m66"></script>
 <script src="js/excise-module.js?v=m74"></script>
@@ -804,7 +806,7 @@
 <script src="js/inventory-module.js??v=m76"></script>
 <script src="js/dashboard-module.js??v=m66"></script>
 <script src="js/lists-module.js??v=m70"></script>
-<script src="js/departures-module.js?v=d1"></script>
+<script src="js/departures-module.js?v=d2"></script>
 <script src="js/history-module.js?v=m83"></script>
 <script src="js/route-handlers.js?v=m71"></script>
 <script src="js/gih-module.js??v=m82"></script>

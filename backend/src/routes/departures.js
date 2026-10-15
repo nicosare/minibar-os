@@ -65,8 +65,9 @@ function todayRange(req) {
   };
 }
 
+
 function blankSession(dateKey) {
-  return { dateKey, fileName: '', pdfRooms: [], marks: {} };
+  return { dateKey, fileName: '', pdfRooms: [], marks: {}, manualRooms: [] };
 }
 
 function parseSession(value, dateKey) {
@@ -87,13 +88,27 @@ function parseSession(value, dateKey) {
       if (/^\d{1,4}$/.test(number) && VALID_MARKS.has(mark)) marks[number] = mark;
     }
   }
+  const manualRooms = [];
+  const manualSeen = new Set();
+  if (Array.isArray(parsed.manualRooms)) {
+    for (const item of parsed.manualRooms) {
+      const rawNumber = String(item?.number ?? '').trim();
+      if (!/^\d{1,4}$/.test(rawNumber)) continue;
+      const number = String(Number(rawNumber));
+      if (manualSeen.has(number)) continue;
+      manualSeen.add(number);
+      manualRooms.push({ number, emptied: item?.emptied === true });
+    }
+  }
   return {
     dateKey,
     fileName: String(parsed.fileName || '').slice(0, 240),
     pdfRooms,
-    marks
+    marks,
+    manualRooms
   };
 }
+
 
 async function readSession(db, dateKey) {
   const row = await db.setting.findUnique({ where: { key: SESSION_KEY } });
@@ -247,6 +262,67 @@ router.patch('/session/mark', async (req, res) => {
     const status = error.statusCode || 500;
     if (status >= 500) console.error('PATCH /api/departures/session/mark error:', error);
     res.status(status).json({ error: error.message || 'Не удалось сохранить отметку номера' });
+  }
+});
+
+
+router.post('/session/manual-room', async (req, res) => {
+  try {
+    const rawNumber = String(req.body?.number ?? '').trim();
+    if (!/^\d{1,4}$/.test(rawNumber)) {
+      return res.status(400).json({ error: 'Введите корректный номер комнаты' });
+    }
+    const number = String(Number(rawNumber));
+    const emptied = req.body?.emptied === true;
+    const rooms = await prisma.room.findMany({ select: { id: true, number: true } });
+    const room = rooms.find(item => String(item.number) === number);
+    if (!room) {
+      return res.status(404).json({ error: 'Номер ' + number + ' не найден в системе' });
+    }
+
+    const range = todayRange(req);
+    const alreadyChecked = await prisma.check.findFirst({
+      where: {
+        checkDate: { gte: range.start, lt: range.end },
+        type: { in: VERIFIED_TYPES },
+        status: 'done',
+        roomId: room.id
+      },
+      select: { id: true }
+    });
+    if (alreadyChecked && !emptied) {
+      return res.status(409).json({
+        error: 'Номер ' + number + ' уже проверяли сегодня. Включите «Опустошить», чтобы добавить его несмотря на проверку.'
+      });
+    }
+
+    const session = await updateSession(req, current => {
+      const manualRooms = current.manualRooms.filter(item => item.number !== number);
+      manualRooms.push({ number, emptied });
+      return { ...current, manualRooms };
+    });
+    res.json({ ok: true, session });
+  } catch (error) {
+    console.error('POST /api/departures/session/manual-room error:', error);
+    res.status(500).json({ error: error.message || 'Не удалось добавить ручной номер' });
+  }
+});
+
+router.delete('/session/manual-room/:number', async (req, res) => {
+  try {
+    const rawNumber = String(req.params.number ?? '').trim();
+    if (!/^\d{1,4}$/.test(rawNumber)) {
+      return res.status(400).json({ error: 'Некорректный номер комнаты' });
+    }
+    const number = String(Number(rawNumber));
+    const session = await updateSession(req, current => ({
+      ...current,
+      manualRooms: current.manualRooms.filter(item => item.number !== number)
+    }));
+    res.json({ ok: true, session });
+  } catch (error) {
+    console.error('DELETE /api/departures/session/manual-room error:', error);
+    res.status(500).json({ error: error.message || 'Не удалось убрать ручной номер' });
   }
 });
 
