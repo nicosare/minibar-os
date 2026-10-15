@@ -1612,13 +1612,15 @@ button.departure-room-tile:focus-visible { outline: 3px solid rgba(99,102,241,.2
   animation: none !important;
 }
 #view-departures button.departure-room-tile:hover:not(:disabled) {
-  transform: translateY(-2px);
+  transform: translateY(-2px) !important;
+  transition: border-color .15s ease, background .15s ease, box-shadow .15s ease, transform .15s ease !important;
   filter: brightness(1.1);
   z-index: 2;
 }
 #view-departures button.departure-room-tile:active,
 #view-departures button.departure-room-tile:active:hover {
   transform: none !important;
+  transition: none !important;
   animation: none !important;
 }
 #view-departures button.departure-room-tile:disabled {
