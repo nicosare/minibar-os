@@ -24,6 +24,7 @@ const rooms = [{
 
 const exciseRecords = [
   { id: 901, markNumber: '12345678901234567890', createdAt: new Date().toISOString() },
+  { id: 903, markNumber: '22345678901234567890', createdAt: new Date().toISOString() },
   { id: 902, markNumber: 'INVALID-EXCISE', createdAt: new Date().toISOString() }
 ];
 
@@ -287,11 +288,15 @@ const targets = {
 
     await page.locator('.nav-item[data-route="excise"]').click();
     await page.locator('#excise-list .excise-card').first().waitFor({ state: 'visible', timeout: 5000 });
-    assert.equal(await page.locator('#excise-list .excise-card').count(), 2,
-      'excise list should render both valid and invalid marks');
-    assert.equal(await page.locator('#excise-list .excise-card.valid .excise-meta-status').innerText(), 'Валидна');
+    assert.equal(await page.locator('#excise-list .excise-card').count(), 3,
+      'excise list should render two valid marks and one invalid mark');
+    assert.equal(await page.locator('#excise-list .excise-card.valid').count(), 2,
+      'both valid marks should be classified as valid');
+    assert.equal(await page.locator('#excise-list .excise-card.invalid').count(), 1,
+      'the invalid mark should remain visible but not be exported');
+    assert.equal(await page.locator('#excise-list .excise-card.valid .excise-meta-status').first().innerText(), 'Валидна');
     assert.equal(await page.locator('#excise-list .excise-card.invalid .excise-meta-status').innerText(), 'Проверить марку');
-    assert.equal(await page.locator('#excise-list .excise-card.valid').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(255, 255, 255)',
+    assert.equal(await page.locator('#excise-list .excise-card.valid').first().evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(255, 255, 255)',
       'valid excise cards should use the shared neutral card surface');
     assert.equal(await page.locator('#excise-copy-all-btn').count(), 0,
       'the obsolete copy-all action should be removed');
@@ -324,7 +329,7 @@ const targets = {
     const worksheetXml = readStoredZipEntry(workbook, 'xl/worksheets/sheet1.xml');
     const exportedMarks = [...worksheetXml.matchAll(/<row r="\d+"><c r="A\d+" t="inlineStr"><is><t xml:space="preserve">(.*?)<\/t><\/is><\/c><\/row>/g)]
       .map(match => match[1].replace(/&apos;/g, "'").replace(/&quot;/g, '"').replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&'));
-    assert.deepEqual(exportedMarks, ['12345678901234567890'],
+    assert.deepEqual(exportedMarks, ['12345678901234567890', '22345678901234567890'],
       'Excel should contain only valid excises, one mark per row and no header or extra columns');
     assert.ok(!worksheetXml.includes('INVALID-EXCISE'), 'invalid marks must not be included in the workbook');
     console.log('PASS: excise cards use the site style and download creates a valid-mark-only XLSX workbook');
