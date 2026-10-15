@@ -29,7 +29,7 @@ const MODEL_DOMAINS = {
   VkBotEvent: ['bot'],
   ActiveList: ['lists'],
   ListRoom: ['lists'],
-  Setting: ['settings']
+  Setting: ['settings', 'departures']
 };
 
 function cleanClientId(value) {
