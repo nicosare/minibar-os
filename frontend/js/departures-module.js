@@ -494,19 +494,22 @@ App.departuresModule = (() => {
 
   async function printDepartures() {
     ensureLocalDay();
-    if (!state.session.fileName) {
-      showFeedback('Сначала загрузите PDF с выездами.', 'error');
-      return;
-    }
-
-    const finalRooms = currentWorkingRooms().filter(room =>
-      state.session.marks[roomNumber(room)] !== 'resident');
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       showFeedback('Браузер заблокировал окно печати. Разрешите всплывающие окна для сайта.', 'error');
       return;
     }
 
+    // Re-read the server session and current VK checks immediately before printing.
+    await refresh();
+    if (!state.session.fileName) {
+      printWindow.close();
+      showFeedback('Сначала загрузите PDF с выездами.', 'error');
+      return;
+    }
+
+    const finalRooms = currentWorkingRooms().filter(room =>
+      state.session.marks[roomNumber(room)] !== 'resident');
     printWindow.document.open();
     printWindow.document.write(buildPrintDocument(finalRooms));
     printWindow.document.close();
