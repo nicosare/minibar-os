@@ -181,6 +181,7 @@ let savedDeparturesPrint = null;
     }
 
     let body = {};
+    let responseStatus = 200;
     if (path === '/products' && method === 'GET') {
       body = calculatorProducts;
     } else if (path === '/rooms' && method === 'GET') {
@@ -213,6 +214,28 @@ let savedDeparturesPrint = null;
       if (payload.mark) marks[String(payload.number)] = payload.mark;
       else delete marks[String(payload.number)];
       departuresSession = { ...departuresSession, marks };
+      body = { ok: true, session: departuresSession };
+    } else if (path === '/departures/session/manual-room' && method === 'POST') {
+      const payload = request.postDataJSON();
+      const number = String(Number(payload.number));
+      const emptied = payload.emptied === true;
+      const verified = departuresChecks.some(item => String(item.number) === number);
+      if (verified && !emptied) {
+        responseStatus = 409;
+        body = { error: 'Номер ' + number + ' уже проверяли сегодня. Включите «Опустошить», чтобы добавить его несмотря на проверку.' };
+      } else if (!departuresRooms.some(room => String(room.number) === number)) {
+        responseStatus = 404;
+        body = { error: 'Номер ' + number + ' не найден в системе' };
+      } else {
+        const manualRooms = (departuresSession.manualRooms || []).filter(item => String(item.number) !== number);
+        manualRooms.push({ number, emptied });
+        departuresSession = { ...departuresSession, manualRooms };
+        body = { ok: true, session: departuresSession };
+      }
+    } else if (/^\/departures\/session\/manual-room\/\d+$/.test(path) && method === 'DELETE') {
+      const number = String(Number(path.split('/').pop()));
+      const manualRooms = (departuresSession.manualRooms || []).filter(item => String(item.number) !== number);
+      departuresSession = { ...departuresSession, manualRooms };
       body = { ok: true, session: departuresSession };
     } else if (path === '/departures/print' && method === 'POST') {
       savedDeparturesPrint = request.postDataJSON();
@@ -301,7 +324,7 @@ let savedDeparturesPrint = null;
     }
 
     await route.fulfill({
-      status: 200,
+      status: responseStatus,
       contentType: 'application/json; charset=utf-8',
       body: JSON.stringify(body)
     });
@@ -837,19 +860,21 @@ let savedDeparturesPrint = null;
 
     await page.locator('.nav-item[data-route="departures"]').click();
     await page.waitForFunction(() => document.getElementById('view-departures')?.classList.contains('active'));
-    await page.waitForFunction(() => document.getElementById('departures-stat-final')?.textContent === '2');
+    await page.waitForFunction(() => document.getElementById('departures-final-count')?.textContent === '2');
     assert.equal((await page.locator('#departures-stat-checked').innerText()).trim(), '2',
       'checked-today statistics should count unique verified rooms');
     assert.equal((await page.locator('#departures-stat-pdf').innerText()).trim(), '5',
-      'PDF statistics should count recognized rooms before exclusions');
+      'file-import statistics should count recognized PDF rooms before exclusions');
     assert.equal((await page.locator('#departures-stat-auto-excluded').innerText()).trim(), '2',
-      'rooms verified today should be auto-excluded from the PDF worklist');
-    assert.equal((await page.locator('#departures-stat-manual-excluded').innerText()).trim(), '1',
-      'manual resident marks should be counted separately');
-    assert.equal((await page.locator('#departures-stat-arrival').innerText()).trim(), '1',
-      'arrival marks should be counted separately');
-    assert.equal((await page.locator('#departures-stat-final').innerText()).trim(), '2',
-      'the print count should include arrival marks but exclude residents');
+      'rooms verified today should be excluded from the PDF worklist');
+    assert.equal(await page.locator('.departures-stat-card').count(), 4,
+      'the statistics should show only the four requested cards');
+    const statisticLabels = await page.locator('.departures-stat-label').allInnerTexts();
+    assert.deepEqual(statisticLabels.map(label => label.trim().replace(/\s+/g, ' ')),
+      ['Проверено сегодня', 'Загружено из файла', 'Исключено', 'К печати'],
+      'statistics should use the requested labels only');
+    assert.equal(await page.locator('#view-departures .departures-page-date').count(), 0,
+      'the date below the page title should be removed');
 
     assert.equal(await page.locator('#view-departures [data-departures-action="upload"]').count(), 1,
       'there should be a single PDF upload button in the whole tab');
@@ -875,8 +900,8 @@ let savedDeparturesPrint = null;
       'the worklist should not inherit the checked-list empty-state color');
     await page.locator('#departures-work-list [data-departures-room="504"]').hover();
     const workTransform = await page.locator('#departures-work-list [data-departures-room="504"]').evaluate(el => getComputedStyle(el).transform);
-    assert.ok(workTransform === 'none' || workTransform === 'matrix(1, 0, 0, 1, 0, 0)',
-      'working room tiles should not jump or translate on hover');
+    assert.equal(workTransform, 'matrix(1, 0, 0, 1, 0, -2)',
+      'hover should match the light lift used by the Deadlines room tiles');
 
     const cycleRoom = page.locator('#departures-work-list [data-departures-room="504"]');
     await cycleRoom.click();
@@ -902,7 +927,7 @@ let savedDeparturesPrint = null;
     await page.goto('http://127.0.0.1:8080/', { waitUntil: 'domcontentloaded' });
     await page.locator('.sidebar').waitFor({ state: 'visible', timeout: 10000 });
     await page.locator('.nav-item[data-route="departures"]').click();
-    await page.waitForFunction(() => document.getElementById('departures-stat-final')?.textContent === '2');
+    await page.waitForFunction(() => document.getElementById('departures-final-count')?.textContent === '2');
     assert.ok((await page.locator('#departures-work-list [data-departures-room="502"]').getAttribute('class')).includes('is-resident'),
       'manual resident marks should survive a fresh page load');
     assert.ok((await page.locator('#departures-work-list [data-departures-room="503"]').getAttribute('class')).includes('is-arrival'),
@@ -969,6 +994,40 @@ let savedDeparturesPrint = null;
       'the print history row should show a dash instead of a room number');
     assert.match(await printHistoryRow.innerText(), /Количество номеров в итоговом списке: 2/,
       'the print history details should store the final count');
+
+    // Manual arrivals: a room checked today is blocked without “Опустошить”, but can be explicitly overridden.
+    await page.locator('.nav-item[data-route="departures"]').click();
+    await page.waitForFunction(() => document.getElementById('view-departures')?.classList.contains('active'));
+    await page.locator('#departures-manual-room-number').fill('500');
+    await page.locator('#departures-manual-form').evaluate(form => form.requestSubmit());
+    await page.waitForFunction(() => !document.getElementById('departures-feedback')?.hidden);
+    assert.match(await page.locator('#departures-feedback').innerText(), /500 уже проверяли сегодня/,
+      'a checked room should show a warning when the override checkbox is off');
+    assert.equal(await page.locator('#departures-work-list [data-manual-room="500"]').count(), 0,
+      'a checked room should not be added without the override checkbox');
+
+    await page.locator('#departures-manual-emptied').check();
+    await page.locator('#departures-manual-form').evaluate(form => form.requestSubmit());
+    await page.waitForFunction(() => document.querySelector('#departures-work-list [data-manual-room="500"]'));
+    assert.equal(await page.locator('#departures-work-list [data-manual-room="500"]').count(), 1,
+      'a checked room can be added when “Опустошить” is selected');
+    assert.ok(await page.locator('#departures-print-btn').isEnabled(),
+      'a manually added room can be printed without a PDF');
+
+    const manualPrintPopupPromise = page.waitForEvent('popup');
+    await page.locator('#departures-print-btn').click();
+    const manualPrintPopup = await manualPrintPopupPromise;
+    await manualPrintPopup.waitForLoadState('domcontentloaded').catch(() => {});
+    assert.match(await manualPrintPopup.locator('body').innerText(), /→ 500/,
+      'manual rooms should print as arrivals');
+    assert.match(await manualPrintPopup.locator('body').innerText(), /опустошить/,
+      'the manual emptying checkbox should print “опустошить”');
+    assert.equal(savedDeparturesPrint.count, 1,
+      'manual-only print should audit the count of manually added rooms');
+    await page.locator('[data-departures-manual-remove="500"]').click();
+    assert.equal(await page.locator('#departures-work-list [data-manual-room="500"]').count(), 0,
+      'manual rooms can be removed from the worklist');
+    console.log('PASS: departures manual arrival guard, emptying override, and manual-only print');
     console.log('PASS: departures without checked list, unlabeled worklist, legacy print geometry, PDF reset/persistence and print history');
 
     assert.deepEqual(pageErrors, [], 'browser JavaScript should not throw uncaught errors');
