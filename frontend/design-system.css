@@ -1505,7 +1505,6 @@ button.departure-room-tile:focus-visible { outline: 3px solid rgba(99,102,241,.2
   margin-bottom: 24px;
 }
 #view-departures .departures-stat-card {
-  height: 118px;
   min-height: 118px;
   box-sizing: border-box;
   padding: 18px 20px !important;
