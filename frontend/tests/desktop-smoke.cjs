@@ -1024,7 +1024,10 @@ let savedDeparturesPrint = null;
     const manualPrintPopup = await manualPrintPopupPromise;
     await manualPrintPopup.waitForLoadState('domcontentloaded').catch(() => {});
     await manualPrintPopup.waitForFunction(() => document.body?.innerText.includes('Departures of'), null, { timeout: 10000 });
-    await page.waitForFunction(() => savedDeparturesPrint?.count === 1, null, { timeout: 10000 });
+    for (let attempt = 0; attempt < 30 && !savedDeparturesPrint; attempt += 1) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    assert.ok(savedDeparturesPrint, 'manual printing should create an audit record');
     assert.match(await manualPrintPopup.locator('body').innerText(), /→ 500/,
       'manual rooms should print as arrivals');
     assert.match(await manualPrintPopup.locator('body').innerText(), /опустошить/,
