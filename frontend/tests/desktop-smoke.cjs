@@ -301,7 +301,6 @@ const targets = {
     const exciseDownload = await downloadPromise;
     assert.match(exciseDownload.suggestedFilename(), /^Акцизы мини-бар \d{2}\.\d{2}\.\d{2}\.xlsx$/,
       'download should use the requested Russian title and DD.MM.YY date');
-      'download should use the requested Russian title and DD.MM.YY date');
     const fs = require('node:fs');
     const workbook = fs.readFileSync(await exciseDownload.path());
     assert.equal(workbook.readUInt32LE(0), 0x04034b50, 'download should be an actual XLSX ZIP package');
