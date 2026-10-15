@@ -122,6 +122,30 @@ const api = {
   async getLists() {
     return apiRequest('/lists');
   },
+  async getDeparturesData() {
+    return apiRequest('/departures?_t=' + Date.now(), { cache: 'no-store' });
+  },
+  async saveDeparturesPdf(fileName, rooms) {
+    return apiRequest('/departures/session/pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileName, rooms })
+    });
+  },
+  async setDeparturesMark(number, mark) {
+    return apiRequest('/departures/session/mark', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ number, mark })
+    });
+  },
+  async logDeparturesPrint(count) {
+    return apiRequest('/departures/print', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ count })
+    });
+  },
   async getMonthProducts() {
     return apiRequest(`/deadlines/month-products?_t=${Date.now()}`, {
       cache: 'no-store'
