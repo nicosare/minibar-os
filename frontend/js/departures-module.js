@@ -314,7 +314,7 @@ App.departuresModule = (() => {
   function addCandidate(candidate, known, found) {
     if (candidate === null || candidate === undefined) return;
     const raw = String(candidate).trim();
-    if (!/^\\d{1,4}$/.test(raw)) return;
+    if (!/^\d{1,4}$/.test(raw)) return;
     const number = String(Number(raw));
     if (known.has(number)) found.add(number);
   }
@@ -350,25 +350,25 @@ App.departuresModule = (() => {
       for (const items of rows.values()) {
         items.sort((a, b) => a.x - b.x);
         const line = items.map(item => item.text).join(' ').trim();
-        const firstCell = line.match(/^\\s*(\\d{1,4})(?=\\s|$)/);
+        const firstCell = line.match(/^\s*(\d{1,4})(?=\s|$)/);
         if (firstCell) addCandidate(firstCell[1], known, found);
 
-        const guestPattern = line.match(/\\b(\\d{1,4})\\s+[A-Z][a-z]/);
+        const guestPattern = line.match(/\b(\d{1,4})\s+[A-Z][a-z]/);
         if (guestPattern) addCandidate(guestPattern[1], known, found);
 
-        const roomNoPattern = line.match(/Room\\s*(?:No\\.?|Number|#)\\s*[:.]?\\s*(\\d{1,4})/i);
+        const roomNoPattern = line.match(/Room\s*(?:No\.?|Number|#)\s*[:.]?\s*(\d{1,4})/i);
         if (roomNoPattern) addCandidate(roomNoPattern[1], known, found);
 
         // Fallback to known room numbers on text rows that do not contain dates or times.
-        if (!/\\b\\d{1,2}[./-]\\d{1,2}[./-]\\d{2,4}\\b/.test(line) && !/\\b\\d{1,2}:\\d{2}\\b/.test(line)) {
-          const matches = line.match(/\\b\\d{1,4}\\b/g) || [];
+        if (!/\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b/.test(line) && !/\b\d{1,2}:\d{2}\b/.test(line)) {
+          const matches = line.match(/\b\d{1,4}\b/g) || [];
           matches.forEach(value => addCandidate(value, known, found));
         }
       }
 
       // Some Opera PDFs split the room number and guest into separate text boxes.
       allText.forEach(value => {
-        if (/^\\s*\\d{1,4}\\s*$/.test(value)) addCandidate(value, known, found);
+        if (/^\s*\d{1,4}\s*$/.test(value)) addCandidate(value, known, found);
       });
     }
 
@@ -377,7 +377,7 @@ App.departuresModule = (() => {
 
   async function handlePdfSelection(file) {
     if (!file) return;
-    if (file.type && file.type !== 'application/pdf' && !/\\.pdf$/i.test(file.name)) {
+    if (file.type && file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) {
       showFeedback('Выберите PDF-файл.', 'error');
       return;
     }
@@ -449,7 +449,7 @@ App.departuresModule = (() => {
       'html,body{margin:0;padding:0;color:#111;font-family:"Times New Roman",serif}' +
       'body{font-size:10pt}.departure-print-page{display:flex;gap:8mm;width:100%;min-height:185mm;page-break-after:always;break-after:page}' +
       '.departure-print-page:last-child{page-break-after:auto;break-after:auto}' +
-      '.departure-print-column{width:50%;min-width:0}' +
+      '.departure-print-column{flex:1;min-width:0}' +
       '.departure-print-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:10pt}' +
       '.departure-print-table th,.departure-print-table td{height:4.35mm;padding:0 2px;border:1px solid #111;vertical-align:middle}' +
       '.departure-print-table th{height:6mm;text-align:center;background:#f1f1f1;font-weight:700}' +
