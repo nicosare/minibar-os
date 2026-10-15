@@ -1280,3 +1280,124 @@ button.departure-room-tile:focus-visible { outline: 3px solid rgba(99,102,241,.2
 @media print {
   #view-departures { display: none !important; }
 }
+
+ 
+/* Departures: compact counters and floor layout aligned with the Deadlines tab. */
+#view-departures .departures-stats-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+#view-departures .departures-stat-card {
+  padding: 9px 12px 10px;
+  border-left-width: 2px;
+  border-radius: 10px;
+}
+#view-departures .departures-stat-label {
+  min-height: 17px;
+  gap: 5px;
+  font-size: 10.5px;
+  line-height: 1.25;
+}
+#view-departures .departures-stat-label svg { width: 13px; height: 13px; }
+#view-departures .departures-stat-value {
+  margin-top: 4px;
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: -.025em;
+}
+#view-departures .departures-stat-caption { display: none; }
+
+#view-departures .departures-room-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px 18px;
+}
+#view-departures .departure-floor-section {
+  width: 100%;
+  margin: 0;
+  padding: 12px 16px;
+  display: block;
+  border: 1px solid rgba(15, 23, 36, .07);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.92));
+  box-shadow: 0 2px 7px rgba(15, 23, 36, .035);
+}
+#view-departures .departure-floor-heading {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 0 0 10px;
+  border-bottom: 1px solid #edf0f5;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 650;
+}
+#view-departures .departure-floor-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+#view-departures .departure-floor-badge {
+  display: inline-flex;
+  flex: 0 0 32px;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: #334155;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  font-size: 13px;
+  font-weight: 800;
+}
+#view-departures .departure-floor-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+#view-departures .departure-floor-title {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+#view-departures .departure-floor-subtitle {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+#view-departures .departure-floor-count { margin-left: auto; }
+#view-departures .departure-room-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+  gap: 8px;
+}
+#view-departures .departure-room-tile {
+  min-height: 50px;
+  padding: 7px 6px;
+  border-radius: 8px;
+}
+#view-departures .departure-room-number { font-size: 16px; }
+#view-departures .departures-empty-state { min-height: 155px; }
+#view-departures .departures-empty-state .btn { display: none; }
+#departures-reset-btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+@media (max-width: 1200px) {
+  #view-departures .departures-stats-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  #view-departures .departures-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  #view-departures .departures-stat-card { padding: 9px 10px; }
+  #view-departures .departures-stat-label { font-size: 10.5px; }
+  #view-departures .departures-stat-value { font-size: 21px; }
+  #view-departures .departures-room-list { padding: 10px 10px 14px; }
+  #view-departures .departure-floor-section { padding: 10px; }
+  #view-departures .departure-room-grid { grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); gap: 7px; }
+}
