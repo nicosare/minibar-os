@@ -271,7 +271,7 @@ const targets = {
       height: getComputedStyle(icon).height,
       strokeWidth: getComputedStyle(icon).strokeWidth
     }));
-    assert.deepEqual(titleIconStyle, { width: '24px', height: '24px', strokeWidth: '2.5' },
+    assert.deepEqual(titleIconStyle, { width: '24px', height: '24px', strokeWidth: '2.5px' },
       'page title icons should be 24px and use a bolder stroke');
     assert.deepEqual(await page.locator('[data-history-view]').evaluateAll(nodes => nodes.map(node => node.dataset.historyView)),
       ['daily', 'gih', 'deadlines'], 'history subtabs should be ordered Daily, GIH, Deadlines');
