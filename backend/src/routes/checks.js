@@ -114,8 +114,8 @@ async function roomCondition(roomText) {
     throw error;
   }
   const matchingRooms = await prisma.$queryRawUnsafe(
-    'SELECT id FROM rooms WHERE CAST(number AS TEXT) LIKE $1',
-    '%' + roomText + '%'
+    'SELECT id FROM rooms WHERE CAST(number AS TEXT) = $1',
+    roomText
   );
   return { roomId: { in: matchingRooms.map(room => room.id) } };
 }
