@@ -841,6 +841,13 @@ let savedDeparturesPrint = null;
       'the worklist should use floor sections and room tiles like the Deadlines tab');
     assert.ok(await page.locator('#departures-checked-list .departure-floor-badge').count() > 0,
       'the checked-today list should also be grouped into floor sections');
+    assert.equal(await page.locator('#departures-checked-list .departure-room-match-tag').count(), 0,
+      'the checked-today list should not show “Есть в PDF” labels');
+    assert.equal(await page.locator('#departures-work-footer #departures-print-btn').count(), 1,
+      'the print button should be below the working room list');
+    assert.ok(await page.locator('#departures-work-footer').evaluate(footer =>
+      !!(document.getElementById('departures-work-list').compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING)),
+      'the print footer should come after the working list');
 
     const checkedEmpty = page.locator('#departures-checked-list [data-room-number="500"]');
     assert.ok((await checkedEmpty.getAttribute('class')).includes('is-empty'),
@@ -848,8 +855,12 @@ let savedDeparturesPrint = null;
     assert.ok((await checkedEmpty.getAttribute('class')).includes('is-auto-excluded'),
       'rooms from the PDF that are already checked today should be outlined in the checked list');
     const workEmpty = page.locator('#departures-work-list [data-departures-room="504"]');
-    assert.ok(!(await workEmpty.getAttribute('class')).includes('is-empty'),
+    assert.ok(!(await workEmpty.getAttribute('class')).includes('status-empty'),
       'an emptied room in the worklist must not inherit the blue checked-list styling');
+    await page.locator('#departures-work-list [data-departures-room="504"]').hover();
+    const workTransform = await page.locator('#departures-work-list [data-departures-room="504"]').evaluate(el => getComputedStyle(el).transform);
+    assert.ok(workTransform === 'none' || workTransform === 'matrix(1, 0, 0, 1, 0, 0)',
+      'working room tiles should not jump or translate on hover');
 
     const cycleRoom = page.locator('#departures-work-list [data-departures-room="504"]');
     await cycleRoom.click();
@@ -929,7 +940,7 @@ let savedDeparturesPrint = null;
       'the print history row should show a dash instead of a room number');
     assert.match(await printHistoryRow.innerText(), /Количество номеров в итоговом списке: 2/,
       'the print history details should store the final count');
-    console.log('PASS: departures live data, floor layout, room marking cycle, PDF reset/persistence and print history');
+    console.log('PASS: departures Deadlines-style floor/colors, quiet worklist, print footer, PDF reset/persistence and print history');
 
     assert.deepEqual(pageErrors, [], 'browser JavaScript should not throw uncaught errors');
     console.log('PASS: no uncaught browser JavaScript errors');

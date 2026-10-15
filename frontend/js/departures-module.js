@@ -124,14 +124,38 @@ App.departuresModule = (() => {
     const pdfSet = new Set(normalizePdfRooms());
     const sections = groupByFloor(rooms);
     return sections.map(section => {
+      const floorCounts = mode === 'checked'
+        ? {
+          neutral: section.rooms.filter(room => room.expiryStatus === 'neutral' || !room.expiryStatus).length,
+          valid: section.rooms.filter(room => room.expiryStatus === 'valid').length,
+          empty: section.rooms.filter(room => room.expiryStatus === 'empty').length,
+          needs: section.rooms.filter(room => room.expiryStatus === 'needs_replacement').length
+        }
+        : {
+          neutral: section.rooms.filter(room => !state.session.marks[roomNumber(room)]).length,
+          valid: section.rooms.filter(room => state.session.marks[roomNumber(room)] === 'arrival').length,
+          empty: 0,
+          needs: section.rooms.filter(room => state.session.marks[roomNumber(room)] === 'resident').length
+        };
+      const dot = (tone, count) => '<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full ' +
+        tone + '"></span><span class="text-slate-600">' + count + '</span></span>';
+      const floorIndicators = [
+        dot('bg-slate-400', floorCounts.neutral),
+        dot('bg-emerald-500', floorCounts.valid),
+        ...(mode === 'checked' ? [dot('bg-sky-500', floorCounts.empty)] : []),
+        dot('bg-rose-500', floorCounts.needs)
+      ].join('');
       const tiles = section.rooms.map(room => {
         const number = roomNumber(room);
         const mark = state.session.marks && state.session.marks[number];
         const isCheckedEmpty = mode === 'checked' && room.expiryStatus === 'empty';
         const alreadyInPdf = mode === 'checked' && pdfSet.has(number);
-        const classes = ['departure-room-tile'];
+        const classes = ['room-cell', 'departure-room-tile'];
         if (mode === 'checked') {
           classes.push('departure-checked-tile');
+          const status = ['neutral', 'valid', 'empty', 'needs_replacement'].includes(room.expiryStatus)
+            ? room.expiryStatus : 'neutral';
+          classes.push('status-' + status);
           if (isCheckedEmpty) classes.push('is-empty');
           if (alreadyInPdf) classes.push('is-auto-excluded');
         } else {
@@ -148,9 +172,6 @@ App.departuresModule = (() => {
           secondary = '<span class="departure-room-time">' + escapeHtml(formatTime(checked && checked.checkedAt)) + '</span>';
           if (isCheckedEmpty) {
             secondary += '<span class="departure-room-empty-tag"><i data-lucide="droplet"></i>Пустой</span>';
-          }
-          if (alreadyInPdf) {
-            secondary += '<span class="departure-room-match-tag">Есть в PDF</span>';
           }
         } else {
           const label = mark === 'resident' ? 'Жилой' : mark === 'arrival' ? 'На заезд' : meta;
@@ -171,12 +192,13 @@ App.departuresModule = (() => {
           '<span class="departure-room-number">' + escapeHtml(number) + '</span>' +
           secondary + '</button>';
       }).join('');
-      return '<section class="departure-floor-section" aria-label="' + escapeHtml(section.floor) + ' этаж">' +
-        '<div class="departure-floor-heading"><div class="departure-floor-title-wrap">' +
-        '<span class="departure-floor-badge">' + escapeHtml(section.floor) + '</span>' +
-        '<div class="departure-floor-title-block"><span class="departure-floor-title">Этаж ' + escapeHtml(section.floor) + '</span>' +
-        '<span class="departure-floor-subtitle">' + section.rooms.length + ' номеров</span></div></div></div>' +
-        '<div class="departure-room-grid">' + tiles + '</div></section>';
+      return '<section class="floor-section departure-floor-section" aria-label="' + escapeHtml(section.floor) + ' этаж">' +
+        '<div class="floor-header departure-floor-heading"><div class="flex items-center gap-2">' +
+        '<div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center"><span class="font-bold text-sm text-slate-700 departure-floor-badge">' + escapeHtml(section.floor) + '</span></div>' +
+        '<div><div class="font-semibold text-sm text-slate-900">Этаж ' + escapeHtml(section.floor) + '</div>' +
+        '<div class="text-xs text-slate-500">' + section.rooms.length + ' номеров</div></div></div>' +
+        '<div class="flex gap-2 text-xs departure-floor-indicators">' + floorIndicators + '</div></div>' +
+        '<div class="rooms-grid departure-room-grid">' + tiles + '</div></section>';
     }).join('');
   }
 

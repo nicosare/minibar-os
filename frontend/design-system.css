@@ -1159,7 +1159,7 @@ button.icon-button:not(:disabled):active {
   transition: border-color .13s ease, background .13s ease, box-shadow .13s ease, transform .13s ease;
 }
 button.departure-room-tile { width: 100%; cursor: pointer; }
-button.departure-room-tile:hover:not(:disabled) { border-color: #94a3b8; background: #f8fafc; transform: translateY(-1px); }
+button.departure-room-tile:hover:not(:disabled) { border-color: #94a3b8; background-color: rgba(255,255,255,.07); transform: translateY(-2px); filter: brightness(1.1); }
 button.departure-room-tile:focus-visible { outline: 3px solid rgba(99,102,241,.22); outline-offset: 2px; }
 .departure-room-number { font-size: 15px; font-weight: 770; font-variant-numeric: tabular-nums; line-height: 1.1; }
 .departure-room-meta, .departure-room-time {
@@ -1180,21 +1180,6 @@ button.departure-room-tile:focus-visible { outline: 3px solid rgba(99,102,241,.2
   line-height: 1.1;
 }
 .departure-room-empty-tag svg { width: 11px; height: 11px; }
-.departure-room-match-tag {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  max-width: calc(100% - 4px);
-  padding: 2px 4px;
-  color: #0369a1;
-  background: #e0f2fe;
-  border: 1px solid #7dd3fc;
-  border-radius: 4px;
-  font-size: 9px;
-  font-weight: 750;
-  line-height: 1.1;
-  white-space: normal;
-}
 .departure-checked-tile.is-empty {
   color: #075985;
   background: #e0f2fe;
@@ -1317,30 +1302,23 @@ button.departure-room-tile:focus-visible { outline: 3px solid rgba(99,102,241,.2
 #view-departures .departure-floor-section {
   width: 100%;
   margin: 0;
-  padding: 12px 16px;
+  padding: 16px 20px;
   display: block;
-  border: 1px solid rgba(15, 23, 36, .07);
+  background: #fff;
   border-radius: 12px;
-  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.92));
-  box-shadow: 0 2px 7px rgba(15, 23, 36, .035);
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04);
 }
 #view-departures .departure-floor-heading {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 10px;
-  margin: 0 0 12px;
-  padding: 0 0 10px;
-  border-bottom: 1px solid #edf0f5;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f1f5f9;
   color: var(--text-primary);
   font-size: 14px;
   font-weight: 650;
-}
-#view-departures .departure-floor-title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
 }
 #view-departures .departure-floor-badge {
   display: inline-flex;
@@ -1356,23 +1334,6 @@ button.departure-room-tile:focus-visible { outline: 3px solid rgba(99,102,241,.2
   font-size: 13px;
   font-weight: 800;
 }
-#view-departures .departure-floor-title-block {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-#view-departures .departure-floor-title {
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 750;
-  line-height: 1.2;
-}
-#view-departures .departure-floor-subtitle {
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 1.2;
-}
 #view-departures .departure-floor-count { margin-left: auto; }
 #view-departures .departure-room-grid {
   display: grid;
@@ -1380,11 +1341,107 @@ button.departure-room-tile:focus-visible { outline: 3px solid rgba(99,102,241,.2
   gap: 8px;
 }
 #view-departures .departure-room-tile {
-  min-height: 50px;
-  padding: 7px 6px;
+  height: 48px;
+  min-height: 48px;
+  padding: 5px 6px;
+  border: 0;
   border-radius: 8px;
+  color: #fff;
+  font-weight: 700;
+  transition: all .15s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 3px 6px rgba(0,0,0,.06);
 }
-#view-departures .departure-room-number { font-size: 16px; }
+#view-departures .departure-checked-tile {
+  height: auto;
+  min-height: 52px;
+  padding: 6px 5px;
+}
+#view-departures .departure-work-tile {
+  height: 44px;
+  min-height: 44px;
+  padding: 4px 6px;
+}
+#view-departures .departure-room-number { color: inherit; font-size: 16px; }
+#view-departures .departure-room-meta,
+#view-departures .departure-room-time { color: rgba(255,255,255,.9); font-size: 10px; font-weight: 650; }
+#view-departures .departure-room-empty-tag {
+  color: #fff;
+  background: rgba(255,255,255,.15);
+  border: 1px solid rgba(255,255,255,.3);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+#view-departures .departure-checked-tile.status-neutral,
+#view-departures .departure-work-tile:not(.is-resident):not(.is-arrival) {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(to bottom right, #94a3b8, #64748b);
+}
+#view-departures .departure-checked-tile.status-valid {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(to bottom right, #10b981, #059669);
+}
+#view-departures .departure-checked-tile.status-empty {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(to bottom right, #0ea5e9, #0284c7);
+}
+#view-departures .departure-checked-tile.status-needs_replacement {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(to bottom right, #f43f5e, #e11d48);
+}
+#view-departures .departure-work-tile.is-resident {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(to bottom right, #f43f5e, #e11d48);
+}
+#view-departures .departure-work-tile.is-arrival {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(to bottom right, #10b981, #059669);
+}
+#view-departures .departure-work-tile.is-saving { opacity: .62; }
+#view-departures .departure-checked-tile.is-auto-excluded {
+  outline: 2px solid #0284c7;
+  outline-offset: 1px;
+  box-shadow: none;
+}
+/* Deadlines-style hover only in checked list; working rooms never jump on hover/click. */
+#view-departures .departure-work-tile,
+#view-departures .departure-work-tile:hover,
+#view-departures .departure-work-tile:active {
+  transition: none !important;
+  transform: none !important;
+  filter: none !important;
+}
+#view-departures button.departure-work-tile:hover:not(:disabled) { border-color: transparent; }
+#view-departures .departure-floor-indicators { margin-left: auto; white-space: nowrap; }
+#view-departures .departures-work-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 20px 18px;
+  border-top: 1px solid #edf0f5;
+  background: #fff;
+}
+#view-departures .departures-print-count {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+}
+#view-departures .departures-print-count .departures-panel-count {
+  min-width: 34px;
+  color: var(--text-primary);
+  font-size: 13px;
+  background: #f1f5f9;
+}
+#view-departures .departures-work-footer #departures-print-btn { min-width: 155px; justify-content: center; }
 #view-departures .departures-empty-state { min-height: 155px; }
 #view-departures .departures-empty-state .btn { display: none; }
 #departures-reset-btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
@@ -1400,4 +1457,8 @@ button.departure-room-tile:focus-visible { outline: 3px solid rgba(99,102,241,.2
   #view-departures .departures-room-list { padding: 10px 10px 14px; }
   #view-departures .departure-floor-section { padding: 10px; }
   #view-departures .departure-room-grid { grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); gap: 7px; }
+  #view-departures .departure-floor-section { padding: 12px 14px; }
+  #view-departures .departure-floor-indicators { gap: 7px; }
+  #view-departures .departures-work-footer { padding: 12px; align-items: center; }
+  #view-departures .departures-work-footer #departures-print-btn { min-width: 132px; }
 }

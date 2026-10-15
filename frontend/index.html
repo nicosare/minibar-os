@@ -267,7 +267,6 @@
       <input id="departures-pdf-input" type="file" accept="application/pdf,.pdf" hidden />
       <button type="button" class="btn btn-outline" id="departures-upload-btn" data-departures-action="upload"><i data-lucide="upload"></i>Загрузить PDF</button>
       <button type="button" class="btn btn-outline" id="departures-reset-btn" disabled><i data-lucide="rotate-ccw"></i>Сбросить</button>
-      <button type="button" class="btn btn-primary" id="departures-print-btn" disabled><i data-lucide="printer"></i>Печать</button>
     </div>
   </div>
 
@@ -331,7 +330,6 @@
       </div>
       <div class="departures-work-summary">
         <span class="departures-file-name" id="departures-file-name">PDF ещё не загружен</span>
-        <span class="departures-panel-count" id="departures-final-count">0</span>
       </div>
     </div>
     <div class="departures-legend">
@@ -340,6 +338,10 @@
     </div>
     <div id="departures-work-list" class="departures-room-list">
       <div class="departures-empty-state"><span class="departures-empty-icon"><i data-lucide="file-up"></i></span><strong>Загрузите PDF с выездами</strong><span>Проверенные сегодня номера будут исключены автоматически.</span></div>
+    </div>
+    <div id="departures-work-footer" class="departures-work-footer">
+      <div class="departures-print-count"><span>К печати</span><span class="departures-panel-count" id="departures-final-count">0</span></div>
+      <button type="button" class="btn btn-primary" id="departures-print-btn" disabled><i data-lucide="printer"></i>Печать списка</button>
     </div>
   </section>
 </section>
