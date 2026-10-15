@@ -22,8 +22,12 @@ App.events.on('route:change', (route) => {
     initModuleWhenApiReady('dashboard', () => App.dashboardModule.init());
   }
 
-  if ((route === 'arrivals' || route === 'departures') && App.listsModule) {
+  if (route === 'arrivals' && App.listsModule) {
     initModuleWhenApiReady('lists', () => App.listsModule.init());
+  }
+
+  if (route === 'departures' && App.departuresModule) {
+    initModuleWhenApiReady('departures', () => App.departuresModule.init());
   }
 
   if (route === 'history' && App.historyModule) {
