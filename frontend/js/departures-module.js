@@ -4,7 +4,7 @@ App.departuresModule = (() => {
   const SESSION_DATE = () => localDateKey(new Date());
   const state = {
     data: { dateKey: '', rooms: [], checkedToday: [] },
-    session: { dateKey: SESSION_DATE(), fileName: '', pdfRooms: [], marks: {} },
+    session: { dateKey: SESSION_DATE(), fileName: '', pdfRooms: [], marks: {}, manualRooms: [] },
     initialized: false,
     requestSequence: 0,
     pendingMarks: new Set(),
@@ -437,7 +437,7 @@ App.departuresModule = (() => {
     const input = document.getElementById('departures-manual-room-number');
     const checkbox = document.getElementById('departures-manual-emptied');
     const raw = String(input?.value || '').trim();
-    if (!/^\\d{1,4}$/.test(raw)) {
+    if (!/^\d{1,4}$/.test(raw)) {
       showFeedback('Введите номер комнаты (от 1 до 4 цифр).', 'warning');
       input?.focus();
       return;
