@@ -861,10 +861,19 @@ let savedDeparturesPrint = null;
     assert.ok((await page.locator('#departures-work-list [data-departures-room="503"]').getAttribute('class')).includes('is-arrival'),
       'arrival marks should remain after replacing the PDF');
 
+    // Restart the app from its entry point: the shared session should be restored from the API.
+    await page.goto('http://127.0.0.1:8080/', { waitUntil: 'domcontentloaded' });
+    await page.locator('.sidebar').waitFor({ state: 'visible', timeout: 10000 });
+    await page.locator('.nav-item[data-route="departures"]').click();
+    await page.waitForFunction(() => document.getElementById('departures-stat-final')?.textContent === '2');
+    assert.ok((await page.locator('#departures-work-list [data-departures-room="502"]').getAttribute('class')).includes('is-resident'),
+      'manual resident marks should survive a fresh page load');
+    assert.ok((await page.locator('#departures-work-list [data-departures-room="503"]').getAttribute('class')).includes('is-arrival'),
+      'arrival marks should survive a fresh page load');
+
     const printPopupPromise = page.waitForEvent('popup');
     await page.locator('#departures-print-btn').click();
     const printPopup = await printPopupPromise;
-    await page.waitForFunction(() => Boolean(window.savedDeparturesPrint) || true).catch(() => {});
     for (let attempt = 0; attempt < 30 && !savedDeparturesPrint; attempt += 1) {
       await new Promise(resolve => setTimeout(resolve, 50));
     }
