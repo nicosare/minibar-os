@@ -68,6 +68,12 @@ jobs:
       - name: Run desktop browser smoke tests
         run: node frontend/tests/desktop-smoke.cjs
 
+      - name: Test VK Mini App photo destination
+        run: |
+          node --check vk-proxy/server.js
+          node --check vk-proxy/peer-id.js
+          node --test vk-proxy/peer-id.test.cjs
+
       - name: Build all production service images
         run: |
           docker build -t minibar-os-ci-backend ./backend
