@@ -63,8 +63,9 @@ services:
     container_name: minibar-vk-proxy
     environment:
       VK_PROXY_PORT: ${VK_PROXY_PORT}
-      VK_ACCESS_TOKEN: ${VK_ACCESS_TOKEN}
+      VK_ACCESS_TOKEN: ${VK_BOT_ACCESS_TOKEN}
       VK_API_VERSION: ${VK_API_VERSION}
+      # Reuse the bot's community token so receiving and sending use the same group.
       # The known production conversation; set VK_DEFAULT_PEER_ID to override.
       VK_DEFAULT_PEER_ID: ${VK_DEFAULT_PEER_ID:-2000000001}
       # Prefer a dedicated allowlist, otherwise reuse the bot's allowlist.
