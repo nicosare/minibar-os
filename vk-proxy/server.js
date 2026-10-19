@@ -232,7 +232,7 @@ async function uploadPhotoToVk(fileBuffer, mimetype, roomNumber, peerId) {
     } catch (error) {
       lastReason = error.message || lastReason;
       console.warn(`[VK proxy] Photo upload attempt ${attempt}/${maxServerAttempts} failed: ${lastReason}`);
-      if (attempt < maxServerAttempts) await sleep(120 * attempt);
+      if (attempt < maxServerAttempts) await sleep(Math.min(500 * (2 ** (attempt - 1)), 4000));
     }
   }
 
