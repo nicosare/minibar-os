@@ -898,17 +898,15 @@ function getPhysicalDeviceAngle() {
 function getCaptureOrientationAngle(sourceWidth = video.videoWidth, sourceHeight = video.videoHeight) {
   const deviceAngle = getPhysicalDeviceAngle();
 
-  if (!sourceWidth || !sourceHeight) {
-    // A rear phone camera normally supplies a landscape-native frame. This
-    // default is used only before the camera metadata is ready.
-    return normalizeAngle(90 - deviceAngle);
-  }
+  // The saved image is oriented relative to the physical phone, not the
+  // portrait-locked VK WebView. Both landscape directions must be quarter-turns:
+  // 90° on one side and 270° on the other, never a 180° upside-down result.
+  if (deviceAngle === 90) return 90;
+  if (deviceAngle === 270) return 270;
 
-  // A landscape-native rear camera sensor is mounted at 90° on most phones.
-  // If the browser already supplies portrait-oriented frames, the source has
-  // already been rotated, so its reference angle is zero.
-  const sourceSensorOrientation = sourceHeight > sourceWidth ? 0 : 90;
-  return normalizeAngle(sourceSensorOrientation - deviceAngle);
+  // Upright portrait: rotate only when the camera source itself is landscape.
+  if (!sourceWidth || !sourceHeight) return 90;
+  return sourceWidth > sourceHeight ? 90 : 0;
 }
 
 function syncViewportAfterOrientationChange() {
@@ -1234,7 +1232,51 @@ function drawRotatedVideoToCanvas(angle = getCaptureOrientationAngle()) {
   drawSourceToCanvas(video, video.videoWidth, video.videoHeight, angle);
 }
 
-/* Capture the live camera frame and apply the physical-device orientation once. */
+/* Prefer a full-resolution still photo when the browser supports it.
+   Decode EXIF orientation first, then apply the physical-phone turn exactly once. */
+async function prepareCameraFocus() {
+  if (!videoTrack || typeof videoTrack.getCapabilities !== 'function') return;
+  try {
+    const capabilities = videoTrack.getCapabilities();
+    const modes = Array.isArray(capabilities.focusMode) ? capabilities.focusMode : [];
+    if (modes.includes('continuous')) {
+      await videoTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+      await wait(250);
+    } else if (modes.includes('single-shot')) {
+      await videoTrack.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] });
+      await wait(350);
+    }
+  } catch (error) {
+    // Some WebViews expose focus capabilities but reject focus constraints.
+    // ImageCapture can still run the camera's normal autofocus sequence.
+    console.debug('[MINIBAR CAMERA] Explicit autofocus constraint unavailable:', error);
+  }
+}
+
+async function captureStillPhotoToCanvas() {
+  if (typeof window.ImageCapture !== 'function' ||
+      typeof window.createImageBitmap !== 'function' ||
+      !videoTrack) {
+    return false;
+  }
+
+  let bitmap = null;
+  try {
+    const capture = new window.ImageCapture(videoTrack);
+    const photoBlob = await capture.takePhoto();
+    if (!photoBlob || !photoBlob.size) throw new Error('Камера вернула пустое фото');
+
+    bitmap = await window.createImageBitmap(photoBlob, { imageOrientation: 'from-image' });
+    const angle = getCaptureOrientationAngle(bitmap.width, bitmap.height);
+    drawSourceToCanvas(bitmap, bitmap.width, bitmap.height, angle);
+    return true;
+  } catch (error) {
+    console.warn('[MINIBAR CAMERA] Native still capture unavailable; falling back to video frame:', error);
+    return false;
+  } finally {
+    if (bitmap && typeof bitmap.close === 'function') bitmap.close();
+  }
+}
 
 function encodePreviewBlob() {
   previewBlob = null;
@@ -1707,13 +1749,14 @@ async function takePhoto() {
       await wait(180);
     }
 
-    // Use the same video stream that drives the viewfinder. The native
-    // ImageCapture path can return JPEGs with device-specific EXIF orientation;
-    // rotating the live frame from sensor data keeps portrait/landscape behavior
-    // consistent and avoids a second, conflicting orientation correction.
-    drawRotatedVideoToCanvas(
-      getCaptureOrientationAngle(video.videoWidth, video.videoHeight)
-    );
+    // Request autofocus where supported, then prefer a full-resolution camera photo.
+    await prepareCameraFocus();
+    const nativeCaptureSucceeded = await captureStillPhotoToCanvas();
+    if (!nativeCaptureSucceeded) {
+      drawRotatedVideoToCanvas(
+        getCaptureOrientationAngle(video.videoWidth, video.videoHeight)
+      );
+    }
     showPreviewFromCanvas();
     previewRequestId = String(Math.floor(Math.random() * 2147483647) + 1);
     encodePreviewBlob();
