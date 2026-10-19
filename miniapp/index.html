@@ -1233,7 +1233,7 @@ function resetPhoto() {
 }
 
 /* Carousel */
-function buildCarousel() {
+function buildCarousel(preferredNumber = ALL_ROOMS[0]?.number) {
   carousel.innerHTML = '';
   carouselItems.clear();
   const fragment = document.createDocumentFragment();
@@ -1254,7 +1254,10 @@ function buildCarousel() {
   sheetSubtitle.textContent = `${ALL_ROOMS.length} номеров из базы данных`;
 
   requestAnimationFrame(() => {
-    selectRoomByNumber(ALL_ROOMS[0].number, false, 'auto');
+    const targetNumber = ROOM_BY_NUMBER.has(String(preferredNumber))
+      ? String(preferredNumber)
+      : ALL_ROOMS[0]?.number;
+    if (targetNumber != null) selectRoomByNumber(targetNumber, false, 'auto');
   });
 }
 
@@ -1375,14 +1378,26 @@ function updateDrawerSelectedChip(numStr) {
   });
 }
 
-/* Keep database room statuses synchronized while the Mini App stays open.
-   The queue endpoint reads the current room state directly from PostgreSQL. */
+/* Subscribe to the same server-sent live-change stream as the main website.
+   Room writes from the VK bot are published by the API after the DB transaction
+   commits, and the Mini App refreshes only when a relevant event arrives. */
 let roomSyncInProgress = false;
+let roomSyncPending = false;
+let roomEventsSource = null;
+const roomEventsClientId = 'miniapp-' + Date.now().toString(36) + '-' +
+  Math.random().toString(36).slice(2, 8);
 
-async function syncRoomStatuses() {
-  if (roomSyncInProgress || document.visibilityState !== 'visible' || !ALL_ROOMS.length) return;
+async function syncRoomData() {
+  if (roomSyncInProgress) {
+    roomSyncPending = true;
+    return;
+  }
+  if (document.visibilityState !== 'visible') {
+    roomSyncPending = true;
+    return;
+  }
+
   roomSyncInProgress = true;
-
   try {
     const response = await fetch(API_BASE + '/miniapp/queue', {
       method: 'GET',
@@ -1392,46 +1407,104 @@ async function syncRoomStatuses() {
     if (!response.ok) throw new Error('HTTP ' + response.status);
 
     const data = await response.json();
-    if (!Array.isArray(data?.rooms)) return;
+    if (!Array.isArray(data?.rooms) || !data.rooms.length) return;
 
-    let statusChanged = false;
-    for (const freshRoom of data.rooms) {
-      const room = ROOM_BY_NUMBER.get(String(freshRoom.number));
-      if (!room) continue;
+    const freshRooms = data.rooms
+      .map(room => ({
+        ...room,
+        number: String(room.number),
+        floor: Number(room.floor),
+        type: String(room.category || '').toLowerCase().includes('люкс') ||
+              String(room.category || '').toLowerCase().includes('suite')
+          ? 'suite'
+          : 'standard'
+      }))
+      .sort((a, b) => Number(a.number) - Number(b.number));
 
-      const nextStatus = freshRoom.expiryStatus || 'neutral';
-      if (room.expiryStatus !== nextStatus) {
-        room.expiryStatus = nextStatus;
-        statusChanged = true;
-      }
-      if (freshRoom.category && room.category !== freshRoom.category) {
-        room.category = freshRoom.category;
-        room.type = String(freshRoom.category).toLowerCase().includes('люкс') ||
-          String(freshRoom.category).toLowerCase().includes('suite') ? 'suite' : 'standard';
-      }
+    const structureChanged = freshRooms.length !== ALL_ROOMS.length ||
+      freshRooms.some((fresh, index) => {
+        const current = ALL_ROOMS[index];
+        return !current ||
+          current.id !== fresh.id ||
+          current.number !== fresh.number ||
+          current.floor !== fresh.floor ||
+          current.category !== fresh.category;
+      });
+
+    const selectedNumber = String(selectedRoom?.number || freshRooms[0].number);
+    if (structureChanged) {
+      ALL_ROOMS = freshRooms;
+      ROOM_BY_NUMBER = new Map(ALL_ROOMS.map(room => [room.number, room]));
+      FLOORS = [...new Set(ALL_ROOMS.map(room => room.floor))].sort((a, b) => a - b);
+      buildCarousel(selectedNumber);
+    } else {
+      // Preserve object identity so the selected room and camera controls remain intact.
+      freshRooms.forEach((fresh, index) => Object.assign(ALL_ROOMS[index], fresh));
+      ROOM_BY_NUMBER = new Map(ALL_ROOMS.map(room => [room.number, room]));
     }
 
-    if (statusChanged) {
-      updateDrawerSelectedChip(selectedRoom?.number);
-      console.info('[MINIBAR SYNC] Статусы номеров обновлены из базы данных');
-    }
+    selectedRoom = ROOM_BY_NUMBER.get(selectedNumber) || ALL_ROOMS[0];
+    if (selectedRoom) updateSelectedRoomState(selectedRoom, false);
+    queueRemaining = Number.isFinite(data.remaining) ? data.remaining : ALL_ROOMS.length;
+    updateQueueDisplay();
+    renderDrawerRooms(sheetSearch.value);
   } catch (error) {
-    console.warn('[MINIBAR SYNC] Не удалось обновить статусы номеров:', error);
+    console.warn('[MINIBAR LIVE SYNC] Не удалось обновить номера:', error);
   } finally {
     roomSyncInProgress = false;
+    if (roomSyncPending) {
+      roomSyncPending = false;
+      if (document.visibilityState === 'visible') void syncRoomData();
+    }
   }
 }
 
-const ROOM_STATUS_SYNC_INTERVAL = 5000;
-let roomStatusSyncTimer = setInterval(() => {
-  if (document.visibilityState === 'visible') void syncRoomStatuses();
-}, ROOM_STATUS_SYNC_INTERVAL);
+function startRoomLiveSync() {
+  if (!('EventSource' in window)) {
+    console.warn('[MINIBAR LIVE SYNC] EventSource не поддерживается этим браузером');
+    return;
+  }
+  if (roomEventsSource && roomEventsSource.readyState !== EventSource.CLOSED) return;
+
+  const separator = API_BASE.includes('?') ? '&' : '?';
+  roomEventsSource = new EventSource(
+    API_BASE + '/events' + separator + 'clientId=' + encodeURIComponent(roomEventsClientId)
+  );
+
+  roomEventsSource.addEventListener('open', () => {
+    console.info('[MINIBAR LIVE SYNC] Подключено к общему потоку событий сайта');
+  });
+
+  roomEventsSource.addEventListener('data.changed', event => {
+    try {
+      const change = JSON.parse(event.data);
+      const domains = Array.isArray(change.domains) ? change.domains : ['all'];
+      if (domains.includes('all') || domains.includes('miniapp') || domains.includes('rooms')) {
+        void syncRoomData();
+      }
+    } catch (error) {
+      console.warn('[MINIBAR LIVE SYNC] Некорректное событие:', error);
+      void syncRoomData();
+    }
+  });
+
+  // Initial sync and replay-gap recovery are sent by the server's live stream.
+  roomEventsSource.addEventListener('sync.required', () => {
+    void syncRoomData();
+  });
+
+  roomEventsSource.addEventListener('error', () => {
+    // EventSource reconnects automatically and replays missed events when possible.
+    console.warn('[MINIBAR LIVE SYNC] Соединение временно потеряно; переподключение автоматически');
+  });
+}
 
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') void syncRoomStatuses();
+  if (document.visibilityState === 'visible' && roomSyncPending) {
+    roomSyncPending = false;
+    void syncRoomData();
+  }
 });
-
-window.addEventListener('focus', () => void syncRoomStatuses());
 
 function openSheet() {
   isSheetOpen = true;
@@ -1972,6 +2045,7 @@ void restorePhotoUploadQueue();
     updateQueueDisplay();
     buildCarousel();
     renderDrawerRooms();
+    startRoomLiveSync();
   } catch (error) {
     console.error('Rooms load error:', error);
     showMessage(error.message || 'Не удалось загрузить номера', 5000);
