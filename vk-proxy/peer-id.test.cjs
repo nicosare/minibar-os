@@ -26,10 +26,10 @@ test('does not guess when several chats are allowed and there is no default', ()
 
 test('refuses a target outside the allowlist', () => {
   const resolve = createPeerResolver({ allowedPeerIds: ['2000000352'] });
-  assert.throws(() => resolve('2000000777'), /отсутствует в VK_ALLOWED_PEER_IDS/);
+  assert.throws(() => resolve('2000000777'), /отсутствует в VK_BOT_ALLOWED_PEER_IDS/);
 });
 
 test('requires an allowlist even if a default target is set', () => {
   const resolve = createPeerResolver({ defaultPeerId: '2000000352', allowedPeerIds: [] });
-  assert.throws(resolve, /VK_ALLOWED_PEER_IDS не настроен/);
+  assert.throws(resolve, /VK_BOT_ALLOWED_PEER_IDS не настроен/);
 });
