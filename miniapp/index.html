@@ -119,8 +119,10 @@
   /* Viewfinder */
   .viewport-container {
     position: relative;
-    width: min(100%, calc(min(58dvh, 440px) * 0.75));
-    height: min(58dvh, 440px);
+    /* Use the long viewport dimension so the frame stays large when the
+       device rotates and the WebView's height becomes the short dimension. */
+    height: min(max(58dvh, 58vw), 440px);
+    width: min(100%, calc(min(max(58dvh, 58vw), 440px) * 0.75));
     max-width: 440px;
     flex: 0 0 auto;
     aspect-ratio: 3 / 4;
@@ -151,6 +153,9 @@
   }
 
   #camera {
+    /* Fill the portrait viewfinder with the live scene in either device
+       orientation; captured photos remain uncropped in the preview below. */
+    object-fit: cover;
     opacity: 0;
     transition: opacity .2s ease;
   }
