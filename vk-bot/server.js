@@ -311,7 +311,7 @@ async function pollOutgoingMessages() {
   try {
     for (const peerId of allowedPeerIds) {
       try {
-        const history = await vkApiCall('messages.getConversationsHistory', {
+        const history = await vkApiCall('messages.getHistory', {
           peer_id: peerId,
           group_id: groupId,
           count: 50
