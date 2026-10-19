@@ -30,7 +30,7 @@ services:
       NODE_ENV: ${NODE_ENV}
       TZ: ${TZ}
       APP_TIMEZONE: ${APP_TIMEZONE}
-      VK_BOT_ALLOWED_PEER_IDS: ${VK_BOT_ALLOWED_PEER_IDS:-2000000352}
+      VK_BOT_ALLOWED_PEER_IDS: ${VK_BOT_ALLOWED_PEER_IDS:-2000000001}
       VK_BOT_INTERNAL_TOKEN: ${VK_BOT_INTERNAL_TOKEN}
     ports:
       - "127.0.0.1:3100:3000"
@@ -63,16 +63,18 @@ services:
     container_name: minibar-vk-proxy
     environment:
       VK_PROXY_PORT: ${VK_PROXY_PORT}
-      VK_ACCESS_TOKEN: ${VK_ACCESS_TOKEN}
+      VK_ACCESS_TOKEN: ${VK_BOT_ACCESS_TOKEN}
       VK_API_VERSION: ${VK_API_VERSION}
-      VK_DEFAULT_PEER_ID: ${VK_DEFAULT_PEER_ID:-}
-      # If no separate proxy allowlist is set, share the bot's allowed chats.
-      VK_ALLOWED_PEER_IDS: ${VK_ALLOWED_PEER_IDS:-${VK_BOT_ALLOWED_PEER_IDS:-2000000352}}
+      # Reuse the bot's community token so receiving and sending use the same group.
+      # The known production conversation; set VK_DEFAULT_PEER_ID to override.
+      VK_DEFAULT_PEER_ID: ${VK_DEFAULT_PEER_ID:-2000000001}
+      # Prefer a dedicated allowlist, otherwise reuse the bot's allowlist.
+      # The fallback is the confirmed conversation, never the old test chat.
+      VK_ALLOWED_PEER_IDS: ${VK_ALLOWED_PEER_IDS:-${VK_BOT_ALLOWED_PEER_IDS:-2000000001}}
       CORS_ORIGINS: ${CORS_ORIGINS}
     ports:
       - "127.0.0.1:3001:3001"
     restart: unless-stopped
-
 
   vk-bot:
     build:
@@ -82,7 +84,7 @@ services:
       VK_BOT_ACCESS_TOKEN: ${VK_BOT_ACCESS_TOKEN}
       VK_API_VERSION: ${VK_API_VERSION}
       VK_BOT_GROUP_ID: ${VK_BOT_GROUP_ID}
-      VK_BOT_ALLOWED_PEER_IDS: ${VK_BOT_ALLOWED_PEER_IDS:-2000000352}
+      VK_BOT_ALLOWED_PEER_IDS: ${VK_BOT_ALLOWED_PEER_IDS:-2000000001}
       VK_LONGPOLL_VERSION: ${VK_LONGPOLL_VERSION:-3}
       MINIBAR_API_URL: http://backend:3000
       VK_BOT_INTERNAL_TOKEN: ${VK_BOT_INTERNAL_TOKEN}
