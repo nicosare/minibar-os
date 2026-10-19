@@ -12,7 +12,9 @@ const VK_ACCESS_TOKEN = process.env.VK_ACCESS_TOKEN || '';
 const VK_API_VERSION = process.env.VK_API_VERSION || '5.199';
 const DEFAULT_PEER_ID = String(process.env.VK_DEFAULT_PEER_ID || '');
 
-const allowedPeerIds = String(process.env.VK_ALLOWED_PEER_IDS || '')
+// Use the exact same allowlist as the long-poll bot. Do not maintain a
+// separate VK_ALLOWED_PEER_IDS value that can silently point to another chat.
+const allowedPeerIds = String(process.env.VK_BOT_ALLOWED_PEER_IDS || '')
   .split(',')
   .map(value => value.trim())
   .filter(Boolean);

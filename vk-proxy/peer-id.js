@@ -9,7 +9,7 @@ function createPeerResolver({ defaultPeerId = '', allowedPeerIds = [] } = {}) {
   return function resolvePeerId(value) {
     if (allowlist.size === 0) {
       throw new Error(
-        'VK_ALLOWED_PEER_IDS не настроен: отправка в беседу не разрешена до настройки списка доступа'
+        'VK_BOT_ALLOWED_PEER_IDS не настроен: отправка в беседу не разрешена до настройки списка доступа'
       );
     }
 
@@ -30,7 +30,7 @@ function createPeerResolver({ defaultPeerId = '', allowedPeerIds = [] } = {}) {
     }
 
     if (!allowlist.has(requested)) {
-      throw new Error('Целевая беседа отсутствует в VK_ALLOWED_PEER_IDS');
+      throw new Error('Целевая беседа отсутствует в VK_BOT_ALLOWED_PEER_IDS');
     }
 
     return requested;
