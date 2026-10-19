@@ -584,17 +584,16 @@
     gap: 2px;
   }
 
-  .room-chip.suite {
-    border-color: rgba(255, 204, 0, 0.25);
-    background: rgba(255, 204, 0, 0.06);
+  .room-chip.empty-room {
+    color: #7ddcff;
+    border-color: rgba(70, 195, 245, 0.62);
+    background: rgba(70, 195, 245, 0.13);
   }
 
-  .room-chip.suite .chip-type { color: var(--yellow); }
-
-  .chip-type {
-    font-size: 9px;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.4);
+  .room-chip.empty-room.selected {
+    color: #06202b;
+    border-color: #4cc7f4;
+    background: #4cc7f4;
   }
 
   .room-chip.selected {
@@ -603,7 +602,11 @@
     border-color: var(--yellow);
   }
 
-  .room-chip.selected .chip-type { color: rgba(0, 0, 0, 0.7); }
+  .room-chip.empty-room.selected {
+    color: #06202b;
+    border-color: #4cc7f4;
+    background: #4cc7f4;
+  }
 
   /* Notification Message */
   .camera-message {
@@ -689,7 +692,7 @@
     <div class="room-description-box" id="roomDescription">
       <div class="desc-header">
         <span class="desc-title" id="descRoomTitle">Номер 500</span>
-        <span class="desc-tag suite" id="descRoomTag">Люкс • 5 этаж</span>
+        <span class="desc-tag" id="descRoomTag">5 этаж</span>
       </div>
       <div class="desc-body" id="descRoomText">
         Информация о мини-баре и статус проверки (блок для будущего описания).
@@ -1247,10 +1250,8 @@ function buildCarousel() {
 
   carousel.appendChild(fragment);
 
-  const totalSuites = ALL_ROOMS.filter(r => r.type === 'suite').length;
-  const totalStds = ALL_ROOMS.length - totalSuites;
   sheetPeekTitle.textContent = `Показать все номера (${ALL_ROOMS.length})`;
-  sheetSubtitle.textContent = `${ALL_ROOMS.length} номеров (${totalSuites} люксов, ${totalStds} стандартов)`;
+  sheetSubtitle.textContent = `${ALL_ROOMS.length} номеров из базы данных`;
 
   requestAnimationFrame(() => {
     selectRoomByNumber(ALL_ROOMS[0].number, false, 'auto');
@@ -1270,9 +1271,9 @@ function updateSelectedRoomState(room, vibrate = false) {
   }
 
   descRoomTitle.textContent = `Номер ${room.number}`;
-  const isSuite = room.type === 'suite';
-  descRoomTag.textContent = `${isSuite ? 'Люкс' : 'Стандарт'} • ${room.floor} этаж`;
-  descRoomTag.className = `desc-tag ${isSuite ? 'suite' : ''}`;
+  // Keep category in room.type for app logic, but do not expose it in the UI.
+  descRoomTag.textContent = `${room.floor} этаж`;
+  descRoomTag.className = 'desc-tag';
 
   updateDrawerSelectedChip(room.number);
   if (vibrate && changed) triggerHaptic();
@@ -1346,22 +1347,14 @@ function renderDrawerRooms(filterQuery = '') {
     if (!floorRooms.length) continue;
     hasAny = true;
 
-    const suitesCount = floorRooms.filter(r => r.type === 'suite').length;
-    const stdsCount = floorRooms.length - suitesCount;
-    const stats = [
-      suitesCount ? `${suitesCount} люкс` : '',
-      stdsCount ? `${stdsCount} станд.` : ''
-    ].filter(Boolean).join(', ');
-
     parts.push(`<div class="floor-section">
       <div class="floor-header">
         <span>${floorNum} этаж</span>
-        <span class="floor-stats">${floorRooms.length} номеров (${stats})</span>
+        <span class="floor-stats">${floorRooms.length} номеров</span>
       </div>
       <div class="room-grid">${floorRooms.map(room => `
-        <div class="room-chip ${room.type === 'suite' ? 'suite' : ''} ${room.number === selectedRoom?.number ? 'selected' : ''}" data-room-number="${room.number}">
+        <div class="room-chip ${room.expiryStatus === 'empty' ? 'empty-room' : ''} ${room.number === selectedRoom?.number ? 'selected' : ''}" data-room-number="${room.number}">
           <span>${room.number}</span>
-          <span class="chip-type">${room.type === 'suite' ? 'Люкс' : 'Ст.'}</span>
         </div>`).join('')}
       </div>
     </div>`);
@@ -1374,7 +1367,12 @@ function renderDrawerRooms(filterQuery = '') {
 
 function updateDrawerSelectedChip(numStr) {
   const chips = sheetContent.querySelectorAll('.room-chip');
-  chips.forEach(chip => chip.classList.toggle('selected', chip.dataset.roomNumber === numStr));
+  chips.forEach(chip => {
+    const isSelected = chip.dataset.roomNumber === numStr;
+    const room = ROOM_BY_NUMBER.get(chip.dataset.roomNumber);
+    chip.classList.toggle('selected', isSelected);
+    chip.classList.toggle('empty-room', room?.expiryStatus === 'empty');
+  });
 }
 
 function openSheet() {
