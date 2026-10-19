@@ -3,6 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
+const { createPeerResolver } = require('./peer-id');
 
 const app = express();
 
@@ -11,12 +12,15 @@ const VK_ACCESS_TOKEN = process.env.VK_ACCESS_TOKEN || '';
 const VK_API_VERSION = process.env.VK_API_VERSION || '5.199';
 const DEFAULT_PEER_ID = String(process.env.VK_DEFAULT_PEER_ID || '');
 
-const allowedPeerIds = new Set(
-  String(process.env.VK_ALLOWED_PEER_IDS || '')
-    .split(',')
-    .map(value => value.trim())
-    .filter(Boolean)
-);
+const allowedPeerIds = String(process.env.VK_ALLOWED_PEER_IDS || '')
+  .split(',')
+  .map(value => value.trim())
+  .filter(Boolean);
+
+const resolvePeerId = createPeerResolver({
+  defaultPeerId: DEFAULT_PEER_ID,
+  allowedPeerIds
+});
 
 const corsOrigins = String(process.env.CORS_ORIGINS || '*')
   .split(',')
@@ -51,36 +55,6 @@ function vkUrl(method, params = {}) {
   });
 
   return `https://api.vk.com/method/${method}?${search.toString()}`;
-}
-
-function resolvePeerId(value) {
-  const explicitPeerId = String(value || DEFAULT_PEER_ID || '').trim();
-  const onlyAllowedPeerId = allowedPeerIds.size === 1
-    ? allowedPeerIds.values().next().value
-    : '';
-  const requested = explicitPeerId || onlyAllowedPeerId;
-
-  if (!requested) {
-    if (allowedPeerIds.size > 1) {
-      throw new Error(
-        'VK_DEFAULT_PEER_ID не настроен: разрешено несколько бесед, укажи целевую беседу в конфигурации сервера'
-      );
-    }
-
-    if (allowedPeerIds.size === 0) {
-      throw new Error(
-        'VK_ALLOWED_PEER_IDS не настроен: отправка в беседу не разрешена до настройки списка доступа'
-      );
-    }
-
-    throw new Error('VK peer_id не настроен');
-  }
-
-  if (allowedPeerIds.size === 0 || !allowedPeerIds.has(requested)) {
-    throw new Error('Целевая беседа отсутствует в VK_ALLOWED_PEER_IDS');
-  }
-
-  return requested;
 }
 
 async function vkJson(url, options) {
