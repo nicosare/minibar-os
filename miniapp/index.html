@@ -1375,6 +1375,64 @@ function updateDrawerSelectedChip(numStr) {
   });
 }
 
+/* Keep database room statuses synchronized while the Mini App stays open.
+   The queue endpoint reads the current room state directly from PostgreSQL. */
+let roomSyncInProgress = false;
+
+async function syncRoomStatuses() {
+  if (roomSyncInProgress || document.visibilityState !== 'visible' || !ALL_ROOMS.length) return;
+  roomSyncInProgress = true;
+
+  try {
+    const response = await fetch(API_BASE + '/miniapp/queue', {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      cache: 'no-store'
+    });
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+
+    const data = await response.json();
+    if (!Array.isArray(data?.rooms)) return;
+
+    let statusChanged = false;
+    for (const freshRoom of data.rooms) {
+      const room = ROOM_BY_NUMBER.get(String(freshRoom.number));
+      if (!room) continue;
+
+      const nextStatus = freshRoom.expiryStatus || 'neutral';
+      if (room.expiryStatus !== nextStatus) {
+        room.expiryStatus = nextStatus;
+        statusChanged = true;
+      }
+      if (freshRoom.category && room.category !== freshRoom.category) {
+        room.category = freshRoom.category;
+        room.type = String(freshRoom.category).toLowerCase().includes('люкс') ||
+          String(freshRoom.category).toLowerCase().includes('suite') ? 'suite' : 'standard';
+      }
+    }
+
+    if (statusChanged) {
+      updateDrawerSelectedChip(selectedRoom?.number);
+      console.info('[MINIBAR SYNC] Статусы номеров обновлены из базы данных');
+    }
+  } catch (error) {
+    console.warn('[MINIBAR SYNC] Не удалось обновить статусы номеров:', error);
+  } finally {
+    roomSyncInProgress = false;
+  }
+}
+
+const ROOM_STATUS_SYNC_INTERVAL = 5000;
+let roomStatusSyncTimer = setInterval(() => {
+  if (document.visibilityState === 'visible') void syncRoomStatuses();
+}, ROOM_STATUS_SYNC_INTERVAL);
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') void syncRoomStatuses();
+});
+
+window.addEventListener('focus', () => void syncRoomStatuses());
+
 function openSheet() {
   isSheetOpen = true;
   bottomSheet.classList.remove('dragging');
