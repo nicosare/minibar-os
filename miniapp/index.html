@@ -948,12 +948,16 @@ function getPhysicalDeviceAngle() {
 function getCaptureOrientationAngle(sourceWidth = video.videoWidth, sourceHeight = video.videoHeight) {
   const deviceAngle = getPhysicalDeviceAngle();
 
-  // Normalize the raw pixels to the phone's physical orientation. A landscape
-  // raster starts on the camera sensor's landscape axis, so subtract the
-  // device quarter-turn; a portrait raster starts on the portrait axis.
+  // Native still photos from some Android cameras arrive as landscape pixels
+  // without EXIF orientation. In landscape handset positions the sensor raster
+  // already has the correct dimensions; only one of the two handset rotations
+  // needs a 180° correction to keep the top edge upright.
   if (sourceWidth > sourceHeight) {
-    return normalizeAngle(90 - deviceAngle);
+    if (deviceAngle === 90) return 180;
+    if (deviceAngle === 270) return 0;
+    return deviceAngle;
   }
+
   return normalizeAngle(deviceAngle);
 }
 
