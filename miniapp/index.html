@@ -119,8 +119,7 @@
   /* Viewfinder */
   .viewport-container {
     position: relative;
-    /* Keep the viewfinder at the camera's native 4:3 aspect ratio
-       (portrait 3:4, landscape 4:3), constrained to the visible screen. */
+    /* Fixed 3:4 viewfinder: its long side follows the phone's long side. */
     width: min(88vw, 440px, calc(58dvh * var(--camera-aspect, 0.75)));
     aspect-ratio: var(--camera-aspect, 0.75);
     max-height: 58dvh;
@@ -831,103 +830,21 @@ async function completeRoom(action) {
   updateQueueDisplay();
 }
 
-/* Physical device orientation.
-   The Mini App's interface stays portrait, so screen.orientation alone is not
-   enough when the phone is physically rotated inside a portrait-locked WebView.
-   DeviceOrientation gamma tells us whether the phone is upright or landscape.
-   Do not infer a 180° turn from beta: its sign changes between devices/poses and
-   was the reason ordinary portrait shots were being turned upside down. */
-let currentDeviceAngle = 0;
-let lastSensorOrientationAt = 0;
-let hasSensorOrientation = false;
-
-function normalizeAngle(angle) {
-  return ((Number(angle) % 360) + 360) % 360;
-}
-
-function updateOrientationFromScreen() {
-  // Once physical sensor data is available, a portrait-locked WebView must not
-  // overwrite it with its own (usually fixed at zero) screen rotation.
-  if (hasSensorOrientation) return;
-
-  let angle = null;
-  if (window.screen?.orientation &&
-      typeof window.screen.orientation.angle === 'number') {
-    angle = normalizeAngle(window.screen.orientation.angle);
-  } else if (typeof window.orientation === 'number') {
-    angle = normalizeAngle(window.orientation);
-  } else if (window.innerWidth > window.innerHeight) {
-    angle = 90;
-  }
-
-  if (angle !== null && [0, 90, 180, 270].includes(angle)) {
-    currentDeviceAngle = angle;
-  }
-}
-
-function updateOrientationFromSensor(_beta, gamma) {
-  if (!Number.isFinite(gamma)) return;
-
-  const absGamma = Math.abs(gamma);
-  let nextAngle = null;
-
-  // Use hysteresis around the threshold to avoid flickering as the phone moves.
-  if (absGamma >= 50) {
-    nextAngle = gamma > 0 ? 90 : 270;
-  } else if (absGamma <= 35) {
-    // Upright portrait is always zero. beta's sign is deliberately ignored.
-    nextAngle = 0;
-  }
-
-  if (nextAngle === null) return;
-
-  currentDeviceAngle = nextAngle;
-  hasSensorOrientation = true;
-  lastSensorOrientationAt = Date.now();
-
-  // Physical orientation affects only capture, never the live viewfinder.
-
-}
-
-function getPhysicalDeviceAngle() {
-  if (hasSensorOrientation) return currentDeviceAngle;
-  updateOrientationFromScreen();
-  return currentDeviceAngle;
-}
-
+/* Normalize all photos to the Mini App's fixed portrait coordinate space.
+   For native JPEGs, EXIF is removed before decoding. That means this function
+   applies one transform to encoded pixels, not a second turn on top of EXIF. */
 function getCaptureOrientationAngle(sourceWidth = video.videoWidth, sourceHeight = video.videoHeight) {
-  const deviceAngle = getPhysicalDeviceAngle();
-
-  // The saved image is oriented relative to the physical phone, not the
-  // portrait-locked VK WebView. Both landscape directions must be quarter-turns:
-  // 90° on one side and 270° on the other, never a 180° upside-down result.
-  if (deviceAngle === 90) return 90;
-  if (deviceAngle === 270) return 270;
-
-  // Upright portrait: rotate only when the camera source itself is landscape.
   if (!sourceWidth || !sourceHeight) return 90;
   return sourceWidth > sourceHeight ? 90 : 0;
 }
 
 function syncViewportAfterOrientationChange() {
-  updateOrientationFromScreen();
-  // While a still preview is shown, keep the photo's own aspect.
-  // Live camera aspect must not overwrite the rotated preview frame.
   if (!isPreview) syncLiveViewportAspect();
 }
 
 window.addEventListener('orientationchange', syncViewportAfterOrientationChange);
 if (window.screen && window.screen.orientation) {
   window.screen.orientation.addEventListener('change', syncViewportAfterOrientationChange);
-}
-updateOrientationFromScreen();
-
-function handleDeviceOrientationEvent(e) {
-  updateOrientationFromSensor(e.beta, e.gamma);
-}
-
-if (window.DeviceOrientationEvent) {
-  window.addEventListener('deviceorientation', handleDeviceOrientationEvent, true);
 }
 
 /* Elements */
@@ -970,11 +887,9 @@ function setViewportAspect(width, height) {
 }
 
 function syncLiveViewportAspect() {
-  // Photos are 4:3 in either orientation: portrait is 3:4, landscape is 4:3.
-  const orientationType = window.screen?.orientation?.type || '';
-  const isLandscape = orientationType.startsWith('landscape')
-    || (window.innerWidth > window.innerHeight);
-  setViewportAspect(isLandscape ? 4 : 3, isLandscape ? 3 : 4);
+  // Keep the viewfinder at 3:4 in the Mini App's fixed portrait coordinate space.
+  // The frame's long side stays aligned with the phone's long side.
+  setViewportAspect(3, 4);
 }
 
 let stream = null;
@@ -995,8 +910,6 @@ let photoQueueStatusTimer = null;
 let isCapturing = false;
 let isPreview = false;
 let isVKReady = false;
-let orientationPermissionAsked = false;
-let orientationPermissionPromise = null;
 const carouselItems = new Map();
 let activeCarouselItem = null;
 
@@ -1035,28 +948,6 @@ function triggerHaptic() {
   } catch (_) {}
 }
 
-function ensureOrientationSensorPermission() {
-  if (orientationPermissionAsked) {
-    return orientationPermissionPromise || Promise.resolve('denied');
-  }
-
-  orientationPermissionAsked = true;
-  try {
-    // iOS requires this call to happen synchronously inside a user gesture.
-    if (typeof DeviceOrientationEvent !== 'undefined' &&
-        typeof DeviceOrientationEvent.requestPermission === 'function') {
-      orientationPermissionPromise = DeviceOrientationEvent.requestPermission()
-        .catch(() => 'denied');
-    } else {
-      orientationPermissionPromise = Promise.resolve('granted');
-    }
-  } catch (_) {
-    orientationPermissionPromise = Promise.resolve('denied');
-  }
-
-  return orientationPermissionPromise;
-}
-
 function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -1081,26 +972,6 @@ async function waitForCameraReady(timeoutMs = 4500) {
     await wait(40);
   }
   throw new Error('Камера не успела подготовить изображение');
-}
-
-async function waitForOrientationToSettle() {
-  const sensorTimestampBeforeWait = lastSensorOrientationAt;
-  await (orientationPermissionPromise || Promise.resolve());
-
-  // Camera startup gives sensors time to wake. Wait briefly for a fresh sample
-  // after permission, but never let a missing sensor freeze the shutter.
-  const deadline = Date.now() + 420;
-  while (Date.now() < deadline) {
-    if (lastSensorOrientationAt > sensorTimestampBeforeWait) {
-      await wait(60);
-      return;
-    }
-    if (Date.now() - lastSensorOrientationAt < 900) {
-      await wait(80);
-      return;
-    }
-    await wait(40);
-  }
 }
 
 function detectTorchSupport() {
@@ -1253,6 +1124,75 @@ async function prepareCameraFocus() {
   }
 }
 
+/* Remove EXIF APP1 metadata before decoding a native JPEG. createImageBitmap's
+   default decoder honors EXIF orientation; removing that segment leaves the
+   encoded pixel raster untouched so we can normalize it exactly once below. */
+async function stripJpegExifMetadata(blob) {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return blob;
+
+  const parts = [bytes.subarray(0, 2)];
+  let offset = 2;
+  let removedExif = false;
+
+  while (offset < bytes.length) {
+    if (bytes[offset] !== 0xff) {
+      throw new Error('Не удалось безопасно прочитать ориентацию JPEG');
+    }
+
+    const markerStart = offset;
+    while (offset < bytes.length && bytes[offset] === 0xff) offset++;
+    if (offset >= bytes.length) throw new Error('Повреждён заголовок JPEG');
+
+    const marker = bytes[offset++];
+
+    if (marker === 0xda) {
+      parts.push(bytes.subarray(markerStart));
+      return removedExif
+        ? new Blob(parts, { type: blob.type || 'image/jpeg' })
+        : blob;
+    }
+
+    if (marker === 0xd9) {
+      parts.push(bytes.subarray(markerStart, offset));
+      return removedExif
+        ? new Blob(parts, { type: blob.type || 'image/jpeg' })
+        : blob;
+    }
+
+    if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+      parts.push(bytes.subarray(markerStart, offset));
+      continue;
+    }
+
+    if (offset + 2 > bytes.length) throw new Error('Повреждённый сегмент JPEG');
+    const segmentLength = (bytes[offset] << 8) | bytes[offset + 1];
+    const segmentEnd = offset + segmentLength;
+    if (segmentLength < 2 || segmentEnd > bytes.length) {
+      throw new Error('Некорректная длина сегмента JPEG');
+    }
+
+    const payload = offset + 2;
+    const isExifSegment = marker === 0xe1 &&
+      bytes[payload] === 0x45 &&
+      bytes[payload + 1] === 0x78 &&
+      bytes[payload + 2] === 0x69 &&
+      bytes[payload + 3] === 0x66 &&
+      bytes[payload + 4] === 0x00 &&
+      bytes[payload + 5] === 0x00;
+
+    if (isExifSegment) {
+      removedExif = true;
+    } else {
+      parts.push(bytes.subarray(markerStart, segmentEnd));
+    }
+    offset = segmentEnd;
+  }
+
+  if (removedExif) return new Blob(parts, { type: blob.type || 'image/jpeg' });
+  return blob;
+}
+
 async function captureStillPhotoToCanvas() {
   if (typeof window.ImageCapture !== 'function' ||
       typeof window.createImageBitmap !== 'function' ||
@@ -1266,7 +1206,8 @@ async function captureStillPhotoToCanvas() {
     const photoBlob = await capture.takePhoto();
     if (!photoBlob || !photoBlob.size) throw new Error('Камера вернула пустое фото');
 
-    bitmap = await window.createImageBitmap(photoBlob, { imageOrientation: 'from-image' });
+    const rawPhotoBlob = await stripJpegExifMetadata(photoBlob);
+    bitmap = await window.createImageBitmap(rawPhotoBlob);
     const angle = getCaptureOrientationAngle(bitmap.width, bitmap.height);
     drawSourceToCanvas(bitmap, bitmap.width, bitmap.height, angle);
     return true;
@@ -1317,12 +1258,8 @@ function encodePreviewBlob() {
 }
 
 function showPreviewFromCanvas() {
-  if (canvas.width && canvas.height) {
-    // The preview frame is always a native photo ratio: 4:3 landscape or 3:4 portrait.
-    // Keep the full canvas visible via object-fit: contain; never crop or stretch it.
-    const isLandscapePhoto = canvas.width > canvas.height;
-    setViewportAspect(isLandscapePhoto ? 4 : 3, isLandscapePhoto ? 3 : 4);
-  }
+  // Keep the viewport fixed at 3:4 regardless of device/sensor orientation.
+  setViewportAspect(3, 4);
 
   video.classList.remove('ready');
   video.classList.add('hidden');
@@ -1723,8 +1660,6 @@ async function takePhoto() {
   triggerHaptic();
 
   try {
-    await ensureOrientationSensorPermission();
-
     // Opening a stream only when requested avoids keeping the camera, sensor
     // pipeline and torch awake while the user is reviewing/sending images.
     if (!videoTrack) {
@@ -1737,8 +1672,6 @@ async function takePhoto() {
     // The live view is now visible. Add a short composition pause so the user
     // can move the phone into the intended portrait/landscape angle.
     await wait(450);
-    await waitForOrientationToSettle();
-
     if (torchSupported) await armTorch();
     // Give autofocus and the torch time to settle before the exposure.
     if (torchArmed) {
@@ -1775,10 +1708,6 @@ async function takePhoto() {
     if (!isPreview && !cameraLoader.classList.contains('error')) showCameraStandby();
   }
 }
-
-captureBtn.addEventListener('pointerdown', () => {
-  void ensureOrientationSensorPermission();
-}, { passive: true });
 
 captureBtn.addEventListener('pointercancel', disarmTorch);
 captureBtn.addEventListener('click', takePhoto);
