@@ -808,8 +808,6 @@ async function completeRoom(action) {
   updateQueueDisplay();
 }
 
-}
-
 /* Orientation Tracking
    Не полагаемся только на screen.orientation: при выключенном
    автоповороте он может оставаться 0°. Для снимка важнее физическое
@@ -939,6 +937,7 @@ let torchPromise = null;
 let selectedRoom = ALL_ROOMS[0];
 let previewBlob = null;
 let previewBlobPromise = null;
+let previewRequestId = null;
 let snapTimer = null;
 let messageTimer = null;
 let isCapturing = false;
@@ -1133,16 +1132,39 @@ function drawRotatedVideoToCanvas(angle = getCaptureOrientationAngle()) {
 
 function encodePreviewBlob() {
   previewBlob = null;
+
+  // Keep the preview at full camera resolution, but upload a reasonably sized
+  // JPEG. Hotel-room evidence remains readable while transfer time and mobile
+  // data usage drop substantially.
   previewBlobPromise = new Promise(resolve => {
-    canvas.toBlob(
+    if (!canvas.width || !canvas.height) {
+      resolve(null);
+      return;
+    }
+
+    const maxEdge = 1600;
+    const scale = Math.min(1, maxEdge / Math.max(canvas.width, canvas.height));
+    const uploadCanvas = document.createElement('canvas');
+    uploadCanvas.width = Math.max(1, Math.round(canvas.width * scale));
+    uploadCanvas.height = Math.max(1, Math.round(canvas.height * scale));
+
+    const context = uploadCanvas.getContext('2d', { alpha: false });
+    if (!context) {
+      resolve(null);
+      return;
+    }
+
+    context.drawImage(canvas, 0, 0, uploadCanvas.width, uploadCanvas.height);
+    uploadCanvas.toBlob(
       blob => {
         previewBlob = blob && blob.size ? blob : null;
         resolve(previewBlob);
       },
       'image/jpeg',
-      0.9
+      0.82
     );
   });
+
   return previewBlobPromise;
 }
 
@@ -1166,6 +1188,7 @@ function resetPhoto() {
   isPreview = false;
   previewBlob = null;
   previewBlobPromise = null;
+  previewRequestId = null;
   previewActions.classList.add('hidden');
   cameraActions.classList.remove('hidden');
   carouselWrap.classList.remove('disabled');
@@ -1434,6 +1457,7 @@ async function takePhoto() {
 
     drawRotatedVideoToCanvas(captureAngle);
     showPreviewFromCanvas();
+    previewRequestId = String(Math.floor(Math.random() * 2147483647) + 1);
     encodePreviewBlob();
   } catch (_) {
     showMessage('Ошибка при снимке');
@@ -1455,15 +1479,24 @@ captureBtn.addEventListener('pointercancel', disarmTorch);
 captureBtn.addEventListener('click', takePhoto);
 btnRetake.addEventListener('click', () => { resetPhoto(); triggerHaptic(); });
 
-async function sendPhotoToServer(blobFile, roomNum) {
+async function sendPhotoToServer(blobFile, roomNum, requestId) {
   const formData = new FormData();
   formData.append('photo', blobFile, 'photo.jpg');
   formData.append('room', roomNum);
+  if (requestId) formData.append('random_id', requestId);
   try {
-    const res = await fetch('/vk-proxy/send-photo', {
-      method: 'POST',
-      body: formData
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000);
+    let res;
+    try {
+      res = await fetch('/vk-proxy/send-photo', {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
 
     let data;
     try {
@@ -1482,7 +1515,7 @@ async function sendPhotoToServer(blobFile, roomNum) {
       };
     }
 
-    return { ok: true };
+    return { ok: true, mode: data.mode || 'photo' };
   } catch (err) {
     return { ok: false, error: 'Сбой сети: ' + err.message };
   }
@@ -1499,15 +1532,27 @@ btnSend.addEventListener('click', async () => {
     const blob = previewBlob || await previewBlobPromise;
     if (!blob) throw new Error('Не удалось сформировать файл');
 
-    const result = await sendPhotoToServer(blob, selectedRoom.number);
+    const result = await sendPhotoToServer(blob, selectedRoom.number, previewRequestId);
 
     if (!result.ok) throw new Error(result.error);
 
-    // Сначала фиксируем выполненную задачу в общей БД.
-    await completeRoom('sent');
+    // VK has accepted the photo. Queue bookkeeping is secondary: its failure
+    // must not make the user think the photo failed and trigger duplicate sends.
+    let queueUpdateError = null;
+    try {
+      await completeRoom('sent');
+    } catch (error) {
+      queueUpdateError = error;
+      console.error('Photo sent, but queue update failed:', error);
+    }
 
     btnSend.textContent = 'Отправлено';
-    await triggerHaptic();
+    triggerHaptic();
+    if (result.mode === 'document') {
+      showMessage('Фото отправлено как файл: VK временно недоступен для отправки фото', 4500);
+    } else if (queueUpdateError) {
+      showMessage('Фото отправлено, но очередь не обновилась. Обнови приложение.', 4000);
+    }
 
     setTimeout(() => {
       btnSend.textContent = 'Отправить';
@@ -1524,15 +1569,33 @@ btnSend.addEventListener('click', async () => {
 });
 
 btnEmpty.addEventListener('click', async () => {
-  if (btnEmpty.classList.contains('busy')) return;
+  if (btnEmpty.classList.contains('busy') || !selectedRoom?.number) return;
 
   setBusy(btnEmpty, true);
   try {
     triggerHaptic();
-    await completeRoom('empty');
-    showMessage(`№ ${selectedRoom.number} помечен как «Опустошён»`);
+
+    const response = await fetch('/vk-proxy/send-message', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      },
+      body: JSON.stringify({ message: `${selectedRoom.number} опустошён` })
+    });
+
+    let data = null;
+    try { data = await response.json(); } catch (_) {}
+
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.error || `Не удалось отправить сообщение (HTTP ${response.status})`);
+    }
+
+    // This button is intentionally message-only: it does not alter the queue
+    // or mark the room as checked/completed in the database.
+    showMessage(`Отправлено: ${selectedRoom.number} опустошён`);
   } catch (error) {
-    showMessage('Ошибка: ' + error.message, 3500);
+    showMessage('Ошибка отправки: ' + error.message, 3500);
   } finally {
     setBusy(btnEmpty, false);
   }
