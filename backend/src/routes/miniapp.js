@@ -38,7 +38,8 @@ router.get('/queue', async (req, res) => {
             id: true,
             number: true,
             floor: true,
-            category: true
+            category: true,
+            expiryStatus: true
           }
         }
       },
@@ -50,6 +51,7 @@ router.get('/queue', async (req, res) => {
       number: String(task.room.number),
       floor: task.room.floor,
       category: task.room.category,
+      expiryStatus: task.room.expiryStatus || 'neutral',
       status: task.status,
       action: task.action,
       completedAt: task.completedAt
