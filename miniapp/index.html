@@ -139,7 +139,7 @@
     background: #0b0b0d;
   }
 
-  #camera, #photo {
+  #camera {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -148,20 +148,25 @@
     background: #0b0b0d;
     object-fit: contain;
     object-position: center;
-  }
-
-  #camera {
-    /* Preserve the complete 4:3 camera frame without cropping or stretching. */
-    object-fit: contain;
     opacity: 0;
     transition: opacity .2s ease;
   }
 
   #camera.ready { opacity: 1; }
-  #photo {
-    z-index: 2;
+
+  /* The captured canvas lives in its own modal, not in the viewfinder. */
+  .photo-modal #photo {
+    position: relative;
+    inset: auto;
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    background: transparent;
     object-fit: contain;
     object-position: center;
+    border-radius: 8px;
   }
 
   .camera-overlay {
@@ -636,6 +641,51 @@
 
   .hidden { display: none !important; }
 
+  /* Review the finished image separately; the 3:4 camera frame stays untouched. */
+  .photo-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 250;
+    display: flex;
+    flex-direction: column;
+    padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 16px);
+    background: rgba(0, 0, 0, 0.97);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity .18s ease, visibility .18s ease;
+  }
+
+  .photo-modal.open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .photo-preview-area {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .photo-modal-actions {
+    width: 100%;
+    max-width: 440px;
+    margin: 0 auto;
+    flex: 0 0 auto;
+  }
+
+  .photo-modal-actions .shutter-grid {
+    max-width: none;
+    padding: 0;
+  }
+
   @keyframes spin { to { transform: rotate(360deg); } }
 
   @media (min-width: 700px) {
@@ -666,7 +716,6 @@
     <div class="viewport-container">
       <div class="viewfinder" id="viewfinder">
         <video id="camera" autoplay playsinline muted></video>
-        <canvas id="photo" class="hidden" aria-label="Снимок"></canvas>
 
         <div class="camera-overlay" aria-hidden="true">
           <span class="focus-corner tl"></span>
@@ -716,19 +765,26 @@
         <div class="grid-right"></div>
       </div>
 
-      <div class="shutter-grid hidden" id="previewActions">
-        <div class="grid-left">
-          <button class="btn-side" id="btnRetake" type="button">Переснять</button>
-        </div>
-
-        <div class="grid-center"></div>
-
-        <div class="grid-right">
-          <button class="btn-send" id="btnSend" type="button">Отправить</button>
-        </div>
-      </div>
     </div>
   </main>
+</div>
+
+<!-- Still Photo Preview Modal -->
+<div class="photo-modal" id="photoModal" role="dialog" aria-modal="true" aria-label="Предпросмотр фотографии" aria-hidden="true">
+  <div class="photo-preview-area">
+    <canvas id="photo" class="hidden" aria-label="Снимок"></canvas>
+  </div>
+  <div class="photo-modal-actions">
+    <div class="shutter-grid hidden" id="previewActions">
+      <div class="grid-left">
+        <button class="btn-side" id="btnRetake" type="button">Переснять</button>
+      </div>
+      <div class="grid-center"></div>
+      <div class="grid-right">
+        <button class="btn-send" id="btnSend" type="button">Отправить</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Bottom Sheet Modal -->
@@ -881,7 +937,6 @@ function updateOrientationFromSensor(beta, gamma) {
   currentDeviceAngle = nextAngle;
   hasSensorOrientation = true;
   lastSensorOrientationAt = Date.now();
-  if (!isPreview) syncLiveViewportAspect();
 }
 
 function getPhysicalDeviceAngle() {
@@ -893,21 +948,18 @@ function getPhysicalDeviceAngle() {
 function getCaptureOrientationAngle(sourceWidth = video.videoWidth, sourceHeight = video.videoHeight) {
   const deviceAngle = getPhysicalDeviceAngle();
 
-  // The native JPEG's EXIF was removed before decoding, so its pixel axes have
-  // not already been rotated by the browser. Keep every output frame portrait:
-  // the sensor decides only which quarter-turn places the lower edge correctly.
+  // Normalize the raw pixels to the phone's physical orientation. A landscape
+  // raster starts on the camera sensor's landscape axis, so subtract the
+  // device quarter-turn; a portrait raster starts on the portrait axis.
   if (sourceWidth > sourceHeight) {
-    return deviceAngle === 180 || deviceAngle === 270 ? 270 : 90;
+    return normalizeAngle(90 - deviceAngle);
   }
-  // A portrait raster is already aligned with the fixed frame. Only correct
-  // a true upside-down portrait; a landscape sensor reading must not flip it.
-  if (deviceAngle === 180) return 180;
-  return 0;
+  return normalizeAngle(deviceAngle);
 }
 
 function syncViewportAfterOrientationChange() {
+  // Keep the 3:4 viewfinder geometry CSS-driven and independent of orientation.
   updateOrientationFromScreen();
-  if (!isPreview) syncLiveViewportAspect();
 }
 
 window.addEventListener('orientationchange', syncViewportAfterOrientationChange);
@@ -924,7 +976,7 @@ updateOrientationFromScreen();
 /* Elements */
 const video = document.getElementById('camera');
 const photo = document.getElementById('photo');
-const viewportContainer = document.querySelector('.viewport-container');
+const photoModal = document.getElementById('photoModal');
 const canvas = photo;
 const cameraLoader = document.getElementById('cameraLoader');
 const loaderSpinner = document.getElementById('loaderSpinner');
@@ -954,18 +1006,6 @@ const sheetSearch = document.getElementById('sheetSearch');
 const sheetHandleArea = document.getElementById('sheetHandleArea');
 const sheetPeekTitle = document.getElementById('sheetPeekTitle');
 const sheetSubtitle = document.getElementById('sheetSubtitle');
-
-function setViewportAspect() {
-  // Intentionally immutable: the viewfinder is always 3:4.
-  if (!viewportContainer) return;
-  viewportContainer.style.removeProperty('--camera-aspect');
-  viewportContainer.style.aspectRatio = '3 / 4';
-}
-
-function syncLiveViewportAspect() {
-  // Keep the same fixed frame during live preview, capture and photo preview.
-  setViewportAspect();
-}
 
 let stream = null;
 let videoTrack = null;
@@ -1170,7 +1210,6 @@ async function startCamera() {
     await video.play();
     await waitForCameraReady();
     detectTorchSupport();
-    syncLiveViewportAspect();
     video.classList.add('ready');
 
     cameraLoader.style.opacity = '0';
@@ -1446,10 +1485,6 @@ function encodePreviewBlob() {
 }
 
 function showPreviewFromCanvas() {
-  // Keep the viewport frame tied to the physical phone orientation.
-  // Captured image dimensions must never change the frame aspect.
-  syncLiveViewportAspect();
-
   video.classList.remove('ready');
   video.classList.add('hidden');
   photo.classList.remove('hidden');
@@ -1458,6 +1493,8 @@ function showPreviewFromCanvas() {
   previewActions.classList.remove('hidden');
   carouselWrap.classList.add('disabled');
 
+  photoModal.classList.add('open');
+  photoModal.setAttribute('aria-hidden', 'false');
   isPreview = true;
 }
 
@@ -1481,10 +1518,11 @@ function resetPhoto() {
   cameraActions.classList.remove('hidden');
   carouselWrap.classList.remove('disabled');
 
+  photoModal.classList.remove('open');
+  photoModal.setAttribute('aria-hidden', 'true');
   photo.classList.add('hidden');
   video.classList.remove('hidden');
   video.classList.remove('ready');
-  syncLiveViewportAspect();
   showCameraStandby();
 }
 
