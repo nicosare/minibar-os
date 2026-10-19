@@ -1517,7 +1517,7 @@ async function sendPhotoToServer(blobFile, roomNum, requestId) {
       };
     }
 
-    return { ok: true };
+    return { ok: true, mode: data.mode || 'photo' };
   } catch (err) {
     return { ok: false, error: 'Сбой сети: ' + err.message };
   }
@@ -1550,7 +1550,9 @@ btnSend.addEventListener('click', async () => {
 
     btnSend.textContent = 'Отправлено';
     triggerHaptic();
-    if (queueUpdateError) {
+    if (result.mode === 'document') {
+      showMessage('Фото отправлено как файл: VK временно недоступен для отправки фото', 4500);
+    } else if (queueUpdateError) {
       showMessage('Фото отправлено, но очередь не обновилась. Обнови приложение.', 4000);
     }
 
