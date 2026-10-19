@@ -156,7 +156,7 @@ function isLegacyPhotoUploadUrl(value) {
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 async function uploadPhotoToVk(fileBuffer, mimetype, roomNumber, peerId) {
-  const maxServerAttempts = 3;
+  const maxServerAttempts = 5;
   let lastReason = 'VK не вернул совместимый адрес загрузки фотографии';
 
   for (let attempt = 1; attempt <= maxServerAttempts; attempt += 1) {
@@ -170,10 +170,20 @@ async function uploadPhotoToVk(fileBuffer, mimetype, roomNumber, peerId) {
         throw new Error('VK не вернул корректный адрес загрузки фото');
       }
 
+      const safeUploadAddress = (() => {
+        try {
+          const parsed = new URL(uploadUrl);
+          return parsed.host + parsed.pathname;
+        } catch {
+          return 'invalid';
+        }
+      })();
+      console.info(`[VK proxy] Photo upload server ${attempt}/${maxServerAttempts}: ${safeUploadAddress}`);
+
       if (!isLegacyPhotoUploadUrl(uploadUrl)) {
         lastReason = 'VK вернул новый bulk-upload адрес, несовместимый с photos.saveMessagesPhoto';
         console.warn(`[VK proxy] Incompatible photo upload URL, requesting another URL (${attempt}/${maxServerAttempts})`);
-        if (attempt < maxServerAttempts) await sleep(120 * attempt);
+        if (attempt < maxServerAttempts) await sleep(Math.min(500 * (2 ** (attempt - 1)), 4000));
         continue;
       }
 
@@ -214,7 +224,7 @@ async function uploadPhotoToVk(fileBuffer, mimetype, roomNumber, peerId) {
       ) {
         lastReason = 'VK вернул неполные данные фото (photo/server/hash отсутствуют)';
         console.warn(`[VK proxy] Incomplete legacy upload response (${attempt}/${maxServerAttempts})`);
-        if (attempt < maxServerAttempts) await sleep(120 * attempt);
+        if (attempt < maxServerAttempts) await sleep(Math.min(500 * (2 ** (attempt - 1)), 4000));
         continue;
       }
 
@@ -329,6 +339,7 @@ app.post('/send-message', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Сообщение слишком длинное' });
     }
 
+    console.log('[VK proxy] text request received peer=' + peerId + ' message=' + JSON.stringify(message));
     const result = await vkCall('messages.send', {
       peer_id: peerId,
       message,
