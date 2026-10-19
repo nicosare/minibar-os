@@ -119,13 +119,12 @@
   /* Viewfinder */
   .viewport-container {
     position: relative;
-    /* Use the long viewport dimension so the frame stays large when the
-       device rotates and the WebView's height becomes the short dimension. */
-    height: min(max(58dvh, 58vw), 440px);
-    width: min(100%, calc(min(max(58dvh, 58vw), 440px) * 0.75));
-    max-width: 440px;
+    /* Keep the viewfinder at the camera's native 4:3 aspect ratio
+       (portrait 3:4, landscape 4:3), constrained to the visible screen. */
+    width: min(88vw, 440px, calc(58dvh * var(--camera-aspect, 0.75)));
+    aspect-ratio: var(--camera-aspect, 0.75);
+    max-height: 58dvh;
     flex: 0 0 auto;
-    aspect-ratio: 3 / 4;
     min-height: 0;
     border-radius: 20px;
     overflow: hidden;
@@ -153,9 +152,8 @@
   }
 
   #camera {
-    /* Fill the portrait viewfinder with the live scene in either device
-       orientation; captured photos remain uncropped in the preview below. */
-    object-fit: cover;
+    /* Preserve the complete 4:3 camera frame without cropping or stretching. */
+    object-fit: contain;
     opacity: 0;
     transition: opacity .2s ease;
   }
@@ -974,9 +972,11 @@ function setViewportAspect(width, height) {
 }
 
 function syncLiveViewportAspect() {
-  // The camera frame is always portrait while shooting, regardless of how
-  // the phone is physically held. The captured image gets its own aspect later.
-  setViewportAspect(3, 4);
+  // Photos are 4:3 in either orientation: portrait is 3:4, landscape is 4:3.
+  const orientationType = window.screen?.orientation?.type || '';
+  const isLandscape = orientationType.startsWith('landscape')
+    || (window.innerWidth > window.innerHeight);
+  setViewportAspect(isLandscape ? 4 : 3, isLandscape ? 3 : 4);
 }
 
 let stream = null;
