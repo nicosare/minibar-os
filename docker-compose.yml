@@ -68,9 +68,8 @@ services:
       # Reuse the bot's community token so receiving and sending use the same group.
       # The known production conversation; set VK_DEFAULT_PEER_ID to override.
       VK_DEFAULT_PEER_ID: ${VK_DEFAULT_PEER_ID:-2000000001}
-      # Prefer a dedicated allowlist, otherwise reuse the bot's allowlist.
-      # The fallback is the confirmed conversation, never the old test chat.
-      VK_ALLOWED_PEER_IDS: ${VK_ALLOWED_PEER_IDS:-${VK_BOT_ALLOWED_PEER_IDS:-2000000001}}
+      # The bot's allowlist is the single source of truth for the Mini App target.
+      VK_BOT_ALLOWED_PEER_IDS: ${VK_BOT_ALLOWED_PEER_IDS:-2000000001}
       CORS_ORIGINS: ${CORS_ORIGINS}
     ports:
       - "127.0.0.1:3001:3001"
