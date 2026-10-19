@@ -88,6 +88,21 @@
     color: var(--accent);
   }
 
+  .upload-status {
+    display: none;
+    max-width: calc(100vw - 32px);
+    margin-top: 2px;
+    overflow: hidden;
+    color: var(--yellow);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+  }
+
+  .upload-status.visible { display: block; }
+  .upload-status.error { color: var(--danger); }
+  .upload-status.success { color: #4cd964; }
 
   /* Main View Area */
   .main-content {
@@ -635,6 +650,7 @@
     <div class="hotel-info">
       <div class="hotel-title">MINIBAR OS</div>
       <div class="queue-count" id="queueCount">В очереди: 0 номеров</div>
+      <div class="upload-status" id="uploadStatus" aria-live="polite"></div>
     </div>
   </header>
 
@@ -898,6 +914,7 @@ const previewActions = document.getElementById('previewActions');
 const carouselWrap = document.getElementById('carouselWrap');
 const queueCount = document.getElementById('queueCount');
 const message = document.getElementById('message');
+const uploadStatus = document.getElementById('uploadStatus');
 
 const descRoomTitle = document.getElementById('descRoomTitle');
 const descRoomTag = document.getElementById('descRoomTag');
@@ -940,6 +957,10 @@ let previewBlobPromise = null;
 let previewRequestId = null;
 let snapTimer = null;
 let messageTimer = null;
+let photoQueueDbPromise = null;
+let photoQueueWorkerActive = false;
+let photoQueueRetryTimer = null;
+let photoQueueStatusTimer = null;
 let isCapturing = false;
 let isPreview = false;
 let isVKReady = false;
@@ -1525,38 +1546,297 @@ async function sendPhotoToServer(blobFile, roomNum, requestId) {
   }
 }
 
+const PHOTO_QUEUE_DB_NAME = 'minibar-miniapp-photo-queue-v1';
+const PHOTO_QUEUE_STORE_NAME = 'photos';
+
+function openPhotoQueueDb() {
+  if (!window.indexedDB) {
+    return Promise.reject(new Error('Браузер не поддерживает надёжную очередь фото'));
+  }
+
+  if (!photoQueueDbPromise) {
+    photoQueueDbPromise = new Promise((resolve, reject) => {
+      const request = window.indexedDB.open(PHOTO_QUEUE_DB_NAME, 1);
+
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(PHOTO_QUEUE_STORE_NAME)) {
+          db.createObjectStore(PHOTO_QUEUE_STORE_NAME, { keyPath: 'id' });
+        }
+      };
+
+      request.onsuccess = () => {
+        const db = request.result;
+        db.onversionchange = () => {
+          db.close();
+          photoQueueDbPromise = null;
+        };
+        resolve(db);
+      };
+
+      request.onerror = () => {
+        photoQueueDbPromise = null;
+        reject(request.error || new Error('Не удалось открыть очередь фото'));
+      };
+
+      request.onblocked = () => {
+        console.warn('[MINIBAR PHOTO QUEUE] Открытие IndexedDB заблокировано');
+      };
+    });
+  }
+
+  return photoQueueDbPromise;
+}
+
+function photoQueueDbAction(mode, action, value) {
+  return openPhotoQueueDb().then(db => new Promise((resolve, reject) => {
+    let tx;
+    try {
+      tx = db.transaction(PHOTO_QUEUE_STORE_NAME, mode);
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    const store = tx.objectStore(PHOTO_QUEUE_STORE_NAME);
+    let request;
+
+    if (action === 'getAll') request = store.getAll();
+    else if (action === 'put') request = store.put(value);
+    else if (action === 'delete') request = store.delete(value);
+    else {
+      reject(new Error('Неизвестная операция очереди фото'));
+      return;
+    }
+
+    let result;
+    request.onsuccess = () => { result = request.result; };
+    request.onerror = () => reject(request.error || new Error('Ошибка хранилища очереди фото'));
+    tx.oncomplete = () => resolve(action === 'getAll' ? (result || []) : true);
+    tx.onerror = () => reject(tx.error || request.error || new Error('Не удалось сохранить очередь фото'));
+    tx.onabort = () => reject(tx.error || new Error('Сохранение очереди фото прервано'));
+  }));
+}
+
+function setUploadStatus(text, type = 'pending', hideAfter = 0) {
+  if (photoQueueStatusTimer) clearTimeout(photoQueueStatusTimer);
+  photoQueueStatusTimer = null;
+
+  uploadStatus.textContent = text || '';
+  uploadStatus.className = text
+    ? 'upload-status visible ' + type
+    : 'upload-status';
+
+  if (text && hideAfter > 0) {
+    const expectedText = text;
+    photoQueueStatusTimer = setTimeout(() => {
+      if (uploadStatus.textContent === expectedText) {
+        uploadStatus.textContent = '';
+        uploadStatus.className = 'upload-status';
+      }
+      photoQueueStatusTimer = null;
+    }, hideAfter);
+  }
+}
+
+function sortPhotoQueue(items) {
+  return items.sort((a, b) =>
+    (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0) ||
+    String(a.id).localeCompare(String(b.id))
+  );
+}
+
+async function queuePhotoForUpload(roomNumber, blob, requestId) {
+  let stableRequestId = Number(requestId);
+  if (!Number.isInteger(stableRequestId) || stableRequestId < 1 || stableRequestId > 2147483647) {
+    stableRequestId = Math.floor(Math.random() * 2147483647) + 1;
+  }
+
+  const now = Date.now();
+  const item = {
+    id: String(now) + '-' + stableRequestId + '-' + Math.random().toString(36).slice(2, 9),
+    roomNumber: String(roomNumber),
+    requestId: stableRequestId,
+    blob,
+    createdAt: now,
+    attempts: 0,
+    nextAttemptAt: 0,
+    lastError: ''
+  };
+
+  // Save the image before releasing the preview. A failed local save keeps
+  // the preview on screen so the user can try again without losing the photo.
+  await photoQueueDbAction('readwrite', 'put', item);
+  return item;
+}
+
+function formatPhotoRetryDelay(ms) {
+  if (ms >= 60000) return Math.ceil(ms / 60000) + ' мин.';
+  return Math.max(1, Math.ceil(ms / 1000)) + ' сек.';
+}
+
+function schedulePhotoQueueRetry(delay) {
+  if (photoQueueRetryTimer) clearTimeout(photoQueueRetryTimer);
+  photoQueueRetryTimer = setTimeout(() => {
+    photoQueueRetryTimer = null;
+    void processPhotoQueue();
+  }, Math.max(250, delay));
+}
+
+async function processPhotoQueue() {
+  if (photoQueueWorkerActive) return;
+
+  if (photoQueueRetryTimer) {
+    clearTimeout(photoQueueRetryTimer);
+    photoQueueRetryTimer = null;
+  }
+
+  photoQueueWorkerActive = true;
+  let sentAny = false;
+
+  try {
+    while (true) {
+      const items = sortPhotoQueue(await photoQueueDbAction('readonly', 'getAll'));
+
+      if (!items.length) {
+        if (sentAny) setUploadStatus('Все фото отправлены', 'success', 2500);
+        return;
+      }
+
+      if (navigator.onLine === false) {
+        setUploadStatus(
+          'Нет сети. ' + items.length + ' фото сохранено; отправка продолжится после восстановления связи.',
+          'error'
+        );
+        return;
+      }
+
+      const item = items[0];
+      const waitMs = Math.max(0, (Number(item.nextAttemptAt) || 0) - Date.now());
+      if (waitMs > 0) {
+        const retryText = 'Фото №' + item.roomNumber + ' ожидает повторной отправки через ' +
+          formatPhotoRetryDelay(waitMs) + '. В очереди: ' + items.length + '.';
+        setUploadStatus(retryText, item.lastError ? 'error' : 'pending');
+        schedulePhotoQueueRetry(waitMs);
+        return;
+      }
+
+      setUploadStatus(
+        'Отправка фото №' + item.roomNumber +
+          (items.length > 1 ? ' · ещё в очереди: ' + (items.length - 1) : '…'),
+        'pending'
+      );
+
+      const result = await sendPhotoToServer(item.blob, item.roomNumber, item.requestId);
+
+      if (result.ok) {
+        // Keep the same VK random_id on retries. If the response was lost after
+        // VK accepted the message, reusing the ID helps avoid duplicate messages.
+        await photoQueueDbAction('readwrite', 'delete', item.id);
+        sentAny = true;
+
+        if (result.site_synced === false) {
+          console.warn('[MINIBAR PHOTO QUEUE] Фото отправлено в VK, но сайт не синхронизирован:', result.site_sync_error);
+          showMessage(
+            'Фото №' + item.roomNumber + ' отправлено в VK, но сайт не обновился',
+            4500
+          );
+        }
+
+        continue;
+      }
+
+      const attempts = (Number(item.attempts) || 0) + 1;
+      const retryDelay = Math.min(1000 * Math.pow(2, Math.min(attempts - 1, 6)), 60000);
+      const updatedItem = {
+        ...item,
+        attempts,
+        nextAttemptAt: Date.now() + retryDelay,
+        lastError: result.error || 'Неизвестная ошибка отправки'
+      };
+
+      await photoQueueDbAction('readwrite', 'put', updatedItem);
+      setUploadStatus(
+        'Фото №' + item.roomNumber + ' пока не отправлено. Повтор через ' +
+          formatPhotoRetryDelay(retryDelay) + '; файл сохранён.',
+        'error'
+      );
+      schedulePhotoQueueRetry(retryDelay);
+      return;
+    }
+  } catch (error) {
+    console.error('[MINIBAR PHOTO QUEUE] Ошибка обработки очереди:', error);
+    setUploadStatus(
+      'Очередь фото сохранена. Ошибка обработки: ' + (error.message || 'неизвестная ошибка'),
+      'error'
+    );
+  } finally {
+    photoQueueWorkerActive = false;
+  }
+}
+
+async function restorePhotoUploadQueue() {
+  try {
+    const items = sortPhotoQueue(await photoQueueDbAction('readonly', 'getAll'));
+    if (!items.length) return;
+
+    setUploadStatus('Сохранено фото для отправки: ' + items.length + '. Продолжаю отправку…', 'pending');
+    void processPhotoQueue();
+  } catch (error) {
+    console.error('[MINIBAR PHOTO QUEUE] Не удалось восстановить очередь:', error);
+    setUploadStatus('Не удалось открыть сохранённую очередь фото. Текущие снимки не будут приняты без сохранения.', 'error');
+  }
+}
+
+window.addEventListener('online', () => {
+  if (photoQueueRetryTimer) clearTimeout(photoQueueRetryTimer);
+  photoQueueRetryTimer = null;
+  void processPhotoQueue();
+});
+
+window.addEventListener('offline', async () => {
+  try {
+    const items = await photoQueueDbAction('readonly', 'getAll');
+    if (items.length) {
+      setUploadStatus(
+        'Нет сети. ' + items.length + ' фото сохранено; отправка продолжится после восстановления связи.',
+        'error'
+      );
+    }
+  } catch (_) {}
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') void processPhotoQueue();
+});
+
 btnSend.addEventListener('click', async () => {
   if (!isPreview || btnSend.classList.contains('busy')) return;
 
+  const roomNumber = String(selectedRoom?.number || '').trim();
+  const requestId = previewRequestId;
+
   setBusy(btnSend, true);
-  btnSend.textContent = 'Отправка…';
+  btnSend.textContent = 'Сохранение…';
 
   try {
-    // Берем готовый blob без повторного кодирования
-    const blob = previewBlob || await previewBlobPromise;
+    const blob = previewBlob || (previewBlobPromise ? await previewBlobPromise : null);
     if (!blob) throw new Error('Не удалось сформировать файл');
 
-    const result = await sendPhotoToServer(blob, selectedRoom.number, previewRequestId);
+    await queuePhotoForUpload(roomNumber, blob, requestId);
 
-    if (!result.ok) throw new Error(result.error);
-
-    // Queue updates are intentionally deferred. A successful upload only sends the photo.
-    btnSend.textContent = 'Отправлено';
+    // Returning to the camera depends only on the durable local save, not on
+    // the slower VK upload. The queue worker sends one photo at a time.
     triggerHaptic();
-    if (result.site_synced === false) {
-      showMessage('Фото отправлено в VK, но сайт не обновился: ' +
-        (result.site_sync_error || 'ошибка синхронизации'), 5000);
-    }
+    showMessage('Фото №' + roomNumber + ' сохранено — можно снимать следующее', 2200);
+    setUploadStatus('Фото №' + roomNumber + ' сохранено. Отправляю в фоне…', 'pending');
 
-    setTimeout(() => {
-      btnSend.textContent = 'Отправить';
-      setBusy(btnSend, false);
-      resetPhoto();
-    }, 500);
-
-  } catch (err) {
-    // Показываем ошибку на 3.5 секунды, чтобы успеть прочитать
-    showMessage('Ошибка отправки: ' + err.message, 3500);
+    btnSend.textContent = 'Отправить';
+    setBusy(btnSend, false);
+    resetPhoto();
+    void processPhotoQueue();
+  } catch (error) {
+    showMessage('Не удалось сохранить фото: ' + (error.message || 'ошибка очереди'), 5000);
     btnSend.textContent = 'Отправить';
     setBusy(btnSend, false);
   }
@@ -1627,6 +1907,8 @@ btnEmpty.addEventListener('click', async () => {
 });
 
 loaderRetry.addEventListener('click', startCamera);
+
+void restorePhotoUploadQueue();
 
 (async function boot() {
   try {
