@@ -1464,13 +1464,25 @@ async function sendPhotoToServer(blobFile, roomNum) {
       method: 'POST',
       body: formData
     });
-    const data = await res.json();
 
-    if (data.ok) {
-      return { ok: true };
-    } else {
-      return { ok: false, error: data.error || 'Ошибка сервера' };
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      return {
+        ok: false,
+        error: 'Сервис отправки вернул некорректный ответ (HTTP ' + res.status + ')'
+      };
     }
+
+    if (!res.ok || !data?.ok) {
+      return {
+        ok: false,
+        error: data?.error || 'Не удалось отправить фото (HTTP ' + res.status + ')'
+      };
+    }
+
+    return { ok: true };
   } catch (err) {
     return { ok: false, error: 'Сбой сети: ' + err.message };
   }

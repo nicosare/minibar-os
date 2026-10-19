@@ -65,8 +65,9 @@ services:
       VK_PROXY_PORT: ${VK_PROXY_PORT}
       VK_ACCESS_TOKEN: ${VK_ACCESS_TOKEN}
       VK_API_VERSION: ${VK_API_VERSION}
-      VK_DEFAULT_PEER_ID: ${VK_DEFAULT_PEER_ID}
-      VK_ALLOWED_PEER_IDS: ${VK_ALLOWED_PEER_IDS}
+      VK_DEFAULT_PEER_ID: ${VK_DEFAULT_PEER_ID:-}
+      # If no separate proxy allowlist is set, share the bot's allowed chats.
+      VK_ALLOWED_PEER_IDS: ${VK_ALLOWED_PEER_IDS:-${VK_BOT_ALLOWED_PEER_IDS:-2000000352}}
       CORS_ORIGINS: ${CORS_ORIGINS}
     ports:
       - "127.0.0.1:3001:3001"
