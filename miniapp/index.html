@@ -1446,8 +1446,9 @@ function encodePreviewBlob() {
 }
 
 function showPreviewFromCanvas() {
-  // Fit the frame to the final, EXIF-normalized image without cropping it.
-  setViewportAspect(canvas.width >= canvas.height ? 4 : 3, canvas.width >= canvas.height ? 3 : 4);
+  // Keep the viewport frame tied to the physical phone orientation.
+  // Captured image dimensions must never change the frame aspect.
+  syncLiveViewportAspect();
 
   video.classList.remove('ready');
   video.classList.add('hidden');
