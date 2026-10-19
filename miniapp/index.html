@@ -119,9 +119,9 @@
   /* Viewfinder */
   .viewport-container {
     position: relative;
-    /* Fixed 3:4 viewfinder: its long side follows the phone's long side. */
-    width: min(88vw, 440px, calc(58dvh * var(--camera-aspect, 0.75)));
-    aspect-ratio: var(--camera-aspect, 0.75);
+    /* The viewfinder is a fixed 3:4 window. Device rotation never changes it. */
+    width: min(88vw, 440px, calc(58dvh * 0.75));
+    aspect-ratio: 3 / 4;
     max-height: 58dvh;
     flex: 0 0 auto;
     min-height: 0;
@@ -955,16 +955,16 @@ const sheetHandleArea = document.getElementById('sheetHandleArea');
 const sheetPeekTitle = document.getElementById('sheetPeekTitle');
 const sheetSubtitle = document.getElementById('sheetSubtitle');
 
-function setViewportAspect(width, height) {
-  if (!viewportContainer || !width || !height) return;
-  viewportContainer.style.setProperty('--camera-aspect', String(width / height));
+function setViewportAspect() {
+  // Intentionally immutable: the viewfinder is always 3:4.
+  if (!viewportContainer) return;
+  viewportContainer.style.removeProperty('--camera-aspect');
+  viewportContainer.style.aspectRatio = '3 / 4';
 }
 
 function syncLiveViewportAspect() {
-  // Physical portrait = 3:4; physical landscape = 4:3.
-  const angle = getPhysicalDeviceAngle();
-  if (angle === 90 || angle === 270) setViewportAspect(4, 3);
-  else setViewportAspect(3, 4);
+  // Keep the same fixed frame during live preview, capture and photo preview.
+  setViewportAspect();
 }
 
 let stream = null;
