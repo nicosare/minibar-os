@@ -12,8 +12,6 @@ const VK_ACCESS_TOKEN = process.env.VK_ACCESS_TOKEN || '';
 const VK_API_VERSION = process.env.VK_API_VERSION || '5.199';
 const DEFAULT_PEER_ID = String(process.env.VK_DEFAULT_PEER_ID || '');
 
-// Use the exact same allowlist as the long-poll bot. Do not maintain a
-// separate VK_ALLOWED_PEER_IDS value that can silently point to another chat.
 const allowedPeerIds = String(process.env.VK_BOT_ALLOWED_PEER_IDS || '')
   .split(',')
   .map(value => value.trim())
@@ -49,19 +47,12 @@ const upload = multer({
   }
 });
 
-function vkUrl(method, params = {}) {
-  const search = new URLSearchParams({
-    ...params,
-    access_token: VK_ACCESS_TOKEN,
-    v: VK_API_VERSION
-  });
-
-  return `https://api.vk.com/method/${method}?${search.toString()}`;
+function vkUrl(method) {
+  return `https://api.vk.com/method/${method}`;
 }
 
 async function vkJson(url, options) {
   const response = await fetch(url, options);
-
   let data;
 
   try {
@@ -75,10 +66,187 @@ async function vkJson(url, options) {
   }
 
   if (data.error) {
-    throw new Error(data.error.error_msg || 'VK API error');
+    const error = new Error(data.error.error_msg || 'VK API error');
+    error.code = data.error.error_code;
+    throw error;
   }
 
   return data;
+}
+
+// Send API parameters in the POST body. In particular, the upload "photo"
+// value can be large and should not be placed into a URL query string.
+async function vkCall(method, params = {}) {
+  const body = new URLSearchParams({
+    ...Object.fromEntries(Object.entries(params).filter(([, value]) => value !== undefined && value !== null)),
+    access_token: VK_ACCESS_TOKEN,
+    v: VK_API_VERSION
+  });
+
+  return vkJson(vkUrl(method), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+    body
+  });
+}
+
+function isLegacyPhotoUploadUrl(value) {
+  try {
+    const url = new URL(value);
+    // VK's newer v2/bulk_upload response does not include the "photo" field
+    // required by photos.saveMessagesPhoto. Do not upload bytes to that URL:
+    // it wastes time and cannot complete the legacy save flow.
+    return !/\/v2\/bulk_upload(?:\/|$)/i.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+async function uploadPhotoToVk(fileBuffer, mimetype, roomNumber, peerId) {
+  const maxServerAttempts = 3;
+  let lastReason = 'VK не вернул совместимый адрес загрузки фотографии';
+
+  for (let attempt = 1; attempt <= maxServerAttempts; attempt += 1) {
+    try {
+      const serverData = await vkCall('photos.getMessagesUploadServer', {
+        peer_id: peerId
+      });
+      const uploadUrl = serverData.response?.upload_url;
+
+      if (typeof uploadUrl !== 'string' || !uploadUrl.startsWith('https://')) {
+        throw new Error('VK не вернул корректный адрес загрузки фото');
+      }
+
+      if (!isLegacyPhotoUploadUrl(uploadUrl)) {
+        lastReason = 'VK вернул новый bulk-upload адрес, несовместимый с photos.saveMessagesPhoto';
+        console.warn(`[VK proxy] Incompatible photo upload URL, requesting another URL (${attempt}/${maxServerAttempts})`);
+        if (attempt < maxServerAttempts) await sleep(120 * attempt);
+        continue;
+      }
+
+      // Legacy VK photo upload protocol: multipart field must be named "photo".
+      const form = new FormData();
+      form.append(
+        'photo',
+        new Blob([fileBuffer], { type: mimetype || 'image/jpeg' }),
+        `room_${roomNumber}.jpg`
+      );
+
+      const response = await fetch(uploadUrl, { method: 'POST', body: form });
+      let result;
+
+      try {
+        result = await response.json();
+      } catch {
+        throw new Error(`Сервер загрузки VK вернул некорректный ответ (HTTP ${response.status})`);
+      }
+
+      if (!response.ok || result?.error) {
+        throw new Error(
+          typeof result?.error === 'string'
+            ? result.error
+            : `Ошибка загрузки фото в VK (HTTP ${response.status})`
+        );
+      }
+
+      const photo = result?.photo;
+      const server = result?.server;
+      const hash = result?.hash;
+
+      if (
+        (typeof photo !== 'string' && typeof photo !== 'number') ||
+        String(photo).trim() === '' ||
+        server === undefined || server === null || String(server).trim() === '' ||
+        typeof hash !== 'string' || hash.trim() === ''
+      ) {
+        lastReason = 'VK вернул неполные данные фото (photo/server/hash отсутствуют)';
+        console.warn(`[VK proxy] Incomplete legacy upload response (${attempt}/${maxServerAttempts})`);
+        if (attempt < maxServerAttempts) await sleep(120 * attempt);
+        continue;
+      }
+
+      return { photo: String(photo), server: String(server), hash };
+    } catch (error) {
+      lastReason = error.message || lastReason;
+      console.warn(`[VK proxy] Photo upload attempt ${attempt}/${maxServerAttempts} failed: ${lastReason}`);
+      if (attempt < maxServerAttempts) await sleep(120 * attempt);
+    }
+  }
+
+  throw new Error(
+    `VK не предоставил совместимый адрес загрузки после ${maxServerAttempts} попыток. ${lastReason}`
+  );
+}
+
+async function uploadAsDocument(fileBuffer, mimetype, roomNumber, peerId) {
+  const serverData = await vkCall('docs.getMessagesUploadServer', {
+    peer_id: peerId,
+    type: 'doc'
+  });
+  const uploadUrl = serverData.response?.upload_url;
+
+  if (typeof uploadUrl !== 'string' || !uploadUrl.startsWith('https://')) {
+    throw new Error('VK не вернул адрес резервной загрузки изображения');
+  }
+
+  const form = new FormData();
+  form.append(
+    'file',
+    new Blob([fileBuffer], { type: mimetype || 'image/jpeg' }),
+    `room_${roomNumber}.jpg`
+  );
+
+  const response = await fetch(uploadUrl, { method: 'POST', body: form });
+  let uploaded;
+  try {
+    uploaded = await response.json();
+  } catch {
+    throw new Error(`Резервный сервер загрузки VK вернул некорректный ответ (HTTP ${response.status})`);
+  }
+
+  if (!response.ok || !uploaded?.file) {
+    throw new Error('VK не принял изображение как файл');
+  }
+
+  const saved = await vkCall('docs.save', {
+    file: uploaded.file,
+    title: `room_${roomNumber}.jpg`
+  });
+  const payload = saved.response?.doc || saved.response;
+  if (!payload?.owner_id || !payload?.id) {
+    throw new Error('VK не вернул данные сохранённого файла');
+  }
+
+  return {
+    attachment: `doc${payload.owner_id}_${payload.id}`,
+    mode: 'document'
+  };
+}
+
+async function savePhotoOrDocument(fileBuffer, mimetype, roomNumber, peerId) {
+  try {
+    const uploaded = await uploadPhotoToVk(fileBuffer, mimetype, roomNumber, peerId);
+    const saved = await vkCall('photos.saveMessagesPhoto', uploaded);
+    const photo = saved.response?.[0];
+
+    if (!photo?.owner_id || !photo?.id) {
+      throw new Error('VK не вернул корректные данные сохранённого фото');
+    }
+
+    return {
+      attachment: `photo${photo.owner_id}_${photo.id}`,
+      mode: 'photo'
+    };
+  } catch (error) {
+    // Some VK community-token upload servers currently return the new
+    // bulk-upload protocol, which has no compatible photos.saveMessagesPhoto
+    // payload. Preserve delivery by sending the same JPEG as an image document.
+    console.warn('[VK proxy] Photo protocol unavailable; falling back to image document:', error.message);
+    const fallback = await uploadAsDocument(fileBuffer, mimetype, roomNumber, peerId);
+    return { ...fallback, fallback_reason: error.message };
+  }
 }
 
 app.get('/health', (req, res) => {
@@ -93,10 +261,10 @@ app.get('/health', (req, res) => {
 
 app.post('/send-photo', upload.single('photo'), async (req, res) => {
   try {
-    if (!req.file) {
+    if (!req.file || !req.file.buffer?.length) {
       return res.status(400).json({
         ok: false,
-        error: 'Файл фото не передан'
+        error: 'Файл фото не передан или пуст'
       });
     }
 
@@ -110,77 +278,31 @@ app.post('/send-photo', upload.single('photo'), async (req, res) => {
       });
     }
 
-    const uploadServerData = await vkJson(
-      vkUrl('photos.getMessagesUploadServer', {
-        peer_id: peerId
-      })
+    const savedAttachment = await savePhotoOrDocument(
+      req.file.buffer,
+      req.file.mimetype,
+      roomNumber,
+      peerId
     );
 
-    const uploadForm = new FormData();
+    const requestedRandomId = Number(req.body?.random_id);
+    const randomId = Number.isInteger(requestedRandomId) &&
+      requestedRandomId > 0 &&
+      requestedRandomId <= 2147483647
+      ? requestedRandomId
+      : Math.floor(Math.random() * 2147483647) + 1;
 
-    uploadForm.append(
-      'photo',
-      new Blob([req.file.buffer], {
-        type: req.file.mimetype || 'image/jpeg'
-      }),
-      `room_${roomNumber}.jpg`
-    );
-
-    const uploadResponse = await fetch(
-      uploadServerData.response.upload_url,
-      {
-        method: 'POST',
-        body: uploadForm
-      }
-    );
-
-    let uploadResult;
-
-    try {
-      uploadResult = await uploadResponse.json();
-    } catch {
-      throw new Error(
-        `VK upload server вернул некорректный ответ (HTTP ${uploadResponse.status})`
-      );
-    }
-
-    if (!uploadResponse.ok || uploadResult.error) {
-      throw new Error(
-        uploadResult?.error ||
-        `Ошибка загрузки фото в VK (HTTP ${uploadResponse.status})`
-      );
-    }
-
-    const savedPhotoData = await vkJson(
-      vkUrl('photos.saveMessagesPhoto', {
-        photo: uploadResult.photo,
-        server: uploadResult.server,
-        hash: uploadResult.hash
-      })
-    );
-
-    const savedPhoto = savedPhotoData.response?.[0];
-
-    if (!savedPhoto) {
-      throw new Error('VK не вернул сохранённое фото');
-    }
-
-    const attachment = `photo${savedPhoto.owner_id}_${savedPhoto.id}`;
-
-    const randomId = Math.floor(Math.random() * 2147483647);
-
-    const messageData = await vkJson(
-      vkUrl('messages.send', {
-        peer_id: peerId,
-        message: roomNumber,
-        attachment,
-        random_id: randomId
-      })
-    );
+    const messageData = await vkCall('messages.send', {
+      peer_id: peerId,
+      message: roomNumber,
+      attachment: savedAttachment.attachment,
+      random_id: randomId
+    });
 
     return res.json({
       ok: true,
-      message_id: messageData.response
+      message_id: messageData.response,
+      mode: savedAttachment.mode
     });
   } catch (error) {
     console.error('[VK proxy]', error);
@@ -188,6 +310,39 @@ app.post('/send-photo', upload.single('photo'), async (req, res) => {
     return res.status(400).json({
       ok: false,
       error: error.message || 'Ошибка VK proxy'
+    });
+  }
+});
+
+
+app.post('/send-message', async (req, res) => {
+  try {
+    if (!VK_ACCESS_TOKEN) {
+      return res.status(500).json({ ok: false, error: 'VK_ACCESS_TOKEN не настроен' });
+    }
+
+    const peerId = resolvePeerId(req.body?.peer_id);
+    const message = String(req.body?.message || '').trim();
+
+    if (!message) {
+      return res.status(400).json({ ok: false, error: 'Текст сообщения пуст' });
+    }
+    if (message.length > 1000) {
+      return res.status(400).json({ ok: false, error: 'Сообщение слишком длинное' });
+    }
+
+    const result = await vkCall('messages.send', {
+      peer_id: peerId,
+      message,
+      random_id: Math.floor(Math.random() * 2147483647)
+    });
+
+    return res.json({ ok: true, message_id: result.response });
+  } catch (error) {
+    console.error('[VK proxy] Text message failed:', error.message);
+    return res.status(400).json({
+      ok: false,
+      error: error.message || 'Не удалось отправить сообщение'
     });
   }
 });
