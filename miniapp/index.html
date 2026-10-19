@@ -827,80 +827,83 @@ async function completeRoom(action) {
   updateQueueDisplay();
 }
 
-/* Orientation Tracking
-   Не полагаемся только на screen.orientation: при выключенном
-   автоповороте он может оставаться 0°. Для снимка важнее физическое
-   положение телефона в момент нажатия кнопки. */
+/* Physical device orientation.
+   The Mini App's interface stays portrait, so screen.orientation alone is not
+   enough when the phone is physically rotated inside a portrait-locked WebView.
+   DeviceOrientation gamma tells us whether the phone is upright or landscape.
+   Do not infer a 180° turn from beta: its sign changes between devices/poses and
+   was the reason ordinary portrait shots were being turned upside down. */
 let currentDeviceAngle = 0;
 let lastSensorOrientationAt = 0;
+let hasSensorOrientation = false;
 
 function normalizeAngle(angle) {
-  return ((Number(angle) || 0) % 360 + 360) % 360;
+  return ((Number(angle) % 360) + 360) % 360;
 }
 
 function updateOrientationFromScreen() {
-  if (window.screen && window.screen.orientation && typeof window.screen.orientation.angle === 'number') {
-    currentDeviceAngle = normalizeAngle(window.screen.orientation.angle);
-    return;
+  // Once physical sensor data is available, a portrait-locked WebView must not
+  // overwrite it with its own (usually fixed at zero) screen rotation.
+  if (hasSensorOrientation) return;
+
+  let angle = null;
+  if (window.screen?.orientation &&
+      typeof window.screen.orientation.angle === 'number') {
+    angle = normalizeAngle(window.screen.orientation.angle);
+  } else if (typeof window.orientation === 'number') {
+    angle = normalizeAngle(window.orientation);
+  } else if (window.innerWidth > window.innerHeight) {
+    angle = 90;
   }
-  if (typeof window.orientation === 'number') {
-    currentDeviceAngle = normalizeAngle(window.orientation);
+
+  if (angle !== null && [0, 90, 180, 270].includes(angle)) {
+    currentDeviceAngle = angle;
   }
 }
 
-function updateOrientationFromSensor(beta, gamma) {
-  if (!Number.isFinite(beta) || !Number.isFinite(gamma)) return;
+function updateOrientationFromSensor(_beta, gamma) {
+  if (!Number.isFinite(gamma)) return;
 
-  const absBeta = Math.abs(beta);
   const absGamma = Math.abs(gamma);
+  let nextAngle = null;
 
-  // Portrait: phone is held upright. Landscape: phone is turned left/right.
-  if (absGamma >= 45 && absBeta <= 70) {
-    currentDeviceAngle = gamma > 0 ? 90 : 270;
-    lastSensorOrientationAt = Date.now();
-    return;
+  // Use hysteresis around the threshold to avoid flickering as the phone moves.
+  if (absGamma >= 50) {
+    nextAngle = gamma > 0 ? 90 : 270;
+  } else if (absGamma <= 35) {
+    // Upright portrait is always zero. beta's sign is deliberately ignored.
+    nextAngle = 0;
   }
 
-  if (absBeta >= 45 && absGamma <= 55) {
-    currentDeviceAngle = beta < 0 ? 180 : 0;
-    lastSensorOrientationAt = Date.now();
-  }
+  if (nextAngle === null) return;
+
+  currentDeviceAngle = nextAngle;
+  hasSensorOrientation = true;
+  lastSensorOrientationAt = Date.now();
+
+  if (videoTrack && !isPreview) syncLiveViewportAspect();
 }
 
-function getCaptureOrientationAngle() {
-  // Ask sensors first, but don't assume that they have produced a sample
-  // already. The first shutter press often arrives before the first sensor event.
-  const orientation = Date.now() - lastSensorOrientationAt < 2000
-    ? normalizeAngle(currentDeviceAngle)
-    : (() => {
-        updateOrientationFromScreen();
-        return normalizeAngle(currentDeviceAngle);
-      })();
+function getPhysicalDeviceAngle() {
+  if (hasSensorOrientation) return currentDeviceAngle;
+  updateOrientationFromScreen();
+  return currentDeviceAngle;
+}
 
-  const sourceWidth = video.videoWidth;
-  const sourceHeight = video.videoHeight;
+function getCaptureOrientationAngle(sourceWidth = video.videoWidth, sourceHeight = video.videoHeight) {
+  const deviceAngle = getPhysicalDeviceAngle();
+
   if (!sourceWidth || !sourceHeight) {
-    // A camera sensor's native frame is normally landscape. In portrait UI,
-    // rotate it instead of trusting a possibly stale zero-degree reading.
-    const viewportIsPortrait = window.innerHeight >= window.innerWidth;
-    return viewportIsPortrait ? 90 : 0;
+    // A rear phone camera normally supplies a landscape-native frame. This
+    // default is used only before the camera metadata is ready.
+    return normalizeAngle(90 - deviceAngle);
   }
 
-  // The output should match the physical device orientation relative to the
-  // camera's native frame. A landscape source in portrait orientation needs
-  // a quarter-turn; in landscape orientation it normally needs no turn.
-  const sourceIsPortrait = sourceHeight > sourceWidth;
-  const deviceIsPortrait = orientation === 0 || orientation === 180;
-  if (sourceIsPortrait === deviceIsPortrait) {
-    if (orientation === 180 || orientation === 270) return 180;
-    return 0;
-  }
-
-  // If the browser has already supplied a portrait frame, the inverse turn
-  // is needed when the device is held in landscape. A landscape source needs
-  // the normal quarter-turn when the device is held in portrait.
-  if (sourceIsPortrait) return orientation === 90 ? 270 : 90;
-  return orientation === 180 ? 270 : 90;
+  // A landscape-native rear camera sensor is mounted at 90° on most phones.
+  // If the browser already supplies portrait-oriented frames, the source has
+  // already been rotated, so its reference angle is zero.
+  const sourceSensorOrientation = sourceHeight > sourceWidth ? 0 : 90;
+  return normalizeAngle(sourceSensorOrientation - deviceAngle);
 }
 
 function syncViewportAfterOrientationChange() {
@@ -922,7 +925,6 @@ function handleDeviceOrientationEvent(e) {
 
 if (window.DeviceOrientationEvent) {
   window.addEventListener('deviceorientation', handleDeviceOrientationEvent, true);
-  window.addEventListener('deviceorientationabsolute', handleDeviceOrientationEvent, true);
 }
 
 /* Elements */
@@ -969,7 +971,7 @@ function syncLiveViewportAspect() {
   const h = video.videoHeight;
   if (!w || !h) return;
 
-  const angle = getCaptureOrientationAngle();
+  const angle = getCaptureOrientationAngle(w, h);
   if (angle === 90 || angle === 270) {
     setViewportAspect(h, w);
   } else {
@@ -1202,24 +1204,18 @@ async function startCamera() {
   }
 }
 
-function drawRotatedVideoToCanvas(angle = getCaptureOrientationAngle()) {
-  const srcW = video.videoWidth;
-  const srcH = video.videoHeight;
+function drawSourceToCanvas(source, srcW, srcH, angle = 0) {
   if (!srcW || !srcH) throw new Error('Frame error');
 
   angle = normalizeAngle(angle);
-
-  if (angle === 90 || angle === 270) {
-    canvas.width = srcH;
-    canvas.height = srcW;
-  } else {
-    canvas.width = srcW;
-    canvas.height = srcH;
-  }
+  const quarterTurn = angle === 90 || angle === 270;
+  canvas.width = quarterTurn ? srcH : srcW;
+  canvas.height = quarterTurn ? srcW : srcH;
 
   const ctx = canvas.getContext('2d', { alpha: false });
-  ctx.save();
+  if (!ctx) throw new Error('Не удалось подготовить снимок');
 
+  ctx.save();
   if (angle === 90) {
     ctx.translate(srcH, 0);
     ctx.rotate(Math.PI / 2);
@@ -1230,9 +1226,51 @@ function drawRotatedVideoToCanvas(angle = getCaptureOrientationAngle()) {
     ctx.translate(0, srcW);
     ctx.rotate(-Math.PI / 2);
   }
-
-  ctx.drawImage(video, 0, 0, srcW, srcH);
+  ctx.drawImage(source, 0, 0, srcW, srcH);
   ctx.restore();
+}
+
+function drawRotatedVideoToCanvas(angle = getCaptureOrientationAngle()) {
+  drawSourceToCanvas(video, video.videoWidth, video.videoHeight, angle);
+}
+
+/* Prefer a native still-photo capture where supported. Its JPEG orientation
+   metadata is applied by createImageBitmap before it reaches our canvas. We
+   only add a quarter-turn if the decoded image's aspect still disagrees with
+   how the phone is physically held. Older WebViews use the sensor-based video
+   fallback above. */
+async function captureStillPhotoToCanvas() {
+  if (typeof window.ImageCapture !== 'function' ||
+      typeof window.createImageBitmap !== 'function' ||
+      !videoTrack) {
+    return false;
+  }
+
+  let bitmap = null;
+  try {
+    const capture = new window.ImageCapture(videoTrack);
+    const photoBlob = await capture.takePhoto();
+    if (!photoBlob || !photoBlob.size) throw new Error('Камера вернула пустое фото');
+
+    bitmap = await window.createImageBitmap(photoBlob);
+    const deviceAngle = getPhysicalDeviceAngle();
+    const shouldBeLandscape = deviceAngle === 90 || deviceAngle === 270;
+    const photoIsLandscape = bitmap.width > bitmap.height;
+
+    // The native capture normally arrives upright already. Correct dimensions
+    // only if a portrait-locked WebView left the JPEG in the sensor's raw shape.
+    const correctionAngle = photoIsLandscape === shouldBeLandscape
+      ? 0
+      : getCaptureOrientationAngle(bitmap.width, bitmap.height);
+
+    drawSourceToCanvas(bitmap, bitmap.width, bitmap.height, correctionAngle);
+    return true;
+  } catch (error) {
+    console.warn('[MINIBAR CAMERA] Native photo capture unavailable; using video frame:', error);
+    return false;
+  } finally {
+    if (bitmap && typeof bitmap.close === 'function') bitmap.close();
+  }
 }
 
 function encodePreviewBlob() {
@@ -1687,20 +1725,28 @@ async function takePhoto() {
     }
 
     await waitForCameraReady();
+
+    // The live view is now visible. Add a short composition pause so the user
+    // can move the phone into the intended portrait/landscape angle.
+    await wait(450);
     await waitForOrientationToSettle();
 
     if (torchSupported) await armTorch();
-    // Give autofocus and, when available, the torch a brief moment to settle.
+    // Give autofocus and the torch time to settle before the exposure.
     if (torchArmed) {
       await waitForVideoFrame();
       await wait(350);
     } else {
       await waitForVideoFrame();
-      await wait(100);
+      await wait(180);
     }
 
-    const captureAngle = getCaptureOrientationAngle();
-    drawRotatedVideoToCanvas(captureAngle);
+    const nativeCaptureSucceeded = await captureStillPhotoToCanvas();
+    if (!nativeCaptureSucceeded) {
+      drawRotatedVideoToCanvas(
+        getCaptureOrientationAngle(video.videoWidth, video.videoHeight)
+      );
+    }
     showPreviewFromCanvas();
     previewRequestId = String(Math.floor(Math.random() * 2147483647) + 1);
     encodePreviewBlob();
