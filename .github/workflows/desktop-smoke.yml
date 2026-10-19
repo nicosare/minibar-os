@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - design/desktop-unification
   pull_request:
     branches:
       - main
@@ -73,6 +74,18 @@ jobs:
           node --check vk-proxy/server.js
           node --check vk-proxy/peer-id.js
           node --test vk-proxy/peer-id.test.cjs
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const html = fs.readFileSync('miniapp/index.html', 'utf8');
+          const match = html.match(/<script\b[^>]*type=["']module["'][^>]*>([\s\S]*?)<\/script>/i);
+          if (!match) throw new Error('Mini App module script not found');
+          const source = match[1].replace(/^import\s+bridge\s+from\s+['"][^'"]+['"];\s*/m, 'const bridge = {};');
+          new Function(source);
+          if (!source.includes('PHOTO_QUEUE_DB_NAME') || !source.includes('schedulePhotoQueueRetry')) {
+            throw new Error('Persistent photo queue or retry logic is missing');
+          }
+          console.log('Mini App module syntax and persistent photo queue: OK');
+          NODE
 
       - name: Build all production service images
         run: |
@@ -101,7 +114,11 @@ jobs:
   deploy:
     name: Deploy changed components to production
     needs: desktop-smoke
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main'))
+    if: >-
+      (github.event_name == 'workflow_dispatch' &&
+       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/design/desktop-unification')) ||
+      (github.event_name == 'push' &&
+       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/design/desktop-unification'))
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -134,6 +151,7 @@ jobs:
           echo "ready=true" >> "$GITHUB_OUTPUT"
 
       - name: Advance the server deployment ref
+        if: github.ref == 'refs/heads/main'
         shell: bash
         run: git push origin HEAD:refs/heads/design/desktop-unification
 
