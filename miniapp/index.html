@@ -741,7 +741,7 @@ let ROOM_BY_NUMBER = new Map();
 let FLOORS = [];
 let queueRemaining = 0;
 
-const API_BASE = '/api';
+const API_BASE = '/minibar-os/api';
 
 async function loadRooms() {
   const response = await fetch(API_BASE + '/miniapp/queue', {
@@ -1489,7 +1489,7 @@ async function sendPhotoToServer(blobFile, roomNum, requestId) {
     const timeout = setTimeout(() => controller.abort(), 60000);
     let res;
     try {
-      res = await fetch('/vk-proxy/send-photo', {
+      res = await fetch('/minibar-os/vk-proxy/send-photo', {
         method: 'POST',
         body: formData,
         signal: controller.signal
@@ -1584,7 +1584,7 @@ btnEmpty.addEventListener('click', async () => {
     triggerHaptic();
     showMessage('Диагностика 2/3: отправляю запрос для номера ' + roomNumber + '…', 15000);
 
-    const response = await fetch('/vk-proxy/send-message', {
+    const response = await fetch('/minibar-os/vk-proxy/send-message', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
