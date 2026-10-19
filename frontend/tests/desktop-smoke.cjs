@@ -339,7 +339,13 @@ let savedDeparturesPrint = null;
       nodes.map(icon => ({ name: icon.getAttribute('data-page-icon'), color: getComputedStyle(icon).color })));
     assert.ok(titleIconColors.length === expectedPageIcons.length && titleIconColors.every(icon => icon.color === 'rgb(15, 23, 42)'),
       'all page title icons should use the same neutral black color, diagnostics=' + JSON.stringify(titleIconColors));
-    await page.evaluate(() => window.lucide?.createIcons());
+    // Wait for the app's normal icon initialization rather than running Lucide
+    // a second time, which can replace already styled SVG elements mid-test.
+    await page.waitForFunction(expectedCount => {
+      const icons = [...document.querySelectorAll('.page-title-icon')];
+      return icons.length === expectedCount &&
+        icons.every(icon => icon.tagName.toLowerCase() === 'svg');
+    }, expectedPageIcons.length, { timeout: 10000 });
     await page.waitForFunction(() => {
       const icon = document.querySelector('#view-excise .page-title-icon');
       if (!icon || icon.tagName.toLowerCase() !== 'svg') return false;
@@ -357,7 +363,6 @@ let savedDeparturesPrint = null;
       'page title icons should be larger, bold, and neutral black; svg=' +
       await page.locator('#view-excise .page-title-icon').evaluate(icon => icon.outerHTML));
     await page.waitForFunction(() => {
-      window.lucide?.createIcons();
       const icon = document.querySelector('#view-calculator .page-title-icon');
       if (!icon || icon.tagName.toLowerCase() !== 'svg') return false;
       const style = getComputedStyle(icon);
