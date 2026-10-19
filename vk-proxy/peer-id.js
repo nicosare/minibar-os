@@ -13,20 +13,21 @@ function createPeerResolver({ defaultPeerId = '', allowedPeerIds = [] } = {}) {
       );
     }
 
-    const explicitPeerId = String(value || configuredDefault || '').trim();
-    const onlyAllowedPeerId = allowlist.size === 1
-      ? allowlist.values().next().value
-      : '';
-    const requested = explicitPeerId || onlyAllowedPeerId;
+    // With one allowed chat, the bot's allowlist is authoritative. Ignore a
+    // stale or malformed client-supplied peer_id so the Mini App cannot drift
+    // from the conversation the bot is configured to read.
+    if (allowlist.size === 1) {
+      return allowlist.values().next().value;
+    }
+
+    // When several chats are allowed, prefer the server-side destination.
+    // Only use a client-supplied peer_id when no server default exists.
+    const requested = configuredDefault || String(value || '').trim();
 
     if (!requested) {
-      if (allowlist.size > 1) {
-        throw new Error(
-          'VK_DEFAULT_PEER_ID не настроен: разрешено несколько бесед, укажи целевую беседу в конфигурации сервера'
-        );
-      }
-
-      throw new Error('VK peer_id не настроен');
+      throw new Error(
+        'VK_DEFAULT_PEER_ID не настроен: разрешено несколько бесед, укажи целевую беседу в конфигурации сервера'
+      );
     }
 
     if (!allowlist.has(requested)) {
