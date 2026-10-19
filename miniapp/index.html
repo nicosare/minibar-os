@@ -1515,7 +1515,11 @@ async function sendPhotoToServer(blobFile, roomNum, requestId) {
       };
     }
 
-    return { ok: true, mode: data.mode || 'photo' };
+    return {
+      ok: true, mode: data.mode || 'photo',
+      site_synced: data.site_synced !== false,
+      site_sync_error: data.site_sync_error || ''
+    };
   } catch (err) {
     return { ok: false, error: 'Сбой сети: ' + err.message };
   }
@@ -1539,6 +1543,10 @@ btnSend.addEventListener('click', async () => {
     // Queue updates are intentionally deferred. A successful upload only sends the photo.
     btnSend.textContent = 'Отправлено';
     triggerHaptic();
+    if (result.site_synced === false) {
+      showMessage('Фото отправлено в VK, но сайт не обновился: ' +
+        (result.site_sync_error || 'ошибка синхронизации'), 5000);
+    }
 
     setTimeout(() => {
       btnSend.textContent = 'Отправить';
@@ -1579,7 +1587,12 @@ btnEmpty.addEventListener('click', async () => {
 
     // This button is intentionally message-only: it does not alter the queue
     // or mark the room as checked/completed in the database.
-    showMessage(`Отправлено: ${selectedRoom.number} опустошён`);
+    if (data?.site_synced === false) {
+      showMessage('Сообщение отправлено в VK, но сайт не обновился: ' +
+        (data.site_sync_error || 'ошибка синхронизации'), 5000);
+    } else {
+      showMessage(`Отправлено: ${selectedRoom.number} опустошён`);
+    }
   } catch (error) {
     showMessage('Ошибка отправки: ' + error.message, 3500);
   } finally {

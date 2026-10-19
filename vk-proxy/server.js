@@ -1,5 +1,6 @@
 require('dotenv').config();
 
+const crypto = require('crypto');
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
@@ -10,6 +11,8 @@ const app = express();
 const PORT = Number(process.env.VK_PROXY_PORT || 3001);
 const VK_ACCESS_TOKEN = process.env.VK_ACCESS_TOKEN || '';
 const VK_API_VERSION = process.env.VK_API_VERSION || '5.199';
+const API_BASE_URL = String(process.env.MINIBAR_API_URL || 'http://backend:3000').replace(/\/$/, '');
+const INTERNAL_TOKEN = String(process.env.VK_BOT_INTERNAL_TOKEN || '').trim();
 const DEFAULT_PEER_ID = String(process.env.VK_DEFAULT_PEER_ID || '');
 
 const allowedPeerIds = String(process.env.VK_BOT_ALLOWED_PEER_IDS || '')
@@ -88,6 +91,54 @@ async function vkCall(method, params = {}) {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
     body
   });
+}
+
+
+async function forwardMessageToBackend(payload) {
+  if (!INTERNAL_TOKEN) throw new Error('VK_BOT_INTERNAL_TOKEN не настроен в vk-proxy');
+  let lastError = null;
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
+    try {
+      const response = await fetch(API_BASE_URL + '/api/vk-bot/events', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-Minibar-Bot-Token': INTERNAL_TOKEN},
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'MiniBar API HTTP ' + response.status);
+      return data;
+    } catch (error) {
+      lastError = error;
+      console.error('[VK proxy] MiniBar sync attempt ' + attempt + '/5 failed:', error.message);
+      if (attempt < 5) await sleep(400 * attempt);
+    }
+  }
+  throw lastError || new Error('Не удалось синхронизировать сообщение с сайтом');
+}
+
+async function syncSentMessage(peerId, rawMessageId, text) {
+  const occurredAt = new Date().toISOString();
+  const numericMessageId = Number(rawMessageId);
+  const messageId = Number.isSafeInteger(numericMessageId) && numericMessageId > 0 ? numericMessageId : null;
+  const eventId = crypto.createHash('sha256')
+    .update([String(peerId), String(messageId ?? ''), occurredAt, String(text)].join('\x1f'))
+    .digest('hex');
+
+  try {
+    const result = await forwardMessageToBackend({
+      eventId, peerId: String(peerId), messageId,
+      text: String(text || '').trim(), occurredAt
+    });
+    const synced = ['processed', 'duplicate', 'ignored'].includes(result.status);
+    console.log('[VK proxy] site sync peer=' + peerId +
+      ' message=' + String(messageId ?? '-') +
+      ' status=' + String(result.status || 'unknown') +
+      ' rooms=' + JSON.stringify(result.rooms || []));
+    return {site_synced: synced, site_sync_status: result.status || 'unknown'};
+  } catch (error) {
+    console.error('[VK proxy] VK message was sent but site sync failed for peer=' + peerId + ': ' + error.message);
+    return {site_synced: false, site_sync_error: error.message || 'Ошибка синхронизации с сайтом'};
+  }
 }
 
 function isLegacyPhotoUploadUrl(value) {
@@ -245,10 +296,11 @@ app.post('/send-photo', upload.single('photo'), async (req, res) => {
       random_id: randomId
     });
 
+    const siteSync = await syncSentMessage(peerId, messageData.response, roomNumber);
+    console.log('[VK proxy] photo sent peer=' + peerId +
+      ' room=' + roomNumber + ' message=' + String(messageData.response ?? '-'));
     return res.json({
-      ok: true,
-      message_id: messageData.response,
-      mode: savedAttachment.mode
+      ok: true, message_id: messageData.response, mode: savedAttachment.mode, ...siteSync
     });
   } catch (error) {
     console.error('[VK proxy]', error);
@@ -283,7 +335,11 @@ app.post('/send-message', async (req, res) => {
       random_id: Math.floor(Math.random() * 2147483647) + 1
     });
 
-    return res.json({ ok: true, message_id: result.response });
+    const siteSync = await syncSentMessage(peerId, result.response, message);
+    console.log('[VK proxy] text sent peer=' + peerId +
+      ' message=' + JSON.stringify(message) +
+      ' message_id=' + String(result.response ?? '-'));
+    return res.json({ok: true, message_id: result.response, ...siteSync});
   } catch (error) {
     console.error('[VK proxy] Text message failed:', error.message);
     return res.status(400).json({

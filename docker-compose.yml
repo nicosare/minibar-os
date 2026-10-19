@@ -65,6 +65,8 @@ services:
       VK_PROXY_PORT: ${VK_PROXY_PORT}
       VK_ACCESS_TOKEN: ${VK_BOT_ACCESS_TOKEN:-${VK_ACCESS_TOKEN:-}}
       VK_API_VERSION: ${VK_API_VERSION}
+      MINIBAR_API_URL: http://backend:3000
+      VK_BOT_INTERNAL_TOKEN: ${VK_BOT_INTERNAL_TOKEN}
       # Reuse the bot's community token so receiving and sending use the same group.
       # The bot's allowlist is the single source of truth for the Mini App target.
       # With one allowed chat, the proxy selects it automatically.
@@ -72,6 +74,8 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS}
     ports:
       - "127.0.0.1:3001:3001"
+    depends_on:
+      - backend
     restart: unless-stopped
 
   vk-bot:
