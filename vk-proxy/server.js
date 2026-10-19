@@ -180,73 +180,19 @@ async function uploadPhotoToVk(fileBuffer, mimetype, roomNumber, peerId) {
   );
 }
 
-async function uploadAsDocument(fileBuffer, mimetype, roomNumber, peerId) {
-  const serverData = await vkCall('docs.getMessagesUploadServer', {
-    peer_id: peerId,
-    type: 'doc'
-  });
-  const uploadUrl = serverData.response?.upload_url;
+async function savePhotoOrDocument(fileBuffer, mimetype, roomNumber, peerId) {
+  const uploaded = await uploadPhotoToVk(fileBuffer, mimetype, roomNumber, peerId);
+  const saved = await vkCall('photos.saveMessagesPhoto', uploaded);
+  const photo = saved.response?.[0];
 
-  if (typeof uploadUrl !== 'string' || !uploadUrl.startsWith('https://')) {
-    throw new Error('VK не вернул адрес резервной загрузки изображения');
-  }
-
-  const form = new FormData();
-  form.append(
-    'file',
-    new Blob([fileBuffer], { type: mimetype || 'image/jpeg' }),
-    `room_${roomNumber}.jpg`
-  );
-
-  const response = await fetch(uploadUrl, { method: 'POST', body: form });
-  let uploaded;
-  try {
-    uploaded = await response.json();
-  } catch {
-    throw new Error(`Резервный сервер загрузки VK вернул некорректный ответ (HTTP ${response.status})`);
-  }
-
-  if (!response.ok || !uploaded?.file) {
-    throw new Error('VK не принял изображение как файл');
-  }
-
-  const saved = await vkCall('docs.save', {
-    file: uploaded.file,
-    title: `room_${roomNumber}.jpg`
-  });
-  const payload = saved.response?.doc || saved.response;
-  if (!payload?.owner_id || !payload?.id) {
-    throw new Error('VK не вернул данные сохранённого файла');
+  if (!photo?.owner_id || !photo?.id) {
+    throw new Error('VK не вернул корректные данные сохранённого фото');
   }
 
   return {
-    attachment: `doc${payload.owner_id}_${payload.id}`,
-    mode: 'document'
+    attachment: `photo${photo.owner_id}_${photo.id}`,
+    mode: 'photo'
   };
-}
-
-async function savePhotoOrDocument(fileBuffer, mimetype, roomNumber, peerId) {
-  try {
-    const uploaded = await uploadPhotoToVk(fileBuffer, mimetype, roomNumber, peerId);
-    const saved = await vkCall('photos.saveMessagesPhoto', uploaded);
-    const photo = saved.response?.[0];
-
-    if (!photo?.owner_id || !photo?.id) {
-      throw new Error('VK не вернул корректные данные сохранённого фото');
-    }
-
-    return {
-      attachment: `photo${photo.owner_id}_${photo.id}`,
-      mode: 'photo'
-    };
-  } catch (error) {
-    // Some VK community-token upload servers currently return the new
-    // bulk-upload protocol, which has no compatible photos.saveMessagesPhoto
-    // payload. Preserve delivery by sending the same JPEG as an image document.
-    console.warn('[VK proxy] Photo protocol unavailable; falling back to image document:', error.message);
-    const fallback = await uploadAsDocument(fileBuffer, mimetype, roomNumber, peerId);
-    return { ...fallback, fallback_reason: error.message };
-  }
 }
 
 app.get('/health', (req, res) => {
@@ -334,7 +280,7 @@ app.post('/send-message', async (req, res) => {
     const result = await vkCall('messages.send', {
       peer_id: peerId,
       message,
-      random_id: Math.floor(Math.random() * 2147483647)
+      random_id: Math.floor(Math.random() * 2147483647) + 1
     });
 
     return res.json({ ok: true, message_id: result.response });

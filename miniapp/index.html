@@ -1536,23 +1536,9 @@ btnSend.addEventListener('click', async () => {
 
     if (!result.ok) throw new Error(result.error);
 
-    // VK has accepted the photo. Queue bookkeeping is secondary: its failure
-    // must not make the user think the photo failed and trigger duplicate sends.
-    let queueUpdateError = null;
-    try {
-      await completeRoom('sent');
-    } catch (error) {
-      queueUpdateError = error;
-      console.error('Photo sent, but queue update failed:', error);
-    }
-
+    // Queue updates are intentionally deferred. A successful upload only sends the photo.
     btnSend.textContent = 'Отправлено';
     triggerHaptic();
-    if (result.mode === 'document') {
-      showMessage('Фото отправлено как файл: VK временно недоступен для отправки фото', 4500);
-    } else if (queueUpdateError) {
-      showMessage('Фото отправлено, но очередь не обновилась. Обнови приложение.', 4000);
-    }
 
     setTimeout(() => {
       btnSend.textContent = 'Отправить';
