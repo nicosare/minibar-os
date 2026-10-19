@@ -881,7 +881,8 @@ function updateOrientationFromSensor(_beta, gamma) {
   hasSensorOrientation = true;
   lastSensorOrientationAt = Date.now();
 
-  if (videoTrack && !isPreview) syncLiveViewportAspect();
+  // Physical orientation affects only capture, never the live viewfinder.
+
 }
 
 function getPhysicalDeviceAngle() {
@@ -967,16 +968,9 @@ function setViewportAspect(width, height) {
 }
 
 function syncLiveViewportAspect() {
-  const w = video.videoWidth;
-  const h = video.videoHeight;
-  if (!w || !h) return;
-
-  const angle = getCaptureOrientationAngle(w, h);
-  if (angle === 90 || angle === 270) {
-    setViewportAspect(h, w);
-  } else {
-    setViewportAspect(w, h);
-  }
+  // The camera frame is always portrait while shooting, regardless of how
+  // the phone is physically held. The captured image gets its own aspect later.
+  setViewportAspect(3, 4);
 }
 
 let stream = null;
@@ -1234,11 +1228,11 @@ function drawRotatedVideoToCanvas(angle = getCaptureOrientationAngle()) {
   drawSourceToCanvas(video, video.videoWidth, video.videoHeight, angle);
 }
 
-/* Prefer a native still-photo capture where supported. Its JPEG orientation
-   metadata is applied by createImageBitmap before it reaches our canvas. We
-   only add a quarter-turn if the decoded image's aspect still disagrees with
-   how the phone is physically held. Older WebViews use the sensor-based video
-   fallback above. */
+/* Native still capture is the preferred path. Decode the JPEG with its EXIF
+   orientation applied, then preserve those pixels exactly: do not infer a
+   rotation from width/height or rotate the image a second time. The aspect
+   ratio of this decoded bitmap determines the preview frame. Older WebViews
+   fall back to a video frame rotated from the physical-device sensor angle. */
 async function captureStillPhotoToCanvas() {
   if (typeof window.ImageCapture !== 'function' ||
       typeof window.createImageBitmap !== 'function' ||
@@ -1252,18 +1246,8 @@ async function captureStillPhotoToCanvas() {
     const photoBlob = await capture.takePhoto();
     if (!photoBlob || !photoBlob.size) throw new Error('Камера вернула пустое фото');
 
-    bitmap = await window.createImageBitmap(photoBlob);
-    const deviceAngle = getPhysicalDeviceAngle();
-    const shouldBeLandscape = deviceAngle === 90 || deviceAngle === 270;
-    const photoIsLandscape = bitmap.width > bitmap.height;
-
-    // The native capture normally arrives upright already. Correct dimensions
-    // only if a portrait-locked WebView left the JPEG in the sensor's raw shape.
-    const correctionAngle = photoIsLandscape === shouldBeLandscape
-      ? 0
-      : getCaptureOrientationAngle(bitmap.width, bitmap.height);
-
-    drawSourceToCanvas(bitmap, bitmap.width, bitmap.height, correctionAngle);
+    bitmap = await window.createImageBitmap(photoBlob, { imageOrientation: 'from-image' });
+    drawSourceToCanvas(bitmap, bitmap.width, bitmap.height, 0);
     return true;
   } catch (error) {
     console.warn('[MINIBAR CAMERA] Native photo capture unavailable; using video frame:', error);
