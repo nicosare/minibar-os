@@ -896,9 +896,10 @@ function getCaptureOrientationAngle() {
     return 0;
   }
 
-  // Preserve the direction reported by the sensor for portrait/landscape
-  // transitions. Without a fresh directional sample, use a safe quarter-turn.
-  if (orientation === 90 || orientation === 270) return orientation;
+  // If the browser has already supplied a portrait frame, the inverse turn
+  // is needed when the device is held in landscape. A landscape source needs
+  // the normal quarter-turn when the device is held in portrait.
+  if (sourceIsPortrait) return orientation === 90 ? 270 : 90;
   return orientation === 180 ? 270 : 90;
 }
 
@@ -1036,17 +1037,22 @@ function triggerHaptic() {
 
 function ensureOrientationSensorPermission() {
   if (orientationPermissionAsked) {
-    return orientationPermissionPromise || Promise.resolve();
+    return orientationPermissionPromise || Promise.resolve('denied');
   }
 
   orientationPermissionAsked = true;
-  orientationPermissionPromise = Promise.resolve().then(() => {
+  try {
+    // iOS requires this call to happen synchronously inside a user gesture.
     if (typeof DeviceOrientationEvent !== 'undefined' &&
         typeof DeviceOrientationEvent.requestPermission === 'function') {
-      return DeviceOrientationEvent.requestPermission().catch(() => 'denied');
+      orientationPermissionPromise = DeviceOrientationEvent.requestPermission()
+        .catch(() => 'denied');
+    } else {
+      orientationPermissionPromise = Promise.resolve('granted');
     }
-    return 'granted';
-  }).catch(() => 'denied');
+  } catch (_) {
+    orientationPermissionPromise = Promise.resolve('denied');
+  }
 
   return orientationPermissionPromise;
 }
