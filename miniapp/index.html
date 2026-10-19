@@ -900,7 +900,9 @@ function getCaptureOrientationAngle(sourceWidth = video.videoWidth, sourceHeight
   if (sourceWidth > sourceHeight) {
     return deviceAngle === 180 || deviceAngle === 270 ? 270 : 90;
   }
-  if (deviceAngle === 180 || deviceAngle === 270) return 180;
+  // A portrait raster is already aligned with the fixed frame. Only correct
+  // a true upside-down portrait; a landscape sensor reading must not flip it.
+  if (deviceAngle === 180) return 180;
   return 0;
 }
 
