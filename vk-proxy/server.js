@@ -105,7 +105,7 @@ function isLegacyPhotoUploadUrl(value) {
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 async function uploadPhotoToVk(fileBuffer, mimetype, roomNumber, peerId) {
-  const maxServerAttempts = 5;
+  const maxServerAttempts = 3;
   let lastReason = 'VK не вернул совместимый адрес загрузки фотографии';
 
   for (let attempt = 1; attempt <= maxServerAttempts; attempt += 1) {
