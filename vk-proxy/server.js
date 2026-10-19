@@ -54,14 +54,30 @@ function vkUrl(method, params = {}) {
 }
 
 function resolvePeerId(value) {
-  const requested = value ? String(value).trim() : DEFAULT_PEER_ID;
+  const explicitPeerId = String(value || DEFAULT_PEER_ID || '').trim();
+  const onlyAllowedPeerId = allowedPeerIds.size === 1
+    ? allowedPeerIds.values().next().value
+    : '';
+  const requested = explicitPeerId || onlyAllowedPeerId;
 
   if (!requested) {
+    if (allowedPeerIds.size > 1) {
+      throw new Error(
+        'VK_DEFAULT_PEER_ID не настроен: разрешено несколько бесед, укажи целевую беседу в конфигурации сервера'
+      );
+    }
+
+    if (allowedPeerIds.size === 0) {
+      throw new Error(
+        'VK_ALLOWED_PEER_IDS не настроен: отправка в беседу не разрешена до настройки списка доступа'
+      );
+    }
+
     throw new Error('VK peer_id не настроен');
   }
 
-  if (allowedPeerIds.size > 0 && !allowedPeerIds.has(requested)) {
-    throw new Error('Этот peer_id запрещён сервером');
+  if (allowedPeerIds.size === 0 || !allowedPeerIds.has(requested)) {
+    throw new Error('Целевая беседа отсутствует в VK_ALLOWED_PEER_IDS');
   }
 
   return requested;
