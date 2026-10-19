@@ -862,14 +862,12 @@ function updateOrientationFromScreen() {
 function updateOrientationFromSensor(beta, gamma) {
   if (!Number.isFinite(beta) || !Number.isFinite(gamma)) return;
 
-  // The sine of beta/gamma approximates gravity projected onto the phone's
-  // vertical/horizontal axes. Ignore weak or diagonal projections instead of
-  // oscillating between orientations while the phone is being moved.
   const betaProjection = Math.sin(beta * Math.PI / 180);
   const gammaProjection = Math.sin(gamma * Math.PI / 180);
   const absBeta = Math.abs(betaProjection);
   const absGamma = Math.abs(gammaProjection);
 
+  // Ignore ambiguous diagonal/flat positions to prevent the frame flickering.
   if (Math.max(absBeta, absGamma) < 0.62) return;
 
   let nextAngle = null;
@@ -879,10 +877,11 @@ function updateOrientationFromSensor(beta, gamma) {
     nextAngle = gammaProjection > 0 ? 90 : 270;
   }
 
-  if (nextAngle === null) return;
+  if (nextAngle === null || nextAngle === currentDeviceAngle) return;
   currentDeviceAngle = nextAngle;
   hasSensorOrientation = true;
   lastSensorOrientationAt = Date.now();
+  if (!isPreview) syncLiveViewportAspect();
 }
 
 function getPhysicalDeviceAngle() {
@@ -962,9 +961,10 @@ function setViewportAspect(width, height) {
 }
 
 function syncLiveViewportAspect() {
-  // Keep the viewfinder at 3:4 in the Mini App's fixed portrait coordinate space.
-  // The frame's long side stays aligned with the phone's long side.
-  setViewportAspect(3, 4);
+  // Physical portrait = 3:4; physical landscape = 4:3.
+  const angle = getPhysicalDeviceAngle();
+  if (angle === 90 || angle === 270) setViewportAspect(4, 3);
+  else setViewportAspect(3, 4);
 }
 
 let stream = null;
@@ -1240,40 +1240,80 @@ async function prepareCameraFocus() {
   }
 }
 
-/* Remove EXIF APP1 metadata before decoding a native JPEG. createImageBitmap's
-   default decoder honors EXIF orientation; removing that segment leaves the
-   encoded pixel raster untouched so we can normalize it exactly once below. */
+/* Read EXIF Orientation ourselves, then remove the EXIF segment before decoding.
+   This prevents browser auto-rotation and lets us apply orientation exactly once. */
+function readExifOrientation(bytes, payload, segmentEnd) {
+  const exifSignature = [0x45, 0x78, 0x69, 0x66, 0x00, 0x00];
+  if (payload + 14 > segmentEnd ||
+      !exifSignature.every((value, i) => bytes[payload + i] === value)) return null;
+
+  const tiff = payload + 6;
+  const byteOrder = String.fromCharCode(bytes[tiff], bytes[tiff + 1]);
+  const littleEndian = byteOrder === 'II';
+  if (!littleEndian && byteOrder !== 'MM') return null;
+
+  const u16 = offset => {
+    if (offset < tiff || offset + 2 > segmentEnd) return null;
+    return littleEndian
+      ? bytes[offset] | (bytes[offset + 1] << 8)
+      : (bytes[offset] << 8) | bytes[offset + 1];
+  };
+  const u32 = offset => {
+    if (offset < tiff || offset + 4 > segmentEnd) return null;
+    return littleEndian
+      ? (bytes[offset] | (bytes[offset + 1] << 8) |
+        (bytes[offset + 2] << 16) | (bytes[offset + 3] << 24)) >>> 0
+      : ((bytes[offset] << 24) | (bytes[offset + 1] << 16) |
+        (bytes[offset + 2] << 8) | bytes[offset + 3]) >>> 0;
+  };
+
+  if (u16(tiff + 2) !== 42) return null;
+  const ifdOffset = u32(tiff + 4);
+  if (ifdOffset === null) return null;
+  const ifd = tiff + ifdOffset;
+  const entryCount = u16(ifd);
+  if (entryCount === null) return null;
+
+  for (let i = 0; i < entryCount; i++) {
+    const entry = ifd + 2 + i * 12;
+    const tag = u16(entry);
+    if (tag === null || entry + 12 > segmentEnd) return null;
+    if (tag !== 0x0112) continue;
+
+    const type = u16(entry + 2);
+    const count = u32(entry + 4);
+    if (type !== 3 || count !== 1) return null;
+    const orientation = u16(entry + 8);
+    return orientation >= 1 && orientation <= 8 ? orientation : null;
+  }
+  return null;
+}
+
 async function stripJpegExifMetadata(blob) {
   const bytes = new Uint8Array(await blob.arrayBuffer());
-  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return blob;
+  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) {
+    return { blob, orientation: null };
+  }
 
   const parts = [bytes.subarray(0, 2)];
   let offset = 2;
   let removedExif = false;
+  let orientation = null;
 
   while (offset < bytes.length) {
-    if (bytes[offset] !== 0xff) {
-      throw new Error('Не удалось безопасно прочитать ориентацию JPEG');
-    }
+    if (bytes[offset] !== 0xff) throw new Error('Не удалось прочитать заголовок JPEG');
 
     const markerStart = offset;
     while (offset < bytes.length && bytes[offset] === 0xff) offset++;
-    if (offset >= bytes.length) throw new Error('Повреждён заголовок JPEG');
+    if (offset >= bytes.length) throw new Error('Повреждённый заголовок JPEG');
 
     const marker = bytes[offset++];
-
-    if (marker === 0xda) {
+    if (marker === 0xda || marker === 0xd9) {
       parts.push(bytes.subarray(markerStart));
-      return removedExif
-        ? new Blob(parts, { type: blob.type || 'image/jpeg' })
-        : blob;
-    }
-
-    if (marker === 0xd9) {
-      parts.push(bytes.subarray(markerStart, offset));
-      return removedExif
-        ? new Blob(parts, { type: blob.type || 'image/jpeg' })
-        : blob;
+      return {
+        blob: removedExif ? new Blob(parts, { type: blob.type || 'image/jpeg' }) : blob,
+        orientation
+      };
     }
 
     if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
@@ -1290,14 +1330,12 @@ async function stripJpegExifMetadata(blob) {
 
     const payload = offset + 2;
     const isExifSegment = marker === 0xe1 &&
-      bytes[payload] === 0x45 &&
-      bytes[payload + 1] === 0x78 &&
-      bytes[payload + 2] === 0x69 &&
-      bytes[payload + 3] === 0x66 &&
-      bytes[payload + 4] === 0x00 &&
-      bytes[payload + 5] === 0x00;
+      bytes[payload] === 0x45 && bytes[payload + 1] === 0x78 &&
+      bytes[payload + 2] === 0x69 && bytes[payload + 3] === 0x66 &&
+      bytes[payload + 4] === 0x00 && bytes[payload + 5] === 0x00;
 
     if (isExifSegment) {
+      if (orientation === null) orientation = readExifOrientation(bytes, payload, segmentEnd);
       removedExif = true;
     } else {
       parts.push(bytes.subarray(markerStart, segmentEnd));
@@ -1305,8 +1343,34 @@ async function stripJpegExifMetadata(blob) {
     offset = segmentEnd;
   }
 
-  if (removedExif) return new Blob(parts, { type: blob.type || 'image/jpeg' });
-  return blob;
+  return {
+    blob: removedExif ? new Blob(parts, { type: blob.type || 'image/jpeg' }) : blob,
+    orientation
+  };
+}
+
+function drawExifOrientedToCanvas(source, srcW, srcH, orientation) {
+  if (!srcW || !srcH) throw new Error('Frame error');
+  const turn = orientation >= 5 && orientation <= 8;
+  canvas.width = turn ? srcH : srcW;
+  canvas.height = turn ? srcW : srcH;
+
+  const ctx = canvas.getContext('2d', { alpha: false });
+  if (!ctx) throw new Error('Не удалось подготовить снимок');
+
+  // EXIF values 1–8 include rotations and mirrored orientations.
+  switch (orientation) {
+    case 2: ctx.setTransform(-1, 0, 0, 1, srcW, 0); break;
+    case 3: ctx.setTransform(-1, 0, 0, -1, srcW, srcH); break;
+    case 4: ctx.setTransform(1, 0, 0, -1, 0, srcH); break;
+    case 5: ctx.setTransform(0, 1, 1, 0, 0, 0); break;
+    case 6: ctx.setTransform(0, 1, -1, 0, srcH, 0); break;
+    case 7: ctx.setTransform(0, -1, -1, 0, srcH, srcW); break;
+    case 8: ctx.setTransform(0, -1, 1, 0, 0, srcW); break;
+    default: ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+  ctx.drawImage(source, 0, 0, srcW, srcH);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
 
 async function captureStillPhotoToCanvas() {
@@ -1322,10 +1386,18 @@ async function captureStillPhotoToCanvas() {
     const photoBlob = await capture.takePhoto();
     if (!photoBlob || !photoBlob.size) throw new Error('Камера вернула пустое фото');
 
-    const rawPhotoBlob = await stripJpegExifMetadata(photoBlob);
-    bitmap = await window.createImageBitmap(rawPhotoBlob);
-    const angle = getCaptureOrientationAngle(bitmap.width, bitmap.height);
-    drawSourceToCanvas(bitmap, bitmap.width, bitmap.height, angle);
+    const decoded = await stripJpegExifMetadata(photoBlob);
+    bitmap = await window.createImageBitmap(decoded.blob);
+    if (decoded.orientation !== null) {
+      drawExifOrientedToCanvas(bitmap, bitmap.width, bitmap.height, decoded.orientation);
+    } else {
+      drawSourceToCanvas(
+        bitmap,
+        bitmap.width,
+        bitmap.height,
+        getCaptureOrientationAngle(bitmap.width, bitmap.height)
+      );
+    }
     return true;
   } catch (error) {
     console.warn('[MINIBAR CAMERA] Native still capture unavailable; falling back to video frame:', error);
@@ -1374,8 +1446,8 @@ function encodePreviewBlob() {
 }
 
 function showPreviewFromCanvas() {
-  // Keep the viewport fixed at 3:4 regardless of device/sensor orientation.
-  setViewportAspect(3, 4);
+  // Fit the frame to the final, EXIF-normalized image without cropping it.
+  setViewportAspect(canvas.width >= canvas.height ? 4 : 3, canvas.width >= canvas.height ? 3 : 4);
 
   video.classList.remove('ready');
   video.classList.add('hidden');
@@ -1411,7 +1483,7 @@ function resetPhoto() {
   photo.classList.add('hidden');
   video.classList.remove('hidden');
   video.classList.remove('ready');
-  setViewportAspect(0.75, 1);
+  syncLiveViewportAspect();
   showCameraStandby();
 }
 
