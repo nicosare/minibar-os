@@ -275,7 +275,7 @@ async function handleCallback(req, res) {
 
 function looksOperationalText(value) {
   const text = String(value || '').trim();
-  return /^\\s*\\d{3,4}(?:[\\s,;:/|+_-]*\\d{3,4})*(?:\\s+опустош\\p{L}*)?(?:\\s*\\([^)]*\\))?\\s*$/iu.test(text);
+  return /^\s*\d{3,4}(?:[\s,;:/|+_-]*\d{3,4})*(?:\s+опустош\p{L}*)?(?:\s*\([^)]*\))?\s*$/iu.test(text);
 }
 
 async function vkApiCall(method, params = {}) {
@@ -302,6 +302,7 @@ async function vkApiCall(method, params = {}) {
 }
 
 let outgoingPollRunning = false;
+const outgoingMessageCursors = new Map();
 
 async function pollOutgoingMessages() {
   if (outgoingPollRunning) return;
@@ -312,58 +313,84 @@ async function pollOutgoingMessages() {
       try {
         const history = await vkApiCall('messages.getConversationsHistory', {
           peer_id: peerId,
+          group_id: groupId,
           count: 50
         });
-        const items = Array.isArray(history?.items) ? history.items.slice().reverse() : [];
-
-        for (const item of items) {
+        const items = Array.isArray(history?.items) ? history.items : [];
+        const getMessageId = item => {
           const message = item?.message || item;
+          const rawId = message?.conversation_message_id ??
+            item?.conversation_message_id ??
+            message?.id ??
+            item?.id;
+          const id = Number(rawId);
+          return Number.isSafeInteger(id) && id > 0 ? id : null;
+        };
+        const knownIds = items.map(getMessageId).filter(id => id !== null);
+        const newestId = knownIds.length ? Math.max(...knownIds) : 0;
+
+        // Establish a baseline at startup so old chat history is never replayed
+        // as fresh room checks after a deploy/restart.
+        if (!outgoingMessageCursors.has(String(peerId))) {
+          outgoingMessageCursors.set(String(peerId), newestId);
+          console.log('[VK history] baseline peer=' + peerId + ' message=' + newestId);
+          continue;
+        }
+
+        const cursor = outgoingMessageCursors.get(String(peerId));
+        const newItems = items
+          .filter(item => {
+            const id = getMessageId(item);
+            return id !== null && id > cursor;
+          })
+          .sort((a, b) => getMessageId(a) - getMessageId(b));
+
+        for (const item of newItems) {
+          const message = item?.message || item;
+          const messageId = getMessageId(item);
           const text = String(message?.text || '').trim();
           const fromId = Number(message?.from_id);
           const isCommunityMessage =
             Number(message?.out) === 1 ||
             (Number.isFinite(fromId) && fromId === -Number(groupId));
 
-          if (!isCommunityMessage || !text || !looksOperationalText(text)) continue;
+          if (isCommunityMessage && text && looksOperationalText(text)) {
+            const eventId = hashEvent([
+              String(peerId),
+              String(messageId),
+              String(message.date ?? ''),
+              text
+            ]);
 
-          const messageId =
-            message.conversation_message_id ??
-            item?.conversation_message_id ??
-            message.id ??
-            item?.id ??
-            null;
-          const eventId = hashEvent([
-            String(peerId),
-            String(messageId ?? ''),
-            String(message.date ?? ''),
-            text
-          ]);
+            try {
+              const result = await forwardToBackend({
+                eventId,
+                peerId: String(peerId),
+                messageId,
+                text,
+                occurredAt: message.date
+                  ? new Date(Number(message.date) * 1000).toISOString()
+                  : new Date().toISOString()
+              });
 
-          try {
-            const result = await forwardToBackend({
-              eventId,
-              peerId: String(peerId),
-              messageId,
-              text,
-              occurredAt: message.date
-                ? new Date(Number(message.date) * 1000).toISOString()
-                : new Date().toISOString()
-            });
-
-            if (result.status === 'processed') {
-              console.log(
-                '[VK history] peer=' + peerId +
-                ' message=' + String(messageId ?? '') +
-                ' text=' + JSON.stringify(text) +
-                ' -> ' + JSON.stringify(result.rooms || [])
+              if (result.status === 'processed') {
+                console.log(
+                  '[VK history] peer=' + peerId +
+                  ' message=' + String(messageId) +
+                  ' text=' + JSON.stringify(text) +
+                  ' -> ' + JSON.stringify(result.rooms || [])
+                );
+              }
+            } catch (error) {
+              console.error(
+                '[VK history] processing failed for peer=' + peerId +
+                ' message=' + String(messageId) + ': ' + error.message
               );
+              break; // Retry this message on the next poll.
             }
-          } catch (error) {
-            console.error(
-              '[VK history] processing failed for peer=' + peerId +
-              ' message=' + String(messageId ?? '') + ': ' + error.message
-            );
           }
+
+          outgoingMessageCursors.set(String(peerId), messageId);
         }
       } catch (error) {
         console.error('[VK history] poll failed for peer=' + peerId + ': ' + error.message);
