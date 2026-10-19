@@ -673,9 +673,9 @@
         </div>
 
         <div class="camera-loader" id="cameraLoader">
-          <div class="loader-spinner" id="loaderSpinner"></div>
-          <div class="loader-title" id="loaderTitle">Запуск камеры…</div>
-          <div class="loader-subtitle" id="loaderSubtitle">Разреши доступ к камере, чтобы сделать снимок.</div>
+          <div class="loader-spinner hidden" id="loaderSpinner"></div>
+          <div class="loader-title" id="loaderTitle">Камера выключена</div>
+          <div class="loader-subtitle" id="loaderSubtitle">Нажмите кнопку фото, чтобы включить камеру и сделать снимок.</div>
           <button class="loader-retry hidden" id="loaderRetry" type="button">Повторить</button>
         </div>
       </div>
@@ -868,11 +868,38 @@ function updateOrientationFromSensor(beta, gamma) {
 }
 
 function getCaptureOrientationAngle() {
-  if (Date.now() - lastSensorOrientationAt < 2000) {
-    return normalizeAngle(currentDeviceAngle);
+  // Ask sensors first, but don't assume that they have produced a sample
+  // already. The first shutter press often arrives before the first sensor event.
+  const orientation = Date.now() - lastSensorOrientationAt < 2000
+    ? normalizeAngle(currentDeviceAngle)
+    : (() => {
+        updateOrientationFromScreen();
+        return normalizeAngle(currentDeviceAngle);
+      })();
+
+  const sourceWidth = video.videoWidth;
+  const sourceHeight = video.videoHeight;
+  if (!sourceWidth || !sourceHeight) {
+    // A camera sensor's native frame is normally landscape. In portrait UI,
+    // rotate it instead of trusting a possibly stale zero-degree reading.
+    const viewportIsPortrait = window.innerHeight >= window.innerWidth;
+    return viewportIsPortrait ? 90 : 0;
   }
-  updateOrientationFromScreen();
-  return normalizeAngle(currentDeviceAngle);
+
+  // The output should match the physical device orientation relative to the
+  // camera's native frame. A landscape source in portrait orientation needs
+  // a quarter-turn; in landscape orientation it normally needs no turn.
+  const sourceIsPortrait = sourceHeight > sourceWidth;
+  const deviceIsPortrait = orientation === 0 || orientation === 180;
+  if (sourceIsPortrait === deviceIsPortrait) {
+    if (orientation === 180 || orientation === 270) return 180;
+    return 0;
+  }
+
+  // Preserve the direction reported by the sensor for portrait/landscape
+  // transitions. Without a fresh directional sample, use a safe quarter-turn.
+  if (orientation === 90 || orientation === 270) return orientation;
+  return orientation === 180 ? 270 : 90;
 }
 
 function syncViewportAfterOrientationChange() {
@@ -968,6 +995,7 @@ let isCapturing = false;
 let isPreview = false;
 let isVKReady = false;
 let orientationPermissionAsked = false;
+let orientationPermissionPromise = null;
 const carouselItems = new Map();
 let activeCarouselItem = null;
 
@@ -1007,14 +1035,20 @@ function triggerHaptic() {
 }
 
 function ensureOrientationSensorPermission() {
-  if (orientationPermissionAsked) return;
-  orientationPermissionAsked = true;
+  if (orientationPermissionAsked) {
+    return orientationPermissionPromise || Promise.resolve();
+  }
 
-  try {
-    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-      DeviceOrientationEvent.requestPermission().catch(() => {});
+  orientationPermissionAsked = true;
+  orientationPermissionPromise = Promise.resolve().then(() => {
+    if (typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+      return DeviceOrientationEvent.requestPermission().catch(() => 'denied');
     }
-  } catch (_) {}
+    return 'granted';
+  }).catch(() => 'denied');
+
+  return orientationPermissionPromise;
 }
 
 function wait(ms) {
@@ -1029,6 +1063,38 @@ function waitForVideoFrame() {
       requestAnimationFrame(() => requestAnimationFrame(resolve));
     }
   });
+}
+
+async function waitForCameraReady(timeoutMs = 4500) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (video.videoWidth > 0 && video.videoHeight > 0 && video.readyState >= 2) {
+      await waitForVideoFrame();
+      return;
+    }
+    await wait(40);
+  }
+  throw new Error('Камера не успела подготовить изображение');
+}
+
+async function waitForOrientationToSettle() {
+  const sensorTimestampBeforeWait = lastSensorOrientationAt;
+  await (orientationPermissionPromise || Promise.resolve());
+
+  // Camera startup gives sensors time to wake. Wait briefly for a fresh sample
+  // after permission, but never let a missing sensor freeze the shutter.
+  const deadline = Date.now() + 420;
+  while (Date.now() < deadline) {
+    if (lastSensorOrientationAt > sensorTimestampBeforeWait) {
+      await wait(60);
+      return;
+    }
+    if (Date.now() - lastSensorOrientationAt < 900) {
+      await wait(80);
+      return;
+    }
+    await wait(40);
+  }
 }
 
 function detectTorchSupport() {
@@ -1094,6 +1160,7 @@ async function startCamera() {
   loaderSpinner.classList.remove('hidden');
   loaderRetry.classList.add('hidden');
   loaderTitle.textContent = 'Запуск камеры…';
+  loaderSubtitle.textContent = 'Подготавливаю камеру и ориентацию снимка…';
 
   await stopCamera();
 
@@ -1104,20 +1171,28 @@ async function startCamera() {
     });
 
     videoTrack = stream.getVideoTracks()[0] || null;
-    video.srcObject = stream;
+    if (!videoTrack) throw new Error('Камера не вернула видеопоток');
 
+    video.srcObject = stream;
     await video.play();
+    await waitForCameraReady();
     detectTorchSupport();
     syncLiveViewportAspect();
     video.classList.add('ready');
 
     cameraLoader.style.opacity = '0';
     setTimeout(() => cameraLoader.classList.add('hidden'), 200);
-  } catch (_) {
+    return true;
+  } catch (error) {
+    await stopCamera();
+    cameraLoader.classList.remove('hidden');
+    cameraLoader.style.opacity = '1';
     cameraLoader.classList.add('error');
     loaderSpinner.classList.add('hidden');
     loaderRetry.classList.remove('hidden');
     loaderTitle.textContent = 'Не удалось открыть камеру';
+    loaderSubtitle.textContent = 'Проверьте разрешение на камеру и повторите попытку.';
+    return false;
   }
 }
 
@@ -1208,28 +1283,31 @@ function showPreviewFromCanvas() {
   isPreview = true;
 }
 
+function showCameraStandby() {
+  cameraLoader.classList.remove('error', 'hidden');
+  cameraLoader.style.opacity = '1';
+  loaderSpinner.classList.add('hidden');
+  loaderRetry.classList.add('hidden');
+  loaderTitle.textContent = 'Камера выключена';
+  loaderSubtitle.textContent = 'Нажмите кнопку фото, чтобы включить камеру и сделать снимок.';
+}
+
 function resetPhoto() {
   isPreview = false;
   previewBlob = null;
   previewBlobPromise = null;
   previewRequestId = null;
+  void stopCamera();
+
   previewActions.classList.add('hidden');
   cameraActions.classList.remove('hidden');
   carouselWrap.classList.remove('disabled');
 
   photo.classList.add('hidden');
   video.classList.remove('hidden');
-  video.classList.add('ready');
-
-  // Всегда сбрасывать viewport в портретный формат
-  if (video.videoWidth && video.videoHeight) {
-    const w = video.videoWidth;
-    const h = video.videoHeight;
-    // Видео поток обычно ландшафтный — меняем местами для портрета
-    setViewportAspect(Math.min(w, h), Math.max(w, h));
-  }
-
-  try { video.play(); } catch (_) {}
+  video.classList.remove('ready');
+  setViewportAspect(0.75, 1);
+  showCameraStandby();
 }
 
 /* Carousel */
@@ -1586,43 +1664,58 @@ sheetContent.addEventListener('click', event => {
 
 /* Actions */
 async function takePhoto() {
-  if (isCapturing || isPreview || !videoTrack) return;
+  if (isCapturing || isPreview) return;
 
   isCapturing = true;
   setBusy(captureBtn, true);
   triggerHaptic();
 
   try {
-    const captureAngle = getCaptureOrientationAngle();
-    const torchAlreadyOn = torchArmed;
+    await ensureOrientationSensorPermission();
 
-    if (torchSupported) await armTorch();
-    // Дать камере время на фокусировку и адаптацию к вспышке
-    if (torchArmed) {
-      await waitForVideoFrame();
-      await wait(400);
-    } else if (torchAlreadyOn) {
-      await waitForVideoFrame();
+    // Opening a stream only when requested avoids keeping the camera, sensor
+    // pipeline and torch awake while the user is reviewing/sending images.
+    if (!videoTrack) {
+      const started = await startCamera();
+      if (!started || !videoTrack) throw new Error('Не удалось открыть камеру');
     }
 
+    await waitForCameraReady();
+    await waitForOrientationToSettle();
+
+    if (torchSupported) await armTorch();
+    // Give autofocus and, when available, the torch a brief moment to settle.
+    if (torchArmed) {
+      await waitForVideoFrame();
+      await wait(350);
+    } else {
+      await waitForVideoFrame();
+      await wait(100);
+    }
+
+    const captureAngle = getCaptureOrientationAngle();
     drawRotatedVideoToCanvas(captureAngle);
     showPreviewFromCanvas();
     previewRequestId = String(Math.floor(Math.random() * 2147483647) + 1);
     encodePreviewBlob();
-  } catch (_) {
-    showMessage('Ошибка при снимке');
+  } catch (error) {
+    console.warn('[MINIBAR CAMERA] Capture failed:', error);
+    showMessage(error?.message || 'Не удалось сделать снимок', 3500);
   } finally {
+    try {
+      if (videoTrack && torchSupported) await setTorch(false);
+    } catch (_) {}
+    await stopCamera();
     isCapturing = false;
     setBusy(captureBtn, false);
     torchArmed = false;
     torchPromise = null;
-    setTorch(false);
+    if (!isPreview && !cameraLoader.classList.contains('error')) showCameraStandby();
   }
 }
 
 captureBtn.addEventListener('pointerdown', () => {
-  ensureOrientationSensorPermission();
-  armTorch();
+  void ensureOrientationSensorPermission();
 }, { passive: true });
 
 captureBtn.addEventListener('pointercancel', disarmTorch);
@@ -1972,27 +2065,19 @@ btnSend.addEventListener('click', async () => {
 });
 
 btnEmpty.addEventListener('click', async () => {
-  // Диагностика на экране: не меняет очередь и не отправляет дополнительных сообщений.
-  if (btnEmpty.classList.contains('busy')) {
-    showMessage('Диагностика: кнопка уже занята предыдущим запросом', 12000);
-    return;
-  }
+  if (btnEmpty.classList.contains('busy')) return;
+
   if (!selectedRoom?.number) {
-    showMessage('Диагностика: кнопка нажата, но номер не выбран', 12000);
-    console.warn('[MINIBAR DIAG] Опустошён: selectedRoom отсутствует');
+    showMessage('Сначала выберите номер');
     return;
   }
 
   const roomNumber = String(selectedRoom.number);
   const requestMessage = roomNumber + ' опустошён';
-  console.info('[MINIBAR DIAG] Нажата кнопка Опустошён', { roomNumber });
   setBusy(btnEmpty, true);
-  showMessage('Диагностика 1/3: кнопка нажата, номер ' + roomNumber, 15000);
 
   try {
     triggerHaptic();
-    showMessage('Диагностика 2/3: отправляю запрос для номера ' + roomNumber + '…', 15000);
-
     const response = await fetch('/minibar-os/vk-proxy/send-message', {
       method: 'POST',
       headers: {
@@ -2002,40 +2087,21 @@ btnEmpty.addEventListener('click', async () => {
       body: JSON.stringify({ message: requestMessage })
     });
 
-    const responseText = await response.text();
-    let data = null;
-    try { data = JSON.parse(responseText); } catch (_) {}
-
-    console.info('[MINIBAR DIAG] Ответ send-message', {
-      roomNumber,
-      httpStatus: response.status,
-      response: data || responseText
-    });
-
+    const data = await response.json().catch(() => ({}));
     if (!response.ok || !data?.ok) {
-      const detail = data?.error || responseText || 'пустой ответ сервера';
-      throw new Error('HTTP ' + response.status + ': ' + detail);
+      throw new Error(data?.error || 'Не удалось отправить сообщение в беседу');
     }
 
-    // This button is intentionally message-only: it does not alter the queue
-    // or mark the room as checked/completed in the database.
-    if (data?.site_synced === false) {
-      showMessage('Диагностика: VK принял сообщение для ' + roomNumber +
-        ', но сайт не обновился: ' + (data.site_sync_error || 'ошибка синхронизации'), 12000);
-    } else {
-      showMessage('Диагностика OK: HTTP ' + response.status + '; номер ' + roomNumber +
-        '; VK message_id=' + (data.message_id ?? 'нет'), 12000);
-    }
+    showMessage('Сообщение по номеру ' + roomNumber + ' отправлено', 2200);
   } catch (error) {
-    console.error('[MINIBAR DIAG] Ошибка send-message', error);
-    showMessage('Диагностика: ошибка для номера ' + roomNumber + ': ' +
-      (error.message || error), 15000);
+    console.error('[MINIBAR] Не удалось отправить сообщение об опустошении:', error);
+    showMessage(error?.message || 'Не удалось отправить сообщение', 4000);
   } finally {
     setBusy(btnEmpty, false);
   }
 });
 
-loaderRetry.addEventListener('click', startCamera);
+loaderRetry.addEventListener('click', () => { void takePhoto(); });
 
 void restorePhotoUploadQueue();
 
@@ -2052,8 +2118,8 @@ void restorePhotoUploadQueue();
     return;
   }
 
+  showCameraStandby();
   await initVK();
-  await startCamera();
 })();
 </script>
 </body>
