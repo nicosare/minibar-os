@@ -1234,34 +1234,7 @@ function drawRotatedVideoToCanvas(angle = getCaptureOrientationAngle()) {
   drawSourceToCanvas(video, video.videoWidth, video.videoHeight, angle);
 }
 
-/* Native still capture is the preferred path. Decode the JPEG with its EXIF
-   orientation applied, then preserve those pixels exactly: do not infer a
-   rotation from width/height or rotate the image a second time. The aspect
-   ratio of this decoded bitmap determines the preview frame. Older WebViews
-   fall back to a video frame rotated from the physical-device sensor angle. */
-async function captureStillPhotoToCanvas() {
-  if (typeof window.ImageCapture !== 'function' ||
-      typeof window.createImageBitmap !== 'function' ||
-      !videoTrack) {
-    return false;
-  }
-
-  let bitmap = null;
-  try {
-    const capture = new window.ImageCapture(videoTrack);
-    const photoBlob = await capture.takePhoto();
-    if (!photoBlob || !photoBlob.size) throw new Error('Камера вернула пустое фото');
-
-    bitmap = await window.createImageBitmap(photoBlob, { imageOrientation: 'from-image' });
-    drawSourceToCanvas(bitmap, bitmap.width, bitmap.height, 0);
-    return true;
-  } catch (error) {
-    console.warn('[MINIBAR CAMERA] Native photo capture unavailable; using video frame:', error);
-    return false;
-  } finally {
-    if (bitmap && typeof bitmap.close === 'function') bitmap.close();
-  }
-}
+/* Capture the live camera frame and apply the physical-device orientation once. */
 
 function encodePreviewBlob() {
   previewBlob = null;
@@ -1303,7 +1276,10 @@ function encodePreviewBlob() {
 
 function showPreviewFromCanvas() {
   if (canvas.width && canvas.height) {
-    setViewportAspect(canvas.width, canvas.height);
+    // The preview frame is always a native photo ratio: 4:3 landscape or 3:4 portrait.
+    // Keep the full canvas visible via object-fit: contain; never crop or stretch it.
+    const isLandscapePhoto = canvas.width > canvas.height;
+    setViewportAspect(isLandscapePhoto ? 4 : 3, isLandscapePhoto ? 3 : 4);
   }
 
   video.classList.remove('ready');
@@ -1731,12 +1707,13 @@ async function takePhoto() {
       await wait(180);
     }
 
-    const nativeCaptureSucceeded = await captureStillPhotoToCanvas();
-    if (!nativeCaptureSucceeded) {
-      drawRotatedVideoToCanvas(
-        getCaptureOrientationAngle(video.videoWidth, video.videoHeight)
-      );
-    }
+    // Use the same video stream that drives the viewfinder. The native
+    // ImageCapture path can return JPEGs with device-specific EXIF orientation;
+    // rotating the live frame from sensor data keeps portrait/landscape behavior
+    // consistent and avoids a second, conflicting orientation correction.
+    drawRotatedVideoToCanvas(
+      getCaptureOrientationAngle(video.videoWidth, video.videoHeight)
+    );
     showPreviewFromCanvas();
     previewRequestId = String(Math.floor(Math.random() * 2147483647) + 1);
     encodePreviewBlob();
