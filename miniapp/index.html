@@ -830,15 +830,82 @@ async function completeRoom(action) {
   updateQueueDisplay();
 }
 
-/* Normalize all photos to the Mini App's fixed portrait coordinate space.
-   For native JPEGs, EXIF is removed before decoding. That means this function
-   applies one transform to encoded pixels, not a second turn on top of EXIF. */
+/* Track the direction of gravity in the phone's screen plane. Unlike gamma
+   alone, beta + gamma also distinguish upside-down portrait and avoid changing
+   orientation while the device is held diagonally or nearly flat. */
+let currentDeviceAngle = 0;
+let lastSensorOrientationAt = 0;
+let hasSensorOrientation = false;
+
+function normalizeAngle(angle) {
+  return ((Number(angle) % 360) + 360) % 360;
+}
+
+function updateOrientationFromScreen() {
+  if (hasSensorOrientation) return;
+
+  let angle = null;
+  if (window.screen?.orientation &&
+      typeof window.screen.orientation.angle === 'number') {
+    angle = normalizeAngle(window.screen.orientation.angle);
+  } else if (typeof window.orientation === 'number') {
+    angle = normalizeAngle(window.orientation);
+  } else if (window.innerWidth > window.innerHeight) {
+    angle = 90;
+  }
+
+  if (angle !== null && [0, 90, 180, 270].includes(angle)) {
+    currentDeviceAngle = angle;
+  }
+}
+
+function updateOrientationFromSensor(beta, gamma) {
+  if (!Number.isFinite(beta) || !Number.isFinite(gamma)) return;
+
+  // The sine of beta/gamma approximates gravity projected onto the phone's
+  // vertical/horizontal axes. Ignore weak or diagonal projections instead of
+  // oscillating between orientations while the phone is being moved.
+  const betaProjection = Math.sin(beta * Math.PI / 180);
+  const gammaProjection = Math.sin(gamma * Math.PI / 180);
+  const absBeta = Math.abs(betaProjection);
+  const absGamma = Math.abs(gammaProjection);
+
+  if (Math.max(absBeta, absGamma) < 0.62) return;
+
+  let nextAngle = null;
+  if (absBeta > absGamma * 1.25) {
+    nextAngle = betaProjection >= 0 ? 0 : 180;
+  } else if (absGamma > absBeta * 1.25) {
+    nextAngle = gammaProjection > 0 ? 90 : 270;
+  }
+
+  if (nextAngle === null) return;
+  currentDeviceAngle = nextAngle;
+  hasSensorOrientation = true;
+  lastSensorOrientationAt = Date.now();
+}
+
+function getPhysicalDeviceAngle() {
+  if (hasSensorOrientation) return currentDeviceAngle;
+  updateOrientationFromScreen();
+  return currentDeviceAngle;
+}
+
 function getCaptureOrientationAngle(sourceWidth = video.videoWidth, sourceHeight = video.videoHeight) {
-  if (!sourceWidth || !sourceHeight) return 90;
-  return sourceWidth > sourceHeight ? 90 : 0;
+  const deviceAngle = getPhysicalDeviceAngle();
+
+  // The native JPEG's EXIF was removed before decoding, so its pixel axes have
+  // not already been rotated by the browser. Keep every output frame portrait:
+  // the sensor decides only which quarter-turn places the lower edge correctly.
+  if (sourceWidth > sourceHeight) {
+    return deviceAngle === 180 || deviceAngle === 270 ? 270 : 90;
+  }
+  if (deviceAngle === 180 || deviceAngle === 270) return 180;
+  return 0;
 }
 
 function syncViewportAfterOrientationChange() {
+  updateOrientationFromScreen();
   if (!isPreview) syncLiveViewportAspect();
 }
 
@@ -846,6 +913,12 @@ window.addEventListener('orientationchange', syncViewportAfterOrientationChange)
 if (window.screen && window.screen.orientation) {
   window.screen.orientation.addEventListener('change', syncViewportAfterOrientationChange);
 }
+if (window.DeviceOrientationEvent) {
+  window.addEventListener('deviceorientation', event => {
+    updateOrientationFromSensor(event.beta, event.gamma);
+  }, true);
+}
+updateOrientationFromScreen();
 
 /* Elements */
 const video = document.getElementById('camera');
@@ -910,6 +983,8 @@ let photoQueueStatusTimer = null;
 let isCapturing = false;
 let isPreview = false;
 let isVKReady = false;
+let orientationPermissionAsked = false;
+let orientationPermissionPromise = null;
 const carouselItems = new Map();
 let activeCarouselItem = null;
 
@@ -948,6 +1023,27 @@ function triggerHaptic() {
   } catch (_) {}
 }
 
+function ensureOrientationSensorPermission() {
+  if (orientationPermissionAsked) {
+    return orientationPermissionPromise || Promise.resolve('denied');
+  }
+
+  orientationPermissionAsked = true;
+  try {
+    if (typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+      orientationPermissionPromise = DeviceOrientationEvent.requestPermission()
+        .catch(() => 'denied');
+    } else {
+      orientationPermissionPromise = Promise.resolve('granted');
+    }
+  } catch (_) {
+    orientationPermissionPromise = Promise.resolve('denied');
+  }
+
+  return orientationPermissionPromise;
+}
+
 function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -972,6 +1068,24 @@ async function waitForCameraReady(timeoutMs = 4500) {
     await wait(40);
   }
   throw new Error('Камера не успела подготовить изображение');
+}
+
+async function waitForOrientationToSettle() {
+  const sensorTimestampBeforeWait = lastSensorOrientationAt;
+  await (orientationPermissionPromise || Promise.resolve());
+
+  const deadline = Date.now() + 420;
+  while (Date.now() < deadline) {
+    if (lastSensorOrientationAt > sensorTimestampBeforeWait) {
+      await wait(60);
+      return;
+    }
+    if (Date.now() - lastSensorOrientationAt < 900) {
+      await wait(80);
+      return;
+    }
+    await wait(40);
+  }
 }
 
 function detectTorchSupport() {
@@ -1660,6 +1774,8 @@ async function takePhoto() {
   triggerHaptic();
 
   try {
+    await ensureOrientationSensorPermission();
+
     // Opening a stream only when requested avoids keeping the camera, sensor
     // pipeline and torch awake while the user is reviewing/sending images.
     if (!videoTrack) {
@@ -1672,6 +1788,8 @@ async function takePhoto() {
     // The live view is now visible. Add a short composition pause so the user
     // can move the phone into the intended portrait/landscape angle.
     await wait(450);
+    await waitForOrientationToSettle();
+
     if (torchSupported) await armTorch();
     // Give autofocus and the torch time to settle before the exposure.
     if (torchArmed) {
@@ -1709,6 +1827,9 @@ async function takePhoto() {
   }
 }
 
+captureBtn.addEventListener('pointerdown', () => {
+  void ensureOrientationSensorPermission();
+}, { passive: true });
 captureBtn.addEventListener('pointercancel', disarmTorch);
 captureBtn.addEventListener('click', takePhoto);
 btnRetake.addEventListener('click', () => { resetPhoto(); triggerHaptic(); });
