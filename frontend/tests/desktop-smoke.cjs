@@ -339,39 +339,37 @@ let savedDeparturesPrint = null;
       nodes.map(icon => ({ name: icon.getAttribute('data-page-icon'), color: getComputedStyle(icon).color })));
     assert.ok(titleIconColors.length === expectedPageIcons.length && titleIconColors.every(icon => icon.color === 'rgb(15, 23, 42)'),
       'all page title icons should use the same neutral black color, diagnostics=' + JSON.stringify(titleIconColors));
-    // Wait for the app's normal icon initialization rather than running Lucide
-    // a second time, which can replace already styled SVG elements mid-test.
-    await page.waitForFunction(expectedCount => {
-      const icons = [...document.querySelectorAll('.page-title-icon')];
-      return icons.length === expectedCount &&
-        icons.every(icon => icon.tagName.toLowerCase() === 'svg');
-    }, expectedPageIcons.length, { timeout: 10000 });
-    await page.waitForFunction(() => {
+    // Render all route icons once so hidden tabs are also covered by the smoke test.
+    await page.evaluate(() => window.lucide?.createIcons());
+    // Wait for and capture computed styles in the same browser evaluation.
+    // The separate evaluate used previously could observe an icon during an
+    // asynchronous DOM replacement, producing empty computed values.
+    const titleIconStyle = await page.waitForFunction(() => {
       const icon = document.querySelector('#view-excise .page-title-icon');
       if (!icon || icon.tagName.toLowerCase() !== 'svg') return false;
       const style = getComputedStyle(icon);
-      return style.width === '28px' && style.height === '28px' &&
-        Number.parseFloat(style.strokeWidth) === 2.75 && style.color === 'rgb(15, 23, 42)';
-    }, null, { timeout: 10000 });
-    const titleIconStyle = await page.locator('#view-excise .page-title-icon').evaluate(icon => ({
-      width: getComputedStyle(icon).width,
-      height: getComputedStyle(icon).height,
-      strokeWidth: Number.parseFloat(getComputedStyle(icon).strokeWidth),
-      color: getComputedStyle(icon).color
-    }));
+      const actual = {
+        width: style.width,
+        height: style.height,
+        strokeWidth: Number.parseFloat(style.strokeWidth),
+        color: style.color
+      };
+      return actual.width === '28px' && actual.height === '28px' &&
+        actual.strokeWidth === 2.75 && actual.color === 'rgb(15, 23, 42)'
+        ? actual
+        : false;
+    }, null, { timeout: 10000 }).then(handle => handle.jsonValue());
     assert.deepEqual(titleIconStyle, { width: '28px', height: '28px', strokeWidth: 2.75, color: 'rgb(15, 23, 42)' },
-      'page title icons should be larger, bold, and neutral black; svg=' +
-      await page.locator('#view-excise .page-title-icon').evaluate(icon => icon.outerHTML));
-    await page.waitForFunction(() => {
+      'page title icons should be larger, bold, and neutral black');
+
+    const calculatorIconStyle = await page.waitForFunction(() => {
       const icon = document.querySelector('#view-calculator .page-title-icon');
       if (!icon || icon.tagName.toLowerCase() !== 'svg') return false;
       const style = getComputedStyle(icon);
-      return style.width === '20px' && style.height === '20px';
-    }, null, { timeout: 10000 });
-    const calculatorIconStyle = await page.locator('#view-calculator .page-title-icon').evaluate(icon => ({
-      width: getComputedStyle(icon).width,
-      height: getComputedStyle(icon).height
-    }));
+      return style.width === '20px' && style.height === '20px'
+        ? { width: style.width, height: style.height }
+        : false;
+    }, null, { timeout: 10000 }).then(handle => handle.jsonValue());
     assert.deepEqual(calculatorIconStyle, { width: '20px', height: '20px' },
       'calculator title icon should remain smaller than other page icons');
     const gihTitleTypography = await page.evaluate(() => {
