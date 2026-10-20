@@ -126,6 +126,145 @@ async function updateSession(req, updater) {
   });
 }
 
+
+const MINIAPP_WORKLIST_KEY = 'miniapp-departures-worklist-v1';
+
+function blankMiniAppWorklist(dateKey) {
+  return { dateKey, overrides: {}, arrivalRooms: [] };
+}
+
+function parseMiniAppWorklist(value, dateKey) {
+  let parsed = null;
+  try {
+    parsed = typeof value === 'string' ? JSON.parse(value) : value;
+  } catch (_) {
+    parsed = null;
+  }
+  if (!parsed || parsed.dateKey !== dateKey) return blankMiniAppWorklist(dateKey);
+
+  const overrides = {};
+  if (parsed.overrides && typeof parsed.overrides === 'object' && !Array.isArray(parsed.overrides)) {
+    for (const [rawNumber, override] of Object.entries(parsed.overrides)) {
+      const number = String(Number(rawNumber));
+      if (/^\d{1,4}$/.test(rawNumber) && (override === 'include' || override === 'exclude')) {
+        overrides[number] = override;
+      }
+    }
+  }
+
+  const arrivalRooms = Array.isArray(parsed.arrivalRooms)
+    ? [...new Set(parsed.arrivalRooms.map(value => String(Number(value)))
+      .filter(number => /^\d{1,4}$/.test(number)))]
+    : [];
+
+  return { dateKey, overrides, arrivalRooms };
+}
+
+async function readMiniAppWorklist(db, dateKey) {
+  const row = await db.setting.findUnique({ where: { key: MINIAPP_WORKLIST_KEY } });
+  const worklist = parseMiniAppWorklist(row?.value, dateKey);
+  const storedValue = JSON.stringify(worklist);
+  if (!row || row.value !== storedValue) {
+    await db.setting.upsert({
+      where: { key: MINIAPP_WORKLIST_KEY },
+      create: { key: MINIAPP_WORKLIST_KEY, value: storedValue },
+      update: { value: storedValue }
+    });
+  }
+  return worklist;
+}
+
+async function updateMiniAppWorklist(req, updater) {
+  const { dateKey } = todayRange(req);
+  return prisma.$transaction(async tx => {
+    const current = await readMiniAppWorklist(tx, dateKey);
+    const next = updater(current);
+    const normalized = parseMiniAppWorklist(next, dateKey);
+    await tx.setting.upsert({
+      where: { key: MINIAPP_WORKLIST_KEY },
+      create: { key: MINIAPP_WORKLIST_KEY, value: JSON.stringify(normalized) },
+      update: { value: JSON.stringify(normalized) }
+    });
+    return normalized;
+  });
+}
+
+function assignedDepartureNumbers(session, worklist, roomByNumber) {
+  const assigned = new Set();
+  for (const rawNumber of session.pdfRooms || []) {
+    const number = String(Number(rawNumber));
+    if (roomByNumber.has(number) && worklist.overrides[number] !== 'exclude') {
+      assigned.add(number);
+    }
+  }
+  for (const [number, override] of Object.entries(worklist.overrides)) {
+    if (override === 'include' && roomByNumber.has(number)) assigned.add(number);
+    if (override === 'exclude') assigned.delete(number);
+  }
+  return assigned;
+}
+
+async function getMiniAppDepartureList(req) {
+  const range = todayRange(req);
+  const [rooms, checks, session, worklist] = await Promise.all([
+    prisma.room.findMany({
+      select: { id: true, number: true, floor: true, expiryStatus: true },
+      orderBy: [{ floor: 'asc' }, { number: 'asc' }]
+    }),
+    prisma.check.findMany({
+      where: {
+        checkDate: { gte: range.start, lt: range.end },
+        type: { in: VERIFIED_TYPES },
+        status: 'done',
+        roomId: { not: null }
+      },
+      select: { checkDate: true, room: { select: { number: true } } },
+      orderBy: [{ checkDate: 'desc' }, { id: 'desc' }]
+    }),
+    readSession(prisma, range.dateKey),
+    readMiniAppWorklist(prisma, range.dateKey)
+  ]);
+
+  const roomByNumber = new Map(rooms.map(room => [String(room.number), room]));
+  const checkedToday = [];
+  const checkedSet = new Set();
+  for (const check of checks) {
+    if (!check.room) continue;
+    const number = String(check.room.number);
+    if (checkedSet.has(number)) continue;
+    checkedSet.add(number);
+    checkedToday.push({
+      number,
+      checkedAt: check.checkDate,
+      emptied: roomByNumber.get(number)?.expiryStatus === 'empty'
+    });
+  }
+
+  const assigned = assignedDepartureNumbers(session, worklist, roomByNumber);
+  const roomNumbers = [...assigned]
+    .filter(number => !checkedSet.has(number))
+    .sort((a, b) => {
+      const roomA = roomByNumber.get(a);
+      const roomB = roomByNumber.get(b);
+      return Number(roomA?.floor) - Number(roomB?.floor) || Number(a) - Number(b);
+    });
+
+  return {
+    dateKey: range.dateKey,
+    name: 'Выезды',
+    fileName: session.fileName,
+    sourceReady: Boolean(session.fileName && session.pdfRooms.length),
+    sourceCount: session.pdfRooms.filter(number => roomByNumber.has(String(Number(number)))).length,
+    assignedCount: assigned.size,
+    completedCount: [...assigned].filter(number => checkedSet.has(number)).length,
+    remainingCount: roomNumbers.length,
+    roomNumbers,
+    checkedToday,
+    arrivalRooms: worklist.arrivalRooms.filter(number => roomNumbers.includes(number)),
+    overrides: worklist.overrides
+  };
+}
+
 router.get('/', async (req, res) => {
   try {
     const range = todayRange(req);
@@ -254,6 +393,92 @@ router.patch('/session/mark', async (req, res) => {
 
 
 
+
+router.get('/miniapp-list', async (req, res) => {
+  try {
+    const list = await getMiniAppDepartureList(req);
+    res.set('Cache-Control', 'no-store');
+    res.json(list);
+  } catch (error) {
+    console.error('GET /api/departures/miniapp-list error:', error);
+    res.status(500).json({ error: error.message || 'Не удалось загрузить список Выезды для Mini App' });
+  }
+});
+
+router.patch('/miniapp-list/room', async (req, res) => {
+  try {
+    const rawNumber = String(req.body?.number ?? '').trim();
+    const number = String(Number(rawNumber));
+    const action = String(req.body?.action || '').trim();
+    if (!/^\d{1,4}$/.test(rawNumber) || !['add', 'remove', 'arrival'].includes(action)) {
+      return res.status(400).json({ error: 'Некорректный номер или действие' });
+    }
+    if (action === 'arrival' && typeof req.body?.enabled !== 'boolean') {
+      return res.status(400).json({ error: 'Для отметки «На заезд» укажите enabled: true или false' });
+    }
+
+    const room = await prisma.room.findUnique({
+      where: { number: Number(number) },
+      select: { id: true, number: true }
+    });
+    if (!room) return res.status(404).json({ error: 'Такого номера нет в системе' });
+
+    const range = todayRange(req);
+    const [session, currentWorklist, checkedRecords] = await Promise.all([
+      readSession(prisma, range.dateKey),
+      readMiniAppWorklist(prisma, range.dateKey),
+      prisma.check.findMany({
+        where: {
+          checkDate: { gte: range.start, lt: range.end },
+          type: { in: VERIFIED_TYPES },
+          status: 'done',
+          roomId: room.id
+        },
+        select: { id: true },
+        take: 1
+      })
+    ]);
+    const roomMap = new Map([[number, room]]);
+    const assigned = assignedDepartureNumbers(session, currentWorklist, roomMap);
+    const checked = checkedRecords.length > 0;
+
+    if (action === 'add' && checked) {
+      return res.status(409).json({ error: 'Номер уже проверен сегодня и не может вернуться в список' });
+    }
+    if (action !== 'add' && !assigned.has(number)) {
+      return res.status(409).json({ error: 'Номер больше не входит в активный список Выезды' });
+    }
+    if (action === 'arrival' && checked) {
+      return res.status(409).json({ error: 'Уже проверенный сегодня номер нельзя отметить как «На заезд» в текущем списке' });
+    }
+
+    await updateMiniAppWorklist(req, current => {
+      const overrides = { ...current.overrides };
+      const arrivalRooms = new Set(current.arrivalRooms);
+
+      if (action === 'add') {
+        overrides[number] = 'include';
+      } else if (action === 'remove') {
+        overrides[number] = 'exclude';
+        arrivalRooms.delete(number);
+      } else if (req.body.enabled) {
+        arrivalRooms.add(number);
+      } else {
+        arrivalRooms.delete(number);
+      }
+
+      return { ...current, overrides, arrivalRooms: [...arrivalRooms] };
+    });
+
+    const list = await getMiniAppDepartureList(req);
+    res.set('Cache-Control', 'no-store');
+    res.json({ ok: true, list });
+  } catch (error) {
+    const status = error.statusCode || 500;
+    if (status >= 500) console.error('PATCH /api/departures/miniapp-list/room error:', error);
+    res.status(status).json({ error: error.message || 'Не удалось изменить список Выезды' });
+  }
+});
 
 router.post('/print', async (req, res) => {
   try {
