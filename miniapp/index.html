@@ -3167,7 +3167,7 @@ async function copyToolText(text) {
 }
 async function copyToolCalculatorBill() {
   const entries = getToolCalcEntries();
-  if (!entries.length) { showToolFeedback(toolCalculatorFeedback, 'Счёт пуст', 'error', 'calculator'); return; }
+  if (!entries.length) return;
   const total = entries.reduce(function (sum, entry) { return sum + entry.subtotal; }, 0);
   const lines = ['Счёт на ' + toolFormatMoney(total)];
   entries.forEach(function (entry) { lines.push(entry.product.name + ' х ' + entry.qty); });
