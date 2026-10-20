@@ -691,9 +691,16 @@
   .bottom-nav-item:active,.bottom-nav-item:focus-visible{outline:none;border-color:rgba(255,204,0,.4);background:rgba(255,204,0,.1);color:var(--yellow)}
   .nav-placeholder-body{min-height:150px;display:flex;align-items:center;justify-content:center;padding:24px;color:rgba(255,255,255,.42);font-size:12px;text-align:center}
 
-  .tool-modal-card{width:100%;max-width:560px}
+  .tool-modal-card{width:100%;max-width:560px;display:flex;flex-direction:column;overflow:hidden}
   .tool-modal-body{flex:1 1 auto;min-height:90px;max-height:calc(88dvh - 66px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
   .tool-modal-body [hidden]{display:none!important}
+  .tool-excise-card{max-height:min(88dvh,760px)}
+  .tool-excise-list-body{padding:0 15px 12px}
+  .tool-excise-footer{flex:0 0 auto;padding:10px 15px calc(12px + env(safe-area-inset-bottom));border-top:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.025)}
+  .tool-excise-footer .tool-card{padding:0;border:0;background:transparent}
+  .tool-excise-footer .tool-field-label{display:none}
+  .tool-excise-footer .tool-actions{margin:8px 0 0}
+  .tool-excise-title-count{font-size:10px;font-weight:750;color:rgba(255,255,255,.48);white-space:nowrap}
   .tool-calc-minus{flex:0 0 auto;width:27px;height:27px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,204,0,.3);border-radius:8px;background:rgba(255,204,0,.07);color:var(--yellow);font-size:18px;font-weight:800;line-height:1}
   .tool-calc-minus:disabled,.tool-calc-minus[aria-disabled="true"]{opacity:.28}
   .tool-calculator-card{max-height:min(88dvh,760px)}
@@ -736,6 +743,8 @@
   .tool-calc-bill{margin-top:0;padding:10px 15px calc(12px + env(safe-area-inset-bottom))}
   .tool-bill-heading{display:flex;align-items:center;gap:8px}
   .tool-bill-heading strong{font-size:13px;font-weight:900}
+  .tool-bill-toggle{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:28px;height:28px;padding:0;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:rgba(255,255,255,.045);color:rgba(255,255,255,.8);font-size:16px;line-height:1}
+  .tool-bill-toggle[aria-expanded="true"]{color:var(--yellow);border-color:rgba(255,204,0,.35)}
   .tool-bill-count{margin-left:auto;color:rgba(255,255,255,.44);font-size:10px;font-weight:700}
   .tool-bill-actions{display:flex;gap:6px;margin-top:10px}
   .tool-bill-actions .tool-btn{flex:1;min-width:0}
@@ -1284,25 +1293,22 @@
 </nav>
 
 <div class="deadline-modal hidden tool-modal" id="exciseScreen" role="dialog" aria-modal="true" aria-labelledby="exciseScreenTitle" aria-hidden="true">
-  <div class="deadline-modal-card tool-modal-card">
+  <div class="deadline-modal-card tool-modal-card tool-excise-card">
     <div class="deadline-modal-header">
-      <div class="deadline-modal-room" id="exciseScreenTitle">Акцизы</div>
+      <div class="deadline-modal-room" id="exciseScreenTitle">Акцизы <span class="tool-excise-title-count" id="toolExciseTitleCount">(0 / 0)</span></div>
       <button class="deadline-modal-close" id="exciseScreenClose" type="button" aria-label="Закрыть акцизы">×</button>
     </div>
-    <div class="deadline-modal-products tool-modal-body" id="exciseScreenContent">
-      <div class="tool-stats-grid">
-        <div class="tool-stat-card"><div class="tool-stat-label">Всего</div><div class="tool-stat-value" id="toolExciseTotal">0</div><div class="tool-stat-detail">марок</div></div>
-        <div class="tool-stat-card"><div class="tool-stat-label">Валидные</div><div class="tool-stat-value" id="toolExciseValid">0</div><div class="tool-stat-detail" id="toolExciseValidPct">0%</div></div>
-        <div class="tool-stat-card"><div class="tool-stat-label">Невалидные</div><div class="tool-stat-value" id="toolExciseInvalid">0</div><div class="tool-stat-detail" id="toolExciseInvalidPct">0%</div></div>
-      </div>
-      <section class="tool-card" style="padding:12px">
+    <div class="deadline-modal-products tool-modal-body tool-excise-list-body" id="exciseScreenContent">
+      <div class="tool-list-heading"><strong>Список акцизов</strong><span class="tool-list-count" id="toolExciseListCount">0 марок</span></div>
+      <div class="tool-excise-list" id="toolExciseList"><div class="tool-empty-state">Загрузка акцизов…</div></div>
+    </div>
+    <div class="tool-excise-footer">
+      <section class="tool-card">
         <label class="tool-field-label" for="toolExciseInput">Акцизная марка</label>
-        <div class="tool-input-row"><input class="tool-input" id="toolExciseInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Введите или отсканируйте марку"><button class="tool-btn tool-btn-primary" id="toolExciseAdd" type="button">Добавить</button></div>
+        <div class="tool-input-row"><input class="tool-input" id="toolExciseInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Введите или отсканируйте марку"></div>
       </section>
       <div id="toolExciseFeedback" class="tool-feedback" hidden></div>
       <div class="tool-actions"><button class="tool-btn tool-btn-primary" id="toolExciseDownload" type="button">↓ Скачать Excel</button><button class="tool-btn tool-btn-danger" id="toolExciseClear" type="button">Очистить все</button></div>
-      <div class="tool-list-heading"><strong>Список акцизов</strong><span class="tool-list-count" id="toolExciseListCount">0 марок</span></div>
-      <div class="tool-excise-list" id="toolExciseList"><div class="tool-empty-state">Загрузка акцизов…</div></div>
     </div>
   </div>
 </div>
@@ -1315,10 +1321,10 @@
     </div>
     <div class="deadline-modal-products tool-modal-body tool-calculator-products" id="toolCalculatorProducts"><div class="tool-empty-state">Загрузка продуктов…</div></div>
     <section class="tool-calc-bill" id="toolCalculatorBill">
-      <div class="tool-bill-heading"><strong>Счёт</strong><span class="tool-bill-count" id="toolCalculatorCount">0 позиций</span></div>
-      <div class="tool-bill-actions"><button class="tool-btn" id="toolCalculatorCopy" type="button">Копировать</button><button class="tool-btn tool-btn-danger" id="toolCalculatorClear" type="button">Очистить</button></div>
-      <div class="tool-bill-empty" id="toolCalculatorEmpty">Счёт пуст</div>
+      <div class="tool-bill-heading"><strong>Счёт</strong><button class="tool-bill-toggle" id="toolCalculatorToggle" type="button" aria-label="Развернуть список продукции в счёте" aria-expanded="false">⌄</button><span class="tool-bill-count" id="toolCalculatorCount">0 позиций</span></div>
       <div class="tool-bill-rows hidden" id="toolCalculatorRows"></div>
+      <div class="tool-bill-empty" id="toolCalculatorEmpty">Счёт пуст</div>
+      <div class="tool-bill-actions"><button class="tool-btn" id="toolCalculatorCopy" type="button">Копировать</button><button class="tool-btn tool-btn-danger" id="toolCalculatorClear" type="button">Очистить</button></div>
       <div class="tool-bill-total"><span>Итого</span><strong id="toolCalculatorTotal">0 ₽</strong></div>
     </section>
     <div id="toolCalculatorFeedback" class="tool-feedback tool-calculator-feedback" hidden></div>
@@ -1688,11 +1694,11 @@ const navPlaceholderClose = document.getElementById('navPlaceholderClose');
 const exciseScreen = document.getElementById('exciseScreen');
 const exciseScreenClose = document.getElementById('exciseScreenClose');
 const toolExciseInput = document.getElementById('toolExciseInput');
-const toolExciseAdd = document.getElementById('toolExciseAdd');
 const toolExciseDownload = document.getElementById('toolExciseDownload');
 const toolExciseClear = document.getElementById('toolExciseClear');
 const toolExciseList = document.getElementById('toolExciseList');
 const toolExciseListCount = document.getElementById('toolExciseListCount');
+const toolExciseTitleCount = document.getElementById('toolExciseTitleCount');
 const toolExciseFeedback = document.getElementById('toolExciseFeedback');
 const calculatorScreen = document.getElementById('calculatorScreen');
 const calculatorScreenClose = document.getElementById('calculatorScreenClose');
@@ -1700,7 +1706,9 @@ const toolCalculatorProducts = document.getElementById('toolCalculatorProducts')
 const toolCalculatorRows = document.getElementById('toolCalculatorRows');
 const toolCalculatorEmpty = document.getElementById('toolCalculatorEmpty');
 const toolCalculatorCount = document.getElementById('toolCalculatorCount');
+const toolCalculatorToggle = document.getElementById('toolCalculatorToggle');
 const toolCalculatorTotal = document.getElementById('toolCalculatorTotal');
+let toolCalculatorBillExpanded = false;
 const toolCalculatorCopy = document.getElementById('toolCalculatorCopy');
 const toolCalculatorClear = document.getElementById('toolCalculatorClear');
 const toolCalculatorFeedback = document.getElementById('toolCalculatorFeedback');
@@ -2824,13 +2832,9 @@ function renderToolExcises() {
   const total = toolExcises.length;
   const valid = toolExcises.filter(function (item) { return toolIsValidExciseMark(String(item.mark_number || '')); }).length;
   const invalid = total - valid;
-  const setText = function (id, value) { const element = document.getElementById(id); if (element) element.textContent = String(value); };
-  setText('toolExciseTotal', total);
-  setText('toolExciseValid', valid);
-  setText('toolExciseInvalid', invalid);
-  setText('toolExciseValidPct', (total ? Math.round(valid / total * 100) : 0) + '%');
-  setText('toolExciseInvalidPct', (total ? Math.round(invalid / total * 100) : 0) + '%');
-  setText('toolExciseListCount', total + ' ' + toolPluralize(total, ['марка', 'марки', 'марок']));
+  toolExciseTitleCount.textContent = '(' + valid + ' / ' + invalid + ')';
+  toolExciseTitleCount.setAttribute('aria-label', valid + ' валидных, ' + invalid + ' невалидных');
+  toolExciseListCount.textContent = total + ' ' + toolPluralize(total, ['марка', 'марки', 'марок']);
   if (!total) {
     toolExciseList.innerHTML = '<div class="tool-empty-state">Нет добавленных акцизов</div>';
     return;
@@ -2851,7 +2855,6 @@ async function loadToolExcises(force) {
   if (toolExcisesLoaded && !force) { renderToolExcises(); return; }
   toolExciseList.innerHTML = '<div class="tool-empty-state">Загрузка акцизов…</div>';
   toolExciseInput.disabled = true;
-  toolExciseAdd.disabled = true;
   toolExciseLoadPromise = (async function () {
     try {
       const result = await toolApiRequest('/excises');
@@ -2863,7 +2866,7 @@ async function loadToolExcises(force) {
     } catch (error) {
       toolExciseList.innerHTML = '<div class="tool-empty-state">Не удалось загрузить акцизы. ' + toolEscapeHtml(error.message || '') + '</div>';
       showToolFeedback(toolExciseFeedback, error.message || 'Не удалось загрузить акцизы', 'error', 'excise');
-    } finally { toolExciseInput.disabled = false; toolExciseAdd.disabled = false; toolExciseLoadPromise = null; }
+    } finally { toolExciseInput.disabled = false; toolExciseLoadPromise = null; }
   })();
   return toolExciseLoadPromise;
 }
@@ -3084,7 +3087,12 @@ function renderToolCalculatorBill() {
   else if (totalQty % 10 >= 2 && totalQty % 10 <= 4 && (totalQty % 100 < 12 || totalQty % 100 > 14)) unit = 'позиции';
   toolCalculatorCount.textContent = totalQty + ' ' + unit;
   toolCalculatorEmpty.classList.toggle('hidden', entries.length > 0);
-  toolCalculatorRows.classList.toggle('hidden', entries.length === 0);
+  toolCalculatorRows.classList.toggle('hidden', entries.length === 0 || !toolCalculatorBillExpanded);
+  toolCalculatorToggle.setAttribute('aria-expanded', String(toolCalculatorBillExpanded));
+  toolCalculatorToggle.setAttribute('aria-label', toolCalculatorBillExpanded ? 'Свернуть список продукции в счёте' : 'Развернуть список продукции в счёте');
+  toolCalculatorToggle.textContent = toolCalculatorBillExpanded ? '⌃' : '⌄';
+  toolCalculatorToggle.disabled = entries.length === 0;
+  toolCalculatorToggle.style.opacity = entries.length === 0 ? '.3' : '1';
   toolCalculatorRows.innerHTML = entries.map(function (entry) {
     const id = Number(entry.product.id);
     return '<div class="tool-bill-row"><div class="tool-bill-row-main"><div class="tool-bill-row-name">' +
@@ -3643,7 +3651,6 @@ toolExciseInput.addEventListener('input', function () {
 toolExciseInput.addEventListener('keydown', function (event) {
   if (event.key === 'Enter') { event.preventDefault(); void processToolExciseInput(); }
 });
-toolExciseAdd.addEventListener('click', function () { void processToolExciseInput(); });
 toolExciseDownload.addEventListener('click', downloadToolExcises);
 toolExciseClear.addEventListener('click', function () { void clearToolExcises(); });
 toolExciseList.addEventListener('click', function (event) {
@@ -3682,6 +3689,10 @@ toolCalculatorProducts.addEventListener('keydown', function (event) {
 toolCalculatorRows.addEventListener('click', function (event) {
   const dec = event.target.closest('[data-tool-calc-dec]');
   if (dec) changeToolCalcQty(Number(dec.dataset.toolCalcDec), -1);
+});
+toolCalculatorToggle.addEventListener('click', function () {
+  toolCalculatorBillExpanded = !toolCalculatorBillExpanded;
+  renderToolCalculatorBill();
 });
 toolCalculatorCopy.addEventListener('click', function () { void copyToolCalculatorBill(); });
 toolCalculatorClear.addEventListener('click', clearToolCalculatorBill);
