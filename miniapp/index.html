@@ -311,6 +311,7 @@
     background: #0b0b0d;
   }
 
+  #roomHistoryItems[hidden]{display:none}
   .camera-history-list {
     min-height: 0;
     flex: 0 1 auto;
@@ -1746,7 +1747,7 @@ function renderRoomHistoryModal(){
  if(!roomHistoryModalRoomId)return;const state=roomHistoryCache.get(Number(roomHistoryModalRoomId));
  if(!state||state.loading){roomHistoryModalContent.innerHTML='<div class="camera-deadline-empty">Загрузка истории…</div>';return}
  if(state.error){roomHistoryModalContent.innerHTML='<div class="camera-deadline-empty">Не удалось загрузить историю. Закрой окно и попробуй ещё раз.</div>';return}
- const items=state.items.filter(item=>roomHistoryModalTab==='gih'?item.type==='gih':item.type!=='gih');
+ const items=state.items.filter(item=>roomHistoryModalTab==='gih'?item.type==='gih':item.type!=='gih').slice().reverse();
  roomHistoryModalContent.innerHTML=items.length?items.map(roomHistoryRecordHtml).join(''):'<div class="room-history-modal-empty">Записей в этом разделе пока нет</div>';
 }
 async function openRoomHistoryModal(){
