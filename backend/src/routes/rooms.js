@@ -13,8 +13,24 @@ function productSnapshots(statuses) {
   }));
 }
 
+function reversibleProductSnapshots(statuses) {
+  return (statuses || []).map(item => ({
+    productId: Number(item.productId),
+    expiryStatus: item.expiryStatus || 'ok',
+    qtyToReplace: Number(item.qtyToReplace) || 0,
+    checkedAt: new Date(item.checkedAt).toISOString()
+  }));
+}
+
 function deadlineEventData(roomId, event) {
-  return { roomId, type: 'deadline', status: 'done', notes: JSON.stringify({ source: 'deadlines', ...event }) };
+  const { operationSnapshot, ...historyEvent } = event;
+  return {
+    roomId,
+    type: 'deadline',
+    status: 'done',
+    operationSnapshot: operationSnapshot || undefined,
+    notes: JSON.stringify({ source: 'deadlines', ...historyEvent })
+  };
 }
 
 router.get('/', async (req, res) => {
@@ -41,6 +57,10 @@ router.post('/reset-all-deadlines', async (req, res) => {
   try {
     const offset = clientOffset(req);
     await prisma.$transaction(async tx => {
+      const roomIds = await tx.room.findMany({ select: { id: true } });
+      for (const room of roomIds.sort((a, b) => a.id - b.id)) {
+        await tx.$queryRaw`SELECT id FROM rooms WHERE id = ${room.id} FOR UPDATE`;
+      }
       const roomsBefore = await tx.room.findMany({ select: { id: true, number: true, expiryStatus: true } });
       const statusesBefore = await tx.roomProductStatus.findMany({ include: { product: { select: { name: true } } } });
       const byRoom = new Map();
@@ -50,14 +70,26 @@ router.post('/reset-all-deadlines', async (req, res) => {
       }
       const events = roomsBefore
         .filter(room => (room.expiryStatus || 'neutral') !== 'neutral' || (byRoom.get(room.id) || []).length > 0)
-        .map(room => deadlineEventData(room.id, {
-          action: 'reset_all',
-          previousStatus: room.expiryStatus || 'neutral',
-          newStatus: 'neutral',
-          previousProducts: productSnapshots(byRoom.get(room.id) || []),
-          productsAfter: [],
-          note: 'Статус комнаты сброшен массовой операцией'
-        }));
+        .map(room => {
+          const previousProducts = byRoom.get(room.id) || [];
+          return deadlineEventData(room.id, {
+            action: 'reset_all',
+            previousStatus: room.expiryStatus || 'neutral',
+            newStatus: 'neutral',
+            previousProducts: productSnapshots(previousProducts),
+            productsAfter: [],
+            note: 'Статус комнаты сброшен массовой операцией',
+            operationSnapshot: {
+              version: 1,
+              source: 'deadlines',
+              before: {
+                roomStatus: room.expiryStatus || 'neutral',
+                products: reversibleProductSnapshots(previousProducts)
+              },
+              after: { roomStatus: 'neutral', products: [] }
+            }
+          });
+        });
 
       await tx.roomProductStatus.deleteMany({});
       await tx.room.updateMany({ data: { expiryStatus: 'neutral' } });
@@ -129,6 +161,7 @@ router.put('/:id/product-statuses', async (req, res) => {
     const { items, roomStatus } = req.body || {};
 
     await prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM rooms WHERE id = ${roomId} FOR UPDATE`;
       const roomBefore = await tx.room.findUnique({ where: { id: roomId }, select: { id: true, number: true, expiryStatus: true } });
       if (!roomBefore) throw new Error('Комната не найдена');
       const statusesBefore = await tx.roomProductStatus.findMany({
@@ -166,7 +199,19 @@ router.put('/:id/product-statuses', async (req, res) => {
           newStatus: roomStatus || roomBefore.expiryStatus || 'neutral',
           previousProducts: productSnapshots(statusesBefore),
           productsAfter: productSnapshots(statusesAfter),
-          note: toCreate.length ? 'Обновлены отметки продуктов в разделе Сроки' : null
+          note: toCreate.length ? 'Обновлены отметки продуктов в разделе Сроки' : null,
+          operationSnapshot: {
+            version: 1,
+            source: 'deadlines',
+            before: {
+              roomStatus: roomBefore.expiryStatus || 'neutral',
+              products: reversibleProductSnapshots(statusesBefore)
+            },
+            after: {
+              roomStatus: roomStatus || roomBefore.expiryStatus || 'neutral',
+              products: reversibleProductSnapshots(statusesAfter)
+            }
+          }
         })
       });
 
@@ -189,6 +234,7 @@ router.delete('/:id/product-statuses', async (req, res) => {
     const { roomStatus } = req.body || {};
 
     await prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM rooms WHERE id = ${roomId} FOR UPDATE`;
       const roomBefore = await tx.room.findUnique({ where: { id: roomId }, select: { id: true, number: true, expiryStatus: true } });
       if (!roomBefore) throw new Error('Комната не найдена');
       const statusesBefore = await tx.roomProductStatus.findMany({
@@ -213,7 +259,19 @@ router.delete('/:id/product-statuses', async (req, res) => {
           note: roomStatus === 'empty' ? 'Номер отмечен как опустошённый в разделе Сроки'
             : roomStatus === 'valid' ? 'Номер отмечен как исправный в разделе Сроки'
             : roomStatus === 'neutral' ? 'Статус сброшен в разделе Сроки'
-            : null
+            : null,
+          operationSnapshot: {
+            version: 1,
+            source: 'deadlines',
+            before: {
+              roomStatus: roomBefore.expiryStatus || 'neutral',
+              products: reversibleProductSnapshots(statusesBefore)
+            },
+            after: {
+              roomStatus: roomStatus || roomBefore.expiryStatus || 'neutral',
+              products: []
+            }
+          }
         })
       });
 

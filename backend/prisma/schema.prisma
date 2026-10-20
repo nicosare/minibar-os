@@ -148,6 +148,7 @@ model Check {
   inspectorName  String?     @map("inspector_name")
   status         String      @default("draft") @map("status")
   notes          String?
+  operationSnapshot Json?   @map("operation_snapshot")
   createdAt      DateTime    @default(now()) @map("created_at")
 
   room     Room?     @relation(fields: [roomId], references: [id], onDelete: Cascade)

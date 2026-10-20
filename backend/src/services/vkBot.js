@@ -31,6 +31,30 @@ export function parseVkOperationalMessage(rawText) {
   const text = String(rawText || '').trim();
   if (!text) return null;
 
+  // Undo command is parsed before ordinary room numbers; the leading hyphen is semantic here.
+  if (text.startsWith('-')) {
+    const undoBody = text.slice(1).trim();
+    const undoMatches = [...undoBody.matchAll(ROOM_RE)];
+    if (!undoMatches.length || undoMatches[0].index !== 0) return null;
+    for (let i = 1; i < undoMatches.length; i += 1) {
+      const gap = undoBody.slice(
+        undoMatches[i - 1].index + undoMatches[i - 1][0].length,
+        undoMatches[i].index
+      );
+      if (!SEPARATOR_RE.test(gap)) return null;
+    }
+    const undoTail = undoBody.slice(
+      undoMatches[undoMatches.length - 1].index + undoMatches[undoMatches.length - 1][0].length
+    );
+    if (!SEPARATOR_RE.test(undoTail)) return null;
+    return {
+      rooms: [...new Set(undoMatches.map(match => Number(match[0])))],
+      undo: true,
+      emptied: false,
+      note: null
+    };
+  }
+
   const commentMatch = text.match(COMMENT_RE);
   const note = commentMatch ? commentMatch[1].trim() : null;
   const baseText = commentMatch
@@ -77,6 +101,7 @@ export function parseVkOperationalMessage(rawText) {
 
   return {
     rooms: [...new Set(matches.map(match => Number(match[0])))],
+    undo: false,
     emptied: Boolean(emptyMatch),
     note
   };
@@ -121,7 +146,7 @@ export async function processVkBotMessage({
             ? null
             : (Number.isSafeInteger(Number(messageId)) ? Number(messageId) : null),
           text,
-          eventType: parsed.emptied ? 'emptied' : 'room',
+          eventType: parsed.undo ? 'undo' : (parsed.emptied ? 'emptied' : 'room'),
           occurredAt: eventDate
         }
       });
@@ -137,21 +162,171 @@ export async function processVkBotMessage({
       throw error;
     }
 
-    const rooms = await tx.room.findMany({
-      where: {
-        number: {
-          in: parsed.rooms
+    if (parsed.undo) {
+      const undoneRooms = [];
+      const unavailableRooms = [];
+      const missingUndoRooms = [];
+      let roomStateChanged = false;
+
+      for (const roomNumber of parsed.rooms) {
+        let room = await tx.room.findUnique({
+          where: { number: roomNumber },
+          select: { id: true, number: true, expiryStatus: true }
+        });
+        if (!room) {
+          missingUndoRooms.push(roomNumber);
+          continue;
         }
-      },
-      select: {
-        id: true,
-        number: true,
-        expiryStatus: true
+
+        // Serialize concurrent undo and room-state mutations for this room.
+        await tx.$queryRaw`SELECT id FROM rooms WHERE id = ${room.id} FOR UPDATE`;
+        room = await tx.room.findUnique({
+          where: { id: room.id },
+          select: { id: true, number: true, expiryStatus: true }
+        });
+        if (!room) {
+          missingUndoRooms.push(roomNumber);
+          continue;
+        }
+
+        const latestAction = await tx.check.findFirst({
+          where: {
+            roomId: room.id,
+            type: { in: ['vk_room', 'vk_emptied'] }
+          },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          select: {
+            id: true, type: true, notes: true, operationSnapshot: true, createdAt: true
+          }
+        });
+
+        // The Check row is deleted on undo so it disappears from history completely.
+        // VkBotEvent is the invisible guard that prevents a repeated "-1634" from
+        // undoing an older action. A newer room action makes undo available again.
+        const undoEvents = await tx.vkBotEvent.findMany({
+          where: {
+            eventType: 'undo',
+            eventId: { not: eventId },
+            ...(latestAction ? { createdAt: { gt: latestAction.createdAt } } : {})
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 500,
+          select: { text: true }
+        });
+        const alreadyUndone = undoEvents.some(event => {
+          const previousUndo = parseVkOperationalMessage(event.text);
+          return previousUndo?.undo && previousUndo.rooms.includes(roomNumber);
+        });
+
+        if (alreadyUndone || !latestAction) {
+          unavailableRooms.push({ room: roomNumber, reason: alreadyUndone ? 'already_undone' : 'nothing_to_undo' });
+          continue;
+        }
+
+        const snapshot = latestAction.operationSnapshot;
+        if (
+          !snapshot || snapshot.version !== 1 ||
+          !snapshot.before || !snapshot.after ||
+          !Array.isArray(snapshot.before.products) ||
+          !Array.isArray(snapshot.after.products)
+        ) {
+          unavailableRooms.push({ room: roomNumber, reason: 'snapshot_unavailable' });
+          continue;
+        }
+
+        const currentProducts = await tx.roomProductStatus.findMany({
+          where: { roomId: room.id },
+          select: { productId: true, expiryStatus: true, qtyToReplace: true, checkedAt: true }
+        });
+        const normalizeProducts = items => (items || [])
+          .map(item => ({
+            productId: Number(item.productId),
+            expiryStatus: String(item.expiryStatus || 'ok'),
+            qtyToReplace: Number(item.qtyToReplace) || 0,
+            checkedAt: new Date(item.checkedAt).toISOString()
+          }))
+          .sort((a, b) => a.productId - b.productId);
+        const currentState = {
+          roomStatus: room.expiryStatus || 'neutral',
+          products: normalizeProducts(currentProducts)
+        };
+        const expectedAfter = {
+          roomStatus: String(snapshot.after.roomStatus || 'neutral'),
+          products: normalizeProducts(snapshot.after.products)
+        };
+        if (JSON.stringify(currentState) !== JSON.stringify(expectedAfter)) {
+          unavailableRooms.push({ room: roomNumber, reason: 'state_changed_since_action' });
+          continue;
+        }
+
+        const productIdsToRestore = [...new Set(snapshot.before.products.map(item => Number(item.productId)))];
+        if (productIdsToRestore.length) {
+          const existingProducts = await tx.product.findMany({
+            where: { id: { in: productIdsToRestore } },
+            select: { id: true }
+          });
+          if (existingProducts.length !== productIdsToRestore.length) {
+            unavailableRooms.push({ room: roomNumber, reason: 'products_missing' });
+            continue;
+          }
+        }
+
+        await tx.roomProductStatus.deleteMany({ where: { roomId: room.id } });
+        if (snapshot.before.products.length) {
+          await tx.roomProductStatus.createMany({
+            data: snapshot.before.products.map(item => ({
+              roomId: room.id,
+              productId: Number(item.productId),
+              expiryStatus: String(item.expiryStatus || 'ok'),
+              qtyToReplace: Number(item.qtyToReplace) || 0,
+              checkedAt: new Date(item.checkedAt)
+            }))
+          });
+        }
+        await tx.room.update({
+          where: { id: room.id },
+          data: { expiryStatus: String(snapshot.before.roomStatus || 'neutral') }
+        });
+        await tx.check.delete({ where: { id: latestAction.id } });
+        undoneRooms.push(roomNumber);
+        roomStateChanged = true;
       }
+
+      if (roomStateChanged) {
+        await upsertTodayRoomStats(tx, null);
+        await updateAllTargets(tx, null);
+      }
+
+      await tx.vkBotEvent.update({
+        where: { eventId },
+        data: { eventType: 'undo' }
+      });
+
+      return {
+        ok: true,
+        status: 'undo_processed',
+        eventId,
+        rooms: undoneRooms,
+        unavailableRooms,
+        missingRooms: missingUndoRooms
+      };
+    }
+
+    const rooms = await tx.room.findMany({
+      where: { number: { in: parsed.rooms } },
+      select: { id: true, number: true, expiryStatus: true }
     });
 
+    // Lock rooms in a stable order, then reload current statuses before snapshotting.
+    for (const room of [...rooms].sort((a, b) => a.id - b.id)) {
+      await tx.$queryRaw`SELECT id FROM rooms WHERE id = ${room.id} FOR UPDATE`;
+    }
+    const lockedRooms = await tx.room.findMany({
+      where: { number: { in: parsed.rooms } },
+      select: { id: true, number: true, expiryStatus: true }
+    });
     const roomsByNumber = new Map(
-      rooms.map(room => [room.number, room])
+      lockedRooms.map(room => [room.number, room])
     );
 
     const processedRooms = [];
@@ -166,47 +341,66 @@ export async function processVkBotMessage({
         continue;
       }
 
+      const productsBefore = await tx.roomProductStatus.findMany({
+        where: { roomId: room.id },
+        select: { productId: true, expiryStatus: true, qtyToReplace: true, checkedAt: true }
+      });
+      const beforeSnapshot = {
+        roomStatus: room.expiryStatus || 'neutral',
+        products: productsBefore.map(item => ({
+          productId: item.productId,
+          expiryStatus: item.expiryStatus,
+          qtyToReplace: item.qtyToReplace,
+          checkedAt: item.checkedAt.toISOString()
+        }))
+      };
+
+      let nextRoomStatus = room.expiryStatus || 'neutral';
       if (parsed.emptied) {
-        await tx.roomProductStatus.deleteMany({
-          where: { roomId: room.id }
-        });
+        await tx.roomProductStatus.deleteMany({ where: { roomId: room.id } });
+        nextRoomStatus = 'empty';
+        if (room.expiryStatus !== 'empty') roomStateChanged = true;
+      } else if (room.expiryStatus === 'empty') {
+        nextRoomStatus = 'neutral';
+        roomStateChanged = true;
+      }
 
-        if (room.expiryStatus !== 'empty') {
-          await tx.room.update({
-            where: { id: room.id },
-            data: { expiryStatus: 'empty' }
-          });
-          roomStateChanged = true;
-        }
-
-        await tx.check.create({
-          data: {
-            roomId: room.id,
-            checkDate: eventDate,
-            type: 'vk_emptied',
-            status: 'done',
-            notes: parsed.note
-          }
-        });
-      } else {
-        if (room.expiryStatus === 'empty') {
-          await tx.room.update({
-            where: { id: room.id },
-            data: { expiryStatus: 'neutral' }
-          });
-          roomStateChanged = true;
-        }
-
-        await tx.check.create({
-          data: {
-            roomId: room.id,
-            checkDate: eventDate,
-            type: 'vk_room',
-            status: 'done',
-            notes: parsed.note
-          }
+      if (nextRoomStatus !== room.expiryStatus) {
+        await tx.room.update({
+          where: { id: room.id },
+          data: { expiryStatus: nextRoomStatus }
         });
       }
+
+      const productsAfterRows = await tx.roomProductStatus.findMany({
+        where: { roomId: room.id },
+        select: { productId: true, expiryStatus: true, qtyToReplace: true, checkedAt: true }
+      });
+      const afterSnapshot = {
+        roomStatus: nextRoomStatus,
+        products: productsAfterRows.map(item => ({
+          productId: item.productId,
+          expiryStatus: item.expiryStatus,
+          qtyToReplace: item.qtyToReplace,
+          checkedAt: item.checkedAt.toISOString()
+        }))
+      };
+
+      await tx.check.create({
+        data: {
+          roomId: room.id,
+          checkDate: eventDate,
+          type: parsed.emptied ? 'vk_emptied' : 'vk_room',
+          status: 'done',
+          notes: parsed.note,
+          operationSnapshot: {
+            version: 1,
+            source: 'vk_bot',
+            before: beforeSnapshot,
+            after: afterSnapshot
+          }
+        }
+      });
 
       processedRooms.push(roomNumber);
     }
@@ -231,5 +425,5 @@ export async function processVkBotMessage({
       rooms: processedRooms,
       missingRooms
     };
-  });
+  }, { isolationLevel: 'Serializable' });
 }

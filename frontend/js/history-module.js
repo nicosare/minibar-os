@@ -73,6 +73,9 @@ App.historyModule = (() => {
   }
 
   function operationMeta(check) {
+    if (check.type === 'deadline') {
+      return { label: 'Сроки', cls: 'bg-amber-50 text-amber-700 border-amber-200' };
+    }
     if (check.type === 'departures_print') {
       return { label: 'Печать Departures', cls: 'bg-sky-50 text-sky-700 border-sky-200' };
     }
