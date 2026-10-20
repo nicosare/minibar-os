@@ -1703,6 +1703,28 @@ const bottomNav = document.getElementById('bottomNav');
 const navPlaceholderModal = document.getElementById('navPlaceholderModal');
 const navPlaceholderTitle = document.getElementById('navPlaceholderTitle');
 const navPlaceholderClose = document.getElementById('navPlaceholderClose');
+
+const exciseScreen = document.getElementById('exciseScreen');
+const exciseScreenClose = document.getElementById('exciseScreenClose');
+const toolExciseInput = document.getElementById('toolExciseInput');
+const toolExciseAdd = document.getElementById('toolExciseAdd');
+const toolExciseDownload = document.getElementById('toolExciseDownload');
+const toolExciseClear = document.getElementById('toolExciseClear');
+const toolExciseList = document.getElementById('toolExciseList');
+const toolExciseListCount = document.getElementById('toolExciseListCount');
+const toolExciseFeedback = document.getElementById('toolExciseFeedback');
+const calculatorScreen = document.getElementById('calculatorScreen');
+const calculatorScreenClose = document.getElementById('calculatorScreenClose');
+const toolCalculatorTabs = document.getElementById('toolCalculatorTabs');
+const toolCalculatorProducts = document.getElementById('toolCalculatorProducts');
+const toolCalculatorRows = document.getElementById('toolCalculatorRows');
+const toolCalculatorEmpty = document.getElementById('toolCalculatorEmpty');
+const toolCalculatorCount = document.getElementById('toolCalculatorCount');
+const toolCalculatorTotal = document.getElementById('toolCalculatorTotal');
+const toolCalculatorCopy = document.getElementById('toolCalculatorCopy');
+const toolCalculatorClear = document.getElementById('toolCalculatorClear');
+const toolCalculatorFeedback = document.getElementById('toolCalculatorFeedback');
+
 const roomHistoryModalNumber = document.getElementById('roomHistoryModalNumber');
 const roomHistoryModalClose = document.getElementById('roomHistoryModalClose');
 const roomHistoryModalContent = document.getElementById('roomHistoryModalContent');
@@ -2742,6 +2764,426 @@ function resetPhoto() {
   video.classList.remove('hidden');
   video.classList.remove('ready');
   showCameraStandby();
+}
+
+
+// ── Рабочие вкладки нижней навигации ─────────────────────────────────────────
+const TOOL_CALC_CATEGORIES = ['Дверца', 'Напитки', 'Алкоголь', 'Соки'];
+const TOOL_RU_TO_EN = {
+  'й':'q','ц':'w','у':'e','к':'r','е':'t','н':'y','г':'u','ш':'i','щ':'o','з':'p','х':'[','ъ':']',
+  'ф':'a','ы':'s','в':'d','а':'f','п':'g','р':'h','о':'j','л':'k','д':'l','ж':';','э':"'",
+  'я':'z','ч':'x','с':'c','м':'v','и':'b','т':'n','ь':'m','б':',','ю':'.','ё':String.fromCharCode(96),
+  'Й':'Q','Ц':'W','У':'E','К':'R','Е':'T','Н':'Y','Г':'U','Ш':'I','Щ':'O','З':'P','Х':'{','Ъ':'}',
+  'Ф':'A','Ы':'S','В':'D','А':'F','П':'G','Р':'H','О':'J','Л':'K','Д':'L','Ж':':','Э':'"',
+  'Я':'Z','Ч':'X','С':'C','М':'V','И':'B','Т':'N','Ь':'M','Б':'<','Ю':'>','Ё':'~'
+};
+const TOOL_PRODUCT_COLORS = {amber:'#fef3c7',red:'#fee2e2',blue:'#dbeafe',yellow:'#fef9c3',purple:'#f3e8ff',emerald:'#d1fae5',rose:'#ffe4e6',orange:'#ffedd5',slate:'#e2e8f0'};
+let activeToolScreen = '';
+let toolExcises = [];
+let toolExcisesLoaded = false;
+let toolExciseLoadPromise = null;
+let toolExciseDebounceTimer = null;
+let toolProducts = [];
+let toolProductsLoaded = false;
+let toolProductsLoadPromise = null;
+let toolCalcCart = {};
+let toolCalcActiveCategory = TOOL_CALC_CATEGORIES[0];
+let toolFeedbackTimers = { excise: null, calculator: null };
+
+function toolEscapeHtml(value) {
+  return String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function toolFormatMoney(value) {
+  const parsed = Number.parseFloat(value);
+  return (Number.isFinite(parsed) ? parsed : 0).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' ₽';
+}
+function showToolFeedback(element, messageText, kind, key) {
+  if (!element) return;
+  if (toolFeedbackTimers[key]) clearTimeout(toolFeedbackTimers[key]);
+  element.textContent = messageText || '';
+  element.dataset.kind = kind || 'info';
+  element.classList.toggle('hidden', !messageText);
+  if (messageText) toolFeedbackTimers[key] = setTimeout(function () {
+    element.classList.add('hidden');
+    toolFeedbackTimers[key] = null;
+  }, 3000);
+}
+async function toolApiRequest(path, options) {
+  const opts = options || {};
+  const headers = Object.assign({ Accept: 'application/json', 'X-Timezone-Offset': String(new Date().getTimezoneOffset()) }, opts.body ? { 'Content-Type': 'application/json' } : {}, opts.headers || {});
+  const response = await fetch(API_BASE + path, Object.assign({}, opts, { headers: headers, cache: opts.cache || 'no-store' }));
+  let data;
+  try { data = await response.json(); } catch (_) { data = {}; }
+  if (!response.ok) throw new Error(data.error || ('HTTP ' + response.status));
+  return data;
+}
+function toolIsValidExciseMark(mark) {
+  if (typeof mark !== 'string' || !mark.trim()) return false;
+  const value = mark.trim();
+  return value.length >= 20 && /^\d/.test(value);
+}
+function toolConvertKeyboardLayout(value) {
+  return String(value).split('').map(function (character) { return TOOL_RU_TO_EN[character] || character; }).join('');
+}
+function toolFormatExciseDate(iso) {
+  const date = new Date(iso);
+  if (!Number.isFinite(date.getTime())) return { time: '—', date: '—' };
+  return { time: date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' }), date: date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }) };
+}
+function renderToolExcises() {
+  const total = toolExcises.length;
+  const valid = toolExcises.filter(function (item) { return toolIsValidExciseMark(String(item.mark_number || '')); }).length;
+  const invalid = total - valid;
+  const setText = function (id, value) { const element = document.getElementById(id); if (element) element.textContent = String(value); };
+  setText('toolExciseTotal', total);
+  setText('toolExciseValid', valid);
+  setText('toolExciseInvalid', invalid);
+  setText('toolExciseValidPct', (total ? Math.round(valid / total * 100) : 0) + '%');
+  setText('toolExciseInvalidPct', (total ? Math.round(invalid / total * 100) : 0) + '%');
+  setText('toolExciseListCount', total + ' ' + (total === 1 ? 'марка' : total >= 2 && total <= 4 ? 'марки' : 'марок'));
+  if (!total) {
+    toolExciseList.innerHTML = '<div class="tool-empty-state">Нет добавленных акцизов</div>';
+    return;
+  }
+  toolExciseList.innerHTML = toolExcises.map(function (item) {
+    const mark = String(item.mark_number == null ? '' : item.mark_number);
+    const validMark = toolIsValidExciseMark(mark);
+    const date = toolFormatExciseDate(item.created_at);
+    const id = String(item.id);
+    const pending = id.indexOf('temp_') === 0;
+    return '<article class="tool-excise-row"><button type="button" class="tool-excise-copy" data-tool-excise-copy="' + toolEscapeHtml(mark) + '" aria-label="Скопировать акцизную марку">' +
+      '<span class="tool-excise-mark">' + toolEscapeHtml(mark) + '</span><span class="tool-excise-meta"><span class="tool-excise-status ' + (validMark ? 'valid' : 'invalid') + '">' + (validMark ? 'Валидна' : 'Проверить марку') + '</span><span>' + date.time + '</span><span>' + date.date + '</span></span></button>' +
+      '<button type="button" class="tool-excise-delete" data-tool-excise-delete-id="' + toolEscapeHtml(id) + '" aria-label="Удалить акциз"' + (pending ? ' disabled' : '') + '>×</button></article>';
+  }).join('');
+}
+async function loadToolExcises(force) {
+  if (toolExciseLoadPromise) return toolExciseLoadPromise;
+  if (toolExcisesLoaded && !force) { renderToolExcises(); return; }
+  toolExciseList.innerHTML = '<div class="tool-empty-state">Загрузка акцизов…</div>';
+  toolExciseLoadPromise = (async function () {
+    try {
+      const result = await toolApiRequest('/excises');
+      toolExcises = (Array.isArray(result) ? result : []).map(function (item) {
+        return { id: item.id, mark_number: item.markNumber == null ? String(item.mark_number || '') : String(item.markNumber), created_at: item.createdAt || item.created_at };
+      });
+      toolExcisesLoaded = true;
+      renderToolExcises();
+    } catch (error) {
+      toolExciseList.innerHTML = '<div class="tool-empty-state">Не удалось загрузить акцизы. ' + toolEscapeHtml(error.message || '') + '</div>';
+      showToolFeedback(toolExciseFeedback, error.message || 'Не удалось загрузить акцизы', 'error', 'excise');
+    } finally { toolExciseLoadPromise = null; }
+  })();
+  return toolExciseLoadPromise;
+}
+async function processToolExciseInput() {
+  if (toolExciseDebounceTimer) clearTimeout(toolExciseDebounceTimer);
+  toolExciseDebounceTimer = null;
+  const raw = toolExciseInput.value;
+  if (!raw || !raw.trim()) return;
+  const parts = raw.split(/\s+/).filter(Boolean);
+  toolExciseInput.value = '';
+  const added = [];
+  let duplicates = 0;
+  const now = new Date().toISOString();
+  parts.forEach(function (part) {
+    const converted = toolConvertKeyboardLayout(part);
+    const alreadyInStore = toolExcises.some(function (item) { return String(item.mark_number) === converted; });
+    const alreadyInBatch = added.some(function (item) { return item.mark_number === converted; });
+    if (alreadyInStore || alreadyInBatch) { duplicates++; return; }
+    added.push({ id: 'temp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 11), mark_number: converted, created_at: now });
+  });
+  if (!added.length) {
+    if (duplicates) showToolFeedback(toolExciseFeedback, duplicates === 1 ? 'Эта марка уже есть в списке' : 'Пропущено дубликатов: ' + duplicates, 'info', 'excise');
+    return;
+  }
+  toolExcises = added.concat(toolExcises);
+  renderToolExcises();
+  if (duplicates) showToolFeedback(toolExciseFeedback, 'Пропущено дубликатов: ' + duplicates, 'info', 'excise');
+  await Promise.all(added.map(async function (item) {
+    try {
+      const saved = await toolApiRequest('/excises', { method: 'POST', body: JSON.stringify({ mark_number: item.mark_number }) });
+      const index = toolExcises.findIndex(function (entry) { return String(entry.id) === String(item.id); });
+      if (index < 0) return;
+      if (saved && saved._duplicate) {
+        toolExcises.splice(index, 1);
+        showToolFeedback(toolExciseFeedback, 'Такая марка уже есть в общей базе', 'info', 'excise');
+      } else {
+        toolExcises[index].id = saved.id;
+        toolExcises[index].created_at = saved.createdAt || saved.created_at || item.created_at;
+      }
+      renderToolExcises();
+    } catch (error) {
+      const index = toolExcises.findIndex(function (entry) { return String(entry.id) === String(item.id); });
+      if (index >= 0) toolExcises.splice(index, 1);
+      renderToolExcises();
+      showToolFeedback(toolExciseFeedback, 'Не удалось сохранить марку: ' + (error.message || 'ошибка сети'), 'error', 'excise');
+    }
+  }));
+}
+async function deleteToolExcise(idRaw) {
+  const id = String(idRaw);
+  const index = toolExcises.findIndex(function (item) { return String(item.id) === id; });
+  if (index < 0 || id.indexOf('temp_') === 0) return;
+  const removed = toolExcises.splice(index, 1)[0];
+  renderToolExcises();
+  try {
+    await toolApiRequest('/excises/' + encodeURIComponent(id), { method: 'DELETE' });
+    showToolFeedback(toolExciseFeedback, 'Марка удалена', 'info', 'excise');
+  } catch (error) {
+    toolExcises.splice(Math.min(index, toolExcises.length), 0, removed);
+    renderToolExcises();
+    showToolFeedback(toolExciseFeedback, 'Не удалось удалить марку: ' + (error.message || 'ошибка'), 'error', 'excise');
+  }
+}
+async function clearToolExcises() {
+  if (!toolExcises.length) return;
+  if (!confirm('Удалить все ' + toolExcises.length + ' марок из общей базы?')) return;
+  toolExciseClear.disabled = true;
+  try {
+    await toolApiRequest('/excises', { method: 'DELETE' });
+    toolExcises = [];
+    toolExcisesLoaded = true;
+    renderToolExcises();
+    showToolFeedback(toolExciseFeedback, 'Список акцизов очищен', 'info', 'excise');
+  } catch (error) {
+    showToolFeedback(toolExciseFeedback, 'Не удалось очистить список: ' + (error.message || 'ошибка'), 'error', 'excise');
+  } finally { toolExciseClear.disabled = false; }
+}
+function toolCrc32(bytes) {
+  let crc = 0xffffffff;
+  for (let i = 0; i < bytes.length; i++) {
+    crc ^= bytes[i];
+    for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+function toolConcatBytes(parts) {
+  const result = new Uint8Array(parts.reduce(function (sum, part) { return sum + part.length; }, 0));
+  let offset = 0;
+  parts.forEach(function (part) { result.set(part, offset); offset += part.length; });
+  return result;
+}
+function toolCreateXlsxBytes(values) {
+  const encoder = new TextEncoder();
+  const xml = function (value) { return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;'); };
+  const rows = values.map(function (value, index) {
+    const row = index + 1;
+    return '<row r="' + row + '"><c r="A' + row + '" t="inlineStr"><is><t xml:space="preserve">' + xml(value) + '</t></is></c></row>';
+  }).join('');
+  const entries = [
+    ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>'],
+    ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+    ['xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' + '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Акцизы" sheetId="1" r:id="rId1"/></sheets></workbook>'],
+    ['xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>'],
+    ['xl/worksheets/sheet1.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>' + rows + '</sheetData></worksheet>']
+  ];
+  const localParts = [], centralParts = [];
+  let localOffset = 0;
+  entries.forEach(function (entry) {
+    const nameBytes = encoder.encode(entry[0]), data = encoder.encode(entry[1]), checksum = toolCrc32(data);
+    const local = new Uint8Array(30 + nameBytes.length), localView = new DataView(local.buffer);
+    localView.setUint32(0, 0x04034b50, true); localView.setUint16(4, 20, true);
+    localView.setUint16(6, 0, true); localView.setUint16(8, 0, true); localView.setUint16(10, 0, true);
+    localView.setUint16(12, 0x0021, true); localView.setUint32(14, checksum, true);
+    localView.setUint32(18, data.length, true); localView.setUint32(22, data.length, true);
+    localView.setUint16(26, nameBytes.length, true); localView.setUint16(28, 0, true);
+    local.set(nameBytes, 30); localParts.push(local, data);
+    const central = new Uint8Array(46 + nameBytes.length), centralView = new DataView(central.buffer);
+    centralView.setUint32(0, 0x02014b50, true); centralView.setUint16(4, 20, true); centralView.setUint16(6, 20, true);
+    centralView.setUint16(8, 0, true); centralView.setUint16(10, 0, true); centralView.setUint16(12, 0, true);
+    centralView.setUint16(14, 0x0021, true); centralView.setUint32(16, checksum, true);
+    centralView.setUint32(20, data.length, true); centralView.setUint32(24, data.length, true);
+    centralView.setUint16(28, nameBytes.length, true); centralView.setUint16(30, 0, true);
+    centralView.setUint16(32, 0, true); centralView.setUint16(34, 0, true); centralView.setUint16(36, 0, true);
+    centralView.setUint32(38, 0, true); centralView.setUint32(42, localOffset, true);
+    central.set(nameBytes, 46); centralParts.push(central);
+    localOffset += local.length + data.length;
+  });
+  const directory = toolConcatBytes(centralParts);
+  const end = new Uint8Array(22), view = new DataView(end.buffer);
+  view.setUint32(0, 0x06054b50, true); view.setUint16(4, 0, true); view.setUint16(6, 0, true);
+  view.setUint16(8, entries.length, true); view.setUint16(10, entries.length, true);
+  view.setUint32(12, directory.length, true); view.setUint32(16, localOffset, true); view.setUint16(20, 0, true);
+  return toolConcatBytes(localParts.concat([directory, end]));
+}
+function downloadToolExcises() {
+  const valid = toolExcises.filter(function (item) { return toolIsValidExciseMark(String(item.mark_number || '')); })
+    .map(function (item) { return String(item.mark_number).trim(); });
+  if (!valid.length) {
+    showToolFeedback(toolExciseFeedback, 'Нет валидных акцизов для скачивания', 'error', 'excise');
+    return;
+  }
+  try {
+    const blob = new Blob([toolCreateXlsxBytes(valid)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const now = new Date(), two = function (value) { return String(value).padStart(2, '0'); };
+    const date = two(now.getDate()) + '.' + two(now.getMonth() + 1) + '.' + String(now.getFullYear()).slice(-2);
+    const anchor = document.createElement('a'), url = URL.createObjectURL(blob);
+    anchor.href = url; anchor.download = 'Акцизы мини-бар ' + date + '.xlsx'; anchor.style.display = 'none';
+    document.body.appendChild(anchor); anchor.click(); anchor.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    showToolFeedback(toolExciseFeedback, 'Скачано акцизов: ' + valid.length, 'info', 'excise');
+  } catch (error) {
+    showToolFeedback(toolExciseFeedback, 'Не удалось сформировать Excel: ' + (error.message || 'ошибка'), 'error', 'excise');
+  }
+}
+function toolCalcGroups() {
+  const grouped = {};
+  toolProducts.forEach(function (product) {
+    const category = product.category || 'Напитки';
+    if (!grouped[category]) grouped[category] = [];
+    grouped[category].push(product);
+  });
+  return TOOL_CALC_CATEGORIES.map(function (name) { return { name: name, items: grouped[name] || [] }; });
+}
+function toolCalcQty(productId) { return Number(toolCalcCart[productId]) || 0; }
+function renderToolCalculatorTabs() {
+  const groups = toolCalcGroups();
+  toolCalculatorTabs.innerHTML = groups.map(function (group) {
+    const count = group.items.reduce(function (sum, product) { return sum + toolCalcQty(product.id); }, 0);
+    return '<button type="button" role="tab" aria-selected="' + String(group.name === toolCalcActiveCategory) +
+      '" class="tool-cat-tab' + (group.name === toolCalcActiveCategory ? ' active' : '') + '" data-tool-calc-category="' +
+      toolEscapeHtml(group.name) + '">' + toolEscapeHtml(group.name) + (count ? '<span class="tool-cat-count">' + count + '</span>' : '') + '</button>';
+  }).join('');
+}
+function renderToolCalculatorProducts() {
+  renderToolCalculatorTabs();
+  const groups = toolCalcGroups();
+  const group = groups.find(function (item) { return item.name === toolCalcActiveCategory; }) || groups[0];
+  if (!toolProductsLoaded) { toolCalculatorProducts.innerHTML = '<div class="tool-empty-state">Загрузка продуктов…</div>'; return; }
+  if (!toolProducts.length) { toolCalculatorProducts.innerHTML = '<div class="tool-empty-state">Нет активных продуктов</div>'; return; }
+  if (!group || !group.items.length) { toolCalculatorProducts.innerHTML = '<div class="tool-empty-state">Нет продуктов в этой категории</div>'; return; }
+  toolCalculatorProducts.innerHTML = group.items.map(function (product) {
+    const qty = toolCalcQty(product.id);
+    const emoji = product.emoji || String(product.name || '?').charAt(0).toUpperCase();
+    const color = TOOL_PRODUCT_COLORS[product.bgColor] || TOOL_PRODUCT_COLORS.slate;
+    const id = Number(product.id);
+    return '<article class="tool-product-card' + (qty ? ' has-qty' : '') + '" data-tool-product-id="' + id + '">' +
+      '<div class="tool-product-top"><span class="tool-product-emoji" style="background:' + color + ';color:#202124">' + toolEscapeHtml(emoji) + '</span>' +
+      '<div class="tool-product-copy"><span class="tool-product-name">' + toolEscapeHtml(product.name) + '</span><div class="tool-product-price">' + toolFormatMoney(product.price) + '</div></div></div>' +
+      '<div class="tool-product-bottom"><button class="tool-qty-btn" type="button" data-tool-calc-dec="' + id + '" aria-label="Уменьшить ' + toolEscapeHtml(product.name) + '"' + (qty <= 0 ? ' disabled' : '') + '>−</button>' +
+      '<span class="tool-product-qty">' + qty + '</span><button class="tool-qty-btn" type="button" data-tool-calc-inc="' + id + '" aria-label="Добавить ' + toolEscapeHtml(product.name) + '">+</button></div></article>';
+  }).join('');
+}
+function getToolCalcEntries() {
+  return Object.keys(toolCalcCart).map(function (id) {
+    const product = toolProducts.find(function (item) { return Number(item.id) === Number(id); });
+    const qty = toolCalcQty(id);
+    if (!product || qty <= 0) return null;
+    const price = Number.parseFloat(product.price) || 0;
+    return { product: product, qty: qty, price: price, subtotal: price * qty };
+  }).filter(Boolean).sort(function (a, b) { return String(a.product.name).localeCompare(String(b.product.name), 'ru'); });
+}
+function renderToolCalculatorBill() {
+  const entries = getToolCalcEntries();
+  const totalQty = entries.reduce(function (sum, entry) { return sum + entry.qty; }, 0);
+  const totalSum = entries.reduce(function (sum, entry) { return sum + entry.subtotal; }, 0);
+  let unit = 'позиций';
+  if (totalQty % 10 === 1 && totalQty % 100 !== 11) unit = 'позиция';
+  else if (totalQty % 10 >= 2 && totalQty % 10 <= 4 && (totalQty % 100 < 12 || totalQty % 100 > 14)) unit = 'позиции';
+  toolCalculatorCount.textContent = totalQty + ' ' + unit;
+  toolCalculatorEmpty.classList.toggle('hidden', entries.length > 0);
+  toolCalculatorRows.classList.toggle('hidden', entries.length === 0);
+  toolCalculatorRows.innerHTML = entries.map(function (entry) {
+    const id = Number(entry.product.id);
+    return '<div class="tool-bill-row"><div class="tool-bill-row-main"><div class="tool-bill-row-name">' +
+      toolEscapeHtml(entry.product.name) + '</div><div class="tool-bill-row-meta">' + entry.qty + ' × ' + toolFormatMoney(entry.price) +
+      '</div></div><div class="tool-bill-row-sum">' + toolFormatMoney(entry.subtotal) + '</div><button type="button" class="tool-bill-remove" data-tool-calc-dec="' +
+      id + '" aria-label="Убрать одну единицу ' + toolEscapeHtml(entry.product.name) + '">−</button></div>';
+  }).join('');
+  toolCalculatorTotal.textContent = toolFormatMoney(totalSum);
+  toolCalculatorClear.disabled = entries.length === 0;
+  toolCalculatorCopy.disabled = entries.length === 0;
+}
+function renderToolCalculator() { renderToolCalculatorProducts(); renderToolCalculatorBill(); }
+function changeToolCalcQty(productId, delta) {
+  const product = toolProducts.find(function (item) { return Number(item.id) === Number(productId); });
+  if (!product) return;
+  const next = toolCalcQty(productId) + delta;
+  if (next <= 0) delete toolCalcCart[productId];
+  else toolCalcCart[productId] = next;
+  renderToolCalculator();
+}
+async function loadToolCalculator(force) {
+  if (toolProductsLoadPromise) return toolProductsLoadPromise;
+  if (toolProductsLoaded && !force) { renderToolCalculator(); return; }
+  toolCalculatorProducts.innerHTML = '<div class="tool-empty-state">Загрузка продуктов…</div>';
+  toolProductsLoadPromise = (async function () {
+    try {
+      const result = await toolApiRequest('/products');
+      toolProducts = Array.isArray(result) ? result : [];
+      const productIds = new Set(toolProducts.map(function (item) { return String(item.id); }));
+      Object.keys(toolCalcCart).forEach(function (id) { if (!productIds.has(String(id))) delete toolCalcCart[id]; });
+      if (!TOOL_CALC_CATEGORIES.includes(toolCalcActiveCategory)) toolCalcActiveCategory = TOOL_CALC_CATEGORIES[0];
+      toolProductsLoaded = true;
+      renderToolCalculator();
+    } catch (error) {
+      toolCalculatorProducts.innerHTML = '<div class="tool-empty-state">Не удалось загрузить продукты. ' + toolEscapeHtml(error.message || '') + '</div>';
+      showToolFeedback(toolCalculatorFeedback, error.message || 'Не удалось загрузить продукты', 'error', 'calculator');
+    } finally { toolProductsLoadPromise = null; }
+  })();
+  return toolProductsLoadPromise;
+}
+async function copyToolText(text) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(text);
+    else throw new Error('clipboard unavailable');
+    return true;
+  } catch (_) {
+    const textarea = document.createElement('textarea');
+    textarea.value = text; textarea.style.position = 'fixed'; textarea.style.opacity = '0';
+    document.body.appendChild(textarea); textarea.select();
+    let succeeded = false;
+    try { succeeded = document.execCommand('copy'); } catch (_) { succeeded = false; }
+    textarea.remove();
+    return succeeded;
+  }
+}
+async function copyToolCalculatorBill() {
+  const entries = getToolCalcEntries();
+  if (!entries.length) { showToolFeedback(toolCalculatorFeedback, 'Счёт пуст', 'error', 'calculator'); return; }
+  const total = entries.reduce(function (sum, entry) { return sum + entry.subtotal; }, 0);
+  const lines = ['Счёт на ' + toolFormatMoney(total)];
+  entries.forEach(function (entry) { lines.push(entry.product.name + ' х ' + entry.qty); });
+  const ok = await copyToolText(lines.join('\n'));
+  showToolFeedback(toolCalculatorFeedback, ok ? 'Счёт скопирован' : 'Не удалось скопировать счёт', ok ? 'info' : 'error', 'calculator');
+}
+function clearToolCalculatorBill() {
+  if (!Object.keys(toolCalcCart).length) return;
+  if (!confirm('Очистить счёт?')) return;
+  toolCalcCart = {};
+  renderToolCalculator();
+  showToolFeedback(toolCalculatorFeedback, 'Счёт очищен', 'info', 'calculator');
+}
+function closeToolScreens() {
+  exciseScreen.classList.add('hidden');
+  calculatorScreen.classList.add('hidden');
+  exciseScreen.setAttribute('aria-hidden', 'true');
+  calculatorScreen.setAttribute('aria-hidden', 'true');
+  bottomNav.querySelectorAll('[data-nav-modal]').forEach(function (button) { button.classList.remove('is-active'); });
+  activeToolScreen = '';
+}
+async function openToolScreen(name) {
+  if (activeToolScreen === name) { closeToolScreens(); return; }
+  closeNavPlaceholderModal();
+  closeToolScreens();
+  closeSheet();
+  activeToolScreen = name;
+  const target = name === 'Акцизы' ? exciseScreen : calculatorScreen;
+  target.classList.remove('hidden');
+  target.setAttribute('aria-hidden', 'false');
+  bottomNav.querySelectorAll('[data-nav-modal]').forEach(function (button) {
+    button.classList.toggle('is-active', button.dataset.navModal === name);
+  });
+  if (name === 'Акцизы') await loadToolExcises(true);
+  else await loadToolCalculator(true);
+}
+function openBottomNavDestination(name) {
+  if (name === 'Акцизы' || name === 'Калькулятор') { void openToolScreen(name); return; }
+  closeToolScreens();
+  navPlaceholderTitle.textContent = name;
+  navPlaceholderModal.setAttribute('aria-label', name);
+  navPlaceholderModal.classList.remove('hidden');
+  navPlaceholderModal.setAttribute('aria-hidden', 'false');
 }
 
 /* Carousel */
