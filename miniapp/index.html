@@ -2878,7 +2878,7 @@ function renderRefillProducts(room){
   const categories=[...order.filter(category=>grouped[category]?.length),...Object.keys(grouped).filter(category=>!order.includes(category)).sort((a,b)=>a.localeCompare(b,'ru'))];
   refillModalProducts.innerHTML=categories.map(category=>'<section class="deadline-modal-category"><div class="deadline-modal-category-title">'+escapeCameraHtml(category)+'</div><div class="deadline-modal-product-grid">'+grouped[category].map(item=>{
     const product=item.product,selected=refillSelectedProductIds.has(item.id),color=CAMERA_DEADLINE_PRODUCT_COLORS[product.bgColor]||CAMERA_DEADLINE_PRODUCT_COLORS.slate,emoji=product.emoji||String(product.name||'?').charAt(0).toUpperCase();
-    return '<button type="button" class="deadline-modal-product'+(selected?' selected':'')+'" data-refill-product-id="'+item.id+'" aria-pressed="'+String(selected)+'"><span class="deadline-modal-product-text"><span class="deadline-modal-product-name">'+escapeCameraHtml(product.name||'Продукт')+'</span></span></button>';
+    return '<button type="button" class="deadline-modal-product'+(selected?' selected':'')+'" data-refill-product-id="'+item.id+'" aria-pressed="'+String(selected)+'"><span class="deadline-modal-product-icon" style="background:'+color+';color:#18202a">'+escapeCameraHtml(emoji)+'</span><span class="deadline-modal-product-text"><span class="deadline-modal-product-name">'+escapeCameraHtml(product.name||'Продукт')+'</span></span></button>';
   }).join('')+'</div></section>').join('');
 }
 async function openRefillModal(){
