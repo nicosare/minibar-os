@@ -1821,6 +1821,7 @@ function renderCameraDeadlineModalProducts() {
       return '<button type="button" class="deadline-modal-product' + (count > 0 ? ' selected' : '') +
         '" data-deadline-product-id="' + product.id + '" aria-pressed="' + (count > 0 ? 'true' : 'false') + '">' +
         (count > 0 ? '<span class="deadline-modal-counter">' + count + '</span>' : '') +
+        '<span class="deadline-modal-product-icon" style="background:' + color + ';color:#18202a">' + escapeCameraHtml(emoji) + '</span>' +
         '<span class="deadline-modal-product-text"><span class="deadline-modal-product-name">' + escapeCameraHtml(product.name) +
         '</span><span class="deadline-modal-product-meta">' + escapeCameraHtml(product.volume || '—') + ' ' +
         escapeCameraHtml(product.unit || 'шт') + '</span></span></button>';
