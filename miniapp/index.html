@@ -1277,10 +1277,11 @@ async function loadRoomHistory(room, force = false) {
     if (!response.ok) throw new Error('HTTP ' + response.status);
     const data = await response.json();
     const items = Array.isArray(data) ? data : (Array.isArray(data.items) ? data.items : []);
+    // Oldest first so the newest record is always the bottom entry.
     items.sort((a, b) => {
       const aTime = new Date(a.checkDate || a.createdAt || 0).getTime() || 0;
       const bTime = new Date(b.checkDate || b.createdAt || 0).getTime() || 0;
-      return bTime - aTime || Number(b.id || 0) - Number(a.id || 0);
+      return aTime - bTime || Number(a.id || 0) - Number(b.id || 0);
     });
     roomHistoryCache.set(roomId, {
       loading: false,
@@ -1863,7 +1864,8 @@ function updateSelectedRoomState(room, vibrate = false) {
   descRoomTitle.textContent = 'Номер ' + room.number;
   const categoryLabel = normalizeRoomType(room) === 'suite' ? 'Люкс' : 'Стандарт';
   descRoomTag.textContent = room.floor + ' этаж · ' + categoryLabel;
-  descRoomTag.className = categoryLabel === 'Люкс' ? 'desc-tag suite' : 'desc-tag';
+  // Room category is descriptive metadata, not a status: keep its styling neutral.
+  descRoomTag.className = 'desc-tag';
 
   void loadRoomHistory(room, changed);
   updateDrawerSelectedChip(room.number);
@@ -2064,8 +2066,11 @@ function startRoomLiveSync() {
     try {
       const change = JSON.parse(event.data);
       const domains = Array.isArray(change.domains) ? change.domains : ['all'];
-      if (domains.includes('all') || domains.includes('miniapp') || domains.includes('rooms')) {
+      if (domains.includes('all') || domains.includes('miniapp') || domains.includes('rooms') ||
+          domains.includes('checks') || domains.includes('history') || domains.includes('gih')) {
         void syncRoomData();
+        // Keep the visible room history live too, not just the room queue.
+        if (selectedRoom) void loadRoomHistory(selectedRoom, true);
       }
     } catch (error) {
       console.warn('[MINIBAR LIVE SYNC] Некорректное событие:', error);
