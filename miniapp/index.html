@@ -299,6 +299,11 @@
     text-shadow: 0 0 12px rgba(255, 204, 0, 0.3);
   }
 
+  .num-item.active.empty-room {
+    color: #4cc7f4;
+    text-shadow: 0 0 12px rgba(76, 199, 244, 0.3);
+  }
+
   /* Standby information is modular; the viewfinder itself remains unchanged. */
   .camera-info-panel {
     position: absolute;
@@ -337,8 +342,12 @@
   .camera-workspace-gih {
     grid-column: 2;
     grid-row: 2;
-    aspect-ratio: 1;
-    align-self: start;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    aspect-ratio: auto;
+    align-self: stretch;
+    justify-self: stretch;
   }
 
   .camera-workspace-refill {
@@ -369,8 +378,8 @@
   .camera-history-list::-webkit-scrollbar { display: none; }
 
   .camera-info-panel > .room-description-box { padding: 10px; }
-  .camera-info-panel .desc-title { font-size: 13px; }
-  .camera-info-panel .desc-tag { font-size: 9px; padding: 3px 6px; }
+  .camera-info-panel .desc-title { font-size: 14px; line-height: 18px; }
+  .camera-info-panel .desc-tag { font-size: 10px; line-height: 13px; padding: 3px 6px; }
 
   .camera-workspace-deadlines .camera-deadline-panel {
     width: 100%;
@@ -383,6 +392,10 @@
   }
 
   .camera-workspace-deadlines .camera-deadline-head { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .camera-workspace-deadlines .camera-deadline-title { font-size: 12px; line-height: 16px; }
+  .camera-workspace-deadlines .camera-deadline-status { font-size: 10px; line-height: 13px; }
+  .camera-workspace-deadlines .camera-deadline-product-line { font-size: 10px; line-height: 13px; }
+  .camera-workspace-deadlines .camera-deadline-product-qty { font-size: 10px; }
   .camera-workspace-deadlines .camera-deadline-status { max-width: 100%; text-align: left; }
   .camera-workspace-deadlines .camera-deadline-products {
     flex: 0 0 auto;
@@ -412,17 +425,18 @@
 
   .camera-gih-panel {
     min-height: 0;
-    height: auto;
-    padding: 10px;
+    height: 100%;
+    padding: 8px;
     justify-content: center;
     flex-direction: column;
     text-align: center;
     gap: 5px;
-    border-color: rgba(177,139,255,.28);
-    background: rgba(145,94,220,.13);
+    border-color: rgba(255,204,0,.38);
+    background: rgba(255,204,0,.10);
+    color: var(--yellow);
   }
 
-  .camera-gih-panel .camera-action-title { font-size: 12px; }
+  .camera-gih-panel .camera-action-title { font-size: 14px; line-height: 18px; }
   .camera-gih-panel .camera-action-icon { width: 25px; height: 25px; }
   .camera-gih-panel .camera-action-subtitle { display: none; }
 
@@ -435,12 +449,12 @@
     justify-content: center;
     gap: 8px;
     padding: 9px;
-    border: 1px solid rgba(52,199,89,.28);
+    border: 1px solid rgba(255,204,0,.34);
     border-radius: 10px;
-    background: rgba(52,199,89,.12);
-    color: #fff;
-    font-size: 12px;
-    line-height: 15px;
+    background: rgba(255,204,0,.08);
+    color: var(--yellow);
+    font-size: 13px;
+    line-height: 16px;
     font-weight: 850;
     text-align: center;
     cursor: pointer;
@@ -466,7 +480,7 @@
   .camera-info-panel .camera-history-card:active { filter: brightness(1.12); }
   .camera-info-panel .camera-history-card:focus-visible { outline: 2px solid rgba(255,255,255,.75); outline-offset: 2px; }
   .camera-history-heading { min-height: 20px; display:flex;align-items:center;justify-content:space-between;gap:8px; }
-  .camera-history-title { display:flex;align-items:center;gap:0;font-size:11px;font-weight:850;line-height:15px; }
+  .camera-history-title { display:flex;align-items:center;gap:0;font-size:12px;font-weight:850;line-height:16px; }
   .camera-history-arrow { display:none; }
   .camera-history-list .camera-history-entry { padding: 3px 2px; }
   .camera-history-list .camera-history-line { gap: 5px; }
@@ -697,10 +711,16 @@
   }
 
   .room-action-row .camera-refill-panel {
-    border: 1px solid rgba(52,199,89,.32);
-    background: rgba(52,199,89,.12);
-    color: #fff;
+    border: 1px solid rgba(255,204,0,.38);
+    background: rgba(255,204,0,.08);
+    color: var(--yellow);
     cursor: pointer;
+  }
+
+  .room-action-row #btnEmpty {
+    border: 1px solid var(--yellow);
+    background: var(--yellow);
+    color: #000;
   }
 
   .btn-side {
@@ -2549,9 +2569,14 @@ function updateSelectedRoomState(room, vibrate = false) {
   const changed = selectedRoom !== room;
   selectedRoom = room;
 
+  ALL_ROOMS.forEach(item => {
+    const carouselItem = carouselItems.get(item.number);
+    if (carouselItem) carouselItem.classList.toggle('empty-room', item.expiryStatus === 'empty');
+  });
   if (activeCarouselItem) activeCarouselItem.classList.remove('active');
   const currentItem = carouselItems.get(room.number);
   if (currentItem) {
+    currentItem.classList.toggle('empty-room', room.expiryStatus === 'empty');
     currentItem.classList.add('active');
     activeCarouselItem = currentItem;
   }
