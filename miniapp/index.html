@@ -2195,10 +2195,21 @@ async function flushPendingPhotoWrites() {
 
   try {
     for (const [id, pending] of pendingPhotoWrites) {
+      let blob;
       try {
-        const blob = await pending.blobPromise;
-        if (!blob || !blob.size) throw new Error('Не удалось подготовить файл фото');
+        blob = await pending.blobPromise;
+      } catch (error) {
+        console.warn('[MINIBAR PHOTO QUEUE] Image encoding failed:', error);
+      }
 
+      if (!blob || !blob.size) {
+        pendingPhotoWrites.delete(id);
+        showMessage('Не удалось подготовить фото №' + pending.roomNumber + '. Сделайте снимок ещё раз.', 4500);
+        setUploadStatus('Не удалось подготовить фото №' + pending.roomNumber, 'error');
+        continue;
+      }
+
+      try {
         await queuePhotoForUpload(pending.roomNumber, blob, pending.requestId);
         pendingPhotoWrites.delete(id);
         setUploadStatus(
