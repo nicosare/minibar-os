@@ -89,15 +89,24 @@
   }
 
   .upload-status {
+    position: absolute;
+    top: calc(100% + 1px);
+    left: 16px;
+    right: 16px;
+    z-index: 25;
     display: none;
-    max-width: calc(100vw - 32px);
-    margin-top: 2px;
+    width: auto;
+    max-width: none;
+    margin-top: 0;
     overflow: hidden;
+    padding: 2px 0;
+    background: #000;
     color: var(--yellow);
     font-size: 11px;
     font-weight: 500;
     line-height: 1.3;
     text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .upload-status.visible { display: block; }
@@ -111,7 +120,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 8px var(--page-pad) calc(63px + 46px + env(safe-area-inset-bottom));
+    padding: 24px var(--page-pad) calc(63px + 46px + env(safe-area-inset-bottom));
     gap: 8px;
     min-height: 0;
     overflow: hidden;
@@ -743,8 +752,10 @@
   .tool-calc-bill{margin-top:0;padding:10px 15px calc(12px + env(safe-area-inset-bottom))}
   .tool-bill-heading{display:flex;align-items:center;gap:8px}
   .tool-bill-heading strong{font-size:13px;font-weight:900}
-  .tool-bill-toggle{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:28px;height:28px;padding:0;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:rgba(255,255,255,.045);color:rgba(255,255,255,.8);font-size:16px;line-height:1}
+  .tool-bill-toggle{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:28px;height:28px;padding:0;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:rgba(255,255,255,.045);color:rgba(255,255,255,.8)}
+  .tool-bill-toggle svg{display:block;width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .16s ease}
   .tool-bill-toggle[aria-expanded="true"]{color:var(--yellow);border-color:rgba(255,204,0,.35)}
+  .tool-bill-toggle[aria-expanded="true"] svg{transform:rotate(180deg)}
   .tool-bill-count{margin-left:auto;color:rgba(255,255,255,.44);font-size:10px;font-weight:700}
   .tool-bill-actions{display:flex;gap:6px;margin-top:10px}
   .tool-bill-actions .tool-btn{flex:1;min-width:0}
@@ -1321,9 +1332,8 @@
     </div>
     <div class="deadline-modal-products tool-modal-body tool-calculator-products" id="toolCalculatorProducts"><div class="tool-empty-state">Загрузка продуктов…</div></div>
     <section class="tool-calc-bill" id="toolCalculatorBill">
-      <div class="tool-bill-heading"><strong>Счёт</strong><button class="tool-bill-toggle" id="toolCalculatorToggle" type="button" aria-label="Развернуть список продукции в счёте" aria-expanded="false">⌄</button><span class="tool-bill-count" id="toolCalculatorCount">0 позиций</span></div>
+      <div class="tool-bill-heading"><strong>Счёт</strong><button class="tool-bill-toggle" id="toolCalculatorToggle" type="button" aria-label="Развернуть список продукции в счёте" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 14 12 8 18 14"/></svg></button><span class="tool-bill-count" id="toolCalculatorCount">0 позиций</span></div>
       <div class="tool-bill-rows hidden" id="toolCalculatorRows"></div>
-      <div class="tool-bill-empty" id="toolCalculatorEmpty">Счёт пуст</div>
       <div class="tool-bill-actions"><button class="tool-btn" id="toolCalculatorCopy" type="button">Копировать</button><button class="tool-btn tool-btn-danger" id="toolCalculatorClear" type="button">Очистить</button></div>
       <div class="tool-bill-total"><span>Итого</span><strong id="toolCalculatorTotal">0 ₽</strong></div>
     </section>
@@ -1704,7 +1714,6 @@ const calculatorScreen = document.getElementById('calculatorScreen');
 const calculatorScreenClose = document.getElementById('calculatorScreenClose');
 const toolCalculatorProducts = document.getElementById('toolCalculatorProducts');
 const toolCalculatorRows = document.getElementById('toolCalculatorRows');
-const toolCalculatorEmpty = document.getElementById('toolCalculatorEmpty');
 const toolCalculatorCount = document.getElementById('toolCalculatorCount');
 const toolCalculatorToggle = document.getElementById('toolCalculatorToggle');
 const toolCalculatorTotal = document.getElementById('toolCalculatorTotal');
@@ -2784,18 +2793,19 @@ function toolFormatMoney(value) {
   const parsed = Number.parseFloat(value);
   return (Number.isFinite(parsed) ? parsed : 0).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' ₽';
 }
-function showToolFeedback(element, messageText, kind, key) {
+function showToolFeedback(element, messageText, kind, key, duration = 3000) {
   if (!element) return;
   if (toolFeedbackTimers[key]) clearTimeout(toolFeedbackTimers[key]);
+  toolFeedbackTimers[key] = null;
   element.textContent = messageText || '';
   element.dataset.kind = kind || 'info';
   element.hidden = !messageText;
   element.classList.toggle('hidden', !messageText);
-  if (messageText) toolFeedbackTimers[key] = setTimeout(function () {
+  if (messageText && duration > 0) toolFeedbackTimers[key] = setTimeout(function () {
     element.hidden = true;
     element.classList.add('hidden');
     toolFeedbackTimers[key] = null;
-  }, 3000);
+  }, duration);
 }
 async function toolApiRequest(path, options) {
   const opts = options || {};
@@ -3005,20 +3015,30 @@ function downloadToolExcises() {
   const valid = toolExcises.filter(function (item) { return toolIsValidExciseMark(String(item.mark_number || '')); })
     .map(function (item) { return String(item.mark_number).trim(); });
   if (!valid.length) {
-    showToolFeedback(toolExciseFeedback, 'Нет валидных акцизов для скачивания', 'error', 'excise');
+    showToolFeedback(toolExciseFeedback, 'Нет валидных акцизов для скачивания', 'error', 'excise', 8000);
     return;
   }
+  if (toolExciseDownload.disabled) return;
+  const originalLabel = toolExciseDownload.textContent;
+  toolExciseDownload.disabled = true;
+  toolExciseDownload.textContent = 'Формирую Excel…';
   try {
     const blob = new Blob([toolCreateXlsxBytes(valid)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const now = new Date(), two = function (value) { return String(value).padStart(2, '0'); };
     const date = two(now.getDate()) + '.' + two(now.getMonth() + 1) + '.' + String(now.getFullYear()).slice(-2);
+    const filename = 'Акцизы мини-бар ' + date + '.xlsx';
     const anchor = document.createElement('a'), url = URL.createObjectURL(blob);
-    anchor.href = url; anchor.download = 'Акцизы мини-бар ' + date + '.xlsx'; anchor.style.display = 'none';
+    anchor.href = url; anchor.download = filename; anchor.style.display = 'none';
     document.body.appendChild(anchor); anchor.click(); anchor.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-    showToolFeedback(toolExciseFeedback, 'Скачано акцизов: ' + valid.length, 'info', 'excise');
+    showToolFeedback(toolExciseFeedback, 'Файл отправлен на скачивание: ' + filename + '. Ищите его в папке «Загрузки». Марок: ' + valid.length + '.', 'info', 'excise', 9000);
   } catch (error) {
-    showToolFeedback(toolExciseFeedback, 'Не удалось сформировать Excel: ' + (error.message || 'ошибка'), 'error', 'excise');
+    showToolFeedback(toolExciseFeedback, 'Не удалось сформировать Excel: ' + (error.message || 'ошибка'), 'error', 'excise', 8000);
+  } finally {
+    setTimeout(function () {
+      toolExciseDownload.disabled = false;
+      toolExciseDownload.textContent = originalLabel;
+    }, 1200);
   }
 }
 function toolCalcGroups() {
@@ -3086,11 +3106,9 @@ function renderToolCalculatorBill() {
   if (totalQty % 10 === 1 && totalQty % 100 !== 11) unit = 'позиция';
   else if (totalQty % 10 >= 2 && totalQty % 10 <= 4 && (totalQty % 100 < 12 || totalQty % 100 > 14)) unit = 'позиции';
   toolCalculatorCount.textContent = totalQty + ' ' + unit;
-  toolCalculatorEmpty.classList.toggle('hidden', entries.length > 0);
   toolCalculatorRows.classList.toggle('hidden', entries.length === 0 || !toolCalculatorBillExpanded);
   toolCalculatorToggle.setAttribute('aria-expanded', String(toolCalculatorBillExpanded));
   toolCalculatorToggle.setAttribute('aria-label', toolCalculatorBillExpanded ? 'Свернуть список продукции в счёте' : 'Развернуть список продукции в счёте');
-  toolCalculatorToggle.textContent = toolCalculatorBillExpanded ? '⌃' : '⌄';
   toolCalculatorToggle.disabled = entries.length === 0;
   toolCalculatorToggle.style.opacity = entries.length === 0 ? '.3' : '1';
   toolCalculatorRows.innerHTML = entries.map(function (entry) {
