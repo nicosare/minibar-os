@@ -1902,7 +1902,7 @@ function deactivateActiveList() {
 
 async function updateDepartureListRoom(number, action, enabled) {
   const rawNumber = String(number || '').trim();
-  if (!/^\\d{1,4}$/.test(rawNumber)) {
+  if (!/^\d{1,4}$/.test(rawNumber)) {
     showMessage('Введите корректный номер комнаты', 2500);
     return;
   }
@@ -1948,7 +1948,7 @@ async function submitDepartureRoomAdd(event) {
   event.preventDefault();
   if (activeListKey !== 'departures') return;
   const number = String(sheetAddRoomInput.value || '').trim();
-  if (!/^\\d{1,4}$/.test(number)) {
+  if (!/^\d{1,4}$/.test(number)) {
     showMessage('Введите номер комнаты', 2300);
     return;
   }
