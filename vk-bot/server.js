@@ -248,7 +248,9 @@ async function handleCallback(req, res) {
       '[VK] peer=' + peerId +
       ' text=' + JSON.stringify(text) +
       ' -> ' + result.status +
-      ' ' + JSON.stringify(result.rooms || '')
+      ' ' + JSON.stringify(result.rooms || '') +
+      (result.unavailableRooms?.length ? ' unavailable=' + JSON.stringify(result.unavailableRooms) : '') +
+      (result.missingRooms?.length ? ' missing=' + JSON.stringify(result.missingRooms) : '')
     );
 
     return sendText(res, 200, 'ok');
