@@ -130,7 +130,7 @@ async function updateSession(req, updater) {
 const MINIAPP_WORKLIST_KEY = 'miniapp-departures-worklist-v1';
 
 function blankMiniAppWorklist(dateKey) {
-  return { dateKey, overrides: {}, arrivalRooms: [] };
+  return { dateKey, overrides: {}, arrivalRooms: [], arrivalOverrides: {} };
 }
 
 function parseMiniAppWorklist(value, dateKey) {
@@ -156,8 +156,16 @@ function parseMiniAppWorklist(value, dateKey) {
     ? [...new Set(parsed.arrivalRooms.map(value => String(Number(value)))
       .filter(number => /^\d{1,4}$/.test(number)))]
     : [];
+  const arrivalOverrides = {};
+  if (parsed.arrivalOverrides && typeof parsed.arrivalOverrides === 'object' && !Array.isArray(parsed.arrivalOverrides)) {
+    for (const [rawNumber, enabled] of Object.entries(parsed.arrivalOverrides)) {
+      if (/^\d{1,4}$/.test(rawNumber) && typeof enabled === 'boolean') {
+        arrivalOverrides[String(Number(rawNumber))] = enabled;
+      }
+    }
+  }
 
-  return { dateKey, overrides, arrivalRooms };
+  return { dateKey, overrides, arrivalRooms, arrivalOverrides };
 }
 
 async function readMiniAppWorklist(db, dateKey) {
@@ -193,7 +201,9 @@ function assignedDepartureNumbers(session, worklist, roomByNumber) {
   const assigned = new Set();
   for (const rawNumber of session.pdfRooms || []) {
     const number = String(Number(rawNumber));
-    if (roomByNumber.has(number) && worklist.overrides[number] !== 'exclude') {
+    if (roomByNumber.has(number) &&
+        session.marks[number] !== 'resident' &&
+        worklist.overrides[number] !== 'exclude') {
       assigned.add(number);
     }
   }
@@ -241,6 +251,15 @@ async function getMiniAppDepartureList(req) {
   }
 
   const assigned = assignedDepartureNumbers(session, worklist, roomByNumber);
+  const effectiveArrivalRooms = new Set(worklist.arrivalRooms);
+  for (const rawNumber of session.pdfRooms || []) {
+    const number = String(Number(rawNumber));
+    if (session.marks[number] === 'arrival') effectiveArrivalRooms.add(number);
+  }
+  for (const [number, enabled] of Object.entries(worklist.arrivalOverrides || {})) {
+    if (enabled) effectiveArrivalRooms.add(number);
+    else effectiveArrivalRooms.delete(number);
+  }
   const roomNumbers = [...assigned]
     .filter(number => !checkedSet.has(number))
     .sort((a, b) => {
@@ -260,7 +279,7 @@ async function getMiniAppDepartureList(req) {
     remainingCount: roomNumbers.length,
     roomNumbers,
     checkedToday,
-    arrivalRooms: worklist.arrivalRooms.filter(number => roomNumbers.includes(number)),
+    arrivalRooms: [...effectiveArrivalRooms].filter(number => roomNumbers.includes(number)),
     overrides: worklist.overrides
   };
 }
@@ -456,18 +475,20 @@ router.patch('/miniapp-list/room', async (req, res) => {
       const overrides = { ...current.overrides };
       const arrivalRooms = new Set(current.arrivalRooms);
 
+      const arrivalOverrides = { ...(current.arrivalOverrides || {}) };
       if (action === 'add') {
         overrides[number] = 'include';
       } else if (action === 'remove') {
         overrides[number] = 'exclude';
         arrivalRooms.delete(number);
-      } else if (req.body.enabled) {
-        arrivalRooms.add(number);
+        arrivalOverrides[number] = false;
       } else {
-        arrivalRooms.delete(number);
+        arrivalOverrides[number] = Boolean(req.body.enabled);
+        if (req.body.enabled) arrivalRooms.add(number);
+        else arrivalRooms.delete(number);
       }
 
-      return { ...current, overrides, arrivalRooms: [...arrivalRooms] };
+      return { ...current, overrides, arrivalRooms: [...arrivalRooms], arrivalOverrides };
     });
 
     const list = await getMiniAppDepartureList(req);
