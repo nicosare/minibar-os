@@ -535,8 +535,8 @@
   .room-history-modal-card{max-height:min(90dvh,820px)}
   .room-history-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:12px 15px calc(12px + env(safe-area-inset-bottom));border-top:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.025)}
   .room-history-tab{min-height:41px;padding:8px 10px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.06);color:#fff;font-size:11px;font-weight:800}
-  .room-history-tab.active{border-color:#2688eb;background:#2688eb;color:#fff;box-shadow:0 3px 12px rgba(38,136,235,.2)}
-  .room-history-tab:not(.active){background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.1);color:rgba(255,255,255,.7)}
+  #roomHistoryModal .room-history-tabs .room-history-tab.active{border:1px solid #2688eb;background:#2688eb;color:#fff;box-shadow:0 3px 12px rgba(38,136,235,.2)}
+  #roomHistoryModal .room-history-tabs .room-history-tab:not(.active){background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.7)}
   .room-history-modal-content{flex:1 1 auto;min-height:100px;overflow-y:auto;padding:12px 14px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
   .room-history-record-card{padding:11px 0;border-bottom:1px solid rgba(255,255,255,.08)}
   .room-history-record-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
@@ -2952,6 +2952,47 @@ gihCreateSubmit.addEventListener('click',()=>{void submitGihCreate()});
 gihCreateClear.addEventListener('click',()=>{if(gihCreateBusy)return;gihCreateCounts={};renderGihCreateProducts()});
 roomHistoryModal.addEventListener('click',e=>{if(e.target===roomHistoryModal){closeRoomHistoryModal();return}const tab=e.target.closest('[data-history-tab]');if(!tab)return;roomHistoryModalTab=tab.dataset.historyTab;roomHistoryModal.querySelectorAll('[data-history-tab]').forEach(b=>{const active=b.dataset.historyTab===roomHistoryModalTab;b.classList.toggle('active',active);b.setAttribute('aria-selected',String(active))});renderRoomHistoryModal()});
 roomHistoryModalClose.addEventListener('click',closeRoomHistoryModal);
+
+// Shared swipe-to-dismiss behavior for every modal.
+// The gesture must start while its scroll area is already at the top;
+// the swipe that scrolls content back to the top cannot also dismiss it.
+function enableModalSwipeToClose(modal, close) {
+  if (!modal) return;
+  let startY = 0;
+  let startedAtTop = false;
+  let tracking = false;
+  let startScroller = null;
+
+  modal.addEventListener('touchstart', event => {
+    if (modal.classList.contains('hidden') || modal.getAttribute('aria-hidden') === 'true' || !event.touches.length) return;
+    const target = event.target instanceof Element ? event.target : null;
+    startScroller = target?.closest('.deadline-modal-products, .room-history-modal-content, .photo-preview-area');
+    if (!startScroller || !modal.contains(startScroller)) {
+      startScroller = modal.querySelector('.room-history-modal-content, .deadline-modal-products, .photo-preview-area');
+    }
+    startedAtTop = !startScroller || startScroller.scrollTop <= 0;
+    startY = event.touches[0].clientY;
+    tracking = true;
+  }, { passive: true });
+
+  modal.addEventListener('touchend', event => {
+    if (!tracking) return;
+    tracking = false;
+    if (!startedAtTop || !event.changedTouches.length) return;
+    if (startScroller && startScroller.scrollTop > 0) return;
+    const deltaY = event.changedTouches[0].clientY - startY;
+    if (deltaY > 65) close();
+  }, { passive: true });
+
+  modal.addEventListener('touchcancel', () => { tracking = false; }, { passive: true });
+}
+
+enableModalSwipeToClose(deadlineModal, () => closeCameraDeadlineModal());
+enableModalSwipeToClose(gihCreateModal, closeGihCreateModal);
+enableModalSwipeToClose(refillModal, closeRefillModal);
+enableModalSwipeToClose(roomHistoryModal, closeRoomHistoryModal);
+enableModalSwipeToClose(photoModal, resetPhoto);
+
 deadlineModal.addEventListener('click', event => {
   if (event.target === deadlineModal) closeCameraDeadlineModal();
 });
