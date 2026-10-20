@@ -556,8 +556,18 @@
   .room-history-modal-card{max-height:min(90dvh,820px)}
   .room-history-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:12px 15px calc(12px + env(safe-area-inset-bottom));border-top:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.025)}
   .room-history-tab{min-height:41px;padding:8px 10px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.06);color:#fff;font-size:11px;font-weight:800}
-  #roomHistoryModal .room-history-tabs .room-history-tab.active{border:1px solid #2688eb;background:#2688eb;color:#fff;box-shadow:0 3px 12px rgba(38,136,235,.2)}
-  #roomHistoryModal .room-history-tabs .room-history-tab:not(.active){background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.7)}
+  #roomHistoryModal .room-history-tabs .room-history-tab[data-history-tab="daily"]{--history-accent:#8af0a7;--history-accent-bg:rgba(52,199,89,.15);--history-accent-shadow:rgba(52,199,89,.12)}
+  #roomHistoryModal .room-history-tabs .room-history-tab[data-history-tab="gih"]{--history-accent:#d6bdff;--history-accent-bg:rgba(145,94,220,.18);--history-accent-shadow:rgba(145,94,220,.16)}
+  #roomHistoryModal .room-history-tabs .room-history-tab.active{border:1px solid var(--history-accent);background:var(--history-accent-bg);color:var(--history-accent);box-shadow:0 3px 12px var(--history-accent-shadow)}
+  #roomHistoryModal .room-history-tabs .room-history-tab:not(.active){background:rgba(255,255,255,.035);border:1px solid color-mix(in srgb,var(--history-accent) 35%,transparent);color:color-mix(in srgb,var(--history-accent) 72%,white)}
+  .room-history-record-kind.is-daily{background:rgba(52,199,89,.15);color:#8af0a7}
+  .room-history-record-kind.is-empty{background:rgba(255,90,95,.16);color:#ff9b9f}
+  .room-history-record-kind.is-deadline{background:rgba(38,136,235,.18);color:#8bc6ff}
+  .room-history-record-kind.is-departures{background:rgba(255,213,79,.15);color:#ffdf80}
+  .room-history-record-detail.is-daily{color:#8af0a7;font-weight:750}
+  .room-history-record-detail.is-empty{color:#ff9b9f;font-weight:750}
+  .room-history-record-detail.is-deadline{color:#8bc6ff;font-weight:750}
+  .room-history-record-detail.is-departures{color:#ffdf80;font-weight:750}
   .room-history-modal-content{flex:1 1 auto;min-height:100px;overflow-y:auto;padding:12px 14px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
   .room-history-record-card{padding:11px 0;border-bottom:1px solid rgba(255,255,255,.08)}
   .room-history-record-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
@@ -2021,11 +2031,16 @@ function roomHistoryRecordHtml(check){
   details+=['replenished','in_place','out','not_replenished','pending'].filter(status=>groups[status]).map(status=>{const statusClass=({replenished:'status-replenished',in_place:'status-in-place',out:'status-out',not_replenished:'status-not-replenished',pending:'status-pending'})[status]||'status-pending';return '<div class="room-history-record-detail"><span class="'+statusClass+'">'+escapeCameraHtml(CAMERA_HISTORY_GIH_STATUSES[status]||status)+':</span> '+Object.entries(groups[status]).map(([name,qty])=>escapeCameraHtml(name)+(qty>1?' ×'+qty:'')).join(', ')+'</div>'}).join('');
   if(!details)details='<div class="room-history-record-detail">Позиции не указаны</div>';
  }else if(check.type==='deadline'){
-  details='<div class="room-history-record-detail">Сроки годности</div>';
+  details='<div class="room-history-record-detail is-deadline">Сроки годности</div>';
   try{const event=JSON.parse(String(check.notes||'{}'));if(event.note)details+='<div class="room-history-record-detail">'+escapeCameraHtml(event.note)+'</div>';if(Array.isArray(event.productsAfter)&&event.productsAfter.length)details+='<div class="room-history-record-detail">'+event.productsAfter.map(item=>escapeCameraHtml(item.name)+(item.qty>1?' ×'+item.qty:'')).join(', ')+'</div>'}catch(_){}
- }else details='<div class="room-history-record-detail">'+((check.type==='emptied'||check.type==='vk_emptied')?'Опустошение':check.type==='departures_print'?'Печать Departures':'Проверка')+'</div>';
- const safeNote=check.type==='deadline'?'':note, kind=check.type==='gih'?'GIH':check.type==='deadline'?'Сроки':(check.type==='emptied'||check.type==='vk_emptied')?'Опустошение':'Ежедневная';
- return '<article class="room-history-record-card"><div class="room-history-record-top"><time>'+escapeCameraHtml(dateText)+'</time><span class="room-history-record-kind '+(check.type==='gih'?'is-gih':'')+'">'+kind+'</span></div>'+details+(safeNote?'<div class="room-history-record-note">'+escapeCameraHtml(safeNote).replace(/\n/g,'<br>')+'</div>':'')+'</article>';
+ }else if(check.type==='emptied'||check.type==='vk_emptied'){
+  details='<div class="room-history-record-detail is-empty">Опустошение</div>';
+ }else if(check.type==='departures_print'){
+  details='<div class="room-history-record-detail is-departures">Печать Departures</div>';
+ }else details='<div class="room-history-record-detail is-daily">Проверка</div>';
+ const safeNote=check.type==='deadline'?'':note, kind=check.type==='gih'?'GIH':check.type==='deadline'?'Сроки':(check.type==='emptied'||check.type==='vk_emptied')?'Опустошение':check.type==='departures_print'?'Печать Departures':'Ежедневная';
+ const kindClass=check.type==='gih'?'is-gih':check.type==='deadline'?'is-deadline':(check.type==='emptied'||check.type==='vk_emptied')?'is-empty':check.type==='departures_print'?'is-departures':'is-daily';
+ return '<article class="room-history-record-card"><div class="room-history-record-top"><time>'+escapeCameraHtml(dateText)+'</time><span class="room-history-record-kind '+kindClass+'">'+kind+'</span></div>'+details+(safeNote?'<div class="room-history-record-note">'+escapeCameraHtml(safeNote).replace(/\n/g,'<br>')+'</div>':'')+'</article>';
 }
 function renderRoomHistoryModal(){
  if(!roomHistoryModalRoomId)return;const state=roomHistoryCache.get(Number(roomHistoryModalRoomId));
