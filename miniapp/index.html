@@ -298,42 +298,26 @@
     text-shadow: 0 0 12px rgba(255, 204, 0, 0.3);
   }
 
-  /* Camera block shown while the camera is on standby. */
+  /* Camera information shown while the camera is on standby. */
   .camera-info-panel {
     position: absolute;
     inset: 0;
     z-index: 8;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 16px;
+    gap: 8px;
+    padding: 12px;
     overflow: hidden;
     background: #0b0b0d;
   }
 
-  .camera-info-heading {
-    flex: 0 0 auto;
-    font-size: 15px;
-    line-height: 20px;
-    font-weight: 800;
-    letter-spacing: .1px;
-  }
-
-  .camera-history-label {
-    flex: 0 0 auto;
-    color: var(--text-dim);
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: .7px;
-    text-transform: uppercase;
-  }
-
   .camera-history-list {
     min-height: 0;
-    flex: 1 1 auto;
+    flex: 0 1 auto;
+    margin-top: auto;
     display: flex;
     flex-direction: column;
-    gap: 7px;
+    gap: 4px;
     overflow-y: auto;
     scrollbar-width: none;
   }
@@ -344,26 +328,43 @@
     flex: 0 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 3px;
-    padding: 8px 9px;
-    border: 1px solid rgba(255,255,255,.08);
-    border-radius: 9px;
-    background: rgba(255,255,255,.045);
+    gap: 2px;
+    padding: 5px 8px;
+    border: 1px solid rgba(255,255,255,.07);
+    border-radius: 7px;
+    background: rgba(255,255,255,.035);
     min-width: 0;
   }
 
+  .camera-history-line {
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
   .camera-history-date {
+    flex: 0 0 auto;
     color: rgba(255,255,255,.48);
     font-size: 10px;
     font-weight: 600;
-    line-height: 13px;
+    line-height: 14px;
+    white-space: nowrap;
   }
 
   .camera-history-summary {
+    min-width: 0;
     color: rgba(255,255,255,.9);
     font-size: 11px;
     font-weight: 650;
-    line-height: 15px;
+    line-height: 14px;
+    overflow-wrap: anywhere;
+  }
+
+  .camera-history-note {
+    color: rgba(255,255,255,.52);
+    font-size: 10px;
+    line-height: 13px;
     overflow-wrap: anywhere;
   }
 
@@ -372,26 +373,18 @@
   .camera-history-gih-status { color: rgba(255,255,255,.68); font-weight: 750; }
   .camera-history-separator { color: rgba(255,255,255,.35); }
 
-  .camera-history-note {
-    color: rgba(255,255,255,.55);
-    font-size: 10px;
-    line-height: 13px;
-    overflow-wrap: anywhere;
-  }
-
   .camera-history-empty {
-    padding: 12px 4px;
+    padding: 5px 2px;
     color: var(--text-dim);
-    font-size: 12px;
-    line-height: 17px;
+    font-size: 11px;
+    line-height: 15px;
   }
 
   .room-description-box {
     width: 100%;
     flex: 0 0 auto;
-    margin-top: auto;
-    padding: 11px 12px;
-    border-radius: 11px;
+    padding: 10px 11px;
+    border-radius: 10px;
     background: rgba(255,255,255,.055);
     border: 1px solid var(--card-border);
   }
@@ -813,17 +806,15 @@
           <button class="loader-retry hidden" id="loaderRetry" type="button">Повторить</button>
         </div>
 
-        <section class="camera-info-panel" id="cameraInfoPanel" aria-label="Блок камеры">
-          <div class="camera-info-heading">Блок камеры</div>
-          <div class="camera-history-label">3 последние операции</div>
-          <div class="camera-history-list" id="roomHistoryItems" aria-live="polite">
-            <div class="camera-history-empty">Загрузка истории…</div>
-          </div>
+        <section class="camera-info-panel" id="cameraInfoPanel" aria-label="Информация о номере">
           <div class="room-description-box" id="roomDescription">
             <div class="desc-header">
               <span class="desc-title" id="descRoomTitle">Номер 500</span>
-              <span class="desc-tag" id="descRoomTag">5 этаж · Стандарт</span>
+              <span class="desc-tag" id="descRoomTag">5 этаж</span>
             </div>
+          </div>
+          <div class="camera-history-list" id="roomHistoryItems" aria-live="polite">
+            <div class="camera-history-empty">Загрузка истории…</div>
           </div>
         </section>
       </div>
@@ -906,6 +897,18 @@ let queueRemaining = 0;
 
 const API_BASE = '/minibar-os/api';
 
+function normalizeRoomType(room) {
+  const values = [
+    room?.category,
+    room?.roomCategory,
+    room?.roomType,
+    room?.type
+  ].filter(value => value != null && String(value).trim() !== '')
+    .map(value => String(value).trim().toLocaleLowerCase('ru-RU'));
+  const suitePattern = /люкс|suite|lux|deluxe|апартамент|apartment|junior|полулюкс|президентск|presidential|^l$|^lx$/iu;
+  return values.some(value => suitePattern.test(value)) ? 'suite' : 'standard';
+}
+
 async function loadRooms() {
   const response = await fetch(API_BASE + '/miniapp/queue', {
     method: 'GET',
@@ -928,10 +931,7 @@ async function loadRooms() {
       ...room,
       number: String(room.number),
       floor: Number(room.floor),
-      type: String(room.category || '').toLowerCase().includes('люкс') ||
-            String(room.category || '').toLowerCase().includes('suite')
-        ? 'suite'
-        : 'standard'
+      type: normalizeRoomType(room)
     }))
     .sort((a, b) => Number(a.number) - Number(b.number));
 
@@ -1227,8 +1227,10 @@ function cameraHistoryEntryHtml(check) {
     : 'Дата неизвестна';
   const note = String(check.notes || '').trim().replace(/\s+/g, ' ');
   return '<article class="camera-history-entry">' +
-    '<div class="camera-history-date">' + escapeCameraHtml(dateText) + '</div>' +
-    '<div class="camera-history-summary">' + cameraHistorySummary(check) + '</div>' +
+    '<div class="camera-history-line">' +
+      '<span class="camera-history-date">' + escapeCameraHtml(dateText) + '</span>' +
+      '<span class="camera-history-summary">' + cameraHistorySummary(check) + '</span>' +
+    '</div>' +
     (note ? '<div class="camera-history-note">' + escapeCameraHtml(note) + '</div>' : '') +
     '</article>';
 }
@@ -1859,9 +1861,9 @@ function updateSelectedRoomState(room, vibrate = false) {
   }
 
   descRoomTitle.textContent = 'Номер ' + room.number;
-  const categoryLabel = room.type === 'suite' ? 'Люкс' : 'Стандарт';
+  const categoryLabel = normalizeRoomType(room) === 'suite' ? 'Люкс' : 'Стандарт';
   descRoomTag.textContent = room.floor + ' этаж · ' + categoryLabel;
-  descRoomTag.className = room.type === 'suite' ? 'desc-tag suite' : 'desc-tag';
+  descRoomTag.className = categoryLabel === 'Люкс' ? 'desc-tag suite' : 'desc-tag';
 
   void loadRoomHistory(room, changed);
   updateDrawerSelectedChip(room.number);
@@ -2000,10 +2002,7 @@ async function syncRoomData() {
         ...room,
         number: String(room.number),
         floor: Number(room.floor),
-        type: String(room.category || '').toLowerCase().includes('люкс') ||
-              String(room.category || '').toLowerCase().includes('suite')
-          ? 'suite'
-          : 'standard'
+        type: normalizeRoomType(room)
       }))
       .sort((a, b) => Number(a.number) - Number(b.number));
 
