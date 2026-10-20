@@ -1399,7 +1399,7 @@ function renderRoomHistory(roomId) {
     roomHistoryItems.innerHTML = '<div class="camera-history-empty">Операций пока нет</div>';
     return;
   }
-  roomHistoryItems.innerHTML = state.items.map(cameraHistoryEntryHtml).join('');
+  roomHistoryItems.innerHTML = state.items.slice(-3).map(cameraHistoryEntryHtml).join('');
 }
 
 async function loadRoomHistory(room, force = false) {
@@ -1437,8 +1437,8 @@ async function loadRoomHistory(room, force = false) {
       loading: false,
       loaded: true,
       error: false,
-      // Keep only the three newest records, still ordered oldest-to-newest for display.
-      items: items.slice(-3),
+      // Keep the full room history for the modal; the compact strip renders only the latest three.
+      items,
       loadedAt: Date.now()
     });
   } catch (error) {
@@ -1452,6 +1452,7 @@ async function loadRoomHistory(room, force = false) {
     });
   }
   if (selectedRoom && Number(selectedRoom.id) === roomId) renderRoomHistory(roomId);
+  if (isRoomHistoryModalOpen() && Number(roomHistoryModalRoomId) === roomId) renderRoomHistoryModal();
 }
 
 const CAMERA_DEADLINE_STATUS_LABELS = {
