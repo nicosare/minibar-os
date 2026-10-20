@@ -1976,7 +1976,7 @@ function renderGihCreateProducts(){
  const order=['Дверца','Напитки','Алкоголь','Соки'],cats=[...order.filter(c=>grouped[c]?.length),...Object.keys(grouped).filter(c=>!order.includes(c)).sort((a,b)=>a.localeCompare(b,'ru'))];
  gihCreateProducts.innerHTML=cats.map(cat=>'<section class="deadline-modal-category"><div class="deadline-modal-category-title">'+escapeCameraHtml(cat)+'</div><div class="deadline-modal-product-grid">'+grouped[cat].map(item=>{
  const p=item.product,id=item.id,count=Number(gihCreateCounts[id])||0,color=CAMERA_DEADLINE_PRODUCT_COLORS[p.bgColor]||CAMERA_DEADLINE_PRODUCT_COLORS.slate,emoji=p.emoji||String(p.name||'?').charAt(0).toUpperCase();
- return '<button type="button" class="deadline-modal-product'+(count?' selected':'')+'" data-gih-product-id="'+id+'" data-gih-max="'+item.max+'" aria-pressed="'+String(count>0)+'">'+(count?'<span class="deadline-modal-counter">'+count+'</span>':'')+'<span class="deadline-modal-product-text"><span class="deadline-modal-product-name">'+escapeCameraHtml(p.name||'Продукт')+'</span></span></button>'
+ return '<button type="button" class="deadline-modal-product'+(count?' selected':'')+'" data-gih-product-id="'+id+'" data-gih-max="'+item.max+'" aria-pressed="'+String(count>0)+'">'+(count?'<span class="deadline-modal-counter">'+count+'</span>':'')+'<span class="deadline-modal-product-icon" style="background:'+color+';color:#18202a">'+escapeCameraHtml(emoji)+'</span><span class="deadline-modal-product-text"><span class="deadline-modal-product-name">'+escapeCameraHtml(p.name||'Продукт')+'</span></span></button>'
  }).join('')+'</div></section>').join('');
 }
 async function openGihCreateModal(){
