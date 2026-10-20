@@ -710,7 +710,8 @@
   .tool-excise-footer .tool-field-label{display:none}
   .tool-excise-footer .tool-actions{margin:8px 0 0}
   .tool-excise-title-count{font-size:10px;font-weight:750;color:rgba(255,255,255,.48);white-space:nowrap}
-  .tool-calc-minus{flex:0 0 auto;width:27px;height:27px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,204,0,.3);border-radius:8px;background:rgba(255,204,0,.07);color:var(--yellow);font-size:18px;font-weight:800;line-height:1}
+  .tool-calc-minus{flex:0 0 auto;width:27px;height:27px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,204,0,.3);border-radius:8px;background:rgba(255,204,0,.07);color:var(--yellow)}
+  .tool-calc-minus svg{display:block;width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
   .tool-calc-minus:disabled,.tool-calc-minus[aria-disabled="true"]{opacity:.28}
   .tool-calculator-card{max-height:min(88dvh,760px)}
   .tool-calculator-products{max-height:none;min-height:130px}
@@ -3083,7 +3084,7 @@ function renderToolCalculatorProducts() {
           '<span class="deadline-modal-product-text"><span class="deadline-modal-product-name">' + toolEscapeHtml(product.name) +
           '</span><span class="deadline-modal-product-meta">' + toolFormatMoney(product.price) + '</span></span>' +
           '<button type="button" class="tool-calc-minus" data-tool-calc-dec="' + id +
-          '" aria-label="Убрать одну единицу ' + toolEscapeHtml(product.name) + '" aria-disabled="' + String(qty <= 0) + '">−</button></div>';
+          '" aria-label="Убрать одну единицу ' + toolEscapeHtml(product.name) + '" aria-disabled="' + String(qty <= 0) + '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button></div>';
       }).join('') + '</div></section>';
   }).join('');
   toolCalculatorProducts.scrollTop = scrollTop;
@@ -3116,7 +3117,7 @@ function renderToolCalculatorBill() {
     return '<div class="tool-bill-row"><div class="tool-bill-row-main"><div class="tool-bill-row-name">' +
       toolEscapeHtml(entry.product.name) + '</div><div class="tool-bill-row-meta">' + entry.qty + ' × ' + toolFormatMoney(entry.price) +
       '</div></div><div class="tool-bill-row-sum">' + toolFormatMoney(entry.subtotal) + '</div><button type="button" class="tool-bill-remove" data-tool-calc-dec="' +
-      id + '" aria-label="Убрать одну единицу ' + toolEscapeHtml(entry.product.name) + '">−</button></div>';
+      id + '" aria-label="Убрать одну единицу ' + toolEscapeHtml(entry.product.name) + '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button></div>';
   }).join('');
   toolCalculatorTotal.textContent = toolFormatMoney(totalSum);
   toolCalculatorClear.disabled = entries.length === 0;
