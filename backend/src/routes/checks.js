@@ -92,7 +92,7 @@ function applyOperationFilter(conditions, operation) {
   } else if (operation === 'check') {
     conditions.push({ type: { notIn: ['gih', 'deadline', 'deadline_undo', 'emptied', 'vk_emptied'] } });
   } else if (operation === 'emptied') {
-    conditions.push({ type: { in: ['emptied', 'vk_emptied'] } });
+    conditions.push({ type: { in: ['emptied', 'vk_emptied', 'vk_emptied_undo'] } });
   } else if (operation === 'deadlines') {
     conditions.push({ type: { in: ['deadline', 'deadline_undo'] } });
   } else if (operation === 'room') {
