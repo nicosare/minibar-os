@@ -189,8 +189,6 @@ export async function processVkBotMessage({
           continue;
         }
 
-        // Include already-undone rows in this lookup: this makes a repeated "-1634"
-        // a no-op instead of walking backwards through older history.
         const latestAction = await tx.check.findFirst({
           where: {
             roomId: room.id,
@@ -198,12 +196,30 @@ export async function processVkBotMessage({
           },
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           select: {
-            id: true, type: true, notes: true, operationSnapshot: true, undoneAt: true
+            id: true, type: true, notes: true, operationSnapshot: true, createdAt: true
           }
         });
 
-        if (!latestAction || latestAction.undoneAt) {
-          unavailableRooms.push({ room: roomNumber, reason: latestAction ? 'already_undone' : 'nothing_to_undo' });
+        // The Check row is deleted on undo so it disappears from history completely.
+        // VkBotEvent is the invisible guard that prevents a repeated "-1634" from
+        // undoing an older action. A newer room action makes undo available again.
+        const undoEvents = await tx.vkBotEvent.findMany({
+          where: {
+            eventType: 'undo',
+            eventId: { not: eventId },
+            ...(latestAction ? { createdAt: { gt: latestAction.createdAt } } : {})
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 500,
+          select: { text: true }
+        });
+        const alreadyUndone = undoEvents.some(event => {
+          const previousUndo = parseVkOperationalMessage(event.text);
+          return previousUndo?.undo && previousUndo.rooms.includes(roomNumber);
+        });
+
+        if (alreadyUndone || !latestAction) {
+          unavailableRooms.push({ room: roomNumber, reason: alreadyUndone ? 'already_undone' : 'nothing_to_undo' });
           continue;
         }
 
@@ -271,22 +287,7 @@ export async function processVkBotMessage({
           where: { id: room.id },
           data: { expiryStatus: String(snapshot.before.roomStatus || 'neutral') }
         });
-        await tx.check.update({
-          where: { id: latestAction.id },
-          data: { undoneAt: new Date() }
-        });
-        await tx.check.create({
-          data: {
-            roomId: room.id,
-            checkDate: eventDate,
-            type: latestAction.type === 'deadline' ? 'deadline_undo' :
-              (latestAction.type === 'vk_emptied' || latestAction.type === 'emptied') ? 'vk_emptied_undo' : 'vk_undo',
-            status: 'done',
-            notes: 'Отменено последнее ежедневное действие: ' +
-              ((latestAction.type === 'vk_emptied' || latestAction.type === 'emptied') ? 'опустошение' :
-                latestAction.type === 'deadline' ? 'операция «Сроки»' : 'проверка')
-          }
-        });
+        await tx.check.delete({ where: { id: latestAction.id } });
         undoneRooms.push(roomNumber);
         roomStateChanged = true;
       }
