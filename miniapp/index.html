@@ -305,8 +305,8 @@
     z-index: 8;
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-template-rows: auto auto auto auto auto;
-    align-content: start;
+    grid-template-rows: auto auto auto auto minmax(0, 1fr);
+    align-content: stretch;
     align-items: start;
     gap: 6px;
     padding: 10px;
@@ -349,9 +349,11 @@
   .camera-history-section {
     grid-column: 1 / span 3;
     grid-row: 5;
+    align-self: end;
     min-width: 0;
     min-height: 0;
     display: block;
+    margin-bottom: 0;
   }
 
   .camera-history-list {
@@ -372,7 +374,7 @@
   .camera-workspace-deadlines .camera-deadline-panel {
     width: 100%;
     height: auto;
-    min-height: 0;
+    min-height: calc((100vw - 32px) / 3);
     align-self: start;
     display: flex;
     flex-direction: column;
@@ -464,9 +466,8 @@
   .camera-info-panel .camera-history-card:active { filter: brightness(1.12); }
   .camera-info-panel .camera-history-card:focus-visible { outline: 2px solid rgba(255,255,255,.75); outline-offset: 2px; }
   .camera-history-heading { min-height: 20px; display:flex;align-items:center;justify-content:space-between;gap:8px; }
-  .camera-history-title { display:flex;align-items:center;gap:6px;font-size:11px;font-weight:850;line-height:15px; }
-  .camera-history-title svg { width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto; }
-  .camera-history-arrow { width:20px;height:20px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;font-size:15px; }
+  .camera-history-title { display:flex;align-items:center;gap:0;font-size:11px;font-weight:850;line-height:15px; }
+  .camera-history-arrow { display:none; }
   .camera-history-list .camera-history-entry { padding: 3px 2px; }
   .camera-history-list .camera-history-line { gap: 5px; }
   .camera-history-list .camera-history-date { font-size: 9px; }
@@ -532,10 +533,9 @@
   .gih-create-note-label{display:block;padding:0 15px 5px;color:rgba(255,255,255,.55);font-size:10px;font-weight:800}
   .gih-create-notes{display:block;width:calc(100% - 30px);margin:0 15px 12px;padding:9px 10px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:rgba(255,255,255,.045);color:#fff;font:inherit;font-size:12px;resize:vertical}
   .room-history-modal-card{max-height:min(90dvh,820px)}
-  .room-history-tabs{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
-  .room-history-tab{min-height:37px;display:flex;align-items:center;justify-content:center;gap:7px;border:1px solid rgba(255,255,255,.09);border-radius:9px;background:rgba(255,255,255,.04);color:rgba(255,255,255,.6);font-size:12px;font-weight:800}
-  .room-history-tab svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
-  .room-history-tab.active{border-color:rgba(38,136,235,.55);background:rgba(38,136,235,.18);color:#fff}
+  .room-history-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:12px 15px calc(12px + env(safe-area-inset-bottom));border-top:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.025)}
+  .room-history-tab{min-height:41px;padding:8px 10px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.06);color:#fff;font-size:11px;font-weight:800}
+  .room-history-tab.active{border-color:#2688eb;background:#2688eb;color:#fff}
   .room-history-modal-content{flex:1 1 auto;min-height:100px;overflow-y:auto;padding:12px 14px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
   .room-history-record-card{padding:11px 0;border-bottom:1px solid rgba(255,255,255,.08)}
   .room-history-record-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
@@ -1042,7 +1042,7 @@
             <div class="camera-workspace-deadlines">
               <button type="button" class="camera-deadline-panel" id="cameraDeadlinePanel" aria-label="Открыть сроки годности номера">
                 <div class="camera-deadline-head">
-                  <span class="camera-deadline-title"><svg viewBox="0 0 24 24" aria-hidden="true" width="15" height="15" style="vertical-align:-3px;margin-right:3px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M16 3v4M8 3v4M3 10h18M12 14v3l2 1"></path></svg>Сроки</span>
+                  <span class="camera-deadline-title">Сроки</span>
                   <span class="camera-deadline-status status-neutral" id="cameraDeadlineStatus">Загрузка…</span>
                 </div>
                 <div class="camera-deadline-products" id="cameraDeadlineProducts">
@@ -1051,19 +1051,16 @@
               </button>
             </div>
             <button type="button" class="camera-gih-panel camera-workspace-gih" id="cameraGihPanel" aria-label="Создать запись GIH для номера">
-              <svg viewBox="0 0 24 24" aria-hidden="true" width="24" height="24" style="fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><path d="M21 8a2 2 0 0 0-2-2h-4.2a3 3 0 0 0-5.6 0H5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z"></path><path d="M3 11h18M9 15l2 2 4-4"></path></svg>
               <span class="camera-action-title">GIH</span>
             </button>
             <button type="button" class="camera-refill-panel camera-workspace-refill" id="cameraRefillPanel" aria-label="Открыть выбор продуктов для пополнения">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18l-2 13H5L3 7Z"></path><path d="M8 7a4 4 0 0 1 8 0M12 11v5M9.5 13.5h5"></path></svg>
               <span>Нужно пополнить</span>
             </button>
           </div>
           <section class="camera-history-section" aria-label="Последние записи истории">
             <div class="camera-history-card" id="roomHistoryOpen" role="button" tabindex="0" aria-label="Открыть историю номера">
               <div class="camera-history-heading">
-                <span class="camera-history-title"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5M12 7v5l3 2"></path></svg>История</span>
-                <span class="camera-history-arrow" aria-hidden="true">↗</span>
+                <span class="camera-history-title">История</span>
               </div>
               <div class="camera-history-list" id="roomHistoryItems" aria-live="polite"><div class="camera-history-empty">Загрузка истории…</div></div>
             </div>
@@ -1160,8 +1157,8 @@
 <div class="deadline-modal hidden" id="roomHistoryModal" role="dialog" aria-modal="true" aria-label="История номера" aria-hidden="true">
   <div class="deadline-modal-card room-history-modal-card">
     <div class="deadline-modal-header"><div class="deadline-modal-room">История · номер <span id="roomHistoryModalNumber"></span></div><button type="button" class="deadline-modal-close" id="roomHistoryModalClose" aria-label="Закрыть историю">×</button></div>
-    <div class="room-history-tabs" role="tablist" aria-label="Раздел истории"><button type="button" class="room-history-tab" data-history-tab="daily" role="tab" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M16 3v4M8 3v4M3 10h18M8 14l2 2 5-5"></path></svg><span>Ежедневные</span></button><button type="button" class="room-history-tab active" data-history-tab="gih" role="tab" aria-selected="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8a2 2 0 0 0-2-2h-4.2a3 3 0 0 0-5.6 0H5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z"></path><path d="M3 11h18M9 15l2 2 4-4"></path></svg><span>GIH</span></button></div>
     <div class="room-history-modal-content" id="roomHistoryModalContent"><div class="camera-deadline-empty">Загрузка истории…</div></div>
+    <div class="room-history-tabs" role="tablist" aria-label="Раздел истории"><button type="button" class="room-history-tab deadline-modal-action reset" data-history-tab="daily" role="tab" aria-selected="false">Ежедневные</button><button type="button" class="room-history-tab deadline-modal-action save active" data-history-tab="gih" role="tab" aria-selected="true">GIH</button></div>
   </div>
 </div>
 <!-- Bottom Sheet Modal -->
