@@ -1297,6 +1297,21 @@ function drawRotatedVideoToCanvas(angle = getCaptureOrientationAngle()) {
   drawSourceToCanvas(video, video.videoWidth, video.videoHeight, angle);
 }
 
+/* Native still capture is consistently upside down in landscape in the VK WebView.
+   Correct only the final landscape raster; portrait captures remain untouched. */
+function correctNativeLandscapeCapture() {
+  if (!canvas.width || !canvas.height || canvas.width <= canvas.height) return;
+
+  const ctx = canvas.getContext('2d', { alpha: false });
+  if (!ctx) throw new Error('Не удалось подготовить снимок');
+
+  ctx.save();
+  ctx.translate(canvas.width, canvas.height);
+  ctx.rotate(Math.PI);
+  ctx.drawImage(canvas, 0, 0);
+  ctx.restore();
+}
+
 /* Prefer a full-resolution still photo when the browser supports it.
    Decode EXIF orientation first, then apply the physical-phone turn exactly once. */
 async function prepareCameraFocus() {
@@ -1959,6 +1974,10 @@ async function takePhoto() {
       drawRotatedVideoToCanvas(
         getCaptureOrientationAngle(video.videoWidth, video.videoHeight)
       );
+    } else {
+      // Keep the native still's EXIF handling, then correct the observed
+      // 180° landscape inversion in VK's WebView. Portrait output is unchanged.
+      correctNativeLandscapeCapture();
     }
     showPreviewFromCanvas();
     previewRequestId = String(Math.floor(Math.random() * 2147483647) + 1);
