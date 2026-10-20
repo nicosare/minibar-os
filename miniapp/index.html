@@ -898,15 +898,15 @@ function normalizeAngle(angle) {
 }
 
 function updateOrientationFromScreen() {
-  if (hasSensorOrientation) return;
-
+  // Display orientation is stable when the phone is tilted toward or away
+  // from the user. Prefer it over gravity-based sensor estimates.
   let angle = null;
   if (window.screen?.orientation &&
       typeof window.screen.orientation.angle === 'number') {
     angle = normalizeAngle(window.screen.orientation.angle);
   } else if (typeof window.orientation === 'number') {
     angle = normalizeAngle(window.orientation);
-  } else if (window.innerWidth > window.innerHeight) {
+  } else if (!hasSensorOrientation && window.innerWidth > window.innerHeight) {
     angle = 90;
   }
 
@@ -940,8 +940,20 @@ function updateOrientationFromSensor(beta, gamma) {
 }
 
 function getPhysicalDeviceAngle() {
-  if (hasSensorOrientation) return currentDeviceAngle;
-  updateOrientationFromScreen();
+  // Never let a slight screen-down tilt override the actual display rotation.
+  // Device-orientation sensors are only a fallback on browsers that expose
+  // neither Screen Orientation API nor the legacy window.orientation value.
+  if (window.screen?.orientation &&
+      typeof window.screen.orientation.angle === 'number') {
+    const angle = normalizeAngle(window.screen.orientation.angle);
+    if ([0, 90, 180, 270].includes(angle)) return angle;
+  }
+
+  if (typeof window.orientation === 'number') {
+    const angle = normalizeAngle(window.orientation);
+    if ([0, 90, 180, 270].includes(angle)) return angle;
+  }
+
   return currentDeviceAngle;
 }
 
