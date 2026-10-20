@@ -1061,6 +1061,9 @@ let photoQueueDbPromise = null;
 let photoQueueWorkerActive = false;
 let photoQueueRetryTimer = null;
 let photoQueueStatusTimer = null;
+const pendingPhotoWrites = new Map();
+let pendingPhotoWriteActive = false;
+let pendingPhotoWriteTimer = null;
 let isCapturing = false;
 let isPreview = false;
 let isVKReady = false;
@@ -2174,10 +2177,49 @@ async function queuePhotoForUpload(roomNumber, blob, requestId) {
     lastError: ''
   };
 
-  // Save the image before releasing the preview. A failed local save keeps
-  // the preview on screen so the user can try again without losing the photo.
   await photoQueueDbAction('readwrite', 'put', item);
   return item;
+}
+
+function schedulePendingPhotoWriteRetry(delay = 3000) {
+  if (pendingPhotoWriteTimer) clearTimeout(pendingPhotoWriteTimer);
+  pendingPhotoWriteTimer = setTimeout(() => {
+    pendingPhotoWriteTimer = null;
+    void flushPendingPhotoWrites();
+  }, Math.max(500, delay));
+}
+
+async function flushPendingPhotoWrites() {
+  if (pendingPhotoWriteActive || !pendingPhotoWrites.size) return;
+  pendingPhotoWriteActive = true;
+
+  try {
+    for (const [id, pending] of pendingPhotoWrites) {
+      try {
+        const blob = await pending.blobPromise;
+        if (!blob || !blob.size) throw new Error('Не удалось подготовить файл фото');
+
+        await queuePhotoForUpload(pending.roomNumber, blob, pending.requestId);
+        pendingPhotoWrites.delete(id);
+        setUploadStatus(
+          'Фото №' + pending.roomNumber + ' сохранено в очереди. Отправляю в фоне…',
+          'pending'
+        );
+      } catch (error) {
+        console.warn('[MINIBAR PHOTO QUEUE] Background save will retry:', error);
+        setUploadStatus(
+          'Фото №' + pending.roomNumber + ' ожидает сохранения в очередь; повторяю автоматически.',
+          'error'
+        );
+        schedulePendingPhotoWriteRetry(3000);
+        return;
+      }
+    }
+
+    if (!pendingPhotoWrites.size) void processPhotoQueue();
+  } finally {
+    pendingPhotoWriteActive = false;
+  }
 }
 
 function formatPhotoRetryDelay(ms) {
@@ -2301,6 +2343,9 @@ async function restorePhotoUploadQueue() {
 window.addEventListener('online', () => {
   if (photoQueueRetryTimer) clearTimeout(photoQueueRetryTimer);
   photoQueueRetryTimer = null;
+  if (pendingPhotoWriteTimer) clearTimeout(pendingPhotoWriteTimer);
+  pendingPhotoWriteTimer = null;
+  void flushPendingPhotoWrites();
   void processPhotoQueue();
 });
 
@@ -2320,36 +2365,28 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') void processPhotoQueue();
 });
 
-btnSend.addEventListener('click', async () => {
+btnSend.addEventListener('click', () => {
   if (!isPreview || btnSend.classList.contains('busy')) return;
 
   const roomNumber = String(selectedRoom?.number || '').trim();
   const requestId = previewRequestId;
-
-  setBusy(btnSend, true);
-  btnSend.textContent = 'Сохранение…';
-
-  try {
-    const blob = previewBlob || (previewBlobPromise ? await previewBlobPromise : null);
-    if (!blob) throw new Error('Не удалось сформировать файл');
-
-    await queuePhotoForUpload(roomNumber, blob, requestId);
-
-    // Returning to the camera depends only on the durable local save, not on
-    // the slower VK upload. The queue worker sends one photo at a time.
-    triggerHaptic();
-    showMessage('Фото №' + roomNumber + ' сохранено — можно снимать следующее', 2200);
-    setUploadStatus('Фото №' + roomNumber + ' сохранено. Отправляю в фоне…', 'pending');
-
-    btnSend.textContent = 'Отправить';
-    setBusy(btnSend, false);
-    resetPhoto();
-    void processPhotoQueue();
-  } catch (error) {
-    showMessage('Не удалось сохранить фото: ' + (error.message || 'ошибка очереди'), 5000);
-    btnSend.textContent = 'Отправить';
-    setBusy(btnSend, false);
+  const blobPromise = Promise.resolve(
+    previewBlob || (previewBlobPromise ? previewBlobPromise : null)
+  );
+  if (!roomNumber || (!previewBlob && !previewBlobPromise)) {
+    showMessage('Не удалось подготовить фото. Попробуйте переснять.', 3500);
+    return;
   }
+
+  // Close the preview immediately. Encoding and IndexedDB persistence continue
+  // in the background while the user selects the next room and takes another photo.
+  const pendingId = String(Date.now()) + '-' + String(requestId || Math.random());
+  pendingPhotoWrites.set(pendingId, { roomNumber, requestId, blobPromise });
+  triggerHaptic();
+  showMessage('Фото №' + roomNumber + ' принято — можно снимать следующее', 2200);
+  setUploadStatus('Подготовка фото №' + roomNumber + ' в фоне…', 'pending');
+  resetPhoto();
+  void flushPendingPhotoWrites();
 });
 
 btnEmpty.addEventListener('click', async () => {
