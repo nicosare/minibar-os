@@ -691,15 +691,16 @@
   .bottom-nav-item:active,.bottom-nav-item:focus-visible{outline:none;border-color:rgba(255,204,0,.4);background:rgba(255,204,0,.1);color:var(--yellow)}
   .nav-placeholder-body{min-height:150px;display:flex;align-items:center;justify-content:center;padding:24px;color:rgba(255,255,255,.42);font-size:12px;text-align:center}
 
-  .tool-screen{position:fixed;inset:0;z-index:210;display:flex;flex-direction:column;min-width:0;overflow:hidden;padding:calc(env(safe-area-inset-top) + 10px) 12px calc(78px + env(safe-area-inset-bottom));background:#09090b;color:#fff}
-  .tool-screen.hidden{display:none!important}
-  .tool-screen [hidden]{display:none!important}
-  .tool-screen-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:2px 2px 13px;border-bottom:1px solid rgba(255,255,255,.09);flex:0 0 auto}
-  .tool-screen-title{margin:0;color:#fff;font-size:23px;line-height:28px;font-weight:900;letter-spacing:-.35px}
-  .tool-screen-kicker{margin:0 0 3px;color:var(--yellow);font-size:9px;line-height:12px;font-weight:900;letter-spacing:1.5px}
-  .tool-screen-subtitle{margin-top:4px;max-width:300px;color:rgba(255,255,255,.48);font-size:10px;line-height:14px}
-  .tool-screen-close{flex:0 0 auto;width:35px;height:35px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.07);color:#fff;font-size:24px;line-height:1}
-  .tool-screen-content{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:12px 0 8px}
+  .tool-modal-card{width:100%;max-width:560px}
+  .tool-modal-body{flex:1 1 auto;min-height:90px;max-height:calc(88dvh - 66px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  .tool-modal-body [hidden]{display:none!important}
+  .tool-calc-minus{flex:0 0 auto;width:27px;height:27px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,204,0,.3);border-radius:8px;background:rgba(255,204,0,.07);color:var(--yellow);font-size:18px;font-weight:800;line-height:1}
+  .tool-calc-minus:disabled{opacity:.28}
+  .tool-calculator-card{max-height:min(88dvh,760px)}
+  .tool-calculator-products{max-height:none;min-height:130px}
+  .tool-calc-bill{flex:0 0 auto;max-height:35dvh;overflow-y:auto;padding:10px 15px calc(12px + env(safe-area-inset-bottom));border-top:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.025)}
+  .tool-bill-rows{max-height:100px;overflow-y:auto;overscroll-behavior:contain}
+  .tool-calculator-feedback{flex:0 0 auto;margin:0;padding:8px 15px calc(8px + env(safe-area-inset-bottom))}
   .tool-stats-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-bottom:11px}
   .tool-stat-card{min-width:0;padding:10px 8px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:#151518}
   .tool-stat-label{color:rgba(255,255,255,.5);font-size:9px;line-height:12px;font-weight:750}
@@ -732,24 +733,6 @@
   .tool-excise-status.invalid{background:rgba(255,90,95,.14);color:#ff9b9f}
   .tool-excise-delete{flex:0 0 auto;width:34px;align-self:center;height:36px;border:1px solid rgba(255,90,95,.16);border-radius:9px;background:rgba(255,90,95,.06);color:rgba(255,155,159,.88);font-size:17px}
   .tool-excise-delete:disabled{opacity:.28}
-  .tool-cat-tabs{display:flex;gap:6px;overflow-x:auto;padding:0 0 8px;margin-bottom:8px;scrollbar-width:none}
-  .tool-cat-tabs::-webkit-scrollbar{display:none}
-  .tool-cat-tab{flex:0 0 auto;min-height:35px;padding:7px 12px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:#151518;color:rgba(255,255,255,.6);font-size:10px;font-weight:800}
-  .tool-cat-tab.active{border-color:var(--yellow);background:rgba(255,204,0,.12);color:var(--yellow)}
-  .tool-cat-count{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;margin-left:4px;padding:0 4px;border-radius:6px;background:rgba(255,255,255,.1);font-size:9px}
-  .tool-cat-tab.active .tool-cat-count{background:rgba(255,204,0,.17)}
-  .tool-products-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
-  .tool-product-card{display:flex;flex-direction:column;min-width:0;min-height:140px;padding:10px;border:1px solid rgba(255,255,255,.085);border-radius:12px;background:#151518}
-  .tool-product-top{display:flex;align-items:flex-start;gap:7px;min-width:0}
-  .tool-product-emoji{flex:0 0 auto;width:29px;height:29px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:rgba(255,255,255,.08);font-size:17px}
-  .tool-product-copy{min-width:0;flex:1}
-  .tool-product-name{display:-webkit-box;overflow:hidden;color:rgba(255,255,255,.94);font-size:10px;line-height:13px;font-weight:800;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow-wrap:anywhere}
-  .tool-product-price{margin-top:4px;color:rgba(255,255,255,.52);font-size:10px;font-weight:750}
-  .tool-product-bottom{display:flex;align-items:center;justify-content:space-between;gap:5px;margin-top:auto;padding-top:10px}
-  .tool-product-qty{min-width:18px;color:#fff;font-size:12px;font-weight:900;text-align:center;font-variant-numeric:tabular-nums}
-  .tool-qty-btn{flex:0 0 auto;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,204,0,.35);border-radius:9px;background:rgba(255,204,0,.08);color:var(--yellow);font-size:19px;font-weight:650;line-height:1}
-  .tool-qty-btn:disabled{opacity:.28}
-  .tool-product-card.has-qty{border-color:rgba(255,204,0,.42);background:rgba(255,204,0,.045)}
   .tool-calc-bill{margin-top:12px;padding:12px}
   .tool-bill-heading{display:flex;align-items:center;gap:8px}
   .tool-bill-heading strong{font-size:13px;font-weight:900}
@@ -770,8 +753,6 @@
   .tool-bill-total strong{color:var(--yellow);font-size:19px;font-weight:950;font-variant-numeric:tabular-nums}
   .tool-feedback{margin:8px 0;padding:9px 10px;border:1px solid rgba(255,204,0,.2);border-radius:9px;background:rgba(255,204,0,.07);color:var(--yellow);font-size:10px;line-height:14px}
   .bottom-nav-item.is-active{border-color:rgba(255,204,0,.42);background:rgba(255,204,0,.09);color:var(--yellow)}
-  @media(min-width:440px){.tool-screen{padding-left:16px;padding-right:16px}.tool-products-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-  @media(max-height:680px){.tool-screen-header{padding-bottom:9px}.tool-screen-title{font-size:21px}.tool-stat-card{padding:7px}.tool-stat-value{font-size:20px}.tool-product-card{min-height:125px}}
 
 
 
@@ -1302,44 +1283,47 @@
   <button class="bottom-nav-item" type="button" data-nav-modal="Списки" aria-label="Списки"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5h11M9 12h11M9 19h11M4 5h.01M4 12h.01M4 19h.01"/></svg><span>Списки</span></button>
 </nav>
 
-<section class="tool-screen hidden" id="exciseScreen" role="dialog" aria-modal="true" aria-labelledby="exciseScreenTitle" aria-hidden="true">
-  <header class="tool-screen-header">
-    <div><div class="tool-screen-kicker">MINIBAR OS · УЧЁТ</div><h1 class="tool-screen-title" id="exciseScreenTitle">Акцизы</h1><div class="tool-screen-subtitle">Сканируйте или вводите марки. Данные общие с основной версией сайта.</div></div>
-    <button class="tool-screen-close" id="exciseScreenClose" type="button" aria-label="Закрыть акцизы">×</button>
-  </header>
-  <div class="tool-screen-content" id="exciseScreenContent">
-    <div class="tool-stats-grid">
-      <div class="tool-stat-card"><div class="tool-stat-label">Всего</div><div class="tool-stat-value" id="toolExciseTotal">0</div><div class="tool-stat-detail">марок</div></div>
-      <div class="tool-stat-card"><div class="tool-stat-label">Валидные</div><div class="tool-stat-value" id="toolExciseValid">0</div><div class="tool-stat-detail" id="toolExciseValidPct">0%</div></div>
-      <div class="tool-stat-card"><div class="tool-stat-label">Невалидные</div><div class="tool-stat-value" id="toolExciseInvalid">0</div><div class="tool-stat-detail" id="toolExciseInvalidPct">0%</div></div>
+<div class="deadline-modal hidden tool-modal" id="exciseScreen" role="dialog" aria-modal="true" aria-labelledby="exciseScreenTitle" aria-hidden="true">
+  <div class="deadline-modal-card tool-modal-card">
+    <div class="deadline-modal-header">
+      <div class="deadline-modal-room" id="exciseScreenTitle">Акцизы</div>
+      <button class="deadline-modal-close" id="exciseScreenClose" type="button" aria-label="Закрыть акцизы">×</button>
     </div>
-    <section class="tool-card" style="padding:12px">
-      <label class="tool-field-label" for="toolExciseInput">Введите или отсканируйте марку</label>
-      <div class="tool-input-row"><input class="tool-input" id="toolExciseInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Код акцизной марки…"><button class="tool-btn tool-btn-primary" id="toolExciseAdd" type="button">Добавить</button></div>
-      <div class="tool-hint">Автодобавление через 0,5 секунды после ввода. Можно вставить сразу несколько марок через пробел или новую строку.</div>
-    </section>
-    <div id="toolExciseFeedback" class="tool-feedback" hidden></div>
-    <div class="tool-actions"><button class="tool-btn tool-btn-primary" id="toolExciseDownload" type="button">↓ Скачать Excel</button><button class="tool-btn tool-btn-danger" id="toolExciseClear" type="button">Очистить все</button></div>
-    <div class="tool-list-heading"><strong>Список акцизов</strong><span class="tool-list-count" id="toolExciseListCount">0 марок</span></div>
-    <div class="tool-excise-list" id="toolExciseList"><div class="tool-empty-state">Загрузка акцизов…</div></div>
+    <div class="deadline-modal-products tool-modal-body" id="exciseScreenContent">
+      <div class="tool-stats-grid">
+        <div class="tool-stat-card"><div class="tool-stat-label">Всего</div><div class="tool-stat-value" id="toolExciseTotal">0</div><div class="tool-stat-detail">марок</div></div>
+        <div class="tool-stat-card"><div class="tool-stat-label">Валидные</div><div class="tool-stat-value" id="toolExciseValid">0</div><div class="tool-stat-detail" id="toolExciseValidPct">0%</div></div>
+        <div class="tool-stat-card"><div class="tool-stat-label">Невалидные</div><div class="tool-stat-value" id="toolExciseInvalid">0</div><div class="tool-stat-detail" id="toolExciseInvalidPct">0%</div></div>
+      </div>
+      <section class="tool-card" style="padding:12px">
+        <label class="tool-field-label" for="toolExciseInput">Акцизная марка</label>
+        <div class="tool-input-row"><input class="tool-input" id="toolExciseInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Введите или отсканируйте марку"><button class="tool-btn tool-btn-primary" id="toolExciseAdd" type="button">Добавить</button></div>
+      </section>
+      <div id="toolExciseFeedback" class="tool-feedback" hidden></div>
+      <div class="tool-actions"><button class="tool-btn tool-btn-primary" id="toolExciseDownload" type="button">↓ Скачать Excel</button><button class="tool-btn tool-btn-danger" id="toolExciseClear" type="button">Очистить все</button></div>
+      <div class="tool-list-heading"><strong>Список акцизов</strong><span class="tool-list-count" id="toolExciseListCount">0 марок</span></div>
+      <div class="tool-excise-list" id="toolExciseList"><div class="tool-empty-state">Загрузка акцизов…</div></div>
+    </div>
   </div>
-</section>
+</div>
 
-<section class="tool-screen hidden" id="calculatorScreen" role="dialog" aria-modal="true" aria-labelledby="calculatorScreenTitle" aria-hidden="true">
-  <header class="tool-screen-header">
-    <div><div class="tool-screen-kicker">MINIBAR OS · ИНСТРУМЕНТЫ</div><h1 class="tool-screen-title" id="calculatorScreenTitle">Калькулятор</h1><div class="tool-screen-subtitle">Те же продукты и цены, что на сайте. Нажимайте «+» и собирайте счёт.</div></div>
-    <button class="tool-screen-close" id="calculatorScreenClose" type="button" aria-label="Закрыть калькулятор">×</button>
-  </header>
-  <div class="tool-screen-content" id="calculatorScreenContent">
-    <div class="tool-cat-tabs" id="toolCalculatorTabs" role="tablist" aria-label="Категории продуктов"></div>
-    <div class="tool-products-grid" id="toolCalculatorProducts"><div class="tool-empty-state">Загрузка продуктов…</div></div>
-    <section class="tool-card tool-calc-bill" id="toolCalculatorBill">
+<div class="deadline-modal hidden tool-modal" id="calculatorScreen" role="dialog" aria-modal="true" aria-labelledby="calculatorScreenTitle" aria-hidden="true">
+  <div class="deadline-modal-card tool-modal-card tool-calculator-card">
+    <div class="deadline-modal-header">
+      <div class="deadline-modal-room" id="calculatorScreenTitle">Калькулятор</div>
+      <button class="deadline-modal-close" id="calculatorScreenClose" type="button" aria-label="Закрыть калькулятор">×</button>
+    </div>
+    <div class="deadline-modal-products tool-modal-body tool-calculator-products" id="toolCalculatorProducts"><div class="tool-empty-state">Загрузка продуктов…</div></div>
+    <section class="tool-calc-bill" id="toolCalculatorBill">
       <div class="tool-bill-heading"><strong>Счёт</strong><span class="tool-bill-count" id="toolCalculatorCount">0 позиций</span></div>
-      <div class="tool-bill-actions"><button class="tool-btn" id="toolCalculatorCopy" type="button">Копировать счёт</button><button class="tool-btn tool-btn-danger" id="toolCalculatorClear" type="button">Очистить</button></div>
+      <div class="tool-bill-actions"><button class="tool-btn" id="toolCalculatorCopy" type="button">Копировать</button><button class="tool-btn tool-btn-danger" id="toolCalculatorClear" type="button">Очистить</button></div>
       <div class="tool-bill-empty" id="toolCalculatorEmpty">Счёт пуст</div>
       <div class="tool-bill-rows hidden" id="toolCalculatorRows"></div>
       <div class="tool-bill-total"><span>Итого</span><strong id="toolCalculatorTotal">0 ₽</strong></div>
     </section>
+    <div id="toolCalculatorFeedback" class="tool-feedback tool-calculator-feedback" hidden></div>
+  </div>
+</div>
     <div id="toolCalculatorFeedback" class="tool-feedback" hidden></div>
   </div>
 </section>
@@ -1716,7 +1700,6 @@ const toolExciseListCount = document.getElementById('toolExciseListCount');
 const toolExciseFeedback = document.getElementById('toolExciseFeedback');
 const calculatorScreen = document.getElementById('calculatorScreen');
 const calculatorScreenClose = document.getElementById('calculatorScreenClose');
-const toolCalculatorTabs = document.getElementById('toolCalculatorTabs');
 const toolCalculatorProducts = document.getElementById('toolCalculatorProducts');
 const toolCalculatorRows = document.getElementById('toolCalculatorRows');
 const toolCalculatorEmpty = document.getElementById('toolCalculatorEmpty');
@@ -2788,7 +2771,6 @@ let toolProducts = [];
 let toolProductsLoaded = false;
 let toolProductsLoadPromise = null;
 let toolCalcCart = {};
-let toolCalcActiveCategory = TOOL_CALC_CATEGORIES[0];
 let toolFeedbackTimers = { excise: null, calculator: null };
 
 function toolEscapeHtml(value) {
@@ -3050,34 +3032,44 @@ function toolCalcGroups() {
   return TOOL_CALC_CATEGORIES.map(function (name) { return { name: name, items: grouped[name] || [] }; });
 }
 function toolCalcQty(productId) { return Number(toolCalcCart[productId]) || 0; }
-function renderToolCalculatorTabs() {
-  const groups = toolCalcGroups();
-  toolCalculatorTabs.innerHTML = groups.map(function (group) {
-    const count = group.items.reduce(function (sum, product) { return sum + toolCalcQty(product.id); }, 0);
-    return '<button type="button" role="tab" aria-selected="' + String(group.name === toolCalcActiveCategory) +
-      '" class="tool-cat-tab' + (group.name === toolCalcActiveCategory ? ' active' : '') + '" data-tool-calc-category="' +
-      toolEscapeHtml(group.name) + '">' + toolEscapeHtml(group.name) + (count ? '<span class="tool-cat-count">' + count + '</span>' : '') + '</button>';
-  }).join('');
-}
 function renderToolCalculatorProducts() {
-  renderToolCalculatorTabs();
-  const groups = toolCalcGroups();
-  const group = groups.find(function (item) { return item.name === toolCalcActiveCategory; }) || groups[0];
-  if (!toolProductsLoaded) { toolCalculatorProducts.innerHTML = '<div class="tool-empty-state">Загрузка продуктов…</div>'; return; }
-  if (!toolProducts.length) { toolCalculatorProducts.innerHTML = '<div class="tool-empty-state">Нет активных продуктов</div>'; return; }
-  if (!group || !group.items.length) { toolCalculatorProducts.innerHTML = '<div class="tool-empty-state">Нет продуктов в этой категории</div>'; return; }
-  toolCalculatorProducts.innerHTML = group.items.map(function (product) {
-    const qty = toolCalcQty(product.id);
-    const emoji = product.emoji || String(product.name || '?').charAt(0).toUpperCase();
-    const color = TOOL_PRODUCT_COLORS[product.bgColor] || TOOL_PRODUCT_COLORS.slate;
-    const id = Number(product.id);
-    return '<article class="tool-product-card' + (qty ? ' has-qty' : '') + '" data-tool-product-id="' + id + '">' +
-      '<div class="tool-product-top"><span class="tool-product-emoji" style="background:' + color + ';color:#202124">' + toolEscapeHtml(emoji) + '</span>' +
-      '<div class="tool-product-copy"><span class="tool-product-name">' + toolEscapeHtml(product.name) + '</span><div class="tool-product-price">' + toolFormatMoney(product.price) + '</div></div></div>' +
-      '<div class="tool-product-bottom"><button class="tool-qty-btn" type="button" data-tool-calc-dec="' + id + '" aria-label="Уменьшить ' + toolEscapeHtml(product.name) + '"' + (qty <= 0 ? ' disabled' : '') + '>−</button>' +
-      '<span class="tool-product-qty">' + qty + '</span><button class="tool-qty-btn" type="button" data-tool-calc-inc="' + id + '" aria-label="Добавить ' + toolEscapeHtml(product.name) + '">+</button></div></article>';
+  if (!toolProductsLoaded) {
+    toolCalculatorProducts.innerHTML = '<div class="tool-empty-state">Загрузка продуктов…</div>';
+    return;
+  }
+  if (!toolProducts.length) {
+    toolCalculatorProducts.innerHTML = '<div class="tool-empty-state">Нет активных продуктов</div>';
+    return;
+  }
+
+  const scrollTop = toolCalculatorProducts.scrollTop;
+  const groups = toolCalcGroups().filter(function (group) { return group.items.length > 0; });
+  if (!groups.length) {
+    toolCalculatorProducts.innerHTML = '<div class="tool-empty-state">Нет активных продуктов</div>';
+    return;
+  }
+
+  toolCalculatorProducts.innerHTML = groups.map(function (group) {
+    return '<section class="deadline-modal-category"><div class="deadline-modal-category-title">' +
+      toolEscapeHtml(group.name) + '</div><div class="deadline-modal-product-grid">' +
+      group.items.map(function (product) {
+        const qty = toolCalcQty(product.id);
+        const id = Number(product.id);
+        const emoji = product.emoji || String(product.name || '?').charAt(0).toUpperCase();
+        const color = TOOL_PRODUCT_COLORS[product.bgColor] || TOOL_PRODUCT_COLORS.slate;
+        return '<div class="deadline-modal-product' + (qty ? ' selected' : '') + '" data-tool-calc-inc="' + id +
+          '" role="button" tabindex="0" aria-label="Добавить ' + toolEscapeHtml(product.name) + '">' +
+          (qty ? '<span class="deadline-modal-counter">' + qty + '</span>' : '') +
+          '<span class="deadline-modal-product-icon" style="background:' + color + ';color:#18202a">' + toolEscapeHtml(emoji) + '</span>' +
+          '<span class="deadline-modal-product-text"><span class="deadline-modal-product-name">' + toolEscapeHtml(product.name) +
+          '</span><span class="deadline-modal-product-meta">' + toolFormatMoney(product.price) + '</span></span>' +
+          '<button type="button" class="tool-calc-minus" data-tool-calc-dec="' + id +
+          '" aria-label="Убрать одну единицу ' + toolEscapeHtml(product.name) + '"' + (qty <= 0 ? ' disabled' : '') + '>−</button></div>';
+      }).join('') + '</div></section>';
   }).join('');
+  toolCalculatorProducts.scrollTop = scrollTop;
 }
+
 function getToolCalcEntries() {
   return Object.keys(toolCalcCart).map(function (id) {
     const product = toolProducts.find(function (item) { return Number(item.id) === Number(id); });
@@ -3127,7 +3119,6 @@ async function loadToolCalculator(force) {
       toolProducts = Array.isArray(result) ? result : [];
       const productIds = new Set(toolProducts.map(function (item) { return String(item.id); }));
       Object.keys(toolCalcCart).forEach(function (id) { if (!productIds.has(String(id))) delete toolCalcCart[id]; });
-      if (!TOOL_CALC_CATEGORIES.includes(toolCalcActiveCategory)) toolCalcActiveCategory = TOOL_CALC_CATEGORIES[0];
       toolProductsLoaded = true;
       renderToolCalculator();
     } catch (error) {
@@ -3642,6 +3633,8 @@ gihCreateSubmit.addEventListener('click',()=>{void submitGihCreate()});
 gihCreateClear.addEventListener('click',()=>{if(gihCreateBusy)return;gihCreateCounts={};renderGihCreateProducts()});
 roomHistoryModal.addEventListener('click',e=>{if(e.target===roomHistoryModal){closeRoomHistoryModal();return}const tab=e.target.closest('[data-history-tab]');if(!tab)return;roomHistoryModalTab=tab.dataset.historyTab;roomHistoryModal.querySelectorAll('[data-history-tab]').forEach(b=>{const active=b.dataset.historyTab===roomHistoryModalTab;b.classList.toggle('active',active);b.setAttribute('aria-selected',String(active))});renderRoomHistoryModal()});
 roomHistoryModalClose.addEventListener('click',closeRoomHistoryModal);
+exciseScreen.addEventListener('click',event=>{if(event.target===exciseScreen)closeToolScreens()});
+calculatorScreen.addEventListener('click',event=>{if(event.target===calculatorScreen)closeToolScreens()});
 bottomNav.addEventListener('click',event=>{const button=event.target.closest('[data-nav-modal]');if(!button)return;openBottomNavDestination(button.dataset.navModal)});
 function closeNavPlaceholderModal(){navPlaceholderModal.classList.add('hidden');navPlaceholderModal.setAttribute('aria-hidden','true')}
 
@@ -3671,17 +3664,24 @@ toolExciseList.addEventListener('click', function (event) {
     });
   }
 });
-toolCalculatorTabs.addEventListener('click', function (event) {
-  const tab = event.target.closest('[data-tool-calc-category]');
-  if (!tab) return;
-  toolCalcActiveCategory = tab.dataset.toolCalcCategory;
-  renderToolCalculator();
-});
 toolCalculatorProducts.addEventListener('click', function (event) {
-  const add = event.target.closest('[data-tool-calc-inc]');
-  if (add) { changeToolCalcQty(Number(add.dataset.toolCalcInc), 1); return; }
   const dec = event.target.closest('[data-tool-calc-dec]');
-  if (dec) changeToolCalcQty(Number(dec.dataset.toolCalcDec), -1);
+  if (dec) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!dec.disabled) changeToolCalcQty(Number(dec.dataset.toolCalcDec), -1);
+    return;
+  }
+  const add = event.target.closest('[data-tool-calc-inc]');
+  if (add) changeToolCalcQty(Number(add.dataset.toolCalcInc), 1);
+});
+toolCalculatorProducts.addEventListener('keydown', function (event) {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  if (event.target.closest('[data-tool-calc-dec]')) return;
+  const add = event.target.closest('[data-tool-calc-inc]');
+  if (!add) return;
+  event.preventDefault();
+  changeToolCalcQty(Number(add.dataset.toolCalcInc), 1);
 });
 toolCalculatorRows.addEventListener('click', function (event) {
   const dec = event.target.closest('[data-tool-calc-dec]');
@@ -3732,6 +3732,8 @@ enableModalSwipeToClose(gihCreateModal, closeGihCreateModal);
 enableModalSwipeToClose(refillModal, closeRefillModal);
 enableModalSwipeToClose(roomHistoryModal, closeRoomHistoryModal);
 enableModalSwipeToClose(photoModal, resetPhoto);
+enableModalSwipeToClose(exciseScreen, closeToolScreens);
+enableModalSwipeToClose(calculatorScreen, closeToolScreens);
 
 deadlineModal.addEventListener('click', event => {
   if (event.target === deadlineModal) closeCameraDeadlineModal();
