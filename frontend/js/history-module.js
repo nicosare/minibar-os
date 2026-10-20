@@ -65,7 +65,7 @@ App.historyModule = (() => {
   const GIH_STATUS_ORDER = ['replenished', 'in_place', 'out', 'not_replenished', 'pending'];
 
   function isEmptyType(type) {
-    return type === 'emptied' || type === 'vk_emptied';
+    return type === 'emptied' || type === 'vk_emptied' || type === 'vk_emptied_undo';
   }
 
   function isVkOperation(check) {
