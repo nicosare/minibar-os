@@ -128,7 +128,8 @@
     border-radius: 20px;
     overflow: hidden;
     background: #0b0b0d;
-    border: 1px solid var(--card-border);
+    border: 1.5px solid rgba(255, 204, 0, .78);
+    box-shadow: 0 0 0 1px rgba(255, 204, 0, .08), 0 0 14px rgba(255, 204, 0, .08);
   }
 
   .viewfinder {
@@ -540,7 +541,12 @@
 
   .camera-history-operation.is-empty { color: #ff7d82; }
   .camera-history-operation.is-gih { color: #c6a6ff; }
-  .camera-history-gih-status { color: rgba(255,255,255,.68); font-weight: 750; }
+  .camera-history-gih-status { color: rgba(255,255,255,.68); font-weight: 800; }
+  .camera-history-gih-status.status-replenished, .room-history-record-detail .status-replenished { color: #8af0a7; }
+  .camera-history-gih-status.status-in-place, .room-history-record-detail .status-in-place { color: #8bc6ff; }
+  .camera-history-gih-status.status-out, .room-history-record-detail .status-out { color: #d6bdff; }
+  .camera-history-gih-status.status-not-replenished, .room-history-record-detail .status-not-replenished { color: #ff9b9f; }
+  .camera-history-gih-status.status-pending, .room-history-record-detail .status-pending { color: rgba(255,255,255,.58); }
   .camera-history-separator { color: rgba(255,255,255,.35); }
 
   .camera-history-empty {padding:5px 2px;color:var(--text-dim);font-size:11px;line-height:15px}
@@ -560,6 +566,11 @@
   .room-history-record-detail{margin-top:4px;color:rgba(255,255,255,.82);font-size:11px;line-height:15px;overflow-wrap:anywhere}
   .room-history-record-detail span{color:rgba(255,255,255,.55);font-weight:750}
   .room-history-record-detail.is-gih{color:#d6bdff;font-weight:850}
+  .room-history-record-detail .status-replenished{color:#8af0a7}
+  .room-history-record-detail .status-in-place{color:#8bc6ff}
+  .room-history-record-detail .status-out{color:#d6bdff}
+  .room-history-record-detail .status-not-replenished{color:#ff9b9f}
+  .room-history-record-detail .status-pending{color:rgba(255,255,255,.58)}
   .room-history-record-note{margin-top:5px;color:rgba(255,255,255,.48);font-size:10px;line-height:14px;overflow-wrap:anywhere}
   .room-history-modal-empty{padding:35px 8px;text-align:center;color:rgba(255,255,255,.45);font-size:12px}
 
@@ -1597,7 +1608,8 @@ function cameraHistorySummary(check) {
     const products = Object.entries(groups[status]).map(([name, qty]) =>
       escapeCameraHtml(name) + (qty > 1 ? ' ×' + qty : '')
     ).join(', ');
-    return '<span class="camera-history-gih-status">' +
+    const statusClass = ({replenished:'status-replenished',in_place:'status-in-place',out:'status-out',not_replenished:'status-not-replenished',pending:'status-pending'})[status] || 'status-pending';
+    return '<span class="camera-history-gih-status ' + statusClass + '">' +
       escapeCameraHtml(CAMERA_GIH_STATUS_LABELS[status] || status) + ':</span> ' + products;
   });
   return '<span class="camera-history-operation is-gih">GIH</span>' +
@@ -1692,7 +1704,7 @@ async function loadRoomHistory(room, force = false) {
 }
 
 const CAMERA_DEADLINE_STATUS_LABELS = {
-  neutral: 'Не проверен', valid: 'В порядке', empty: 'Опустошён', needs_replacement: 'Требует замены'
+  neutral: 'Не проверен', valid: 'В порядке', empty: 'Опустошён', needs_replacement: 'Заменить'
 };
 const CAMERA_DEADLINE_PRODUCT_COLORS = {
   amber: '#fffbeb', red: '#fef2f2', blue: '#eff6ff', yellow: '#fefce8',
@@ -1968,7 +1980,7 @@ function roomHistoryRecordHtml(check){
  if(check.type==='gih'){
   if(check.gihRoomStatus)details+='<div class="room-history-record-detail is-gih">'+escapeCameraHtml(CAMERA_HISTORY_GIH_MODES[check.gihRoomStatus]||check.gihRoomStatus)+'</div>';
   const groups={};(Array.isArray(check.gihItems)?check.gihItems:[]).forEach(item=>{const status=check.gihRoomStatus==='all_in_place'?'in_place':check.gihRoomStatus==='all_out'?'out':(item.itemStatus||'pending'),name=item.productName||item.product?.name||'Продукт';if(!groups[status])groups[status]={};groups[status][name]=(groups[status][name]||0)+1});
-  details+=['replenished','in_place','out','not_replenished','pending'].filter(status=>groups[status]).map(status=>'<div class="room-history-record-detail"><span>'+escapeCameraHtml(CAMERA_HISTORY_GIH_STATUSES[status]||status)+':</span> '+Object.entries(groups[status]).map(([name,qty])=>escapeCameraHtml(name)+(qty>1?' ×'+qty:'')).join(', ')+'</div>').join('');
+  details+=['replenished','in_place','out','not_replenished','pending'].filter(status=>groups[status]).map(status=>{const statusClass=({replenished:'status-replenished',in_place:'status-in-place',out:'status-out',not_replenished:'status-not-replenished',pending:'status-pending'})[status]||'status-pending';return '<div class="room-history-record-detail"><span class="'+statusClass+'">'+escapeCameraHtml(CAMERA_HISTORY_GIH_STATUSES[status]||status)+':</span> '+Object.entries(groups[status]).map(([name,qty])=>escapeCameraHtml(name)+(qty>1?' ×'+qty:'')).join(', ')+'</div>'}).join('');
   if(!details)details='<div class="room-history-record-detail">Позиции не указаны</div>';
  }else if(check.type==='deadline'){
   details='<div class="room-history-record-detail">Сроки годности</div>';
