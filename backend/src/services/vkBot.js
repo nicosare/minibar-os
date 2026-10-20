@@ -192,7 +192,7 @@ export async function processVkBotMessage({
         const latestAction = await tx.check.findFirst({
           where: {
             roomId: room.id,
-            type: { in: ['room', 'check', 'emptied', 'vk_room', 'vk_emptied', 'deadline'] }
+            type: { in: ['vk_room', 'vk_emptied'] }
           },
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           select: {
