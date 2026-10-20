@@ -267,7 +267,8 @@ export async function processVkBotMessage({
           data: {
             roomId: room.id,
             checkDate: eventDate,
-            type: latestAction.type === 'deadline' ? 'deadline_undo' : 'vk_undo',
+            type: latestAction.type === 'deadline' ? 'deadline_undo' :
+              (latestAction.type === 'vk_emptied' || latestAction.type === 'emptied') ? 'vk_emptied_undo' : 'vk_undo',
             status: 'done',
             notes: 'Отменено последнее ежедневное действие: ' +
               ((latestAction.type === 'vk_emptied' || latestAction.type === 'emptied') ? 'опустошение' :
