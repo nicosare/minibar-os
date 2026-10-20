@@ -238,7 +238,7 @@
     max-width: 440px;
     position: relative;
     flex-shrink: 0;
-    margin-top: 4px;
+    margin-top: -4px;
   }
 
   .carousel-wrap.disabled {
@@ -690,6 +690,88 @@
   .bottom-nav-item svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
   .bottom-nav-item:active,.bottom-nav-item:focus-visible{outline:none;border-color:rgba(255,204,0,.4);background:rgba(255,204,0,.1);color:var(--yellow)}
   .nav-placeholder-body{min-height:150px;display:flex;align-items:center;justify-content:center;padding:24px;color:rgba(255,255,255,.42);font-size:12px;text-align:center}
+
+  .tool-screen{position:fixed;inset:0;z-index:210;display:flex;flex-direction:column;min-width:0;overflow:hidden;padding:calc(env(safe-area-inset-top) + 10px) 12px calc(78px + env(safe-area-inset-bottom));background:#09090b;color:#fff}
+  .tool-screen.hidden{display:none!important}
+  .tool-screen-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:2px 2px 13px;border-bottom:1px solid rgba(255,255,255,.09);flex:0 0 auto}
+  .tool-screen-title{margin:0;color:#fff;font-size:23px;line-height:28px;font-weight:900;letter-spacing:-.35px}
+  .tool-screen-kicker{margin:0 0 3px;color:var(--yellow);font-size:9px;line-height:12px;font-weight:900;letter-spacing:1.5px}
+  .tool-screen-subtitle{margin-top:4px;max-width:300px;color:rgba(255,255,255,.48);font-size:10px;line-height:14px}
+  .tool-screen-close{flex:0 0 auto;width:35px;height:35px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.07);color:#fff;font-size:24px;line-height:1}
+  .tool-screen-content{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:12px 0 8px}
+  .tool-stats-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-bottom:11px}
+  .tool-stat-card{min-width:0;padding:10px 8px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:#151518}
+  .tool-stat-label{color:rgba(255,255,255,.5);font-size:9px;line-height:12px;font-weight:750}
+  .tool-stat-value{margin-top:5px;color:#fff;font-size:23px;line-height:25px;font-weight:900;font-variant-numeric:tabular-nums}
+  .tool-stat-detail{margin-top:3px;color:rgba(255,255,255,.38);font-size:9px;line-height:11px}
+  .tool-card{min-width:0;border:1px solid rgba(255,255,255,.085);border-radius:14px;background:#151518}
+  .tool-field-label{display:block;margin-bottom:7px;color:rgba(255,255,255,.67);font-size:10px;font-weight:750}
+  .tool-input-row{display:flex;gap:7px;align-items:stretch}
+  .tool-input{display:block;min-width:0;width:100%;height:43px;padding:0 11px;border:1px solid rgba(255,255,255,.13);border-radius:10px;outline:none;background:#0d0d0f;color:#fff;font-size:13px}
+  .tool-input:focus{border-color:rgba(255,204,0,.8);box-shadow:0 0 0 2px rgba(255,204,0,.1)}
+  .tool-input::placeholder{color:rgba(255,255,255,.3)}
+  .tool-btn{min-height:39px;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 11px;border:1px solid rgba(255,255,255,.13);border-radius:10px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.84);font-size:10px;font-weight:850;white-space:nowrap}
+  .tool-btn:disabled{opacity:.38;pointer-events:none}
+  .tool-btn-primary{border-color:var(--yellow);background:var(--yellow);color:#080808}
+  .tool-btn-danger{border-color:rgba(255,90,95,.28);background:rgba(255,90,95,.07);color:#ff9b9f}
+  .tool-hint{margin:7px 1px 0;color:rgba(255,255,255,.36);font-size:9px;line-height:13px}
+  .tool-actions{display:flex;gap:7px;margin:10px 0 13px}
+  .tool-actions .tool-btn{flex:1}
+  .tool-list-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:13px 2px 8px}
+  .tool-list-heading strong{color:rgba(255,255,255,.93);font-size:12px;font-weight:850}
+  .tool-list-count{color:rgba(255,255,255,.4);font-size:10px;font-weight:700}
+  .tool-excise-list{display:flex;flex-direction:column;gap:7px}
+  .tool-empty-state{padding:28px 12px;border:1px dashed rgba(255,255,255,.12);border-radius:13px;color:rgba(255,255,255,.38);font-size:11px;text-align:center}
+  .tool-excise-row{display:flex;align-items:stretch;gap:6px;padding:7px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:#141416}
+  .tool-excise-copy{flex:1;min-width:0;display:block;padding:3px 5px;border:0;background:transparent;color:#fff;text-align:left}
+  .tool-excise-mark{display:block;overflow-wrap:anywhere;font-size:11px;line-height:16px;font-weight:750;word-break:break-word}
+  .tool-excise-meta{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;color:rgba(255,255,255,.43);font-size:9px;line-height:12px}
+  .tool-excise-status{padding:3px 6px;border-radius:6px;font-size:9px;font-weight:850}
+  .tool-excise-status.valid{background:rgba(52,199,89,.14);color:#8af0a7}
+  .tool-excise-status.invalid{background:rgba(255,90,95,.14);color:#ff9b9f}
+  .tool-excise-delete{flex:0 0 auto;width:34px;align-self:center;height:36px;border:1px solid rgba(255,90,95,.16);border-radius:9px;background:rgba(255,90,95,.06);color:rgba(255,155,159,.88);font-size:17px}
+  .tool-excise-delete:disabled{opacity:.28}
+  .tool-cat-tabs{display:flex;gap:6px;overflow-x:auto;padding:0 0 8px;margin-bottom:8px;scrollbar-width:none}
+  .tool-cat-tabs::-webkit-scrollbar{display:none}
+  .tool-cat-tab{flex:0 0 auto;min-height:35px;padding:7px 12px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:#151518;color:rgba(255,255,255,.6);font-size:10px;font-weight:800}
+  .tool-cat-tab.active{border-color:var(--yellow);background:rgba(255,204,0,.12);color:var(--yellow)}
+  .tool-cat-count{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;margin-left:4px;padding:0 4px;border-radius:6px;background:rgba(255,255,255,.1);font-size:9px}
+  .tool-cat-tab.active .tool-cat-count{background:rgba(255,204,0,.17)}
+  .tool-products-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .tool-product-card{display:flex;flex-direction:column;min-width:0;min-height:140px;padding:10px;border:1px solid rgba(255,255,255,.085);border-radius:12px;background:#151518}
+  .tool-product-top{display:flex;align-items:flex-start;gap:7px;min-width:0}
+  .tool-product-emoji{flex:0 0 auto;width:29px;height:29px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:rgba(255,255,255,.08);font-size:17px}
+  .tool-product-copy{min-width:0;flex:1}
+  .tool-product-name{display:-webkit-box;overflow:hidden;color:rgba(255,255,255,.94);font-size:10px;line-height:13px;font-weight:800;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow-wrap:anywhere}
+  .tool-product-price{margin-top:4px;color:rgba(255,255,255,.52);font-size:10px;font-weight:750}
+  .tool-product-bottom{display:flex;align-items:center;justify-content:space-between;gap:5px;margin-top:auto;padding-top:10px}
+  .tool-product-qty{min-width:18px;color:#fff;font-size:12px;font-weight:900;text-align:center;font-variant-numeric:tabular-nums}
+  .tool-qty-btn{flex:0 0 auto;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,204,0,.35);border-radius:9px;background:rgba(255,204,0,.08);color:var(--yellow);font-size:19px;font-weight:650;line-height:1}
+  .tool-qty-btn:disabled{opacity:.28}
+  .tool-product-card.has-qty{border-color:rgba(255,204,0,.42);background:rgba(255,204,0,.045)}
+  .tool-calc-bill{margin-top:12px;padding:12px}
+  .tool-bill-heading{display:flex;align-items:center;gap:8px}
+  .tool-bill-heading strong{font-size:13px;font-weight:900}
+  .tool-bill-count{margin-left:auto;color:rgba(255,255,255,.44);font-size:10px;font-weight:700}
+  .tool-bill-actions{display:flex;gap:6px;margin-top:10px}
+  .tool-bill-actions .tool-btn{flex:1;min-width:0}
+  .tool-bill-empty{padding:17px 4px;color:rgba(255,255,255,.37);font-size:11px;text-align:center}
+  .tool-bill-rows{display:flex;flex-direction:column;gap:0;margin-top:5px}
+  .tool-bill-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+  .tool-bill-row:last-child{border-bottom:0}
+  .tool-bill-row-main{flex:1;min-width:0}
+  .tool-bill-row-name{overflow-wrap:anywhere;color:rgba(255,255,255,.88);font-size:10px;line-height:14px;font-weight:750}
+  .tool-bill-row-meta{margin-top:3px;color:rgba(255,255,255,.4);font-size:9px}
+  .tool-bill-row-sum{flex:0 0 auto;color:#fff;font-size:11px;font-weight:850;white-space:nowrap}
+  .tool-bill-remove{flex:0 0 auto;width:27px;height:27px;border:1px solid rgba(255,255,255,.09);border-radius:8px;background:rgba(255,255,255,.05);color:rgba(255,255,255,.7);font-size:17px}
+  .tool-bill-total{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.1)}
+  .tool-bill-total span:first-child{color:rgba(255,255,255,.5);font-size:10px;font-weight:800}
+  .tool-bill-total strong{color:var(--yellow);font-size:19px;font-weight:950;font-variant-numeric:tabular-nums}
+  .tool-feedback{margin:8px 0;padding:9px 10px;border:1px solid rgba(255,204,0,.2);border-radius:9px;background:rgba(255,204,0,.07);color:var(--yellow);font-size:10px;line-height:14px}
+  .bottom-nav-item.is-active{border-color:rgba(255,204,0,.42);background:rgba(255,204,0,.09);color:var(--yellow)}
+  @media(min-width:440px){.tool-screen{padding-left:16px;padding-right:16px}.tool-products-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  @media(max-height:680px){.tool-screen-header{padding-bottom:9px}.tool-screen-title{font-size:21px}.tool-stat-card{padding:7px}.tool-stat-value{font-size:20px}.tool-product-card{min-height:125px}}
+
 
 
 
@@ -1218,6 +1300,49 @@
   <button class="bottom-nav-item" type="button" data-nav-modal="Сегодня" aria-label="Сегодня"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M7.5 3v4M16.5 3v4M3.5 9h17M8 13h3M8 16h6"/></svg><span>Сегодня</span></button>
   <button class="bottom-nav-item" type="button" data-nav-modal="Списки" aria-label="Списки"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5h11M9 12h11M9 19h11M4 5h.01M4 12h.01M4 19h.01"/></svg><span>Списки</span></button>
 </nav>
+
+<section class="tool-screen hidden" id="exciseScreen" role="dialog" aria-modal="true" aria-labelledby="exciseScreenTitle" aria-hidden="true">
+  <header class="tool-screen-header">
+    <div><div class="tool-screen-kicker">MINIBAR OS · УЧЁТ</div><h1 class="tool-screen-title" id="exciseScreenTitle">Акцизы</h1><div class="tool-screen-subtitle">Сканируйте или вводите марки. Данные общие с основной версией сайта.</div></div>
+    <button class="tool-screen-close" id="exciseScreenClose" type="button" aria-label="Закрыть акцизы">×</button>
+  </header>
+  <div class="tool-screen-content" id="exciseScreenContent">
+    <div class="tool-stats-grid">
+      <div class="tool-stat-card"><div class="tool-stat-label">Всего</div><div class="tool-stat-value" id="toolExciseTotal">0</div><div class="tool-stat-detail">марок</div></div>
+      <div class="tool-stat-card"><div class="tool-stat-label">Валидные</div><div class="tool-stat-value" id="toolExciseValid">0</div><div class="tool-stat-detail" id="toolExciseValidPct">0%</div></div>
+      <div class="tool-stat-card"><div class="tool-stat-label">Невалидные</div><div class="tool-stat-value" id="toolExciseInvalid">0</div><div class="tool-stat-detail" id="toolExciseInvalidPct">0%</div></div>
+    </div>
+    <section class="tool-card" style="padding:12px">
+      <label class="tool-field-label" for="toolExciseInput">Введите или отсканируйте марку</label>
+      <div class="tool-input-row"><input class="tool-input" id="toolExciseInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Код акцизной марки…"><button class="tool-btn tool-btn-primary" id="toolExciseAdd" type="button">Добавить</button></div>
+      <div class="tool-hint">Автодобавление через 0,5 секунды после ввода. Можно вставить сразу несколько марок через пробел или новую строку.</div>
+    </section>
+    <div id="toolExciseFeedback" class="tool-feedback" hidden></div>
+    <div class="tool-actions"><button class="tool-btn tool-btn-primary" id="toolExciseDownload" type="button">↓ Скачать Excel</button><button class="tool-btn tool-btn-danger" id="toolExciseClear" type="button">Очистить все</button></div>
+    <div class="tool-list-heading"><strong>Список акцизов</strong><span class="tool-list-count" id="toolExciseListCount">0 марок</span></div>
+    <div class="tool-excise-list" id="toolExciseList"><div class="tool-empty-state">Загрузка акцизов…</div></div>
+  </div>
+</section>
+
+<section class="tool-screen hidden" id="calculatorScreen" role="dialog" aria-modal="true" aria-labelledby="calculatorScreenTitle" aria-hidden="true">
+  <header class="tool-screen-header">
+    <div><div class="tool-screen-kicker">MINIBAR OS · ИНСТРУМЕНТЫ</div><h1 class="tool-screen-title" id="calculatorScreenTitle">Калькулятор</h1><div class="tool-screen-subtitle">Те же продукты и цены, что на сайте. Нажимайте «+» и собирайте счёт.</div></div>
+    <button class="tool-screen-close" id="calculatorScreenClose" type="button" aria-label="Закрыть калькулятор">×</button>
+  </header>
+  <div class="tool-screen-content" id="calculatorScreenContent">
+    <div class="tool-cat-tabs" id="toolCalculatorTabs" role="tablist" aria-label="Категории продуктов"></div>
+    <div class="tool-products-grid" id="toolCalculatorProducts"><div class="tool-empty-state">Загрузка продуктов…</div></div>
+    <section class="tool-card tool-calc-bill" id="toolCalculatorBill">
+      <div class="tool-bill-heading"><strong>Счёт</strong><span class="tool-bill-count" id="toolCalculatorCount">0 позиций</span></div>
+      <div class="tool-bill-actions"><button class="tool-btn" id="toolCalculatorCopy" type="button">Копировать счёт</button><button class="tool-btn tool-btn-danger" id="toolCalculatorClear" type="button">Очистить</button></div>
+      <div class="tool-bill-empty" id="toolCalculatorEmpty">Счёт пуст</div>
+      <div class="tool-bill-rows" id="toolCalculatorRows" hidden></div>
+      <div class="tool-bill-total"><span>Итого</span><strong id="toolCalculatorTotal">0 ₽</strong></div>
+    </section>
+    <div id="toolCalculatorFeedback" class="tool-feedback" hidden></div>
+  </div>
+</section>
+
 
 <!-- Still Photo Preview Modal -->
 <div class="photo-modal" id="photoModal" role="dialog" aria-modal="true" aria-label="Предпросмотр фотографии" aria-hidden="true">
