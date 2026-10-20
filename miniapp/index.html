@@ -422,14 +422,18 @@
   }
 
   /* Selected room's expiry status and products. */
-  .camera-deadline-panel{width:100%;min-width:0;flex:0 0 auto;display:block;padding:8px 10px;border:1px solid var(--card-border);border-radius:10px;background:rgba(255,255,255,.045);color:#fff;text-align:left;cursor:pointer}
-  .camera-deadline-panel:active{background:rgba(255,255,255,.075)}
+  .camera-deadline-panel{width:100%;min-width:0;flex:0 0 auto;display:block;padding:8px 10px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.045);color:#fff;text-align:left;cursor:pointer;transition:background-color .16s ease,border-color .16s ease}
+  .camera-deadline-panel:active{filter:brightness(1.08)}
+  .camera-deadline-panel.status-valid{background:rgba(52,199,89,.16);border-color:rgba(52,199,89,.38)}
+  .camera-deadline-panel.status-empty{background:rgba(38,136,235,.17);border-color:rgba(38,136,235,.4)}
+  .camera-deadline-panel.status-needs-replacement{background:rgba(255,90,95,.16);border-color:rgba(255,90,95,.4)}
+  .camera-deadline-panel.status-neutral{background:rgba(255,255,255,.045);border-color:rgba(255,255,255,.1)}
   .camera-deadline-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
   .camera-deadline-title{font-size:11px;line-height:15px;font-weight:800;color:rgba(255,255,255,.92)}
   .camera-deadline-status{max-width:70%;padding:3px 6px;border-radius:5px;font-size:9px;font-weight:800;line-height:12px;text-align:right;overflow-wrap:anywhere;background:rgba(255,255,255,.09);color:rgba(255,255,255,.76)}
-  .camera-deadline-status.status-valid{background:rgba(52,199,89,.16);color:#6ee792}
-  .camera-deadline-status.status-empty{background:rgba(38,136,235,.19);color:#76baff}
-  .camera-deadline-status.status-needs-replacement{background:rgba(255,90,95,.17);color:#ff8e92}
+  .camera-deadline-status.status-valid{background:rgba(52,199,89,.22);color:#8af0a7}
+  .camera-deadline-status.status-empty{background:rgba(38,136,235,.24);color:#8bc6ff}
+  .camera-deadline-status.status-needs-replacement{background:rgba(255,90,95,.23);color:#ff9b9f}
   .camera-deadline-products{display:flex;flex-direction:column;gap:3px;margin-top:5px;max-height:55px;overflow-y:auto;scrollbar-width:none}
   .camera-deadline-products::-webkit-scrollbar{display:none}
   .camera-deadline-product-line{min-width:0;display:flex;align-items:baseline;justify-content:space-between;gap:8px;color:rgba(255,255,255,.8);font-size:10px;line-height:13px}
@@ -928,7 +932,6 @@
       </div>
       <button type="button" class="deadline-modal-close" id="deadlineModalClose" aria-label="Закрыть окно сроков">×</button>
     </div>
-    <div class="deadline-modal-hint">Нажимай на продукт, чтобы выбрать количество. После максимального количества повторное нажатие снимет отметку.</div>
     <div class="deadline-modal-products" id="deadlineModalProducts"><div class="camera-deadline-empty">Загрузка продуктов…</div></div>
     <div class="deadline-modal-feedback" id="deadlineModalFeedback" role="status"></div>
     <div class="deadline-modal-footer">
@@ -1404,16 +1407,27 @@ const CAMERA_DEADLINE_PRODUCT_COLORS = {
 const CAMERA_DEADLINE_CATEGORY_ORDER = ['Дверца', 'Напитки', 'Алкоголь', 'Соки'];
 
 async function deadlineApiRequest(path, options = {}) {
-  const response = await fetch(API_BASE + path, {
-    ...options,
-    headers: {
-      Accept: 'application/json',
-      'X-Timezone-Offset': String(new Date().getTimezoneOffset()),
-      'X-Minibar-Client-ID': roomEventsClientId,
-      ...(options.headers || {})
-    },
-    cache: 'no-store'
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
+  let response;
+  try {
+    response = await fetch(API_BASE + path, {
+      ...options,
+      headers: {
+        Accept: 'application/json',
+        'X-Timezone-Offset': String(new Date().getTimezoneOffset()),
+        'X-Minibar-Client-ID': roomEventsClientId,
+        ...(options.headers || {})
+      },
+      cache: 'no-store',
+      signal: controller.signal
+    });
+  } catch (error) {
+    if (error?.name === 'AbortError') throw new Error('Сервер не ответил за 12 секунд. Попробуй ещё раз.');
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data?.error || 'Ошибка запроса сроков (HTTP ' + response.status + ')');
   return data;
@@ -1431,7 +1445,9 @@ function renderCameraDeadlinePanel() {
   const data = deadlineRoomCache.get(Number(selectedRoom.id));
   const status = data?.room?.expiryStatus || selectedRoom.expiryStatus || 'neutral';
   cameraDeadlineStatus.textContent = CAMERA_DEADLINE_STATUS_LABELS[status] || CAMERA_DEADLINE_STATUS_LABELS.neutral;
-  cameraDeadlineStatus.className = 'camera-deadline-status ' + cameraDeadlineStatusClass(status);
+  const statusClass = cameraDeadlineStatusClass(status);
+  cameraDeadlinePanel.className = 'camera-deadline-panel ' + statusClass;
+  cameraDeadlineStatus.className = 'camera-deadline-status ' + statusClass;
   if (data?.loading && !data.loadedAt) {
     cameraDeadlineProducts.innerHTML = '<div class="camera-deadline-empty">Загрузка продуктов…</div>';
     return;
@@ -1555,11 +1571,15 @@ function clickCameraDeadlineProduct(productId) {
 }
 
 function closeCameraDeadlineModal(force = false) {
-  if (!deadlineModal || (deadlineModalSaving && !force)) return;
+  if (!deadlineModal) return;
   deadlineModal.classList.add('hidden');
   deadlineModal.setAttribute('aria-hidden', 'true');
-  currentDeadlineRoom = null;
-  deadlineProductSelections = {};
+  // Closing must always work, even while a request is pending. Keep the room
+  // snapshot until that request settles so its completion cannot lose context.
+  if (!deadlineModalSaving || force) {
+    currentDeadlineRoom = null;
+    deadlineProductSelections = {};
+  }
 }
 
 async function openCameraDeadlineModal() {
@@ -1596,7 +1616,11 @@ async function openCameraDeadlineModal() {
 }
 
 function setDeadlineModalBusy(busy) {
-  if (deadlineModal) deadlineModal.querySelectorAll('button').forEach(button => { button.disabled = busy; });
+  if (deadlineModal) deadlineModal.querySelectorAll('button').forEach(button => {
+    // Never disable the close control: the modal must remain dismissible if
+    // the API or network stalls.
+    button.disabled = busy && button.id !== 'deadlineModalClose';
+  });
   deadlineModalSaving = busy;
 }
 
@@ -1635,7 +1659,9 @@ async function saveCameraDeadlineChange(action) {
     deadlineModalFeedback.classList.add('visible');
   } finally {
     deadlineModalSaving = false;
-    if (isCameraDeadlineModalOpen()) setDeadlineModalBusy(false);
+    // Always re-enable the controls, including after a timeout or if the
+    // user closed the modal while the request was pending.
+    setDeadlineModalBusy(false);
   }
 }
 
