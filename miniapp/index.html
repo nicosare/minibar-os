@@ -1302,13 +1302,18 @@ function drawRotatedVideoToCanvas(angle = getCaptureOrientationAngle()) {
 function correctNativeLandscapeCapture() {
   if (!canvas.width || !canvas.height || canvas.width <= canvas.height) return;
 
+  const source = document.createElement('canvas');
+  source.width = canvas.width;
+  source.height = canvas.height;
+  const sourceContext = source.getContext('2d', { alpha: false });
   const ctx = canvas.getContext('2d', { alpha: false });
-  if (!ctx) throw new Error('Не удалось подготовить снимок');
+  if (!sourceContext || !ctx) throw new Error('Не удалось подготовить снимок');
 
+  sourceContext.drawImage(canvas, 0, 0);
   ctx.save();
-  ctx.translate(canvas.width, canvas.height);
-  ctx.rotate(Math.PI);
-  ctx.drawImage(canvas, 0, 0);
+  ctx.setTransform(-1, 0, 0, -1, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(source, 0, 0);
   ctx.restore();
 }
 
