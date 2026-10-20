@@ -73,6 +73,18 @@ App.historyModule = (() => {
   }
 
   function operationMeta(check) {
+    if (check.type === 'deadline_undo' || check.type === 'vk_undo') {
+      return { label: 'Отмена действия', cls: 'bg-amber-50 text-amber-700 border-amber-200' };
+    }
+    if (check.undoneAt) {
+      const label = isEmptyType(check.type) ? 'Опустошение отменено'
+        : check.type === 'deadline' ? 'Операция «Сроки» отменена'
+        : 'Проверка отменена';
+      return { label, cls: 'bg-slate-100 text-slate-600 border-slate-200' };
+    }
+    if (check.type === 'deadline') {
+      return { label: 'Сроки', cls: 'bg-amber-50 text-amber-700 border-amber-200' };
+    }
     if (check.type === 'departures_print') {
       return { label: 'Печать Departures', cls: 'bg-sky-50 text-sky-700 border-sky-200' };
     }
@@ -250,7 +262,7 @@ App.historyModule = (() => {
       if (!counts.has(key)) counts.set(key, { daily: 0, emptied: 0, deadlines: 0, gih: 0 });
       const day = counts.get(key);
       if (entry.type === 'gih') day.gih += 1;
-      else if (entry.type === 'deadline') day.deadlines += 1;
+      else if (entry.type === 'deadline' || entry.type === 'deadline_undo') day.deadlines += 1;
       else {
         day.daily += 1;
         if (isEmptyType(entry.type)) day.emptied += 1;
