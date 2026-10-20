@@ -311,7 +311,6 @@
     background: #0b0b0d;
   }
 
-  #roomHistoryItems[hidden]{display:none}
   .camera-history-list {
     min-height: 0;
     flex: 0 1 auto;
@@ -379,7 +378,8 @@
   .gih-create-notes{display:block;width:calc(100% - 30px);margin:0 15px 12px;padding:9px 10px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:rgba(255,255,255,.045);color:#fff;font:inherit;font-size:12px;resize:vertical}
   .room-history-modal-card{max-height:min(90dvh,820px)}
   .room-history-tabs{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
-  .room-history-tab{min-height:37px;border:1px solid rgba(255,255,255,.09);border-radius:9px;background:rgba(255,255,255,.04);color:rgba(255,255,255,.6);font-size:12px;font-weight:800}
+  .room-history-tab{min-height:37px;display:flex;align-items:center;justify-content:center;gap:7px;border:1px solid rgba(255,255,255,.09);border-radius:9px;background:rgba(255,255,255,.04);color:rgba(255,255,255,.6);font-size:12px;font-weight:800}
+  .room-history-tab svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
   .room-history-tab.active{border-color:rgba(38,136,235,.55);background:rgba(38,136,235,.18);color:#fff}
   .room-history-modal-content{flex:1 1 auto;min-height:100px;overflow-y:auto;padding:12px 14px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
   .room-history-record-card{padding:11px 0;border-bottom:1px solid rgba(255,255,255,.08)}
@@ -898,7 +898,7 @@
           <button type="button" class="camera-history-open" id="roomHistoryOpen" aria-label="Открыть историю номера">
             <span><span class="camera-action-title">История</span><span class="camera-action-subtitle">Ежедневные проверки и GIH</span></span><span class="camera-action-icon" aria-hidden="true">↗</span>
           </button>
-          <div class="camera-history-list" id="roomHistoryItems" aria-live="polite" hidden></div>
+          <div class="camera-history-list" id="roomHistoryItems" aria-live="polite"><div class="camera-history-empty">Загрузка истории…</div></div>
         </section>
       </div>
     </div>
@@ -970,10 +970,9 @@
 <!-- GIH creation modal -->
 <div class="deadline-modal hidden" id="gihCreateModal" role="dialog" aria-modal="true" aria-label="Новая запись GIH" aria-hidden="true">
   <div class="deadline-modal-card">
-    <div class="deadline-modal-header"><div><div class="deadline-modal-room">GIH · номер <span id="gihCreateRoomNumber"></span></div><div class="deadline-modal-info">Выбери количество продуктов для записи</div></div><button type="button" class="deadline-modal-close" id="gihCreateClose" aria-label="Закрыть GIH">×</button></div>
+    <div class="deadline-modal-header"><div><div class="deadline-modal-room">GIH · номер <span id="gihCreateRoomNumber"></span></div></div><button type="button" class="deadline-modal-close" id="gihCreateClose" aria-label="Закрыть GIH">×</button></div>
     <div class="deadline-modal-products" id="gihCreateProducts"><div class="camera-deadline-empty">Загрузка продуктов…</div></div>
-    <label class="gih-create-note-label" for="gihCreateNotes">Комментарий</label><textarea class="gih-create-notes" id="gihCreateNotes" rows="2" maxlength="1000" placeholder="Необязательно"></textarea>
-    <div class="deadline-modal-feedback" id="gihCreateFeedback" role="status"></div>
+        <div class="deadline-modal-feedback" id="gihCreateFeedback" role="status"></div>
     <div class="deadline-modal-footer"><button type="button" class="deadline-modal-action reset" id="gihCreateClear">Очистить</button><button type="button" class="deadline-modal-action save" id="gihCreateSubmit">Создать запись</button></div>
   </div>
 </div>
@@ -981,7 +980,7 @@
 <div class="deadline-modal hidden" id="roomHistoryModal" role="dialog" aria-modal="true" aria-label="История номера" aria-hidden="true">
   <div class="deadline-modal-card room-history-modal-card">
     <div class="deadline-modal-header"><div class="deadline-modal-room">История · номер <span id="roomHistoryModalNumber"></span></div><button type="button" class="deadline-modal-close" id="roomHistoryModalClose" aria-label="Закрыть историю">×</button></div>
-    <div class="room-history-tabs" role="tablist" aria-label="Раздел истории"><button type="button" class="room-history-tab active" data-history-tab="daily" role="tab" aria-selected="true">Ежедневные</button><button type="button" class="room-history-tab" data-history-tab="gih" role="tab" aria-selected="false">GIH</button></div>
+    <div class="room-history-tabs" role="tablist" aria-label="Раздел истории"><button type="button" class="room-history-tab" data-history-tab="daily" role="tab" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M16 3v4M8 3v4M3 10h18M8 14l2 2 5-5"></path></svg><span>Ежедневные</span></button><button type="button" class="room-history-tab active" data-history-tab="gih" role="tab" aria-selected="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8a2 2 0 0 0-2-2h-4.2a3 3 0 0 0-5.6 0H5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z"></path><path d="M3 11h18M9 15l2 2 4-4"></path></svg><span>GIH</span></button></div>
     <div class="room-history-modal-content" id="roomHistoryModalContent"><div class="camera-deadline-empty">Загрузка истории…</div></div>
   </div>
 </div>
@@ -1258,7 +1257,6 @@ const cameraGihPanel = document.getElementById('cameraGihPanel');
 const gihCreateModal = document.getElementById('gihCreateModal');
 const gihCreateRoomNumber = document.getElementById('gihCreateRoomNumber');
 const gihCreateProducts = document.getElementById('gihCreateProducts');
-const gihCreateNotes = document.getElementById('gihCreateNotes');
 const gihCreateFeedback = document.getElementById('gihCreateFeedback');
 const gihCreateClose = document.getElementById('gihCreateClose');
 const gihCreateSubmit = document.getElementById('gihCreateSubmit');
@@ -1270,7 +1268,7 @@ const roomHistoryModalClose = document.getElementById('roomHistoryModalClose');
 const roomHistoryModalContent = document.getElementById('roomHistoryModalContent');
 const roomHistoryCache = new Map();
 let currentGihRoom = null, gihCreateCounts = {}, gihCreateBusy = false;
-let roomHistoryModalRoomId = null, roomHistoryModalTab = 'daily';
+let roomHistoryModalRoomId = null, roomHistoryModalTab = 'gih';
 const deadlineRoomCache = new Map();
 let currentDeadlineRoom = null;
 let deadlineProductSelections = {};
@@ -1751,7 +1749,7 @@ function renderRoomHistoryModal(){
  roomHistoryModalContent.innerHTML=items.length?items.map(roomHistoryRecordHtml).join(''):'<div class="room-history-modal-empty">Записей в этом разделе пока нет</div>';
 }
 async function openRoomHistoryModal(){
- if(!selectedRoom)return;roomHistoryModalRoomId=Number(selectedRoom.id);roomHistoryModalTab='daily';roomHistoryModalNumber.textContent=String(selectedRoom.number);
+ if(!selectedRoom)return;roomHistoryModalRoomId=Number(selectedRoom.id);roomHistoryModalTab='gih';roomHistoryModalNumber.textContent=String(selectedRoom.number);
  roomHistoryModal.querySelectorAll('[data-history-tab]').forEach(b=>{const active=b.dataset.historyTab===roomHistoryModalTab;b.classList.toggle('active',active);b.setAttribute('aria-selected',String(active))});
  roomHistoryModal.classList.remove('hidden');roomHistoryModal.setAttribute('aria-hidden','false');roomHistoryModalContent.innerHTML='<div class="camera-deadline-empty">Загрузка истории…</div>';
  await loadRoomHistory(selectedRoom,true);if(isRoomHistoryModalOpen())renderRoomHistoryModal();
@@ -1765,11 +1763,11 @@ function renderGihCreateProducts(){
  const order=['Дверца','Напитки','Алкоголь','Соки'],cats=[...order.filter(c=>grouped[c]?.length),...Object.keys(grouped).filter(c=>!order.includes(c)).sort((a,b)=>a.localeCompare(b,'ru'))];
  gihCreateProducts.innerHTML=cats.map(cat=>'<section class="deadline-modal-category"><div class="deadline-modal-category-title">'+escapeCameraHtml(cat)+'</div><div class="deadline-modal-product-grid">'+grouped[cat].map(item=>{
  const p=item.product,id=item.id,count=Number(gihCreateCounts[id])||0,color=CAMERA_DEADLINE_PRODUCT_COLORS[p.bgColor]||CAMERA_DEADLINE_PRODUCT_COLORS.slate,emoji=p.emoji||String(p.name||'?').charAt(0).toUpperCase();
- return '<button type="button" class="deadline-modal-product'+(count?' selected':'')+'" data-gih-product-id="'+id+'" data-gih-max="'+item.max+'" aria-pressed="'+String(count>0)+'">'+(count?'<span class="deadline-modal-counter">'+count+'</span>':'')+'<span class="deadline-modal-product-icon" style="background:'+color+';color:#18202a">'+escapeCameraHtml(emoji)+'</span><span class="deadline-modal-product-text"><span class="deadline-modal-product-name">'+escapeCameraHtml(p.name||'Продукт')+'</span><span class="deadline-modal-product-meta">'+escapeCameraHtml(p.volume||'—')+' '+escapeCameraHtml(p.unit||'шт')+' · макс. '+item.max+'</span></span></button>'
+ return '<button type="button" class="deadline-modal-product'+(count?' selected':'')+'" data-gih-product-id="'+id+'" data-gih-max="'+item.max+'" aria-pressed="'+String(count>0)+'">'+(count?'<span class="deadline-modal-counter">'+count+'</span>':'')+'<span class="deadline-modal-product-icon" style="background:'+color+';color:#18202a">'+escapeCameraHtml(emoji)+'</span><span class="deadline-modal-product-text"><span class="deadline-modal-product-name">'+escapeCameraHtml(p.name||'Продукт')+'</span></span></button>'
  }).join('')+'</div></section>').join('');
 }
 async function openGihCreateModal(){
- if(!selectedRoom||gihCreateBusy)return;currentGihRoom=selectedRoom;gihCreateCounts={};gihCreateRoomNumber.textContent=String(selectedRoom.number);gihCreateNotes.value='';gihCreateFeedback.textContent='';gihCreateFeedback.classList.remove('visible');gihCreateModal.classList.remove('hidden');gihCreateModal.setAttribute('aria-hidden','false');
+ if(!selectedRoom||gihCreateBusy)return;currentGihRoom=selectedRoom;gihCreateCounts={};gihCreateRoomNumber.textContent=String(selectedRoom.number);;gihCreateFeedback.textContent='';gihCreateFeedback.classList.remove('visible');gihCreateModal.classList.remove('hidden');gihCreateModal.setAttribute('aria-hidden','false');
  const id=Number(selectedRoom.id),data=await loadRoomDeadlineData(selectedRoom,true);if(!isGihCreateModalOpen()||!currentGihRoom||Number(currentGihRoom.id)!==id)return;
  if(!data||(data.error&&!data.loadedAt)){gihCreateProducts.innerHTML='<div class="camera-deadline-empty">Не удалось загрузить шаблон номера.</div>';return}
  currentGihRoom=data.room||currentGihRoom;renderGihCreateProducts();
@@ -1779,7 +1777,7 @@ async function submitGihCreate(){
  if(!items.length){gihCreateFeedback.textContent='Добавь хотя бы одну позицию.';gihCreateFeedback.classList.add('visible');return}
  gihCreateBusy=true;gihCreateSubmit.disabled=true;gihCreateClear.disabled=true;
  try{
-  await deadlineApiRequest('/checks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({roomId:Number(currentGihRoom.id),type:'gih',status:'draft',notes:gihCreateNotes.value.trim()||null,gihItems:items})});
+  await deadlineApiRequest('/checks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({roomId:Number(currentGihRoom.id),type:'gih',status:'draft',gihItems:items})});
   gihCreateModal.classList.add('hidden');gihCreateModal.setAttribute('aria-hidden','true');currentGihRoom=null;gihCreateCounts={};showMessage('Черновик GIH создан',2200);triggerHaptic();void loadRoomHistory(selectedRoom,true);
  }catch(error){gihCreateFeedback.textContent=error?.message||'Не удалось создать запись GIH.';gihCreateFeedback.classList.add('visible')}
  finally{gihCreateBusy=false;gihCreateSubmit.disabled=false;gihCreateClear.disabled=false}
