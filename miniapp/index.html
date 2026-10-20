@@ -1928,7 +1928,7 @@ async function updateDepartureListRoom(number, action, enabled) {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data?.error || 'Не удалось изменить список');
-    applyDepartureList(data.list, action === 'add' ? cleanNumber : (selectedRoom?.number || cleanNumber));
+    applyDepartureList(data.list, selectedRoom?.number || cleanNumber);
 
     if (action === 'add') {
       sheetAddRoomInput.value = '';
@@ -4034,7 +4034,7 @@ function startRoomLiveSync() {
       }
       if (domains.some(domain => historyDomains.includes(domain) ||
           domain === 'departures' || domain === 'settings')) {
-        void refreshDepartureList(selectedRoom?.number || null);
+        void refreshDepartureList();
       }
       if (domains.some(domain => historyDomains.includes(domain)) && selectedRoom) {
         void loadRoomHistory(selectedRoom, true);
@@ -4050,7 +4050,7 @@ function startRoomLiveSync() {
   // Initial sync and replay-gap recovery are sent by the server's live stream.
   roomEventsSource.addEventListener('sync.required', () => {
     void syncRoomData();
-    void refreshDepartureList(selectedRoom?.number || null);
+    void refreshDepartureList();
   });
 
   roomEventsSource.addEventListener('error', () => {
@@ -4061,7 +4061,7 @@ function startRoomLiveSync() {
 
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
-    void refreshDepartureList(selectedRoom?.number || null);
+    void refreshDepartureList();
     if (roomSyncPending) {
       roomSyncPending = false;
       void syncRoomData();
@@ -4758,7 +4758,7 @@ async function processPhotoQueue() {
         sentAny = true;
         // The proxy syncs the daily check before returning success. Reconcile both
         // arrival/departure workflows from the canonical backend check record.
-        void refreshDepartureList(item.roomNumber);
+        void refreshDepartureList();
 
         if (result.site_synced === false) {
           console.warn('[MINIBAR PHOTO QUEUE] Фото отправлено в VK, но сайт не синхронизирован:', result.site_sync_error);
@@ -4891,7 +4891,7 @@ btnEmpty.addEventListener('click', async () => {
     }
 
     showMessage('Сообщение по номеру ' + roomNumber + ' отправлено', 2200);
-    await refreshDepartureList(roomNumber);
+    await refreshDepartureList();
   } catch (error) {
     console.error('[MINIBAR] Не удалось отправить сообщение об опустошении:', error);
     showMessage(error?.message || 'Не удалось отправить сообщение', 4000);
