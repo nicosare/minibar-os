@@ -655,22 +655,24 @@
   .deadline-modal-category-title{margin-bottom:7px;padding-bottom:5px;border-bottom:1px solid rgba(255,255,255,.09);color:rgba(255,255,255,.5);font-size:10px;font-weight:800;letter-spacing:.7px;text-transform:uppercase}
   .deadline-modal-product-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
   .deadline-modal-product{position:relative;min-width:0;min-height:61px;display:flex;align-items:center;gap:8px;padding:8px;border:1px solid rgba(255,255,255,.09);border-radius:11px;background:rgba(255,255,255,.045);color:#fff;text-align:left}
-  .deadline-modal-product.selected{border-color:rgba(38,136,235,.9);background:rgba(38,136,235,.16)}
+  .deadline-modal-product.selected{border:1.5px solid rgba(255,204,0,.95);background:rgba(255,204,0,.11);box-shadow:0 0 0 1px rgba(255,204,0,.08)}
+  .deadline-modal-product.selected .deadline-modal-product-name{color:var(--yellow)}
+  .deadline-modal-product.selected .deadline-modal-product-meta{color:rgba(255,204,0,.72)}
   .deadline-modal-product:disabled{opacity:.5}
   .deadline-modal-product-icon{flex:0 0 auto;width:31px;height:31px;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:17px}
   .deadline-modal-product-text{min-width:0;flex:1 1 auto}
   .deadline-modal-product-name{display:block;overflow:hidden;color:rgba(255,255,255,.94);font-size:10px;font-weight:750;line-height:13px;text-overflow:ellipsis;white-space:nowrap}
   .deadline-modal-product-meta{display:block;margin-top:2px;color:rgba(255,255,255,.45);font-size:9px;line-height:12px}
-  .deadline-modal-counter{position:absolute;top:-5px;right:-4px;min-width:19px;height:19px;display:flex;align-items:center;justify-content:center;padding:0 5px;border:2px solid #121316;border-radius:10px;background:#2688eb;color:#fff;font-size:10px;font-weight:850}
+  .deadline-modal-counter{position:absolute;top:-5px;right:-4px;min-width:19px;height:19px;display:flex;align-items:center;justify-content:center;padding:0 5px;border:2px solid #121316;border-radius:10px;background:var(--yellow);color:#000;font-size:10px;font-weight:900;box-shadow:0 0 0 1px rgba(255,204,0,.2)}
   .deadline-modal-feedback{display:none;padding:0 15px 10px;color:#ff8e92;font-size:11px;line-height:15px}
   .deadline-modal-feedback.visible{display:block}
   .deadline-modal-footer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:12px 15px calc(12px + env(safe-area-inset-bottom));border-top:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.025)}
-  .deadline-modal-action{min-height:41px;padding:8px 10px;border:1px solid rgba(255,255,255,.1);border-radius:10px;color:#fff;font-size:11px;font-weight:800}
+  .deadline-modal-action{min-height:41px;padding:8px 10px;border:1px solid rgba(255,204,0,.48);border-radius:10px;background:rgba(255,204,0,.08);color:var(--yellow);font-size:11px;font-weight:850}
   .deadline-modal-action:disabled{opacity:.45}
-  .deadline-modal-action.reset{background:rgba(255,255,255,.06)}
-  .deadline-modal-action.empty{background:rgba(38,136,235,.2);border-color:rgba(38,136,235,.32)}
-  .deadline-modal-action.valid{background:rgba(52,199,89,.17);border-color:rgba(52,199,89,.32)}
-  .deadline-modal-action.save{background:#2688eb;border-color:#2688eb}
+  .deadline-modal-action.reset{background:rgba(255,204,0,.06)}
+  .deadline-modal-action.empty{background:rgba(255,204,0,.1);border-color:rgba(255,204,0,.48);color:var(--yellow)}
+  .deadline-modal-action.valid{background:rgba(255,204,0,.1);border-color:rgba(255,204,0,.48);color:var(--yellow)}
+  .deadline-modal-action.save{background:var(--yellow);border-color:var(--yellow);color:#000}
   @media(min-width:440px){.deadline-modal{align-items:center}.deadline-modal-footer{grid-template-columns:repeat(4,minmax(0,1fr))}}
 
   /* Controls Section */
