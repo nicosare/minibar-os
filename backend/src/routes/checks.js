@@ -88,13 +88,13 @@ function historyBaseConditions() {
 
 function applyOperationFilter(conditions, operation) {
   if (operation === 'daily') {
-    conditions.push({ type: { notIn: ['gih', 'deadline', 'deadline_undo'] } });
+    conditions.push({ type: { notIn: ['gih', 'deadline'] } });
   } else if (operation === 'check') {
-    conditions.push({ type: { notIn: ['gih', 'deadline', 'deadline_undo', 'emptied', 'vk_emptied', 'vk_emptied_undo'] } });
+    conditions.push({ type: { notIn: ['gih', 'deadline', 'emptied', 'vk_emptied'] } });
   } else if (operation === 'emptied') {
-    conditions.push({ type: { in: ['emptied', 'vk_emptied', 'vk_emptied_undo'] } });
+    conditions.push({ type: { in: ['emptied', 'vk_emptied'] } });
   } else if (operation === 'deadlines') {
-    conditions.push({ type: { in: ['deadline', 'deadline_undo'] } });
+    conditions.push({ type: 'deadline' });
   } else if (operation === 'room') {
     conditions.push({ type: { not: 'deadline' } });
   } else if (operation === 'gih') {
