@@ -419,7 +419,7 @@
 
   .camera-refill-panel:active { filter: brightness(1.12); }
   .camera-refill-panel svg { width: 19px; height: 19px; flex: 0 0 auto; }
-  .camera-history-open {
+  .camera-info-panel .camera-history-open {
     width: 100%;
     min-height: 29px;
     flex: 0 0 auto;
@@ -435,11 +435,11 @@
     text-align: left;
     cursor: pointer;
   }
-  .camera-history-open:active { filter: brightness(1.12); }
-  .camera-history-open .camera-action-title { display:flex;align-items:center;gap:6px;font-size:11px;font-weight:850;line-height:15px; }
-  .camera-history-open .camera-action-subtitle { display:none; }
-  .camera-history-open .camera-action-icon { width:20px;height:20px; }
-  .camera-history-open svg { width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto; }
+  .camera-info-panel .camera-history-open:active { filter: brightness(1.12); }
+  .camera-info-panel .camera-history-open .camera-action-title { display:flex;align-items:center;gap:6px;font-size:11px;font-weight:850;line-height:15px; }
+  .camera-info-panel .camera-history-open .camera-action-subtitle { display:none; }
+  .camera-info-panel .camera-history-open .camera-action-icon { width:20px;height:20px; }
+  .camera-info-panel .camera-history-open svg { width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto; }
   .camera-history-list .camera-history-entry { padding: 3px 2px; }
   .camera-history-list .camera-history-line { gap: 5px; }
   .camera-history-list .camera-history-date { font-size: 9px; }
@@ -1125,9 +1125,7 @@
       <div class="deadline-modal-room">Нужно пополнить · номер <span id="refillModalRoomNumber"></span></div>
       <button type="button" class="deadline-modal-close" id="refillModalClose" aria-label="Закрыть выбор продуктов">×</button>
     </div>
-    <div class="deadline-modal-products" id="refillModalProducts">
-      <div class="camera-deadline-empty">Выбор продуктов будет добавлен на следующем этапе.</div>
-    </div>
+    <div class="deadline-modal-products" id="refillModalProducts"><div class="camera-deadline-empty">Загрузка продуктов…</div></div>
   </div>
 </div>
 <!-- Full room history modal -->
@@ -1412,6 +1410,8 @@ const cameraRefillPanel = document.getElementById('cameraRefillPanel');
 const refillModal = document.getElementById('refillModal');
 const refillModalRoomNumber = document.getElementById('refillModalRoomNumber');
 const refillModalClose = document.getElementById('refillModalClose');
+const refillModalProducts = document.getElementById('refillModalProducts');
+let refillSelectedProductIds = new Set();
 const gihCreateModal = document.getElementById('gihCreateModal');
 const gihCreateRoomNumber = document.getElementById('gihCreateRoomNumber');
 const gihCreateProducts = document.getElementById('gihCreateProducts');
@@ -2814,11 +2814,30 @@ sheetOverlay.addEventListener('click', closeSheet);
 
 cameraDeadlinePanel.addEventListener('click', () => { void openCameraDeadlineModal(); });
 cameraGihPanel.addEventListener('click',()=>{void openGihCreateModal()});
-function openRefillModal(){
+function renderRefillProducts(room){
+  const items=room?.template?.items||[];
+  if(!items.length){refillModalProducts.innerHTML='<div class="camera-deadline-empty">У этого номера нет шаблона наполнения.</div>';return}
+  const grouped={};
+  items.forEach(item=>{const product=item.product||{},category=product.category||'Напитки';(grouped[category]||(grouped[category]=[])).push({id:Number(item.productId||product.id),product})});
+  const order=['Дверца','Напитки','Алкоголь','Соки'];
+  const categories=[...order.filter(category=>grouped[category]?.length),...Object.keys(grouped).filter(category=>!order.includes(category)).sort((a,b)=>a.localeCompare(b,'ru'))];
+  refillModalProducts.innerHTML=categories.map(category=>'<section class="deadline-modal-category"><div class="deadline-modal-category-title">'+escapeCameraHtml(category)+'</div><div class="deadline-modal-product-grid">'+grouped[category].map(item=>{
+    const product=item.product,selected=refillSelectedProductIds.has(item.id),color=CAMERA_DEADLINE_PRODUCT_COLORS[product.bgColor]||CAMERA_DEADLINE_PRODUCT_COLORS.slate,emoji=product.emoji||String(product.name||'?').charAt(0).toUpperCase();
+    return '<button type="button" class="deadline-modal-product'+(selected?' selected':'')+'" data-refill-product-id="'+item.id+'" aria-pressed="'+String(selected)+'"><span class="deadline-modal-product-icon" style="background:'+color+';color:#18202a">'+escapeCameraHtml(emoji)+'</span><span class="deadline-modal-product-text"><span class="deadline-modal-product-name">'+escapeCameraHtml(product.name||'Продукт')+'</span></span></button>';
+  }).join('')+'</div></section>').join('');
+}
+async function openRefillModal(){
   if(!selectedRoom)return;
-  refillModalRoomNumber.textContent=selectedRoom.number ?? selectedRoom.roomNumber ?? '';
+  const roomAtOpen=selectedRoom,id=Number(roomAtOpen.id);
+  refillSelectedProductIds=new Set();
+  refillModalRoomNumber.textContent=String(roomAtOpen.number??roomAtOpen.roomNumber??'');
+  refillModalProducts.innerHTML='<div class="camera-deadline-empty">Загрузка продуктов…</div>';
   refillModal.classList.remove('hidden');
   refillModal.setAttribute('aria-hidden','false');
+  const data=await loadRoomDeadlineData(roomAtOpen,true);
+  if(refillModal.classList.contains('hidden')||Number(selectedRoom?.id)!==id)return;
+  if(!data||(data.error&&!data.loadedAt)){refillModalProducts.innerHTML='<div class="camera-deadline-empty">Не удалось загрузить продукты.</div>';return}
+  renderRefillProducts(data.room||roomAtOpen);
 }
 function closeRefillModal(){
   refillModal.classList.add('hidden');
@@ -2827,6 +2846,14 @@ function closeRefillModal(){
 cameraRefillPanel.addEventListener('click',openRefillModal);
 refillModalClose.addEventListener('click',closeRefillModal);
 refillModal.addEventListener('click',e=>{if(e.target===refillModal)closeRefillModal()});
+refillModalProducts.addEventListener('click',e=>{
+  const button=e.target.closest('[data-refill-product-id]');
+  if(!button)return;
+  const id=Number(button.dataset.refillProductId);
+  if(refillSelectedProductIds.has(id))refillSelectedProductIds.delete(id);else refillSelectedProductIds.add(id);
+  button.classList.toggle('selected',refillSelectedProductIds.has(id));
+  button.setAttribute('aria-pressed',String(refillSelectedProductIds.has(id)));
+});
 roomHistoryOpen.addEventListener('click',()=>{void openRoomHistoryModal()});
 gihCreateModal.addEventListener('click',e=>{if(e.target===gihCreateModal)closeGihCreateModal()});
 gihCreateClose.addEventListener('click',closeGihCreateModal);
