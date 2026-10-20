@@ -1647,6 +1647,8 @@ const storedListSelection = readStoredListSelection();
 let activeListKey = storedListSelection.key === 'departures' ? 'departures' : '';
 let activeListDateKey = storedListSelection.dateKey;
 let drawerMode = activeListKey === 'departures' ? 'list' : 'all';
+function readDepartureSort() { try { return localStorage.getItem('minibar-departure-sort-v1') === 'desc' ? 'desc' : 'asc'; } catch (_) { return 'asc'; } }
+let departureSort = readDepartureSort();
 let activePlaceholderName = '';
 let departureListRequestSequence = 0;
 let departureList = {
@@ -1727,7 +1729,7 @@ function visibleCarouselRooms() {
   const members = currentDepartureNumbers();
   return ALL_ROOMS
     .filter(room => members.has(String(room.number)))
-    .sort((a, b) => Number(a.floor) - Number(b.floor) || Number(a.number) - Number(b.number));
+    .sort((a, b) => { const d = departureSort === 'desc' ? -1 : 1; return d * (Number(a.floor) - Number(b.floor) || Number(a.number) - Number(b.number)); });
 }
 
 function nextCarouselNumber(previousNumber, rooms = visibleCarouselRooms()) {
@@ -1839,6 +1841,10 @@ function renderDepartureListCard() {
       '" data-select-departures-list>' +
       '<div class="mini-departure-card-top"><span>Выезды</span><span aria-hidden="true">›</span></div>' +
       '<div class="mini-departure-card-file">' + escapeCameraHtml(sourceMessage) + '</div>' +
+      '<label class="mini-departure-sort-control">Порядок карусели <select data-departure-sort aria-label="Порядок сортировки карусели">' +
+        '<option value="asc"' + (departureSort === 'asc' ? ' selected' : '') + '>Сверху вниз</option>' +
+        '<option value="desc"' + (departureSort === 'desc' ? ' selected' : '') + '>Снизу вверх</option>' +
+      '</select></label>' +
       '<div class="mini-departure-card-stats">' +
         '<div class="mini-departure-card-stat"><span class="mini-departure-card-number">' +
           departureList.remainingCount + '</span><span class="mini-departure-card-label">осталось</span></div>' +
@@ -1854,6 +1860,12 @@ function renderDepartureListCard() {
     (active
       ? '<button type="button" class="mini-list-secondary-action" data-select-all-rooms>Вернуться ко всем номерам</button>'
       : '<div class="mini-departure-card-file" style="margin-top:12px">Проверка через VK автоматически убирает номер из ежедневного списка.</div>');
+  navPlaceholderBody.querySelector('[data-departure-sort]')?.addEventListener('change', event => {
+    departureSort = event.target.value === 'desc' ? 'desc' : 'asc';
+    try { localStorage.setItem('minibar-departure-sort-v1', departureSort); } catch (_) {}
+    if (activeListKey === 'departures') buildCarousel(selectedRoom?.number);
+    renderDepartureListCard();
+  });
 }
 
 async function openListsScreen() {
@@ -4855,6 +4867,12 @@ btnSend.addEventListener('click', () => {
   // in the background while the user selects the next room and takes another photo.
   const pendingId = String(Date.now()) + '-' + String(requestId || Math.random());
   pendingPhotoWrites.set(pendingId, { roomNumber, requestId, blobPromise });
+  if (activeListKey === 'departures') {
+    const rooms = visibleCarouselRooms();
+    const i = rooms.findIndex(room => String(room.number) === roomNumber);
+    if (i >= 0 && rooms[i + 1]) selectRoomByNumber(rooms[i + 1].number, false, 'auto');
+    else void refreshDepartureList().then(() => { const n = nextCarouselNumber(roomNumber, visibleCarouselRooms()); if (n) selectRoomByNumber(n, false, 'auto'); });
+  }
   triggerHaptic();
   showMessage('Фото №' + roomNumber + ' принято — можно снимать следующее', 2200);
   setUploadStatus('Подготовка фото №' + roomNumber + ' в фоне…', 'pending');
