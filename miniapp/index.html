@@ -2832,7 +2832,7 @@ function renderToolExcises() {
   const total = toolExcises.length;
   const valid = toolExcises.filter(function (item) { return toolIsValidExciseMark(String(item.mark_number || '')); }).length;
   const invalid = total - valid;
-  toolExciseTitleCount.textContent = '(' + valid + ' / ' + invalid + ')';
+  toolExciseTitleCount.textContent = '(валидных: ' + valid + ' · невалидных: ' + invalid + ')';
   toolExciseTitleCount.setAttribute('aria-label', valid + ' валидных, ' + invalid + ' невалидных');
   toolExciseListCount.textContent = total + ' ' + toolPluralize(total, ['марка', 'марки', 'марок']);
   if (!total) {
