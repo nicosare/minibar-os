@@ -298,52 +298,134 @@
     text-shadow: 0 0 12px rgba(255, 204, 0, 0.3);
   }
 
-  /* Room Description Box */
-  .room-description-box {
-    width: 100%;
-    max-width: 440px;
-    padding: 10px 14px;
-    border-radius: 12px;
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
+  /* Camera block shown while the camera is on standby. */
+  .camera-info-panel {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    flex-shrink: 0;
+    gap: 10px;
+    padding: 16px;
+    overflow: hidden;
+    background: #0b0b0d;
+  }
+
+  .camera-info-heading {
+    flex: 0 0 auto;
+    font-size: 15px;
+    line-height: 20px;
+    font-weight: 800;
+    letter-spacing: .1px;
+  }
+
+  .camera-history-label {
+    flex: 0 0 auto;
+    color: var(--text-dim);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .7px;
+    text-transform: uppercase;
+  }
+
+  .camera-history-list {
+    min-height: 0;
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  .camera-history-list::-webkit-scrollbar { display: none; }
+
+  .camera-history-entry {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 8px 9px;
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 9px;
+    background: rgba(255,255,255,.045);
+    min-width: 0;
+  }
+
+  .camera-history-date {
+    color: rgba(255,255,255,.48);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 13px;
+  }
+
+  .camera-history-summary {
+    color: rgba(255,255,255,.9);
+    font-size: 11px;
+    font-weight: 650;
+    line-height: 15px;
+    overflow-wrap: anywhere;
+  }
+
+  .camera-history-operation.is-empty { color: #ff7d82; }
+  .camera-history-operation.is-gih { color: #c6a6ff; }
+  .camera-history-gih-status { color: rgba(255,255,255,.68); font-weight: 750; }
+  .camera-history-separator { color: rgba(255,255,255,.35); }
+
+  .camera-history-note {
+    color: rgba(255,255,255,.55);
+    font-size: 10px;
+    line-height: 13px;
+    overflow-wrap: anywhere;
+  }
+
+  .camera-history-empty {
+    padding: 12px 4px;
+    color: var(--text-dim);
+    font-size: 12px;
+    line-height: 17px;
+  }
+
+  .room-description-box {
+    width: 100%;
+    flex: 0 0 auto;
+    margin-top: auto;
+    padding: 11px 12px;
+    border-radius: 11px;
+    background: rgba(255,255,255,.055);
+    border: 1px solid var(--card-border);
   }
 
   .desc-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 8px;
   }
 
   .desc-title {
-    font-size: 13px;
-    font-weight: 700;
+    min-width: 0;
+    font-size: 14px;
+    font-weight: 800;
     color: #fff;
   }
 
   .desc-tag {
-    font-size: 11px;
-    padding: 2px 8px;
+    flex: 0 0 auto;
+    font-size: 10px;
+    padding: 4px 7px;
     border-radius: 6px;
-    font-weight: 700;
+    font-weight: 750;
     background: rgba(255,255,255,0.08);
     color: rgba(255,255,255,0.7);
-    letter-spacing: 0.3px;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
   }
 
   .desc-tag.suite {
     background: rgba(255,204,0,0.15);
     color: var(--yellow);
     border: 1px solid rgba(255,204,0,0.25);
-  }
-
-  .desc-body {
-    font-size: 12px;
-    line-height: 15px;
-    color: var(--text-dim);
   }
 
   /* Controls Section */
@@ -724,12 +806,26 @@
           <span class="focus-corner br"></span>
         </div>
 
-        <div class="camera-loader" id="cameraLoader">
+        <div class="camera-loader hidden" id="cameraLoader">
           <div class="loader-spinner hidden" id="loaderSpinner"></div>
-          <div class="loader-title" id="loaderTitle">Камера выключена</div>
-          <div class="loader-subtitle" id="loaderSubtitle">Нажмите кнопку фото, чтобы включить камеру и сделать снимок.</div>
+          <div class="loader-title" id="loaderTitle">Запуск камеры…</div>
+          <div class="loader-subtitle" id="loaderSubtitle">Подготавливаю камеру и ориентацию снимка…</div>
           <button class="loader-retry hidden" id="loaderRetry" type="button">Повторить</button>
         </div>
+
+        <section class="camera-info-panel" id="cameraInfoPanel" aria-label="Блок камеры">
+          <div class="camera-info-heading">Блок камеры</div>
+          <div class="camera-history-label">3 последние операции</div>
+          <div class="camera-history-list" id="roomHistoryItems" aria-live="polite">
+            <div class="camera-history-empty">Загрузка истории…</div>
+          </div>
+          <div class="room-description-box" id="roomDescription">
+            <div class="desc-header">
+              <span class="desc-title" id="descRoomTitle">Номер 500</span>
+              <span class="desc-tag" id="descRoomTag">5 этаж · Стандарт</span>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
 
@@ -738,17 +834,6 @@
       <div class="carousel-fade left"></div>
       <div class="carousel" id="carousel" aria-label="Выбор номера"></div>
       <div class="carousel-fade right"></div>
-    </div>
-
-    <!-- Description Card -->
-    <div class="room-description-box" id="roomDescription">
-      <div class="desc-header">
-        <span class="desc-title" id="descRoomTitle">Номер 500</span>
-        <span class="desc-tag" id="descRoomTag">5 этаж</span>
-      </div>
-      <div class="desc-body" id="descRoomText">
-        Информация о мини-баре и статус проверки (блок для будущего описания).
-      </div>
     </div>
 
     <!-- Shutter Controls -->
@@ -1034,8 +1119,11 @@ const queueCount = document.getElementById('queueCount');
 const message = document.getElementById('message');
 const uploadStatus = document.getElementById('uploadStatus');
 
+const cameraInfoPanel = document.getElementById('cameraInfoPanel');
+const roomHistoryItems = document.getElementById('roomHistoryItems');
 const descRoomTitle = document.getElementById('descRoomTitle');
 const descRoomTag = document.getElementById('descRoomTag');
+const roomHistoryCache = new Map();
 
 const btnCloseSheet = document.getElementById('btnCloseSheet');
 const sheetOverlay = document.getElementById('sheetOverlay');
@@ -1072,8 +1160,148 @@ let orientationPermissionPromise = null;
 const carouselItems = new Map();
 let activeCarouselItem = null;
 
+function escapeCameraHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+const CAMERA_GIH_MODE_LABELS = {
+  dnd: 'DND',
+  all_in_place: 'Всё на месте',
+  all_out: 'Всё выложили',
+  empty: 'Опустошён',
+  not_checked: 'Не проверен'
+};
+
+const CAMERA_GIH_STATUS_LABELS = {
+  replenished: 'Пополнено',
+  in_place: 'На месте',
+  out: 'Выложили',
+  not_replenished: 'Не пополнено',
+  pending: 'Не размечено'
+};
+
+function cameraHistorySummary(check) {
+  if (check.type === 'emptied' || check.type === 'vk_emptied') {
+    return '<span class="camera-history-operation is-empty">Опустошение</span>';
+  }
+  if (check.type !== 'gih') {
+    return '<span class="camera-history-operation">Проверка</span>';
+  }
+
+  const mode = check.gihRoomStatus;
+  if (mode) {
+    return '<span class="camera-history-operation is-gih">GIH · ' +
+      escapeCameraHtml(CAMERA_GIH_MODE_LABELS[mode] || mode) + '</span>';
+  }
+
+  const groups = {};
+  (Array.isArray(check.gihItems) ? check.gihItems : []).forEach(item => {
+    const status = item.itemStatus || 'pending';
+    const name = item.productName || (item.product && item.product.name) || 'Продукт';
+    if (!groups[status]) groups[status] = {};
+    groups[status][name] = (groups[status][name] || 0) + 1;
+  });
+  const order = ['replenished', 'in_place', 'out', 'not_replenished', 'pending'];
+  const details = order.filter(status => groups[status]).map(status => {
+    const products = Object.entries(groups[status]).map(([name, qty]) =>
+      escapeCameraHtml(name) + (qty > 1 ? ' ×' + qty : '')
+    ).join(', ');
+    return '<span class="camera-history-gih-status">' +
+      escapeCameraHtml(CAMERA_GIH_STATUS_LABELS[status] || status) + ':</span> ' + products;
+  });
+  return '<span class="camera-history-operation is-gih">GIH</span>' +
+    (details.length ? '<span class="camera-history-separator"> · </span>' + details.join('<span class="camera-history-separator"> · </span>') : '');
+}
+
+function cameraHistoryEntryHtml(check) {
+  const date = new Date(check.checkDate || check.createdAt || '');
+  const validDate = Number.isFinite(date.getTime());
+  const dateText = validDate
+    ? date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) + ' ' +
+      date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+    : 'Дата неизвестна';
+  const note = String(check.notes || '').trim().replace(/\s+/g, ' ');
+  return '<article class="camera-history-entry">' +
+    '<div class="camera-history-date">' + escapeCameraHtml(dateText) + '</div>' +
+    '<div class="camera-history-summary">' + cameraHistorySummary(check) + '</div>' +
+    (note ? '<div class="camera-history-note">' + escapeCameraHtml(note) + '</div>' : '') +
+    '</article>';
+}
+
+function renderRoomHistory(roomId) {
+  const state = roomHistoryCache.get(Number(roomId));
+  if (!state || state.loading) {
+    roomHistoryItems.innerHTML = '<div class="camera-history-empty">Загрузка истории…</div>';
+    return;
+  }
+  if (state.error) {
+    roomHistoryItems.innerHTML = '<div class="camera-history-empty">Не удалось загрузить историю</div>';
+    return;
+  }
+  if (!state.items.length) {
+    roomHistoryItems.innerHTML = '<div class="camera-history-empty">Операций пока нет</div>';
+    return;
+  }
+  roomHistoryItems.innerHTML = state.items.map(cameraHistoryEntryHtml).join('');
+}
+
+async function loadRoomHistory(room, force = false) {
+  if (!room || !room.id) return;
+  const roomId = Number(room.id);
+  const current = roomHistoryCache.get(roomId);
+  if (current && current.loading) return;
+  if (current && current.loaded && !force && Date.now() - current.loadedAt < 15000) {
+    if (selectedRoom && Number(selectedRoom.id) === roomId) renderRoomHistory(roomId);
+    return;
+  }
+
+  roomHistoryCache.set(roomId, { loading: true, loaded: false, error: false, items: [], loadedAt: 0 });
+  if (selectedRoom && Number(selectedRoom.id) === roomId) renderRoomHistory(roomId);
+  try {
+    const params = new URLSearchParams({
+      operation: 'room',
+      roomId: String(roomId),
+      _t: String(Date.now())
+    });
+    const response = await fetch(API_BASE + '/checks/history?' + params.toString(), {
+      headers: { Accept: 'application/json' },
+      cache: 'no-store'
+    });
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const data = await response.json();
+    const items = Array.isArray(data) ? data : (Array.isArray(data.items) ? data.items : []);
+    items.sort((a, b) => {
+      const aTime = new Date(a.checkDate || a.createdAt || 0).getTime() || 0;
+      const bTime = new Date(b.checkDate || b.createdAt || 0).getTime() || 0;
+      return bTime - aTime || Number(b.id || 0) - Number(a.id || 0);
+    });
+    roomHistoryCache.set(roomId, {
+      loading: false,
+      loaded: true,
+      error: false,
+      items: items.slice(0, 3),
+      loadedAt: Date.now()
+    });
+  } catch (error) {
+    console.warn('[MINIBAR CAMERA] Не удалось загрузить историю номера:', error);
+    roomHistoryCache.set(roomId, {
+      loading: false,
+      loaded: true,
+      error: true,
+      items: [],
+      loadedAt: Date.now()
+    });
+  }
+  if (selectedRoom && Number(selectedRoom.id) === roomId) renderRoomHistory(roomId);
+}
+
 function updateQueueDisplay() {
-  queueCount.textContent = `В очереди: ${queueRemaining} номеров`;
+  queueCount.textContent = \`В очереди: \${queueRemaining} номеров\`;
 }
 
 function showMessage(text, duration = 1800) {
@@ -1230,6 +1458,7 @@ async function stopCamera() {
 }
 
 async function startCamera() {
+  cameraInfoPanel.classList.add('hidden');
   cameraLoader.classList.remove('error', 'hidden');
   cameraLoader.style.opacity = '1';
   loaderSpinner.classList.remove('hidden');
@@ -1561,12 +1790,12 @@ function showPreviewFromCanvas() {
 }
 
 function showCameraStandby() {
-  cameraLoader.classList.remove('error', 'hidden');
+  cameraInfoPanel.classList.remove('hidden');
+  cameraLoader.classList.add('hidden');
+  cameraLoader.classList.remove('error');
   cameraLoader.style.opacity = '1';
   loaderSpinner.classList.add('hidden');
   loaderRetry.classList.add('hidden');
-  loaderTitle.textContent = 'Камера выключена';
-  loaderSubtitle.textContent = 'Нажмите кнопку фото, чтобы включить камеру и сделать снимок.';
 }
 
 function resetPhoto() {
@@ -1629,11 +1858,12 @@ function updateSelectedRoomState(room, vibrate = false) {
     activeCarouselItem = currentItem;
   }
 
-  descRoomTitle.textContent = `Номер ${room.number}`;
-  // Keep category in room.type for app logic, but do not expose it in the UI.
-  descRoomTag.textContent = `${room.floor} этаж`;
-  descRoomTag.className = 'desc-tag';
+  descRoomTitle.textContent = 'Номер ' + room.number;
+  const categoryLabel = room.type === 'suite' ? 'Люкс' : 'Стандарт';
+  descRoomTag.textContent = room.floor + ' этаж · ' + categoryLabel;
+  descRoomTag.className = room.type === 'suite' ? 'desc-tag suite' : 'desc-tag';
 
+  void loadRoomHistory(room, changed);
   updateDrawerSelectedChip(room.number);
   if (vibrate && changed) triggerHaptic();
 }
