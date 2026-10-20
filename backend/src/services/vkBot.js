@@ -194,7 +194,7 @@ export async function processVkBotMessage({
         const latestAction = await tx.check.findFirst({
           where: {
             roomId: room.id,
-            type: { in: ['vk_room', 'vk_emptied', 'deadline'] }
+            type: { in: ['room', 'check', 'emptied', 'vk_room', 'vk_emptied', 'deadline'] }
           },
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           select: {
@@ -270,7 +270,7 @@ export async function processVkBotMessage({
             type: latestAction.type === 'deadline' ? 'deadline_undo' : 'vk_undo',
             status: 'done',
             notes: 'Отменено последнее ежедневное действие: ' +
-              (latestAction.type === 'vk_emptied' ? 'опустошение' :
+              ((latestAction.type === 'vk_emptied' || latestAction.type === 'emptied') ? 'опустошение' :
                 latestAction.type === 'deadline' ? 'операция «Сроки»' : 'проверка')
           }
         });
