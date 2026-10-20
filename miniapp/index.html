@@ -2803,8 +2803,10 @@ function showToolFeedback(element, messageText, kind, key) {
   if (toolFeedbackTimers[key]) clearTimeout(toolFeedbackTimers[key]);
   element.textContent = messageText || '';
   element.dataset.kind = kind || 'info';
+  element.hidden = !messageText;
   element.classList.toggle('hidden', !messageText);
   if (messageText) toolFeedbackTimers[key] = setTimeout(function () {
+    element.hidden = true;
     element.classList.add('hidden');
     toolFeedbackTimers[key] = null;
   }, 3000);
@@ -2861,6 +2863,8 @@ async function loadToolExcises(force) {
   if (toolExciseLoadPromise) return toolExciseLoadPromise;
   if (toolExcisesLoaded && !force) { renderToolExcises(); return; }
   toolExciseList.innerHTML = '<div class="tool-empty-state">Загрузка акцизов…</div>';
+  toolExciseInput.disabled = true;
+  toolExciseAdd.disabled = true;
   toolExciseLoadPromise = (async function () {
     try {
       const result = await toolApiRequest('/excises');
@@ -2872,7 +2876,7 @@ async function loadToolExcises(force) {
     } catch (error) {
       toolExciseList.innerHTML = '<div class="tool-empty-state">Не удалось загрузить акцизы. ' + toolEscapeHtml(error.message || '') + '</div>';
       showToolFeedback(toolExciseFeedback, error.message || 'Не удалось загрузить акцизы', 'error', 'excise');
-    } finally { toolExciseLoadPromise = null; }
+    } finally { toolExciseInput.disabled = false; toolExciseAdd.disabled = false; toolExciseLoadPromise = null; }
   })();
   return toolExciseLoadPromise;
 }
