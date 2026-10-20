@@ -886,27 +886,28 @@ async function completeRoom(action) {
   updateQueueDisplay();
 }
 
-/* Track the direction of gravity in the phone's screen plane. Unlike gamma
-   alone, beta + gamma also distinguish upside-down portrait and avoid changing
-   orientation while the device is held diagonally or nearly flat. */
+/* Determine handset rotation from gravity projected onto the screen plane.
+   Ignore the Z component: tilting the display toward/away from the user must
+   not change portrait/landscape or flip a captured photo. */
 let currentDeviceAngle = 0;
 let lastSensorOrientationAt = 0;
 let hasSensorOrientation = false;
+let hasMotionOrientation = false;
 
 function normalizeAngle(angle) {
   return ((Number(angle) % 360) + 360) % 360;
 }
 
 function updateOrientationFromScreen() {
-  // Display orientation is stable when the phone is tilted toward or away
-  // from the user. Prefer it over gravity-based sensor estimates.
+  if (hasSensorOrientation) return;
+
   let angle = null;
   if (window.screen?.orientation &&
       typeof window.screen.orientation.angle === 'number') {
     angle = normalizeAngle(window.screen.orientation.angle);
   } else if (typeof window.orientation === 'number') {
     angle = normalizeAngle(window.orientation);
-  } else if (!hasSensorOrientation && window.innerWidth > window.innerHeight) {
+  } else if (window.innerWidth > window.innerHeight) {
     angle = 90;
   }
 
@@ -915,15 +916,45 @@ function updateOrientationFromScreen() {
   }
 }
 
+function applyGravityOrientation(x, y, fromMotion = false) {
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+
+  const absX = Math.abs(x);
+  const absY = Math.abs(y);
+  // Ignore near-flat/diagonal positions; Z (screen-normal tilt) is deliberately
+  // not used, so tipping the phone screen-down cannot trigger a 180° change.
+  if (Math.max(absX, absY) < 5.5 || Math.min(absX, absY) > Math.max(absX, absY) * 0.72) return;
+
+  let nextAngle;
+  if (absY > absX) {
+    nextAngle = y >= 0 ? 0 : 180;
+  } else {
+    nextAngle = x >= 0 ? 90 : 270;
+  }
+
+  if (fromMotion) hasMotionOrientation = true;
+  if (nextAngle === currentDeviceAngle) return;
+  currentDeviceAngle = nextAngle;
+  hasSensorOrientation = true;
+  lastSensorOrientationAt = Date.now();
+}
+
+function updateOrientationFromMotion(event) {
+  const gravity = event.accelerationIncludingGravity;
+  if (!gravity) return;
+  // Only X/Y affect the result. The Z axis is intentionally ignored.
+  applyGravityOrientation(gravity.x, gravity.y, true);
+}
+
 function updateOrientationFromSensor(beta, gamma) {
-  if (!Number.isFinite(beta) || !Number.isFinite(gamma)) return;
+  // Euler angles are a fallback only. Prefer accelerationIncludingGravity,
+  // which lets us ignore screen-normal tilt instead of confusing it with rotation.
+  if (hasMotionOrientation || !Number.isFinite(beta) || !Number.isFinite(gamma)) return;
 
   const betaProjection = Math.sin(beta * Math.PI / 180);
   const gammaProjection = Math.sin(gamma * Math.PI / 180);
   const absBeta = Math.abs(betaProjection);
   const absGamma = Math.abs(gammaProjection);
-
-  // Ignore ambiguous diagonal/flat positions to prevent the frame flickering.
   if (Math.max(absBeta, absGamma) < 0.62) return;
 
   let nextAngle = null;
@@ -940,20 +971,10 @@ function updateOrientationFromSensor(beta, gamma) {
 }
 
 function getPhysicalDeviceAngle() {
-  // Never let a slight screen-down tilt override the actual display rotation.
-  // Device-orientation sensors are only a fallback on browsers that expose
-  // neither Screen Orientation API nor the legacy window.orientation value.
-  if (window.screen?.orientation &&
-      typeof window.screen.orientation.angle === 'number') {
-    const angle = normalizeAngle(window.screen.orientation.angle);
-    if ([0, 90, 180, 270].includes(angle)) return angle;
-  }
-
-  if (typeof window.orientation === 'number') {
-    const angle = normalizeAngle(window.orientation);
-    if ([0, 90, 180, 270].includes(angle)) return angle;
-  }
-
+  // Real gravity-based handset orientation wins when available, even if the
+  // embedded VK browser keeps its screen.orientation.angle locked at zero.
+  if (hasMotionOrientation || hasSensorOrientation) return currentDeviceAngle;
+  updateOrientationFromScreen();
   return currentDeviceAngle;
 }
 
@@ -974,13 +995,15 @@ function getCaptureOrientationAngle(sourceWidth = video.videoWidth, sourceHeight
 }
 
 function syncViewportAfterOrientationChange() {
-  // Keep the 3:4 viewfinder geometry CSS-driven and independent of orientation.
   updateOrientationFromScreen();
 }
 
 window.addEventListener('orientationchange', syncViewportAfterOrientationChange);
 if (window.screen && window.screen.orientation) {
   window.screen.orientation.addEventListener('change', syncViewportAfterOrientationChange);
+}
+if (window.DeviceMotionEvent) {
+  window.addEventListener('devicemotion', updateOrientationFromMotion, true);
 }
 if (window.DeviceOrientationEvent) {
   window.addEventListener('deviceorientation', event => {
