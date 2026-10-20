@@ -169,8 +169,19 @@ export async function processVkBotMessage({
       let roomStateChanged = false;
 
       for (const roomNumber of parsed.rooms) {
-        const room = await tx.room.findUnique({
+        let room = await tx.room.findUnique({
           where: { number: roomNumber },
+          select: { id: true, number: true, expiryStatus: true }
+        });
+        if (!room) {
+          missingUndoRooms.push(roomNumber);
+          continue;
+        }
+
+        // Serialize concurrent undo and room-state mutations for this room.
+        await tx.$queryRaw`SELECT id FROM rooms WHERE id = ${room.id} FOR UPDATE`;
+        room = await tx.room.findUnique({
+          where: { id: room.id },
           select: { id: true, number: true, expiryStatus: true }
         });
         if (!room) {
@@ -292,8 +303,16 @@ export async function processVkBotMessage({
       select: { id: true, number: true, expiryStatus: true }
     });
 
+    // Lock rooms in a stable order, then reload current statuses before snapshotting.
+    for (const room of [...rooms].sort((a, b) => a.id - b.id)) {
+      await tx.$queryRaw`SELECT id FROM rooms WHERE id = ${room.id} FOR UPDATE`;
+    }
+    const lockedRooms = await tx.room.findMany({
+      where: { number: { in: parsed.rooms } },
+      select: { id: true, number: true, expiryStatus: true }
+    });
     const roomsByNumber = new Map(
-      rooms.map(room => [room.number, room])
+      lockedRooms.map(room => [room.number, room])
     );
 
     const processedRooms = [];
@@ -392,5 +411,5 @@ export async function processVkBotMessage({
       rooms: processedRooms,
       missingRooms
     };
-  });
+  }, { isolationLevel: 'Serializable' });
 }
