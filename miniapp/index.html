@@ -304,37 +304,54 @@
     inset: 0;
     z-index: 8;
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    gap: 7px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: auto auto auto auto auto;
+    align-content: start;
+    align-items: start;
+    gap: 6px;
     padding: 10px;
     overflow: hidden;
     background: #0b0b0d;
   }
 
-  .camera-workspace {
-    min-height: 0;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-template-rows: auto minmax(0, 1fr);
-    gap: 6px;
+  .camera-info-panel > .room-description-box {
+    grid-column: 1 / span 3;
+    grid-row: 1;
+    width: 100%;
+    min-width: 0;
   }
+
+  /* Flatten only the layout wrapper: the camera/viewfinder is untouched. */
+  .camera-workspace { display: contents; }
 
   .camera-workspace-deadlines {
     grid-column: 1;
-    grid-row: 1 / span 2;
+    grid-row: 2 / span 2;
+    min-width: 0;
     min-height: 0;
     align-self: start;
     display: flex;
   }
 
-  .camera-workspace-gih { grid-column: 2; grid-row: 1; }
-  .camera-workspace-refill { grid-column: 2 / span 2; grid-row: 2; align-self: stretch; }
+  .camera-workspace-gih {
+    grid-column: 2;
+    grid-row: 2;
+    aspect-ratio: 1;
+    align-self: start;
+  }
+
+  .camera-workspace-refill {
+    grid-column: 2 / span 2;
+    grid-row: 4;
+    align-self: start;
+  }
 
   .camera-history-section {
+    grid-column: 1 / span 3;
+    grid-row: 5;
     min-width: 0;
     min-height: 0;
-    display: flex;
-    flex-direction: column;
+    display: block;
   }
 
   .camera-history-list {
@@ -348,11 +365,12 @@
 
   .camera-history-list::-webkit-scrollbar { display: none; }
 
-  .camera-info-panel .room-description-box { padding: 8px 10px; }
+  .camera-info-panel > .room-description-box { padding: 8px 10px; }
   .camera-info-panel .desc-title { font-size: 13px; }
   .camera-info-panel .desc-tag { font-size: 9px; padding: 3px 6px; }
 
-  .camera-workspace .camera-deadline-panel {
+  .camera-workspace-deadlines .camera-deadline-panel {
+    width: 100%;
     height: auto;
     min-height: 0;
     align-self: start;
@@ -361,9 +379,9 @@
     padding: 8px;
   }
 
-  .camera-workspace .camera-deadline-head { align-items: flex-start; flex-direction: column; gap: 4px; }
-  .camera-workspace .camera-deadline-status { max-width: 100%; text-align: left; }
-  .camera-workspace .camera-deadline-products {
+  .camera-workspace-deadlines .camera-deadline-head { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .camera-workspace-deadlines .camera-deadline-status { max-width: 100%; text-align: left; }
+  .camera-workspace-deadlines .camera-deadline-products {
     flex: 0 0 auto;
     min-height: 0;
     max-height: none;
@@ -372,7 +390,7 @@
     margin-top: 7px;
   }
 
-  .camera-workspace .camera-deadline-product-line {
+  .camera-workspace-deadlines .camera-deadline-product-line {
     align-items: flex-start;
     justify-content: space-between;
     gap: 4px;
@@ -381,17 +399,17 @@
     line-height: 12px;
   }
 
-  .camera-workspace .camera-deadline-product-name {
+  .camera-workspace-deadlines .camera-deadline-product-name {
     min-width: 0;
     flex: 1 1 auto;
     white-space: normal;
     overflow-wrap: anywhere;
   }
-  .camera-workspace .camera-deadline-product-qty { flex: 0 0 auto; font-size: 9px; white-space: nowrap; }
+  .camera-workspace-deadlines .camera-deadline-product-qty { flex: 0 0 auto; font-size: 9px; white-space: nowrap; }
 
   .camera-gih-panel {
     min-height: 0;
-    height: 100%;
+    height: auto;
     padding: 7px;
     justify-content: center;
     flex-direction: column;
@@ -457,7 +475,6 @@
 
   @media (max-height: 700px) {
     .camera-info-panel { gap: 5px; padding: 8px; }
-    .camera-workspace { gap: 5px; }
     .camera-history-list .camera-history-entry { padding: 2px 1px; }
     .camera-history-list .camera-history-date, .camera-history-list .camera-history-summary { font-size: 8px; line-height: 10px; }
   }
@@ -1684,8 +1701,7 @@ function renderCameraDeadlinePanel() {
   }
   const products = (data?.statuses || []).filter(item => Number(item.qtyToReplace) > 0);
   if (!products.length) {
-    cameraDeadlineProducts.innerHTML = '<div class="camera-deadline-empty">' +
-      (data?.products?.length ? 'Продукты не отмечены' : 'Нет продуктов с контролем срока годности') + '</div>';
+    cameraDeadlineProducts.innerHTML = '';
     return;
   }
   cameraDeadlineProducts.innerHTML = products.map(item =>
