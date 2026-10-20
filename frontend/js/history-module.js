@@ -65,7 +65,7 @@ App.historyModule = (() => {
   const GIH_STATUS_ORDER = ['replenished', 'in_place', 'out', 'not_replenished', 'pending'];
 
   function isEmptyType(type) {
-    return type === 'emptied' || type === 'vk_emptied' || type === 'vk_emptied_undo';
+    return type === 'emptied' || type === 'vk_emptied';
   }
 
   function isVkOperation(check) {
@@ -73,15 +73,6 @@ App.historyModule = (() => {
   }
 
   function operationMeta(check) {
-    if (check.type === 'deadline_undo' || check.type === 'vk_undo' || check.type === 'vk_emptied_undo') {
-      return { label: 'Отмена действия', cls: 'bg-amber-50 text-amber-700 border-amber-200' };
-    }
-    if (check.undoneAt) {
-      const label = isEmptyType(check.type) ? 'Опустошение отменено'
-        : check.type === 'deadline' ? 'Операция «Сроки» отменена'
-        : 'Проверка отменена';
-      return { label, cls: 'bg-slate-100 text-slate-600 border-slate-200' };
-    }
     if (check.type === 'deadline') {
       return { label: 'Сроки', cls: 'bg-amber-50 text-amber-700 border-amber-200' };
     }
