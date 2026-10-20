@@ -556,10 +556,9 @@
   .room-history-modal-card{max-height:min(90dvh,820px)}
   .room-history-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:12px 15px calc(12px + env(safe-area-inset-bottom));border-top:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.025)}
   .room-history-tab{min-height:41px;padding:8px 10px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.06);color:#fff;font-size:11px;font-weight:800}
-  #roomHistoryModal .room-history-tabs .room-history-tab[data-history-tab="daily"]{--history-accent:#8af0a7;--history-accent-bg:rgba(52,199,89,.15);--history-accent-shadow:rgba(52,199,89,.12)}
-  #roomHistoryModal .room-history-tabs .room-history-tab[data-history-tab="gih"]{--history-accent:#d6bdff;--history-accent-bg:rgba(145,94,220,.18);--history-accent-shadow:rgba(145,94,220,.16)}
-  #roomHistoryModal .room-history-tabs .room-history-tab.active{border:1px solid var(--history-accent);background:var(--history-accent-bg);color:var(--history-accent);box-shadow:0 3px 12px var(--history-accent-shadow)}
-  #roomHistoryModal .room-history-tabs .room-history-tab:not(.active){background:rgba(255,255,255,.035);border:1px solid color-mix(in srgb,var(--history-accent) 35%,transparent);color:color-mix(in srgb,var(--history-accent) 72%,white)}
+  #roomHistoryModal .room-history-tabs .room-history-tab{--history-accent:var(--yellow);--history-accent-bg:rgba(255,204,0,.12);--history-accent-shadow:rgba(255,204,0,.1)}
+  #roomHistoryModal .room-history-tabs .room-history-tab.active{border:1px solid var(--yellow);background:rgba(255,204,0,.13);color:var(--yellow);box-shadow:0 3px 12px rgba(255,204,0,.1)}
+  #roomHistoryModal .room-history-tabs .room-history-tab:not(.active){background:rgba(255,204,0,.035);border:1px solid rgba(255,204,0,.32);color:rgba(255,224,102,.88)}
   .room-history-record-kind.is-daily{background:rgba(52,199,89,.15);color:#8af0a7}
   .room-history-record-kind.is-empty{background:rgba(255,90,95,.16);color:#ff9b9f}
   .room-history-record-kind.is-deadline{background:rgba(38,136,235,.18);color:#8bc6ff}
@@ -684,6 +683,12 @@
   .deadline-modal-action.valid{background:rgba(255,204,0,.1);border-color:rgba(255,204,0,.48);color:var(--yellow)}
   .deadline-modal-action.save{background:var(--yellow);border-color:var(--yellow);color:#000}
   @media(min-width:440px){.deadline-modal{align-items:center}.deadline-modal-footer{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
+  .bottom-nav{position:relative;z-index:5;flex:0 0 auto;width:calc(100% + var(--page-pad)*2);margin:0 calc(var(--page-pad)*-1);padding:7px 8px calc(7px + env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;background:rgba(18,18,20,.98);border-top:1px solid rgba(255,204,0,.22);box-shadow:0 -8px 24px rgba(0,0,0,.32)}
+  .bottom-nav-item{min-width:0;min-height:49px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:4px 2px;border:1px solid transparent;border-radius:11px;background:transparent;color:rgba(255,255,255,.56);font-size:10px;line-height:12px;font-weight:750;white-space:nowrap}
+  .bottom-nav-item svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .bottom-nav-item:active,.bottom-nav-item:focus-visible{outline:none;border-color:rgba(255,204,0,.4);background:rgba(255,204,0,.1);color:var(--yellow)}
+  .nav-placeholder-body{min-height:150px;display:flex;align-items:center;justify-content:center;padding:24px;color:rgba(255,255,255,.42);font-size:12px;text-align:center}
 
   /* Controls Section */
   .controls-section {
@@ -1184,13 +1189,6 @@
       <button type="button" class="camera-refill-panel room-action-button" id="cameraRefillPanel" aria-label="Открыть выбор продуктов для пополнения">Нужно пополнить</button>
     </div>
 
-    <!-- Room Carousel -->
-    <div class="carousel-wrap" id="carouselWrap">
-      <div class="carousel-fade left"></div>
-      <div class="carousel" id="carousel" aria-label="Выбор номера"></div>
-      <div class="carousel-fade right"></div>
-    </div>
-
     <!-- Shutter Controls -->
     <div class="controls-section">
       <div class="shutter-grid" id="cameraActions">
@@ -1204,6 +1202,14 @@
       </div>
 
     </div>
+    <!-- Room numbers visually rise from the bottom navigation -->
+    <div class="carousel-wrap" id="carouselWrap"><div class="carousel-fade left"></div><div class="carousel" id="carousel" aria-label="Выбор номера"></div><div class="carousel-fade right"></div></div>
+    <nav class="bottom-nav" id="bottomNav" aria-label="Основное меню">
+      <button class="bottom-nav-item" type="button" data-nav-modal="Акцизы" aria-label="Акцизы"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3.5h7l4 4V20a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14 3.5V8h4M9 12h6M9 16h6"/></svg><span>Акцизы</span></button>
+      <button class="bottom-nav-item" type="button" data-nav-modal="Калькулятор" aria-label="Калькулятор"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01M8.5 15.5h.01M12 15.5h.01M15.5 15.5h.01"/></svg><span>Калькулятор</span></button>
+      <button class="bottom-nav-item" type="button" data-nav-modal="Сегодня" aria-label="Сегодня"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M7.5 3v4M16.5 3v4M3.5 9h17M8 13h3M8 16h6"/></svg><span>Сегодня</span></button>
+      <button class="bottom-nav-item" type="button" data-nav-modal="Списки" aria-label="Списки"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5h11M9 12h11M9 19h11M4 5h.01M4 12h.01M4 19h.01"/></svg><span>Списки</span></button>
+    </nav>
   </main>
 </div>
 
@@ -1274,6 +1280,9 @@
     <div class="room-history-tabs" role="tablist" aria-label="Раздел истории"><button type="button" class="room-history-tab deadline-modal-action reset" data-history-tab="daily" role="tab" aria-selected="false">Ежедневные</button><button type="button" class="room-history-tab deadline-modal-action save active" data-history-tab="gih" role="tab" aria-selected="true">GIH</button></div>
   </div>
 </div>
+<!-- Placeholder modal shells for the future bottom-navigation sections -->
+<div class="deadline-modal hidden" id="navPlaceholderModal" role="dialog" aria-modal="true" aria-label="Раздел меню" aria-hidden="true"><div class="deadline-modal-card nav-placeholder-card"><div class="deadline-modal-header"><div class="deadline-modal-room" id="navPlaceholderTitle">Акцизы</div><button type="button" class="deadline-modal-close" id="navPlaceholderClose" aria-label="Закрыть окно">×</button></div><div class="nav-placeholder-body">Раздел подготовлен к реализации</div></div></div>
+
 <!-- Bottom Sheet Modal -->
 <div class="sheet-overlay" id="sheetOverlay"></div>
 <div class="bottom-sheet" id="bottomSheet">
@@ -1559,6 +1568,10 @@ const gihCreateSubmit = document.getElementById('gihCreateSubmit');
 const gihCreateClear = document.getElementById('gihCreateClear');
 const roomHistoryOpen = document.getElementById('roomHistoryOpen');
 const roomHistoryModal = document.getElementById('roomHistoryModal');
+const bottomNav = document.getElementById('bottomNav');
+const navPlaceholderModal = document.getElementById('navPlaceholderModal');
+const navPlaceholderTitle = document.getElementById('navPlaceholderTitle');
+const navPlaceholderClose = document.getElementById('navPlaceholderClose');
 const roomHistoryModalNumber = document.getElementById('roomHistoryModalNumber');
 const roomHistoryModalClose = document.getElementById('roomHistoryModalClose');
 const roomHistoryModalContent = document.getElementById('roomHistoryModalContent');
@@ -3042,6 +3055,10 @@ gihCreateSubmit.addEventListener('click',()=>{void submitGihCreate()});
 gihCreateClear.addEventListener('click',()=>{if(gihCreateBusy)return;gihCreateCounts={};renderGihCreateProducts()});
 roomHistoryModal.addEventListener('click',e=>{if(e.target===roomHistoryModal){closeRoomHistoryModal();return}const tab=e.target.closest('[data-history-tab]');if(!tab)return;roomHistoryModalTab=tab.dataset.historyTab;roomHistoryModal.querySelectorAll('[data-history-tab]').forEach(b=>{const active=b.dataset.historyTab===roomHistoryModalTab;b.classList.toggle('active',active);b.setAttribute('aria-selected',String(active))});renderRoomHistoryModal()});
 roomHistoryModalClose.addEventListener('click',closeRoomHistoryModal);
+bottomNav.addEventListener('click',event=>{const button=event.target.closest('[data-nav-modal]');if(!button)return;navPlaceholderTitle.textContent=button.dataset.navModal;navPlaceholderModal.setAttribute('aria-label',button.dataset.navModal);navPlaceholderModal.classList.remove('hidden');navPlaceholderModal.setAttribute('aria-hidden','false')});
+function closeNavPlaceholderModal(){navPlaceholderModal.classList.add('hidden');navPlaceholderModal.setAttribute('aria-hidden','true')}
+navPlaceholderClose.addEventListener('click',closeNavPlaceholderModal);
+navPlaceholderModal.addEventListener('click',event=>{if(event.target===navPlaceholderModal)closeNavPlaceholderModal()});
 
 // Shared swipe-to-dismiss behavior for every modal.
 // The gesture must start while its scroll area is already at the top;
@@ -3095,7 +3112,7 @@ deadlineModalProducts.addEventListener('click', event => {
 deadlineModal.querySelectorAll('[data-deadline-action]').forEach(button => {
   button.addEventListener('click', () => { void saveCameraDeadlineChange(button.dataset.deadlineAction); });
 });
-window.addEventListener('keydown',event=>{if(event.key!=='Escape')return;if(isCameraDeadlineModalOpen())closeCameraDeadlineModal();if(isGihCreateModalOpen())closeGihCreateModal();if(isRoomHistoryModalOpen())closeRoomHistoryModal()});
+window.addEventListener('keydown',event=>{if(event.key!=='Escape')return;if(isCameraDeadlineModalOpen())closeCameraDeadlineModal();if(isGihCreateModalOpen())closeGihCreateModal();if(isRoomHistoryModalOpen())closeRoomHistoryModal();if(!navPlaceholderModal.classList.contains('hidden'))closeNavPlaceholderModal()});
 sheetSearch.addEventListener('input', e => renderDrawerRooms(e.target.value));
 sheetContent.addEventListener('click', event => {
   const chip = event.target.closest('.room-chip');
