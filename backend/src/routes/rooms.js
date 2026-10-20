@@ -57,6 +57,10 @@ router.post('/reset-all-deadlines', async (req, res) => {
   try {
     const offset = clientOffset(req);
     await prisma.$transaction(async tx => {
+      const roomIds = await tx.room.findMany({ select: { id: true } });
+      for (const room of roomIds.sort((a, b) => a.id - b.id)) {
+        await tx.$queryRaw`SELECT id FROM rooms WHERE id = ${room.id} FOR UPDATE`;
+      }
       const roomsBefore = await tx.room.findMany({ select: { id: true, number: true, expiryStatus: true } });
       const statusesBefore = await tx.roomProductStatus.findMany({ include: { product: { select: { name: true } } } });
       const byRoom = new Map();
@@ -157,6 +161,7 @@ router.put('/:id/product-statuses', async (req, res) => {
     const { items, roomStatus } = req.body || {};
 
     await prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM rooms WHERE id = ${roomId} FOR UPDATE`;
       const roomBefore = await tx.room.findUnique({ where: { id: roomId }, select: { id: true, number: true, expiryStatus: true } });
       if (!roomBefore) throw new Error('Комната не найдена');
       const statusesBefore = await tx.roomProductStatus.findMany({
@@ -229,6 +234,7 @@ router.delete('/:id/product-statuses', async (req, res) => {
     const { roomStatus } = req.body || {};
 
     await prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM rooms WHERE id = ${roomId} FOR UPDATE`;
       const roomBefore = await tx.room.findUnique({ where: { id: roomId }, select: { id: true, number: true, expiryStatus: true } });
       if (!roomBefore) throw new Error('Комната не найдена');
       const statusesBefore = await tx.roomProductStatus.findMany({
