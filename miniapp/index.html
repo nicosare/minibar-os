@@ -373,12 +373,24 @@
   .camera-history-gih-status { color: rgba(255,255,255,.68); font-weight: 750; }
   .camera-history-separator { color: rgba(255,255,255,.35); }
 
-  .camera-history-empty {
-    padding: 5px 2px;
-    color: var(--text-dim);
-    font-size: 11px;
-    line-height: 15px;
-  }
+  .camera-history-empty {padding:5px 2px;color:var(--text-dim);font-size:11px;line-height:15px}
+  .gih-create-note-label{display:block;padding:0 15px 5px;color:rgba(255,255,255,.55);font-size:10px;font-weight:800}
+  .gih-create-notes{display:block;width:calc(100% - 30px);margin:0 15px 12px;padding:9px 10px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:rgba(255,255,255,.045);color:#fff;font:inherit;font-size:12px;resize:vertical}
+  .room-history-modal-card{max-height:min(90dvh,820px)}
+  .room-history-tabs{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
+  .room-history-tab{min-height:37px;border:1px solid rgba(255,255,255,.09);border-radius:9px;background:rgba(255,255,255,.04);color:rgba(255,255,255,.6);font-size:12px;font-weight:800}
+  .room-history-tab.active{border-color:rgba(38,136,235,.55);background:rgba(38,136,235,.18);color:#fff}
+  .room-history-modal-content{flex:1 1 auto;min-height:100px;overflow-y:auto;padding:12px 14px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+  .room-history-record-card{padding:11px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+  .room-history-record-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+  .room-history-record-top time{color:rgba(255,255,255,.48);font-size:10px;font-weight:650}
+  .room-history-record-kind{padding:3px 7px;border-radius:6px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.75);font-size:9px;font-weight:850}
+  .room-history-record-kind.is-gih{background:rgba(145,94,220,.2);color:#d6bdff}
+  .room-history-record-detail{margin-top:4px;color:rgba(255,255,255,.82);font-size:11px;line-height:15px;overflow-wrap:anywhere}
+  .room-history-record-detail span{color:rgba(255,255,255,.55);font-weight:750}
+  .room-history-record-detail.is-gih{color:#d6bdff;font-weight:850}
+  .room-history-record-note{margin-top:5px;color:rgba(255,255,255,.48);font-size:10px;line-height:14px;overflow-wrap:anywhere}
+  .room-history-modal-empty{padding:35px 8px;text-align:center;color:rgba(255,255,255,.45);font-size:12px}
 
   .room-description-box {
     width: 100%;
@@ -423,6 +435,13 @@
 
   /* Selected room's expiry status and products. */
   .camera-deadline-panel{width:100%;min-width:0;flex:0 0 auto;display:block;padding:8px 10px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.045);color:#fff;text-align:left;cursor:pointer;transition:background-color .16s ease,border-color .16s ease}
+  .camera-gih-panel,.camera-history-open{width:100%;min-width:0;min-height:48px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;border:1px solid rgba(177,139,255,.28);border-radius:11px;background:rgba(145,94,220,.13);color:#fff;text-align:left;cursor:pointer}
+  .camera-gih-panel:active,.camera-history-open:active{filter:brightness(1.12)}
+  .camera-gih-panel .camera-action-title,.camera-history-open .camera-action-title{font-size:13px;font-weight:850;line-height:17px}
+  .camera-action-subtitle{display:block;margin-top:3px;color:rgba(255,255,255,.52);font-size:10px;line-height:13px;font-weight:550}
+  .camera-action-icon{flex:0 0 auto;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:9px;background:rgba(255,255,255,.08);font-size:18px;font-weight:800}
+  .camera-history-open{min-height:43px;border-color:rgba(255,255,255,.1);background:rgba(255,255,255,.045)}
+  .camera-history-open .camera-action-icon{width:26px;height:26px}
   .camera-deadline-panel:active{filter:brightness(1.08)}
   .camera-deadline-panel.status-valid{background:rgba(52,199,89,.16);border-color:rgba(52,199,89,.38)}
   .camera-deadline-panel.status-empty{background:rgba(38,136,235,.17);border-color:rgba(38,136,235,.4)}
@@ -872,9 +891,13 @@
               <div class="camera-deadline-empty">Загрузка продуктов…</div>
             </div>
           </button>
-          <div class="camera-history-list" id="roomHistoryItems" aria-live="polite">
-            <div class="camera-history-empty">Загрузка истории…</div>
-          </div>
+          <button type="button" class="camera-gih-panel" id="cameraGihPanel" aria-label="Создать запись GIH для номера">
+            <span><span class="camera-action-title">GIH</span><span class="camera-action-subtitle">Создать запись по номеру</span></span><span class="camera-action-icon" aria-hidden="true">＋</span>
+          </button>
+          <button type="button" class="camera-history-open" id="roomHistoryOpen" aria-label="Открыть историю номера">
+            <span><span class="camera-action-title">История</span><span class="camera-action-subtitle">Ежедневные проверки и GIH</span></span><span class="camera-action-icon" aria-hidden="true">↗</span>
+          </button>
+          <div class="camera-history-list" id="roomHistoryItems" aria-live="polite" hidden></div>
         </section>
       </div>
     </div>
@@ -943,6 +966,24 @@
   </div>
 </div>
 
+<!-- GIH creation modal -->
+<div class="deadline-modal hidden" id="gihCreateModal" role="dialog" aria-modal="true" aria-label="Новая запись GIH" aria-hidden="true">
+  <div class="deadline-modal-card">
+    <div class="deadline-modal-header"><div><div class="deadline-modal-room">GIH · номер <span id="gihCreateRoomNumber"></span></div><div class="deadline-modal-info">Выбери количество продуктов для записи</div></div><button type="button" class="deadline-modal-close" id="gihCreateClose" aria-label="Закрыть GIH">×</button></div>
+    <div class="deadline-modal-products" id="gihCreateProducts"><div class="camera-deadline-empty">Загрузка продуктов…</div></div>
+    <label class="gih-create-note-label" for="gihCreateNotes">Комментарий</label><textarea class="gih-create-notes" id="gihCreateNotes" rows="2" maxlength="1000" placeholder="Необязательно"></textarea>
+    <div class="deadline-modal-feedback" id="gihCreateFeedback" role="status"></div>
+    <div class="deadline-modal-footer"><button type="button" class="deadline-modal-action reset" id="gihCreateClear">Очистить</button><button type="button" class="deadline-modal-action save" id="gihCreateSubmit">Создать запись</button></div>
+  </div>
+</div>
+<!-- Full room history modal -->
+<div class="deadline-modal hidden" id="roomHistoryModal" role="dialog" aria-modal="true" aria-label="История номера" aria-hidden="true">
+  <div class="deadline-modal-card room-history-modal-card">
+    <div class="deadline-modal-header"><div class="deadline-modal-room">История · номер <span id="roomHistoryModalNumber"></span></div><button type="button" class="deadline-modal-close" id="roomHistoryModalClose" aria-label="Закрыть историю">×</button></div>
+    <div class="room-history-tabs" role="tablist" aria-label="Раздел истории"><button type="button" class="room-history-tab active" data-history-tab="daily" role="tab" aria-selected="true">Ежедневные</button><button type="button" class="room-history-tab" data-history-tab="gih" role="tab" aria-selected="false">GIH</button></div>
+    <div class="room-history-modal-content" id="roomHistoryModalContent"><div class="camera-deadline-empty">Загрузка истории…</div></div>
+  </div>
+</div>
 <!-- Bottom Sheet Modal -->
 <div class="sheet-overlay" id="sheetOverlay"></div>
 <div class="bottom-sheet" id="bottomSheet">
@@ -1212,7 +1253,23 @@ const deadlineModalRoomInfo = document.getElementById('deadlineModalRoomInfo');
 const deadlineModalProducts = document.getElementById('deadlineModalProducts');
 const deadlineModalFeedback = document.getElementById('deadlineModalFeedback');
 const deadlineModalClose = document.getElementById('deadlineModalClose');
+const cameraGihPanel = document.getElementById('cameraGihPanel');
+const gihCreateModal = document.getElementById('gihCreateModal');
+const gihCreateRoomNumber = document.getElementById('gihCreateRoomNumber');
+const gihCreateProducts = document.getElementById('gihCreateProducts');
+const gihCreateNotes = document.getElementById('gihCreateNotes');
+const gihCreateFeedback = document.getElementById('gihCreateFeedback');
+const gihCreateClose = document.getElementById('gihCreateClose');
+const gihCreateSubmit = document.getElementById('gihCreateSubmit');
+const gihCreateClear = document.getElementById('gihCreateClear');
+const roomHistoryOpen = document.getElementById('roomHistoryOpen');
+const roomHistoryModal = document.getElementById('roomHistoryModal');
+const roomHistoryModalNumber = document.getElementById('roomHistoryModalNumber');
+const roomHistoryModalClose = document.getElementById('roomHistoryModalClose');
+const roomHistoryModalContent = document.getElementById('roomHistoryModalContent');
 const roomHistoryCache = new Map();
+let currentGihRoom = null, gihCreateCounts = {}, gihCreateBusy = false;
+let roomHistoryModalRoomId = null, roomHistoryModalTab = 'daily';
 const deadlineRoomCache = new Map();
 let currentDeadlineRoom = null;
 let deadlineProductSelections = {};
@@ -1665,6 +1722,66 @@ async function saveCameraDeadlineChange(action) {
   }
 }
 
+const CAMERA_HISTORY_GIH_MODES = {dnd:'DND',all_in_place:'Всё на месте',all_out:'Всё выложили',empty:'Опустошён',not_checked:'Не проверен'};
+const CAMERA_HISTORY_GIH_STATUSES = {replenished:'Пополнено',in_place:'На месте',out:'Выложили',not_replenished:'Не пополнено',pending:'Не размечено'};
+function isRoomHistoryModalOpen(){return !!roomHistoryModal&&!roomHistoryModal.classList.contains('hidden')}
+function closeRoomHistoryModal(){roomHistoryModal.classList.add('hidden');roomHistoryModal.setAttribute('aria-hidden','true');roomHistoryModalRoomId=null}
+function roomHistoryRecordHtml(check){
+ const date=new Date(check.checkDate||check.createdAt||''), dateText=Number.isFinite(date.getTime())?date.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric'})+' · '+date.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}):'Дата неизвестна';
+ const note=String(check.notes||'').trim();let details='';
+ if(check.type==='gih'){
+  if(check.gihRoomStatus)details+='<div class="room-history-record-detail is-gih">'+escapeCameraHtml(CAMERA_HISTORY_GIH_MODES[check.gihRoomStatus]||check.gihRoomStatus)+'</div>';
+  const groups={};(Array.isArray(check.gihItems)?check.gihItems:[]).forEach(item=>{const status=check.gihRoomStatus==='all_in_place'?'in_place':check.gihRoomStatus==='all_out'?'out':(item.itemStatus||'pending'),name=item.productName||item.product?.name||'Продукт';if(!groups[status])groups[status]={};groups[status][name]=(groups[status][name]||0)+1});
+  details+=['replenished','in_place','out','not_replenished','pending'].filter(status=>groups[status]).map(status=>'<div class="room-history-record-detail"><span>'+escapeCameraHtml(CAMERA_HISTORY_GIH_STATUSES[status]||status)+':</span> '+Object.entries(groups[status]).map(([name,qty])=>escapeCameraHtml(name)+(qty>1?' ×'+qty:'')).join(', ')+'</div>').join('');
+  if(!details)details='<div class="room-history-record-detail">Позиции не указаны</div>';
+ }else if(check.type==='deadline'){
+  details='<div class="room-history-record-detail">Сроки годности</div>';
+  try{const event=JSON.parse(String(check.notes||'{}'));if(event.note)details+='<div class="room-history-record-detail">'+escapeCameraHtml(event.note)+'</div>';if(Array.isArray(event.productsAfter)&&event.productsAfter.length)details+='<div class="room-history-record-detail">'+event.productsAfter.map(item=>escapeCameraHtml(item.name)+(item.qty>1?' ×'+item.qty:'')).join(', ')+'</div>'}catch(_){}
+ }else details='<div class="room-history-record-detail">'+((check.type==='emptied'||check.type==='vk_emptied')?'Опустошение':check.type==='departures_print'?'Печать Departures':'Проверка')+'</div>';
+ const safeNote=check.type==='deadline'?'':note, kind=check.type==='gih'?'GIH':check.type==='deadline'?'Сроки':(check.type==='emptied'||check.type==='vk_emptied')?'Опустошение':'Ежедневная';
+ return '<article class="room-history-record-card"><div class="room-history-record-top"><time>'+escapeCameraHtml(dateText)+'</time><span class="room-history-record-kind '+(check.type==='gih'?'is-gih':'')+'">'+kind+'</span></div>'+details+(safeNote?'<div class="room-history-record-note">'+escapeCameraHtml(safeNote).replace(/\n/g,'<br>')+'</div>':'')+'</article>';
+}
+function renderRoomHistoryModal(){
+ if(!roomHistoryModalRoomId)return;const state=roomHistoryCache.get(Number(roomHistoryModalRoomId));
+ if(!state||state.loading){roomHistoryModalContent.innerHTML='<div class="camera-deadline-empty">Загрузка истории…</div>';return}
+ if(state.error){roomHistoryModalContent.innerHTML='<div class="camera-deadline-empty">Не удалось загрузить историю. Закрой окно и попробуй ещё раз.</div>';return}
+ const items=state.items.filter(item=>roomHistoryModalTab==='gih'?item.type==='gih':item.type!=='gih');
+ roomHistoryModalContent.innerHTML=items.length?items.map(roomHistoryRecordHtml).join(''):'<div class="room-history-modal-empty">Записей в этом разделе пока нет</div>';
+}
+async function openRoomHistoryModal(){
+ if(!selectedRoom)return;roomHistoryModalRoomId=Number(selectedRoom.id);roomHistoryModalTab='daily';roomHistoryModalNumber.textContent=String(selectedRoom.number);
+ roomHistoryModal.querySelectorAll('[data-history-tab]').forEach(b=>{const active=b.dataset.historyTab===roomHistoryModalTab;b.classList.toggle('active',active);b.setAttribute('aria-selected',String(active))});
+ roomHistoryModal.classList.remove('hidden');roomHistoryModal.setAttribute('aria-hidden','false');roomHistoryModalContent.innerHTML='<div class="camera-deadline-empty">Загрузка истории…</div>';
+ await loadRoomHistory(selectedRoom,true);if(isRoomHistoryModalOpen())renderRoomHistoryModal();
+}
+function isGihCreateModalOpen(){return !!gihCreateModal&&!gihCreateModal.classList.contains('hidden')}
+function closeGihCreateModal(){if(gihCreateBusy)return;gihCreateModal.classList.add('hidden');gihCreateModal.setAttribute('aria-hidden','true');currentGihRoom=null;gihCreateCounts={}}
+function renderGihCreateProducts(){
+ if(!currentGihRoom)return;const items=currentGihRoom.template?.items||[];
+ if(!items.length){gihCreateProducts.innerHTML='<div class="camera-deadline-empty">У этого номера нет шаблона наполнения.</div>';return}
+ const grouped={};items.forEach(item=>{const product=item.product||{},cat=product.category||'Напитки';(grouped[cat]||(grouped[cat]=[])).push({id:Number(item.productId||product.id),product,max:Math.max(1,Number(item.qty)||1)})});
+ const order=['Дверца','Напитки','Алкоголь','Соки'],cats=[...order.filter(c=>grouped[c]?.length),...Object.keys(grouped).filter(c=>!order.includes(c)).sort((a,b)=>a.localeCompare(b,'ru'))];
+ gihCreateProducts.innerHTML=cats.map(cat=>'<section class="deadline-modal-category"><div class="deadline-modal-category-title">'+escapeCameraHtml(cat)+'</div><div class="deadline-modal-product-grid">'+grouped[cat].map(item=>{
+ const p=item.product,id=item.id,count=Number(gihCreateCounts[id])||0,color=CAMERA_DEADLINE_PRODUCT_COLORS[p.bgColor]||CAMERA_DEADLINE_PRODUCT_COLORS.slate,emoji=p.emoji||String(p.name||'?').charAt(0).toUpperCase();
+ return '<button type="button" class="deadline-modal-product'+(count?' selected':'')+'" data-gih-product-id="'+id+'" data-gih-max="'+item.max+'" aria-pressed="'+String(count>0)+'">'+(count?'<span class="deadline-modal-counter">'+count+'</span>':'')+'<span class="deadline-modal-product-icon" style="background:'+color+';color:#18202a">'+escapeCameraHtml(emoji)+'</span><span class="deadline-modal-product-text"><span class="deadline-modal-product-name">'+escapeCameraHtml(p.name||'Продукт')+'</span><span class="deadline-modal-product-meta">'+escapeCameraHtml(p.volume||'—')+' '+escapeCameraHtml(p.unit||'шт')+' · макс. '+item.max+'</span></span></button>'
+ }).join('')+'</div></section>').join('');
+}
+async function openGihCreateModal(){
+ if(!selectedRoom||gihCreateBusy)return;currentGihRoom=selectedRoom;gihCreateCounts={};gihCreateRoomNumber.textContent=String(selectedRoom.number);gihCreateNotes.value='';gihCreateFeedback.textContent='';gihCreateFeedback.classList.remove('visible');gihCreateModal.classList.remove('hidden');gihCreateModal.setAttribute('aria-hidden','false');
+ const id=Number(selectedRoom.id),data=await loadRoomDeadlineData(selectedRoom,true);if(!isGihCreateModalOpen()||!currentGihRoom||Number(currentGihRoom.id)!==id)return;
+ if(!data||(data.error&&!data.loadedAt)){gihCreateProducts.innerHTML='<div class="camera-deadline-empty">Не удалось загрузить шаблон номера.</div>';return}
+ currentGihRoom=data.room||currentGihRoom;renderGihCreateProducts();
+}
+async function submitGihCreate(){
+ if(!currentGihRoom||gihCreateBusy)return;const items=Object.entries(gihCreateCounts).filter(([,q])=>Number(q)>0).map(([productId,qty])=>({productId:Number.parseInt(productId,10),qty:Number.parseInt(qty,10)}));
+ if(!items.length){gihCreateFeedback.textContent='Добавь хотя бы одну позицию.';gihCreateFeedback.classList.add('visible');return}
+ gihCreateBusy=true;gihCreateSubmit.disabled=true;gihCreateClear.disabled=true;
+ try{
+  await deadlineApiRequest('/checks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({roomId:Number(currentGihRoom.id),type:'gih',status:'draft',notes:gihCreateNotes.value.trim()||null,gihItems:items})});
+  gihCreateModal.classList.add('hidden');gihCreateModal.setAttribute('aria-hidden','true');currentGihRoom=null;gihCreateCounts={};showMessage('Черновик GIH создан',2200);triggerHaptic();void loadRoomHistory(selectedRoom,true);
+ }catch(error){gihCreateFeedback.textContent=error?.message||'Не удалось создать запись GIH.';gihCreateFeedback.classList.add('visible')}
+ finally{gihCreateBusy=false;gihCreateSubmit.disabled=false;gihCreateClear.disabled=false}
+}
 function updateQueueDisplay() {
   queueCount.textContent = `В очереди: ${queueRemaining} номеров`;
 }
@@ -2538,6 +2655,15 @@ btnCloseSheet.addEventListener('click', closeSheet);
 sheetOverlay.addEventListener('click', closeSheet);
 
 cameraDeadlinePanel.addEventListener('click', () => { void openCameraDeadlineModal(); });
+cameraGihPanel.addEventListener('click',()=>{void openGihCreateModal()});
+roomHistoryOpen.addEventListener('click',()=>{void openRoomHistoryModal()});
+gihCreateModal.addEventListener('click',e=>{if(e.target===gihCreateModal)closeGihCreateModal()});
+gihCreateClose.addEventListener('click',closeGihCreateModal);
+gihCreateProducts.addEventListener('click',e=>{const b=e.target.closest('[data-gih-product-id]');if(!b||gihCreateBusy)return;const id=Number(b.dataset.gihProductId),max=Number(b.dataset.gihMax)||1,current=Number(gihCreateCounts[id])||0,next=current>=max?0:current+1;if(next)gihCreateCounts[id]=next;else delete gihCreateCounts[id];renderGihCreateProducts();triggerHaptic()});
+gihCreateSubmit.addEventListener('click',()=>{void submitGihCreate()});
+gihCreateClear.addEventListener('click',()=>{if(gihCreateBusy)return;gihCreateCounts={};renderGihCreateProducts()});
+roomHistoryModal.addEventListener('click',e=>{if(e.target===roomHistoryModal){closeRoomHistoryModal();return}const tab=e.target.closest('[data-history-tab]');if(!tab)return;roomHistoryModalTab=tab.dataset.historyTab;roomHistoryModal.querySelectorAll('[data-history-tab]').forEach(b=>{const active=b.dataset.historyTab===roomHistoryModalTab;b.classList.toggle('active',active);b.setAttribute('aria-selected',String(active))});renderRoomHistoryModal()});
+roomHistoryModalClose.addEventListener('click',closeRoomHistoryModal);
 deadlineModal.addEventListener('click', event => {
   if (event.target === deadlineModal) closeCameraDeadlineModal();
 });
@@ -2550,9 +2676,7 @@ deadlineModalProducts.addEventListener('click', event => {
 deadlineModal.querySelectorAll('[data-deadline-action]').forEach(button => {
   button.addEventListener('click', () => { void saveCameraDeadlineChange(button.dataset.deadlineAction); });
 });
-window.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && isCameraDeadlineModalOpen()) closeCameraDeadlineModal();
-});
+window.addEventListener('keydown',event=>{if(event.key!=='Escape')return;if(isCameraDeadlineModalOpen())closeCameraDeadlineModal();if(isGihCreateModalOpen())closeGihCreateModal();if(isRoomHistoryModalOpen())closeRoomHistoryModal()});
 sheetSearch.addEventListener('input', e => renderDrawerRooms(e.target.value));
 sheetContent.addEventListener('click', event => {
   const chip = event.target.closest('.room-chip');
