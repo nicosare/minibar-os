@@ -2820,6 +2820,15 @@ async function toolApiRequest(path, options) {
   if (!response.ok) throw new Error(data.error || ('HTTP ' + response.status));
   return data;
 }
+function toolPluralize(value, forms) {
+  const absolute = Math.abs(Number(value)) || 0;
+  const lastTwo = absolute % 100;
+  const lastOne = absolute % 10;
+  if (lastTwo >= 11 && lastTwo <= 14) return forms[2];
+  if (lastOne >= 2 && lastOne <= 4) return forms[1];
+  if (lastOne === 1) return forms[0];
+  return forms[2];
+}
 function toolIsValidExciseMark(mark) {
   if (typeof mark !== 'string' || !mark.trim()) return false;
   const value = mark.trim();
@@ -2843,7 +2852,7 @@ function renderToolExcises() {
   setText('toolExciseInvalid', invalid);
   setText('toolExciseValidPct', (total ? Math.round(valid / total * 100) : 0) + '%');
   setText('toolExciseInvalidPct', (total ? Math.round(invalid / total * 100) : 0) + '%');
-  setText('toolExciseListCount', total + ' ' + (total === 1 ? 'марка' : total >= 2 && total <= 4 ? 'марки' : 'марок'));
+  setText('toolExciseListCount', total + ' ' + toolPluralize(total, ['марка', 'марки', 'марок']));
   if (!total) {
     toolExciseList.innerHTML = '<div class="tool-empty-state">Нет добавленных акцизов</div>';
     return;
