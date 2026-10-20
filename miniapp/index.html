@@ -693,6 +693,7 @@
 
   .tool-screen{position:fixed;inset:0;z-index:210;display:flex;flex-direction:column;min-width:0;overflow:hidden;padding:calc(env(safe-area-inset-top) + 10px) 12px calc(78px + env(safe-area-inset-bottom));background:#09090b;color:#fff}
   .tool-screen.hidden{display:none!important}
+  .tool-screen [hidden]{display:none!important}
   .tool-screen-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:2px 2px 13px;border-bottom:1px solid rgba(255,255,255,.09);flex:0 0 auto}
   .tool-screen-title{margin:0;color:#fff;font-size:23px;line-height:28px;font-weight:900;letter-spacing:-.35px}
   .tool-screen-kicker{margin:0 0 3px;color:var(--yellow);font-size:9px;line-height:12px;font-weight:900;letter-spacing:1.5px}
@@ -1336,7 +1337,7 @@
       <div class="tool-bill-heading"><strong>Счёт</strong><span class="tool-bill-count" id="toolCalculatorCount">0 позиций</span></div>
       <div class="tool-bill-actions"><button class="tool-btn" id="toolCalculatorCopy" type="button">Копировать счёт</button><button class="tool-btn tool-btn-danger" id="toolCalculatorClear" type="button">Очистить</button></div>
       <div class="tool-bill-empty" id="toolCalculatorEmpty">Счёт пуст</div>
-      <div class="tool-bill-rows" id="toolCalculatorRows" hidden></div>
+      <div class="tool-bill-rows hidden" id="toolCalculatorRows"></div>
       <div class="tool-bill-total"><span>Итого</span><strong id="toolCalculatorTotal">0 ₽</strong></div>
     </section>
     <div id="toolCalculatorFeedback" class="tool-feedback" hidden></div>
@@ -3628,8 +3629,54 @@ gihCreateSubmit.addEventListener('click',()=>{void submitGihCreate()});
 gihCreateClear.addEventListener('click',()=>{if(gihCreateBusy)return;gihCreateCounts={};renderGihCreateProducts()});
 roomHistoryModal.addEventListener('click',e=>{if(e.target===roomHistoryModal){closeRoomHistoryModal();return}const tab=e.target.closest('[data-history-tab]');if(!tab)return;roomHistoryModalTab=tab.dataset.historyTab;roomHistoryModal.querySelectorAll('[data-history-tab]').forEach(b=>{const active=b.dataset.historyTab===roomHistoryModalTab;b.classList.toggle('active',active);b.setAttribute('aria-selected',String(active))});renderRoomHistoryModal()});
 roomHistoryModalClose.addEventListener('click',closeRoomHistoryModal);
-bottomNav.addEventListener('click',event=>{const button=event.target.closest('[data-nav-modal]');if(!button)return;navPlaceholderTitle.textContent=button.dataset.navModal;navPlaceholderModal.setAttribute('aria-label',button.dataset.navModal);navPlaceholderModal.classList.remove('hidden');navPlaceholderModal.setAttribute('aria-hidden','false')});
+bottomNav.addEventListener('click',event=>{const button=event.target.closest('[data-nav-modal]');if(!button)return;openBottomNavDestination(button.dataset.navModal)});
 function closeNavPlaceholderModal(){navPlaceholderModal.classList.add('hidden');navPlaceholderModal.setAttribute('aria-hidden','true')}
+
+exciseScreenClose.addEventListener('click', closeToolScreens);
+calculatorScreenClose.addEventListener('click', closeToolScreens);
+toolExciseInput.addEventListener('input', function () {
+  if (toolExciseDebounceTimer) clearTimeout(toolExciseDebounceTimer);
+  toolExciseDebounceTimer = setTimeout(function () { void processToolExciseInput(); }, 500);
+});
+toolExciseInput.addEventListener('keydown', function (event) {
+  if (event.key === 'Enter') { event.preventDefault(); void processToolExciseInput(); }
+});
+toolExciseAdd.addEventListener('click', function () { void processToolExciseInput(); });
+toolExciseDownload.addEventListener('click', downloadToolExcises);
+toolExciseClear.addEventListener('click', function () { void clearToolExcises(); });
+toolExciseList.addEventListener('click', function (event) {
+  const deleteButton = event.target.closest('[data-tool-excise-delete-id]');
+  if (deleteButton) {
+    event.stopPropagation();
+    void deleteToolExcise(deleteButton.dataset.toolExciseDeleteId);
+    return;
+  }
+  const copyButton = event.target.closest('[data-tool-excise-copy]');
+  if (copyButton) {
+    void copyToolText(copyButton.dataset.toolExciseCopy || '').then(function (ok) {
+      showToolFeedback(toolExciseFeedback, ok ? 'Марка скопирована' : 'Не удалось скопировать марку', ok ? 'info' : 'error', 'excise');
+    });
+  }
+});
+toolCalculatorTabs.addEventListener('click', function (event) {
+  const tab = event.target.closest('[data-tool-calc-category]');
+  if (!tab) return;
+  toolCalcActiveCategory = tab.dataset.toolCalcCategory;
+  renderToolCalculator();
+});
+toolCalculatorProducts.addEventListener('click', function (event) {
+  const add = event.target.closest('[data-tool-calc-inc]');
+  if (add) { changeToolCalcQty(Number(add.dataset.toolCalcInc), 1); return; }
+  const dec = event.target.closest('[data-tool-calc-dec]');
+  if (dec) changeToolCalcQty(Number(dec.dataset.toolCalcDec), -1);
+});
+toolCalculatorRows.addEventListener('click', function (event) {
+  const dec = event.target.closest('[data-tool-calc-dec]');
+  if (dec) changeToolCalcQty(Number(dec.dataset.toolCalcDec), -1);
+});
+toolCalculatorCopy.addEventListener('click', function () { void copyToolCalculatorBill(); });
+toolCalculatorClear.addEventListener('click', clearToolCalculatorBill);
+
 navPlaceholderClose.addEventListener('click',closeNavPlaceholderModal);
 navPlaceholderModal.addEventListener('click',event=>{if(event.target===navPlaceholderModal)closeNavPlaceholderModal()});
 
@@ -3685,7 +3732,7 @@ deadlineModalProducts.addEventListener('click', event => {
 deadlineModal.querySelectorAll('[data-deadline-action]').forEach(button => {
   button.addEventListener('click', () => { void saveCameraDeadlineChange(button.dataset.deadlineAction); });
 });
-window.addEventListener('keydown',event=>{if(event.key!=='Escape')return;if(isCameraDeadlineModalOpen())closeCameraDeadlineModal();if(isGihCreateModalOpen())closeGihCreateModal();if(isRoomHistoryModalOpen())closeRoomHistoryModal();if(!navPlaceholderModal.classList.contains('hidden'))closeNavPlaceholderModal()});
+window.addEventListener('keydown',event=>{if(event.key!=='Escape')return;if(activeToolScreen){closeToolScreens();return}if(isCameraDeadlineModalOpen())closeCameraDeadlineModal();if(isGihCreateModalOpen())closeGihCreateModal();if(isRoomHistoryModalOpen())closeRoomHistoryModal();if(!navPlaceholderModal.classList.contains('hidden'))closeNavPlaceholderModal()});
 sheetSearch.addEventListener('input', e => renderDrawerRooms(e.target.value));
 sheetContent.addEventListener('click', event => {
   const chip = event.target.closest('.room-chip');
