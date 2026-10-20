@@ -1088,6 +1088,182 @@
     background: #4cc7f4;
   }
 
+  .room-chip.in-departure-list:not(.selected) {
+    border: 2px solid var(--yellow);
+    padding: 7px 3px;
+  }
+
+  .room-chip.today-checked:not(.selected):not(.empty-room) {
+    color: #b8f7cc;
+    border-color: rgba(74, 222, 128, .78);
+    background: rgba(34, 197, 94, .15);
+  }
+
+  .room-chip.today-checked::after {
+    content: '✓';
+    position: absolute;
+    top: 1px;
+    left: 5px;
+    color: #4ade80;
+    font-size: 10px;
+    line-height: 12px;
+    font-weight: 900;
+  }
+
+  .room-chip-mark {
+    max-width: 100%;
+    color: #facc15;
+    font-size: 9px;
+    line-height: 11px;
+    font-weight: 800;
+    overflow-wrap: anywhere;
+  }
+
+  .room-chip-arrival {
+    width: 100%;
+    padding: 3px 1px;
+    border: 1px solid rgba(250, 204, 21, .25);
+    border-radius: 5px;
+    background: rgba(250, 204, 21, .06);
+    color: #d4d4d8;
+    font-size: 8px;
+    line-height: 10px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .room-chip-arrival.is-marked {
+    border-color: rgba(250, 204, 21, .7);
+    background: rgba(250, 204, 21, .15);
+    color: #fde68a;
+  }
+
+  .room-chip-remove {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 17px;
+    height: 17px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: 5px;
+    background: rgba(244, 63, 94, .16);
+    color: #fda4af;
+    font-size: 14px;
+    line-height: 1;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .sheet-list-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .sheet-view-switch {
+    display: inline-flex;
+    padding: 3px;
+    gap: 2px;
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, .04);
+  }
+
+  .sheet-view-switch button,
+  .sheet-add-room-toggle,
+  .sheet-add-room-submit {
+    border: 0;
+    border-radius: 7px;
+    padding: 8px 11px;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 12px;
+    line-height: 15px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .sheet-view-switch button.active {
+    background: var(--yellow);
+    color: #111;
+  }
+
+  .sheet-add-room-toggle,
+  .sheet-add-room-submit {
+    background: rgba(255, 204, 0, .12);
+    color: var(--yellow);
+    border: 1px solid rgba(255, 204, 0, .25);
+    white-space: nowrap;
+  }
+
+  .sheet-add-room-form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .sheet-add-room-input {
+    flex: 1;
+    min-width: 0;
+    padding: 9px 11px;
+    border: 1px solid var(--card-border);
+    border-radius: 9px;
+    outline: none;
+    background: rgba(255, 255, 255, .05);
+    color: #fff;
+    font-size: 14px;
+  }
+
+  .mini-departure-list-card {
+    width: 100%;
+    padding: 16px;
+    border: 1px solid rgba(255, 204, 0, .25);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, .035);
+    color: #fff;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .mini-departure-list-card.is-active {
+    border-color: var(--yellow);
+    background: rgba(255, 204, 0, .08);
+  }
+
+  .mini-departure-card-top,
+  .mini-departure-card-stats,
+  .mini-departure-card-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .mini-departure-card-top { font-size: 17px; font-weight: 850; }
+  .mini-departure-card-file { margin-top: 5px; color: var(--text-dim); font-size: 12px; line-height: 16px; overflow-wrap: anywhere; }
+  .mini-departure-card-stats { margin-top: 16px; }
+  .mini-departure-card-stat { display: flex; flex-direction: column; gap: 3px; }
+  .mini-departure-card-number { font-size: 23px; line-height: 26px; font-weight: 900; }
+  .mini-departure-card-label { font-size: 10px; color: var(--text-dim); }
+  .mini-departure-card-bottom { margin-top: 14px; color: var(--text-dim); font-size: 12px; }
+  .mini-list-secondary-action {
+    width: 100%;
+    margin-top: 10px;
+    padding: 11px;
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, .04);
+    color: #d4d4d8;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
   /* Notification Message */
   .camera-message {
     position: fixed;
@@ -1410,7 +1586,7 @@
   </div>
 </div>
 <!-- Placeholder modal shells for the future bottom-navigation sections -->
-<div class="deadline-modal hidden" id="navPlaceholderModal" role="dialog" aria-modal="true" aria-label="Раздел меню" aria-hidden="true"><div class="deadline-modal-card nav-placeholder-card"><div class="deadline-modal-header"><div class="deadline-modal-room" id="navPlaceholderTitle">Акцизы</div><button type="button" class="deadline-modal-close" id="navPlaceholderClose" aria-label="Закрыть окно">×</button></div><div class="nav-placeholder-body">Раздел подготовлен к реализации</div></div></div>
+<div class="deadline-modal hidden" id="navPlaceholderModal" role="dialog" aria-modal="true" aria-label="Раздел меню" aria-hidden="true"><div class="deadline-modal-card nav-placeholder-card"><div class="deadline-modal-header"><div class="deadline-modal-room" id="navPlaceholderTitle">Акцизы</div><button type="button" class="deadline-modal-close" id="navPlaceholderClose" aria-label="Закрыть окно">×</button></div><div class="nav-placeholder-body" id="navPlaceholderBody">Раздел подготовлен к реализации</div></div></div>
 
 <!-- Bottom Sheet Modal -->
 <div class="sheet-overlay" id="sheetOverlay"></div>
@@ -1423,12 +1599,23 @@
   <div class="sheet-header">
     <div class="sheet-title-row">
       <div>
-        <div class="sheet-title">Все номера отеля</div>
+        <div class="sheet-title" id="sheetTitle">Все номера отеля</div>
         <div class="sheet-subtitle" id="sheetSubtitle">293 номера</div>
       </div>
       <button class="btn-close-sheet" id="btnCloseSheet" type="button">Закрыть</button>
     </div>
     <input type="search" class="sheet-search" id="sheetSearch" placeholder="Поиск номера...">
+    <div class="sheet-list-toolbar hidden" id="sheetListToolbar">
+      <div class="sheet-view-switch" role="group" aria-label="Режим отображения номеров">
+        <button type="button" data-sheet-view="all">Все</button>
+        <button type="button" data-sheet-view="list" class="active">Список</button>
+      </div>
+      <button class="sheet-add-room-toggle" type="button" id="sheetAddRoomToggle">+ Добавить</button>
+    </div>
+    <form class="sheet-add-room-form hidden" id="sheetAddRoomForm">
+      <input class="sheet-add-room-input" id="sheetAddRoomInput" type="number" inputmode="numeric" min="1" max="9999" placeholder="Номер комнаты" aria-label="Номер комнаты для добавления">
+      <button class="sheet-add-room-submit" id="sheetAddRoomButton" type="submit">Добавить</button>
+    </form>
   </div>
 
   <div class="sheet-content" id="sheetContent"></div>
@@ -1443,6 +1630,38 @@ let ALL_ROOMS = [];
 let ROOM_BY_NUMBER = new Map();
 let FLOORS = [];
 let queueRemaining = 0;
+
+function readStoredListSelection() {
+  try {
+    return {
+      key: localStorage.getItem('minibar-active-list-v1') || '',
+      dateKey: localStorage.getItem('minibar-active-list-date-v1') || ''
+    };
+  } catch (_) {
+    return { key: '', dateKey: '' };
+  }
+}
+
+const storedListSelection = readStoredListSelection();
+let activeListKey = storedListSelection.key === 'departures' ? 'departures' : '';
+let activeListDateKey = storedListSelection.dateKey;
+let drawerMode = 'all';
+let activePlaceholderName = '';
+let departureListRequestSequence = 0;
+let departureList = {
+  dateKey: '',
+  name: 'Выезды',
+  fileName: '',
+  sourceReady: false,
+  sourceCount: 0,
+  assignedCount: 0,
+  completedCount: 0,
+  remainingCount: 0,
+  roomNumbers: [],
+  checkedToday: [],
+  arrivalRooms: [],
+  overrides: {}
+};
 
 const API_BASE = '/minibar-os/api';
 
@@ -1700,6 +1919,7 @@ const roomHistoryModal = document.getElementById('roomHistoryModal');
 const bottomNav = document.getElementById('bottomNav');
 const navPlaceholderModal = document.getElementById('navPlaceholderModal');
 const navPlaceholderTitle = document.getElementById('navPlaceholderTitle');
+const navPlaceholderBody = document.getElementById('navPlaceholderBody');
 const navPlaceholderClose = document.getElementById('navPlaceholderClose');
 
 const exciseScreen = document.getElementById('exciseScreen');
@@ -1742,6 +1962,12 @@ const sheetSearch = document.getElementById('sheetSearch');
 const sheetHandleArea = document.getElementById('sheetHandleArea');
 const sheetPeekTitle = document.getElementById('sheetPeekTitle');
 const sheetSubtitle = document.getElementById('sheetSubtitle');
+const sheetTitle = document.getElementById('sheetTitle');
+const sheetListToolbar = document.getElementById('sheetListToolbar');
+const sheetAddRoomToggle = document.getElementById('sheetAddRoomToggle');
+const sheetAddRoomForm = document.getElementById('sheetAddRoomForm');
+const sheetAddRoomInput = document.getElementById('sheetAddRoomInput');
+const sheetAddRoomButton = document.getElementById('sheetAddRoomButton');
 
 let stream = null;
 let videoTrack = null;
