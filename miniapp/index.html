@@ -298,31 +298,160 @@
     text-shadow: 0 0 12px rgba(255, 204, 0, 0.3);
   }
 
-  /* Camera information shown while the camera is on standby. */
+  /* Standby information is modular; the viewfinder itself remains unchanged. */
   .camera-info-panel {
     position: absolute;
     inset: 0;
     z-index: 8;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 12px;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 7px;
+    padding: 10px;
     overflow: hidden;
     background: #0b0b0d;
   }
 
-  .camera-history-list {
+  .camera-workspace {
     min-height: 0;
-    flex: 0 1 auto;
-    margin-top: auto;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .camera-workspace-deadlines {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    min-height: 0;
+    display: flex;
+  }
+
+  .camera-workspace-gih { grid-column: 2; grid-row: 1; }
+  .camera-workspace-refill { grid-column: 2 / span 2; grid-row: 2; align-self: stretch; }
+
+  .camera-history-section {
+    min-height: 0;
     display: flex;
     flex-direction: column;
     gap: 4px;
-    overflow-y: auto;
-    scrollbar-width: none;
+  }
+
+  .camera-history-list {
+    min-height: 0;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    overflow: hidden;
   }
 
   .camera-history-list::-webkit-scrollbar { display: none; }
+
+  .camera-info-panel .room-description-box { padding: 8px 10px; }
+  .camera-info-panel .desc-title { font-size: 13px; }
+  .camera-info-panel .desc-tag { font-size: 9px; padding: 3px 6px; }
+
+  .camera-workspace .camera-deadline-panel {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+  }
+
+  .camera-workspace .camera-deadline-head { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .camera-workspace .camera-deadline-status { max-width: 100%; text-align: left; }
+  .camera-workspace .camera-deadline-products {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+    gap: 4px;
+    margin-top: 7px;
+  }
+
+  .camera-workspace .camera-deadline-product-line {
+    align-items: flex-start;
+    gap: 3px;
+    flex-direction: column;
+    font-size: 9px;
+    line-height: 12px;
+  }
+
+  .camera-workspace .camera-deadline-product-name { white-space: normal; overflow-wrap: anywhere; }
+  .camera-workspace .camera-deadline-product-qty { font-size: 9px; }
+
+  .camera-gih-panel {
+    min-height: 0;
+    height: 100%;
+    padding: 7px;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+    gap: 5px;
+    border-color: rgba(177,139,255,.28);
+    background: rgba(145,94,220,.13);
+  }
+
+  .camera-gih-panel .camera-action-title { font-size: 12px; }
+  .camera-gih-panel .camera-action-icon { width: 25px; height: 25px; }
+  .camera-gih-panel .camera-action-subtitle { display: none; }
+
+  .camera-refill-panel {
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 9px;
+    border: 1px solid rgba(52,199,89,.28);
+    border-radius: 10px;
+    background: rgba(52,199,89,.12);
+    color: #fff;
+    font-size: 12px;
+    line-height: 15px;
+    font-weight: 850;
+    text-align: center;
+    cursor: pointer;
+  }
+
+  .camera-refill-panel:active { filter: brightness(1.12); }
+  .camera-refill-panel svg { width: 19px; height: 19px; flex: 0 0 auto; }
+  .camera-history-open {
+    width: 100%;
+    min-height: 29px;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 5px 8px;
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 8px;
+    background: rgba(255,255,255,.045);
+    color: #fff;
+    text-align: left;
+    cursor: pointer;
+  }
+  .camera-history-open:active { filter: brightness(1.12); }
+  .camera-history-open .camera-action-title { display:flex;align-items:center;gap:6px;font-size:11px;font-weight:850;line-height:15px; }
+  .camera-history-open .camera-action-subtitle { display:none; }
+  .camera-history-open .camera-action-icon { width:20px;height:20px; }
+  .camera-history-open svg { width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto; }
+  .camera-history-list .camera-history-entry { padding: 3px 2px; }
+  .camera-history-list .camera-history-line { gap: 5px; }
+  .camera-history-list .camera-history-date { font-size: 9px; }
+  .camera-history-list .camera-history-summary { font-size: 9px; line-height: 12px; }
+  .camera-history-list .camera-history-note { display:none; }
+
+  @media (max-height: 700px) {
+    .camera-info-panel { gap: 5px; padding: 8px; }
+    .camera-workspace { gap: 5px; }
+    .camera-history-list .camera-history-entry { padding: 2px 1px; }
+    .camera-history-list .camera-history-date, .camera-history-list .camera-history-summary { font-size: 8px; line-height: 10px; }
+  }
 
   .camera-history-entry {
     flex: 0 0 auto;
@@ -883,22 +1012,34 @@
               <span class="desc-tag" id="descRoomTag">5 этаж</span>
             </div>
           </div>
-          <button type="button" class="camera-deadline-panel" id="cameraDeadlinePanel" aria-label="Открыть сроки годности номера">
-            <div class="camera-deadline-head">
-              <span class="camera-deadline-title">Сроки</span>
-              <span class="camera-deadline-status status-neutral" id="cameraDeadlineStatus">Загрузка…</span>
+          <div class="camera-workspace" aria-label="Действия по номеру">
+            <div class="camera-workspace-deadlines">
+              <button type="button" class="camera-deadline-panel" id="cameraDeadlinePanel" aria-label="Открыть сроки годности номера">
+                <div class="camera-deadline-head">
+                  <span class="camera-deadline-title"><svg viewBox="0 0 24 24" aria-hidden="true" width="15" height="15" style="vertical-align:-3px;margin-right:3px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M16 3v4M8 3v4M3 10h18M12 14v3l2 1"></path></svg>Сроки</span>
+                  <span class="camera-deadline-status status-neutral" id="cameraDeadlineStatus">Загрузка…</span>
+                </div>
+                <div class="camera-deadline-products" id="cameraDeadlineProducts">
+                  <div class="camera-deadline-empty">Загрузка продуктов…</div>
+                </div>
+              </button>
             </div>
-            <div class="camera-deadline-products" id="cameraDeadlineProducts">
-              <div class="camera-deadline-empty">Загрузка продуктов…</div>
-            </div>
-          </button>
-          <button type="button" class="camera-gih-panel" id="cameraGihPanel" aria-label="Создать запись GIH для номера">
-            <span><span class="camera-action-title">GIH</span><span class="camera-action-subtitle">Создать запись по номеру</span></span><span class="camera-action-icon" aria-hidden="true">＋</span>
-          </button>
-          <button type="button" class="camera-history-open" id="roomHistoryOpen" aria-label="Открыть историю номера">
-            <span><span class="camera-action-title">История</span><span class="camera-action-subtitle">Ежедневные проверки и GIH</span></span><span class="camera-action-icon" aria-hidden="true">↗</span>
-          </button>
-          <div class="camera-history-list" id="roomHistoryItems" aria-live="polite"><div class="camera-history-empty">Загрузка истории…</div></div>
+            <button type="button" class="camera-gih-panel camera-workspace-gih" id="cameraGihPanel" aria-label="Создать запись GIH для номера">
+              <svg viewBox="0 0 24 24" aria-hidden="true" width="24" height="24" style="fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><path d="M21 8a2 2 0 0 0-2-2h-4.2a3 3 0 0 0-5.6 0H5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z"></path><path d="M3 11h18M9 15l2 2 4-4"></path></svg>
+              <span class="camera-action-title">GIH</span>
+            </button>
+            <button type="button" class="camera-refill-panel camera-workspace-refill" id="cameraRefillPanel" aria-label="Открыть выбор продуктов для пополнения">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18l-2 13H5L3 7Z"></path><path d="M8 7a4 4 0 0 1 8 0M12 11v5M9.5 13.5h5"></path></svg>
+              <span>Нужно пополнить</span>
+            </button>
+          </div>
+          <section class="camera-history-section" aria-label="Последние записи истории">
+            <button type="button" class="camera-history-open" id="roomHistoryOpen" aria-label="Открыть историю номера">
+              <span class="camera-action-title"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5M12 7v5l3 2"></path></svg>История</span>
+              <span class="camera-action-icon" aria-hidden="true">↗</span>
+            </button>
+            <div class="camera-history-list" id="roomHistoryItems" aria-live="polite"><div class="camera-history-empty">Загрузка истории…</div></div>
+          </section>
         </section>
       </div>
     </div>
@@ -974,6 +1115,19 @@
     <div class="deadline-modal-products" id="gihCreateProducts"><div class="camera-deadline-empty">Загрузка продуктов…</div></div>
         <div class="deadline-modal-feedback" id="gihCreateFeedback" role="status"></div>
     <div class="deadline-modal-footer"><button type="button" class="deadline-modal-action reset" id="gihCreateClear">Очистить</button><button type="button" class="deadline-modal-action save" id="gihCreateSubmit">Создать запись</button></div>
+  </div>
+</div>
+
+<!-- Refill product selection (UI scaffold; no submission behavior yet) -->
+<div class="deadline-modal hidden" id="refillModal" role="dialog" aria-modal="true" aria-label="Нужно пополнить" aria-hidden="true">
+  <div class="deadline-modal-card">
+    <div class="deadline-modal-header">
+      <div class="deadline-modal-room">Нужно пополнить · номер <span id="refillModalRoomNumber"></span></div>
+      <button type="button" class="deadline-modal-close" id="refillModalClose" aria-label="Закрыть выбор продуктов">×</button>
+    </div>
+    <div class="deadline-modal-products" id="refillModalProducts">
+      <div class="camera-deadline-empty">Выбор продуктов будет добавлен на следующем этапе.</div>
+    </div>
   </div>
 </div>
 <!-- Full room history modal -->
@@ -1254,6 +1408,10 @@ const deadlineModalProducts = document.getElementById('deadlineModalProducts');
 const deadlineModalFeedback = document.getElementById('deadlineModalFeedback');
 const deadlineModalClose = document.getElementById('deadlineModalClose');
 const cameraGihPanel = document.getElementById('cameraGihPanel');
+const cameraRefillPanel = document.getElementById('cameraRefillPanel');
+const refillModal = document.getElementById('refillModal');
+const refillModalRoomNumber = document.getElementById('refillModalRoomNumber');
+const refillModalClose = document.getElementById('refillModalClose');
 const gihCreateModal = document.getElementById('gihCreateModal');
 const gihCreateRoomNumber = document.getElementById('gihCreateRoomNumber');
 const gihCreateProducts = document.getElementById('gihCreateProducts');
@@ -2656,6 +2814,19 @@ sheetOverlay.addEventListener('click', closeSheet);
 
 cameraDeadlinePanel.addEventListener('click', () => { void openCameraDeadlineModal(); });
 cameraGihPanel.addEventListener('click',()=>{void openGihCreateModal()});
+function openRefillModal(){
+  if(!selectedRoom)return;
+  refillModalRoomNumber.textContent=selectedRoom.number ?? selectedRoom.roomNumber ?? '';
+  refillModal.classList.remove('hidden');
+  refillModal.setAttribute('aria-hidden','false');
+}
+function closeRefillModal(){
+  refillModal.classList.add('hidden');
+  refillModal.setAttribute('aria-hidden','true');
+}
+cameraRefillPanel.addEventListener('click',openRefillModal);
+refillModalClose.addEventListener('click',closeRefillModal);
+refillModal.addEventListener('click',e=>{if(e.target===refillModal)closeRefillModal()});
 roomHistoryOpen.addEventListener('click',()=>{void openRoomHistoryModal()});
 gihCreateModal.addEventListener('click',e=>{if(e.target===gihCreateModal)closeGihCreateModal()});
 gihCreateClose.addEventListener('click',closeGihCreateModal);
