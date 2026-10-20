@@ -243,6 +243,18 @@ export async function processVkBotMessage({
           continue;
         }
 
+        const productIdsToRestore = [...new Set(snapshot.before.products.map(item => Number(item.productId)))];
+        if (productIdsToRestore.length) {
+          const existingProducts = await tx.product.findMany({
+            where: { id: { in: productIdsToRestore } },
+            select: { id: true }
+          });
+          if (existingProducts.length !== productIdsToRestore.length) {
+            unavailableRooms.push({ room: roomNumber, reason: 'products_missing' });
+            continue;
+          }
+        }
+
         await tx.roomProductStatus.deleteMany({ where: { roomId: room.id } });
         if (snapshot.before.products.length) {
           await tx.roomProductStatus.createMany({
