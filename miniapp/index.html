@@ -421,6 +421,52 @@
     border: 1px solid rgba(255,204,0,0.25);
   }
 
+  /* Selected room's expiry status and products. */
+  .camera-deadline-panel{width:100%;min-width:0;flex:0 0 auto;display:block;padding:8px 10px;border:1px solid var(--card-border);border-radius:10px;background:rgba(255,255,255,.045);color:#fff;text-align:left;cursor:pointer}
+  .camera-deadline-panel:active{background:rgba(255,255,255,.075)}
+  .camera-deadline-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .camera-deadline-title{font-size:11px;line-height:15px;font-weight:800;color:rgba(255,255,255,.92)}
+  .camera-deadline-status{max-width:70%;padding:3px 6px;border-radius:5px;font-size:9px;font-weight:800;line-height:12px;text-align:right;overflow-wrap:anywhere;background:rgba(255,255,255,.09);color:rgba(255,255,255,.76)}
+  .camera-deadline-status.status-valid{background:rgba(52,199,89,.16);color:#6ee792}
+  .camera-deadline-status.status-empty{background:rgba(38,136,235,.19);color:#76baff}
+  .camera-deadline-status.status-needs-replacement{background:rgba(255,90,95,.17);color:#ff8e92}
+  .camera-deadline-products{display:flex;flex-direction:column;gap:3px;margin-top:5px;max-height:55px;overflow-y:auto;scrollbar-width:none}
+  .camera-deadline-products::-webkit-scrollbar{display:none}
+  .camera-deadline-product-line{min-width:0;display:flex;align-items:baseline;justify-content:space-between;gap:8px;color:rgba(255,255,255,.8);font-size:10px;line-height:13px}
+  .camera-deadline-product-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .camera-deadline-product-qty{flex:0 0 auto;color:rgba(255,255,255,.58);font-weight:750}
+  .camera-deadline-empty{color:rgba(255,255,255,.42);font-size:10px;line-height:13px}
+  .deadline-modal{position:fixed;inset:0;z-index:1200;display:flex;align-items:flex-end;justify-content:center;padding:12px 12px calc(env(safe-area-inset-bottom) + 12px);background:rgba(0,0,0,.74);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+  .deadline-modal.hidden{display:none!important}
+  .deadline-modal-card{width:100%;max-width:560px;max-height:min(88dvh,760px);min-height:0;display:flex;flex-direction:column;overflow:hidden;border:1px solid rgba(255,255,255,.1);border-radius:19px;background:#121316;box-shadow:0 18px 60px rgba(0,0,0,.5)}
+  .deadline-modal-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:15px 15px 12px;border-bottom:1px solid rgba(255,255,255,.08)}
+  .deadline-modal-room{color:#fff;font-size:17px;line-height:22px;font-weight:850}
+  .deadline-modal-info{margin-top:3px;color:rgba(255,255,255,.52);font-size:11px;line-height:15px}
+  .deadline-modal-close{flex:0 0 auto;width:32px;height:32px;border:0;border-radius:9px;background:rgba(255,255,255,.08);color:#fff;font-size:21px;line-height:1}
+  .deadline-modal-hint{padding:9px 15px 0;color:rgba(255,255,255,.45);font-size:10px;line-height:14px}
+  .deadline-modal-products{flex:1 1 auto;min-height:90px;overflow-y:auto;padding:12px 15px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+  .deadline-modal-category+.deadline-modal-category{margin-top:13px}
+  .deadline-modal-category-title{margin-bottom:7px;padding-bottom:5px;border-bottom:1px solid rgba(255,255,255,.09);color:rgba(255,255,255,.5);font-size:10px;font-weight:800;letter-spacing:.7px;text-transform:uppercase}
+  .deadline-modal-product-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .deadline-modal-product{position:relative;min-width:0;min-height:61px;display:flex;align-items:center;gap:8px;padding:8px;border:1px solid rgba(255,255,255,.09);border-radius:11px;background:rgba(255,255,255,.045);color:#fff;text-align:left}
+  .deadline-modal-product.selected{border-color:rgba(38,136,235,.9);background:rgba(38,136,235,.16)}
+  .deadline-modal-product:disabled{opacity:.5}
+  .deadline-modal-product-icon{flex:0 0 auto;width:31px;height:31px;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:17px}
+  .deadline-modal-product-text{min-width:0;flex:1 1 auto}
+  .deadline-modal-product-name{display:block;overflow:hidden;color:rgba(255,255,255,.94);font-size:10px;font-weight:750;line-height:13px;text-overflow:ellipsis;white-space:nowrap}
+  .deadline-modal-product-meta{display:block;margin-top:2px;color:rgba(255,255,255,.45);font-size:9px;line-height:12px}
+  .deadline-modal-counter{position:absolute;top:-5px;right:-4px;min-width:19px;height:19px;display:flex;align-items:center;justify-content:center;padding:0 5px;border:2px solid #121316;border-radius:10px;background:#2688eb;color:#fff;font-size:10px;font-weight:850}
+  .deadline-modal-feedback{display:none;padding:0 15px 10px;color:#ff8e92;font-size:11px;line-height:15px}
+  .deadline-modal-feedback.visible{display:block}
+  .deadline-modal-footer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:12px 15px calc(12px + env(safe-area-inset-bottom));border-top:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.025)}
+  .deadline-modal-action{min-height:41px;padding:8px 10px;border:1px solid rgba(255,255,255,.1);border-radius:10px;color:#fff;font-size:11px;font-weight:800}
+  .deadline-modal-action:disabled{opacity:.45}
+  .deadline-modal-action.reset{background:rgba(255,255,255,.06)}
+  .deadline-modal-action.empty{background:rgba(38,136,235,.2);border-color:rgba(38,136,235,.32)}
+  .deadline-modal-action.valid{background:rgba(52,199,89,.17);border-color:rgba(52,199,89,.32)}
+  .deadline-modal-action.save{background:#2688eb;border-color:#2688eb}
+  @media(min-width:440px){.deadline-modal{align-items:center}.deadline-modal-footer{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
   /* Controls Section */
   .controls-section {
     width: 100%;
@@ -813,6 +859,15 @@
               <span class="desc-tag" id="descRoomTag">5 этаж</span>
             </div>
           </div>
+          <button type="button" class="camera-deadline-panel" id="cameraDeadlinePanel" aria-label="Открыть сроки годности номера">
+            <div class="camera-deadline-head">
+              <span class="camera-deadline-title">Сроки</span>
+              <span class="camera-deadline-status status-neutral" id="cameraDeadlineStatus">Загрузка…</span>
+            </div>
+            <div class="camera-deadline-products" id="cameraDeadlineProducts">
+              <div class="camera-deadline-empty">Загрузка продуктов…</div>
+            </div>
+          </button>
           <div class="camera-history-list" id="roomHistoryItems" aria-live="polite">
             <div class="camera-history-empty">Загрузка истории…</div>
           </div>
@@ -859,6 +914,28 @@
       <div class="grid-right">
         <button class="btn-send" id="btnSend" type="button">Отправить</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Expiry status modal: follows the website's Deadlines room workflow. -->
+<div class="deadline-modal hidden" id="deadlineModal" role="dialog" aria-modal="true" aria-label="Сроки годности номера" aria-hidden="true">
+  <div class="deadline-modal-card">
+    <div class="deadline-modal-header">
+      <div>
+        <div class="deadline-modal-room">Номер <span id="deadlineModalRoomNumber"></span></div>
+        <div class="deadline-modal-info" id="deadlineModalRoomInfo"></div>
+      </div>
+      <button type="button" class="deadline-modal-close" id="deadlineModalClose" aria-label="Закрыть окно сроков">×</button>
+    </div>
+    <div class="deadline-modal-hint">Нажимай на продукт, чтобы выбрать количество. После максимального количества повторное нажатие снимет отметку.</div>
+    <div class="deadline-modal-products" id="deadlineModalProducts"><div class="camera-deadline-empty">Загрузка продуктов…</div></div>
+    <div class="deadline-modal-feedback" id="deadlineModalFeedback" role="status"></div>
+    <div class="deadline-modal-footer">
+      <button type="button" class="deadline-modal-action reset" data-deadline-action="reset">Сброс</button>
+      <button type="button" class="deadline-modal-action empty" data-deadline-action="empty">Опустошён</button>
+      <button type="button" class="deadline-modal-action valid" data-deadline-action="valid">В порядке</button>
+      <button type="button" class="deadline-modal-action save" data-deadline-action="save">Сохранить</button>
     </div>
   </div>
 </div>
@@ -1123,7 +1200,20 @@ const cameraInfoPanel = document.getElementById('cameraInfoPanel');
 const roomHistoryItems = document.getElementById('roomHistoryItems');
 const descRoomTitle = document.getElementById('descRoomTitle');
 const descRoomTag = document.getElementById('descRoomTag');
+const cameraDeadlinePanel = document.getElementById('cameraDeadlinePanel');
+const cameraDeadlineStatus = document.getElementById('cameraDeadlineStatus');
+const cameraDeadlineProducts = document.getElementById('cameraDeadlineProducts');
+const deadlineModal = document.getElementById('deadlineModal');
+const deadlineModalRoomNumber = document.getElementById('deadlineModalRoomNumber');
+const deadlineModalRoomInfo = document.getElementById('deadlineModalRoomInfo');
+const deadlineModalProducts = document.getElementById('deadlineModalProducts');
+const deadlineModalFeedback = document.getElementById('deadlineModalFeedback');
+const deadlineModalClose = document.getElementById('deadlineModalClose');
 const roomHistoryCache = new Map();
+const deadlineRoomCache = new Map();
+let currentDeadlineRoom = null;
+let deadlineProductSelections = {};
+let deadlineModalSaving = false;
 
 const btnCloseSheet = document.getElementById('btnCloseSheet');
 const sheetOverlay = document.getElementById('sheetOverlay');
@@ -1302,6 +1392,251 @@ async function loadRoomHistory(room, force = false) {
     });
   }
   if (selectedRoom && Number(selectedRoom.id) === roomId) renderRoomHistory(roomId);
+}
+
+const CAMERA_DEADLINE_STATUS_LABELS = {
+  neutral: 'Не проверен', valid: 'В порядке', empty: 'Опустошён', needs_replacement: 'Требует замены'
+};
+const CAMERA_DEADLINE_PRODUCT_COLORS = {
+  amber: '#fffbeb', red: '#fef2f2', blue: '#eff6ff', yellow: '#fefce8',
+  purple: '#faf5ff', emerald: '#ecfdf5', rose: '#fff1f2', orange: '#fff7ed', slate: '#f1f5f9'
+};
+const CAMERA_DEADLINE_CATEGORY_ORDER = ['Дверца', 'Напитки', 'Алкоголь', 'Соки'];
+
+async function deadlineApiRequest(path, options = {}) {
+  const response = await fetch(API_BASE + path, {
+    ...options,
+    headers: {
+      Accept: 'application/json',
+      'X-Timezone-Offset': String(new Date().getTimezoneOffset()),
+      'X-Minibar-Client-ID': roomEventsClientId,
+      ...(options.headers || {})
+    },
+    cache: 'no-store'
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data?.error || 'Ошибка запроса сроков (HTTP ' + response.status + ')');
+  return data;
+}
+
+function cameraDeadlineStatusClass(status) {
+  if (status === 'valid') return 'status-valid';
+  if (status === 'empty') return 'status-empty';
+  if (status === 'needs_replacement') return 'status-needs-replacement';
+  return 'status-neutral';
+}
+
+function renderCameraDeadlinePanel() {
+  if (!cameraDeadlinePanel || !selectedRoom) return;
+  const data = deadlineRoomCache.get(Number(selectedRoom.id));
+  const status = data?.room?.expiryStatus || selectedRoom.expiryStatus || 'neutral';
+  cameraDeadlineStatus.textContent = CAMERA_DEADLINE_STATUS_LABELS[status] || CAMERA_DEADLINE_STATUS_LABELS.neutral;
+  cameraDeadlineStatus.className = 'camera-deadline-status ' + cameraDeadlineStatusClass(status);
+  if (data?.loading && !data.loadedAt) {
+    cameraDeadlineProducts.innerHTML = '<div class="camera-deadline-empty">Загрузка продуктов…</div>';
+    return;
+  }
+  if (data?.error && !data.loadedAt) {
+    cameraDeadlineProducts.innerHTML = '<div class="camera-deadline-empty">Не удалось загрузить продукты</div>';
+    return;
+  }
+  const products = (data?.statuses || []).filter(item => Number(item.qtyToReplace) > 0);
+  if (!products.length) {
+    cameraDeadlineProducts.innerHTML = '<div class="camera-deadline-empty">' +
+      (data?.products?.length ? 'Продукты не отмечены' : 'Нет продуктов с контролем срока годности') + '</div>';
+    return;
+  }
+  cameraDeadlineProducts.innerHTML = products.map(item =>
+    '<div class="camera-deadline-product-line"><span class="camera-deadline-product-name">' +
+    escapeCameraHtml(item.product?.name || ('Продукт #' + item.productId)) +
+    '</span><span class="camera-deadline-product-qty">× ' + escapeCameraHtml(item.qtyToReplace) + '</span></div>'
+  ).join('');
+}
+
+async function loadRoomDeadlineData(room, force = false) {
+  if (!room?.id) return null;
+  const roomId = Number(room.id), cached = deadlineRoomCache.get(roomId);
+  if (cached?.loading && cached.promise) return cached.promise;
+  if (cached && !force && cached.loadedAt && Date.now() - cached.loadedAt < 15000) {
+    if (selectedRoom && Number(selectedRoom.id) === roomId) renderCameraDeadlinePanel();
+    return cached;
+  }
+  const state = {
+    loading: true, loadedAt: cached?.loadedAt || 0, room: cached?.room || room,
+    products: cached?.products || [], statuses: cached?.statuses || [], error: false, promise: null
+  };
+  deadlineRoomCache.set(roomId, state);
+  if (selectedRoom && Number(selectedRoom.id) === roomId) renderCameraDeadlinePanel();
+
+  const promise = (async () => {
+    try {
+      const stamp = '_t=' + Date.now();
+      const [details, statuses] = await Promise.all([
+        deadlineApiRequest('/rooms/' + roomId + '?' + stamp),
+        deadlineApiRequest('/rooms/' + roomId + '/product-statuses?' + stamp)
+      ]);
+      const products = (details.template?.items || []).filter(item => item.product?.hasExpiry).map(item => ({
+        id: Number(item.product.id), name: item.product.name || '', volume: item.product.volume,
+        unit: item.product.unit, emoji: item.product.emoji, bgColor: item.product.bgColor,
+        category: item.product.category || 'Напитки', maxQty: Math.max(1, Number(item.qty) || 1)
+      }));
+      const result = {
+        loading: false, loadedAt: Date.now(), room: details, products,
+        statuses: Array.isArray(statuses) ? statuses : [], error: false, promise: null
+      };
+      deadlineRoomCache.set(roomId, result);
+      const queueRoom = ALL_ROOMS.find(item => Number(item.id) === roomId);
+      if (queueRoom) queueRoom.expiryStatus = details.expiryStatus || 'neutral';
+      if (selectedRoom && Number(selectedRoom.id) === roomId) {
+        selectedRoom.expiryStatus = details.expiryStatus || 'neutral';
+        renderCameraDeadlinePanel();
+      }
+      return result;
+    } catch (error) {
+      console.warn('[MINIBAR DEADLINES] Не удалось загрузить сроки номера:', error);
+      const failed = { ...state, loading: false, error: true, promise: null };
+      deadlineRoomCache.set(roomId, failed);
+      if (selectedRoom && Number(selectedRoom.id) === roomId) renderCameraDeadlinePanel();
+      return failed;
+    }
+  })();
+  state.promise = promise;
+  return promise;
+}
+
+function isCameraDeadlineModalOpen() {
+  return !!deadlineModal && !deadlineModal.classList.contains('hidden');
+}
+
+function renderCameraDeadlineModalProducts() {
+  if (!deadlineModalProducts || !currentDeadlineRoom) return;
+  const data = deadlineRoomCache.get(Number(currentDeadlineRoom.id)), products = data?.products || [];
+  if (!products.length) {
+    deadlineModalProducts.innerHTML = '<div class="camera-deadline-empty">Нет продуктов со сроком годности для этого номера.</div>';
+    return;
+  }
+  const grouped = {};
+  products.forEach(product => {
+    const category = product.category || 'Напитки';
+    if (!grouped[category]) grouped[category] = [];
+    grouped[category].push(product);
+  });
+  const categories = [
+    ...CAMERA_DEADLINE_CATEGORY_ORDER.filter(category => grouped[category]?.length),
+    ...Object.keys(grouped).filter(category => !CAMERA_DEADLINE_CATEGORY_ORDER.includes(category)).sort((a, b) => a.localeCompare(b, 'ru'))
+  ];
+  deadlineModalProducts.innerHTML = categories.map(category =>
+    '<section class="deadline-modal-category"><div class="deadline-modal-category-title">' + escapeCameraHtml(category) + '</div>' +
+    '<div class="deadline-modal-product-grid">' + grouped[category].map(product => {
+      const count = Number(deadlineProductSelections[product.id]) || 0;
+      const color = CAMERA_DEADLINE_PRODUCT_COLORS[product.bgColor] || CAMERA_DEADLINE_PRODUCT_COLORS.slate;
+      const emoji = product.emoji || String(product.name || '?').charAt(0).toUpperCase();
+      return '<button type="button" class="deadline-modal-product' + (count > 0 ? ' selected' : '') +
+        '" data-deadline-product-id="' + product.id + '" aria-pressed="' + (count > 0 ? 'true' : 'false') + '">' +
+        (count > 0 ? '<span class="deadline-modal-counter">' + count + '</span>' : '') +
+        '<span class="deadline-modal-product-icon" style="background:' + color + ';color:#18202a">' + escapeCameraHtml(emoji) + '</span>' +
+        '<span class="deadline-modal-product-text"><span class="deadline-modal-product-name">' + escapeCameraHtml(product.name) +
+        '</span><span class="deadline-modal-product-meta">' + escapeCameraHtml(product.volume || '—') + ' ' +
+        escapeCameraHtml(product.unit || 'шт') + '</span></span></button>';
+    }).join('') + '</div></section>'
+  ).join('');
+}
+
+function clickCameraDeadlineProduct(productId) {
+  const data = currentDeadlineRoom && deadlineRoomCache.get(Number(currentDeadlineRoom.id));
+  const product = data?.products?.find(item => Number(item.id) === Number(productId));
+  if (!product) return;
+  const current = Number(deadlineProductSelections[productId]) || 0;
+  const next = current >= product.maxQty ? 0 : current + 1;
+  if (next === 0) delete deadlineProductSelections[productId];
+  else deadlineProductSelections[productId] = next;
+  renderCameraDeadlineModalProducts();
+  triggerHaptic();
+}
+
+function closeCameraDeadlineModal(force = false) {
+  if (!deadlineModal || (deadlineModalSaving && !force)) return;
+  deadlineModal.classList.add('hidden');
+  deadlineModal.setAttribute('aria-hidden', 'true');
+  currentDeadlineRoom = null;
+  deadlineProductSelections = {};
+}
+
+async function openCameraDeadlineModal() {
+  if (!selectedRoom || !deadlineModal || deadlineModalSaving) return;
+  currentDeadlineRoom = selectedRoom;
+  deadlineProductSelections = {};
+  deadlineModalRoomNumber.textContent = String(selectedRoom.number);
+  deadlineModalRoomInfo.textContent = 'Этаж ' + selectedRoom.floor + ' · ' +
+    (normalizeRoomType(selectedRoom) === 'suite' ? 'Люкс' : 'Стандарт') + ' · ' +
+    (CAMERA_DEADLINE_STATUS_LABELS[selectedRoom.expiryStatus] || CAMERA_DEADLINE_STATUS_LABELS.neutral);
+  deadlineModalProducts.innerHTML = '<div class="camera-deadline-empty">Загрузка продуктов…</div>';
+  deadlineModalFeedback.textContent = '';
+  deadlineModalFeedback.classList.remove('visible');
+  deadlineModal.classList.remove('hidden');
+  deadlineModal.setAttribute('aria-hidden', 'false');
+  const roomId = Number(currentDeadlineRoom.id);
+  const data = await loadRoomDeadlineData(currentDeadlineRoom, true);
+  if (!isCameraDeadlineModalOpen() || !currentDeadlineRoom || Number(currentDeadlineRoom.id) !== roomId) return;
+  if (!data || (data.error && !data.loadedAt)) {
+    deadlineModalProducts.innerHTML = '<div class="camera-deadline-empty">Не удалось загрузить данные. Закрой окно и попробуй ещё раз.</div>';
+    return;
+  }
+  (data.statuses || []).forEach(item => {
+    const qty = Number(item.qtyToReplace) || 0;
+    if (qty > 0) {
+      const maxQty = data.products.find(product => Number(product.id) === Number(item.productId))?.maxQty || qty;
+      deadlineProductSelections[item.productId] = Math.min(qty, maxQty);
+    }
+  });
+  deadlineModalRoomInfo.textContent = 'Этаж ' + currentDeadlineRoom.floor + ' · ' +
+    (normalizeRoomType(currentDeadlineRoom) === 'suite' ? 'Люкс' : 'Стандарт') + ' · ' +
+    (CAMERA_DEADLINE_STATUS_LABELS[data.room?.expiryStatus] || CAMERA_DEADLINE_STATUS_LABELS.neutral);
+  renderCameraDeadlineModalProducts();
+}
+
+function setDeadlineModalBusy(busy) {
+  if (deadlineModal) deadlineModal.querySelectorAll('button').forEach(button => { button.disabled = busy; });
+  deadlineModalSaving = busy;
+}
+
+async function saveCameraDeadlineChange(action) {
+  if (!currentDeadlineRoom || deadlineModalSaving) return;
+  const roomId = Number(currentDeadlineRoom.id), path = '/rooms/' + Number(currentDeadlineRoom.id) + '/product-statuses';
+  let options, successText = 'Сроки обновлены';
+  if (action === 'save') {
+    const items = Object.entries(deadlineProductSelections).filter(([, qty]) => Number(qty) > 0).map(([productId, qty]) => ({
+      productId: Number.parseInt(productId, 10), qtyToReplace: Number.parseInt(qty, 10), expiryStatus: 'needs_replacement'
+    }));
+    options = {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items, roomStatus: items.length ? 'needs_replacement' : 'neutral' })
+    };
+  } else {
+    const roomStatus = action === 'empty' ? 'empty' : action === 'valid' ? 'valid' : 'neutral';
+    options = { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roomStatus }) };
+    successText = action === 'empty' ? 'Номер отмечен как опустошённый' :
+      action === 'valid' ? 'Номер отмечен как проверенный' : 'Статус сроков сброшен';
+  }
+  setDeadlineModalBusy(true);
+  deadlineModalFeedback.textContent = '';
+  deadlineModalFeedback.classList.remove('visible');
+  try {
+    await deadlineApiRequest(path, options);
+    closeCameraDeadlineModal(true);
+    await syncRoomData();
+    const freshRoom = selectedRoom && Number(selectedRoom.id) === roomId
+      ? selectedRoom : ALL_ROOMS.find(item => Number(item.id) === roomId);
+    if (freshRoom) await loadRoomDeadlineData(freshRoom, true);
+    showMessage(successText, 2200);
+    triggerHaptic();
+  } catch (error) {
+    deadlineModalFeedback.textContent = error?.message || 'Не удалось сохранить сроки';
+    deadlineModalFeedback.classList.add('visible');
+  } finally {
+    deadlineModalSaving = false;
+    if (isCameraDeadlineModalOpen()) setDeadlineModalBusy(false);
+  }
 }
 
 function updateQueueDisplay() {
@@ -1869,6 +2204,8 @@ function updateSelectedRoomState(room, vibrate = false) {
   descRoomTag.className = 'desc-tag';
 
   void loadRoomHistory(room, changed);
+  void loadRoomDeadlineData(room, changed);
+  renderCameraDeadlinePanel();
   updateDrawerSelectedChip(room.number);
   if (vibrate && changed) triggerHaptic();
 }
@@ -2067,15 +2404,21 @@ function startRoomLiveSync() {
     try {
       const change = JSON.parse(event.data);
       const domains = Array.isArray(change.domains) ? change.domains : ['all'];
-      if (domains.includes('all') || domains.includes('miniapp') || domains.includes('rooms') ||
-          domains.includes('checks') || domains.includes('history') || domains.includes('gih')) {
+      const roomDomains = ['all', 'miniapp', 'rooms', 'deadlines', 'products', 'templates'];
+      const historyDomains = ['all', 'checks', 'history', 'gih'];
+      if (domains.some(domain => roomDomains.includes(domain))) {
         void syncRoomData();
-        // Keep the visible room history live too, not just the room queue.
-        if (selectedRoom) void loadRoomHistory(selectedRoom, true);
+        // Room product quantities and status are shared with the website.
+        if (selectedRoom && !isCameraDeadlineModalOpen()) void loadRoomDeadlineData(selectedRoom, true);
+      }
+      if (domains.some(domain => historyDomains.includes(domain)) && selectedRoom) {
+        void loadRoomHistory(selectedRoom, true);
       }
     } catch (error) {
       console.warn('[MINIBAR LIVE SYNC] Некорректное событие:', error);
       void syncRoomData();
+      if (selectedRoom && !isCameraDeadlineModalOpen()) void loadRoomDeadlineData(selectedRoom, true);
+      if (selectedRoom) void loadRoomHistory(selectedRoom, true);
     }
   });
 
@@ -2167,6 +2510,23 @@ sheetHandleArea.addEventListener('click', () => {
 
 btnCloseSheet.addEventListener('click', closeSheet);
 sheetOverlay.addEventListener('click', closeSheet);
+
+cameraDeadlinePanel.addEventListener('click', () => { void openCameraDeadlineModal(); });
+deadlineModal.addEventListener('click', event => {
+  if (event.target === deadlineModal) closeCameraDeadlineModal();
+});
+deadlineModalClose.addEventListener('click', closeCameraDeadlineModal);
+deadlineModalProducts.addEventListener('click', event => {
+  const button = event.target.closest('[data-deadline-product-id]');
+  if (!button || button.disabled) return;
+  clickCameraDeadlineProduct(Number(button.dataset.deadlineProductId));
+});
+deadlineModal.querySelectorAll('[data-deadline-action]').forEach(button => {
+  button.addEventListener('click', () => { void saveCameraDeadlineChange(button.dataset.deadlineAction); });
+});
+window.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && isCameraDeadlineModalOpen()) closeCameraDeadlineModal();
+});
 sheetSearch.addEventListener('input', e => renderDrawerRooms(e.target.value));
 sheetContent.addEventListener('click', event => {
   const chip = event.target.closest('.room-chip');
