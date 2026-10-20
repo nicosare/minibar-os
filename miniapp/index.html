@@ -1287,7 +1287,8 @@ async function loadRoomHistory(room, force = false) {
       loading: false,
       loaded: true,
       error: false,
-      items: items.slice(0, 3),
+      // Keep only the three newest records, still ordered oldest-to-newest for display.
+      items: items.slice(-3),
       loadedAt: Date.now()
     });
   } catch (error) {
