@@ -253,7 +253,7 @@ App.historyModule = (() => {
       if (!counts.has(key)) counts.set(key, { daily: 0, emptied: 0, deadlines: 0, gih: 0 });
       const day = counts.get(key);
       if (entry.type === 'gih') day.gih += 1;
-      else if (entry.type === 'deadline' || entry.type === 'deadline_undo') day.deadlines += 1;
+      else if (entry.type === 'deadline') day.deadlines += 1;
       else {
         day.daily += 1;
         if (isEmptyType(entry.type)) day.emptied += 1;
