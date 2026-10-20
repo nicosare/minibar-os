@@ -1646,7 +1646,7 @@ function readStoredListSelection() {
 const storedListSelection = readStoredListSelection();
 let activeListKey = storedListSelection.key === 'departures' ? 'departures' : '';
 let activeListDateKey = storedListSelection.dateKey;
-let drawerMode = 'all';
+let drawerMode = activeListKey === 'departures' ? 'list' : 'all';
 let activePlaceholderName = '';
 let departureListRequestSequence = 0;
 let departureList = {
