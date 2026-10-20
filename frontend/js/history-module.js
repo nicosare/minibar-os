@@ -73,7 +73,7 @@ App.historyModule = (() => {
   }
 
   function operationMeta(check) {
-    if (check.type === 'deadline_undo' || check.type === 'vk_undo') {
+    if (check.type === 'deadline_undo' || check.type === 'vk_undo' || check.type === 'vk_emptied_undo') {
       return { label: 'Отмена действия', cls: 'bg-amber-50 text-amber-700 border-amber-200' };
     }
     if (check.undoneAt) {
