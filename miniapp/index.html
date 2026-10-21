@@ -62,10 +62,57 @@
     z-index: 10;
     display: flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: space-between;
+    gap: 10px;
     padding: calc(env(safe-area-inset-top) + 8px) 16px 8px;
     background: #000;
     flex-shrink: 0;
+  }
+
+  .hotel-info { min-width: 0; flex: 1 1 auto; }
+  .queue-count { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .home-list-controls {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+  .home-list-controls[hidden] { display: none !important; }
+  .home-list-sort {
+    width: 125px;
+    max-width: 34vw;
+    min-width: 0;
+    height: 33px;
+    padding: 0 8px;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 9px;
+    outline: none;
+    background: #141416;
+    color: rgba(255,255,255,.9);
+    font-size: 10px;
+    font-weight: 750;
+  }
+  .home-list-sort option { background: #141416; color: #fff; }
+  .home-list-return {
+    flex: 0 0 auto;
+    min-height: 33px;
+    padding: 0 10px;
+    border: 1px solid rgba(255,204,0,.25);
+    border-radius: 9px;
+    background: rgba(255,204,0,.09);
+    color: var(--yellow);
+    font-size: 11px;
+    font-weight: 800;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .home-list-return:active { background: rgba(255,204,0,.17); }
+  @media (max-width: 380px) {
+    .top-bar.has-active-list { flex-wrap: wrap; row-gap: 6px; }
+    .top-bar.has-active-list .home-list-controls { width: 100%; }
+    .top-bar.has-active-list .home-list-sort { width: 132px; max-width: none; }
   }
 
   .hotel-info {
@@ -304,10 +351,10 @@
 
   .num-item.active {
     color: var(--yellow);
-    font-size: 29px;
-    font-weight: 800;
-    transform: scale(1.15);
-    text-shadow: 0 0 12px rgba(255, 204, 0, 0.3);
+    font-size: 19px;
+    font-weight: 850;
+    transform: none;
+    text-shadow: 0 0 10px rgba(255, 204, 0, 0.22);
   }
 
   .num-item.active.empty-room {
@@ -699,6 +746,8 @@
   .bottom-nav-item svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
   .bottom-nav-item:active,.bottom-nav-item:focus-visible{outline:none;border-color:rgba(255,204,0,.4);background:rgba(255,204,0,.1);color:var(--yellow)}
   .nav-placeholder-body{min-height:150px;display:flex;align-items:center;justify-content:center;padding:24px;color:rgba(255,255,255,.42);font-size:12px;text-align:center}
+  .nav-placeholder-body.is-lists-screen{display:block;min-height:0;padding:12px;text-align:left;color:#fff}
+  #navPlaceholderModal .deadline-modal-card{width:100%;max-width:560px}
 
   .tool-modal-card{width:100%;max-width:560px;display:flex;flex-direction:column;overflow:hidden}
   .tool-modal-body{flex:1 1 auto;min-height:90px;max-height:calc(88dvh - 66px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
@@ -1050,19 +1099,30 @@
 
   .room-chip {
     position: relative;
-    padding: 8px 4px;
+    min-width: 0;
+    min-height: 40px;
+    padding: 7px 4px;
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.045);
     border: 1px solid rgba(255, 255, 255, 0.08);
     color: #fff;
     font-size: 13px;
     font-weight: 700;
+    line-height: 16px;
     text-align: center;
     cursor: pointer;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 2px;
+  }
+
+  .room-chip > span:first-child {
+    flex: 0 0 auto;
+    display: block;
+    line-height: 16px;
+    font-size: 13px;
+    font-weight: 750;
   }
 
   .room-chip.empty-room {
@@ -1090,8 +1150,9 @@
   }
 
   .room-chip.in-departure-list:not(.selected) {
-    border: 2px solid var(--yellow);
-    padding: 7px 3px;
+    border: 1px solid rgba(255, 204, 0, .82);
+    padding: 7px 4px;
+    background: rgba(255, 204, 0, .055);
   }
 
   .room-chip.today-checked:not(.selected):not(.empty-room) {
@@ -1221,48 +1282,68 @@
   }
 
   .mini-departure-list-card {
+    display: block;
     width: 100%;
-    padding: 16px;
-    border: 1px solid rgba(255, 204, 0, .25);
-    border-radius: 16px;
-    background: rgba(255, 255, 255, .035);
+    min-width: 0;
+    padding: 15px;
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 14px;
+    background: #151517;
     color: #fff;
     text-align: left;
     cursor: pointer;
+    transition: border-color .16s ease, background .16s ease;
   }
-
   .mini-departure-list-card.is-active {
-    border-color: var(--yellow);
-    background: rgba(255, 204, 0, .08);
+    border-color: rgba(255, 204, 0, .62);
+    background: linear-gradient(135deg, rgba(255,204,0,.07), #151517 60%);
   }
-
   .mini-departure-card-top,
-  .mini-departure-card-stats,
+  .mini-departure-progress-copy,
   .mini-departure-card-bottom {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
   }
-
-  .mini-departure-card-top { font-size: 17px; font-weight: 850; }
-  .mini-departure-card-file { margin-top: 5px; color: var(--text-dim); font-size: 12px; line-height: 16px; overflow-wrap: anywhere; }
-  .mini-departure-card-stats { margin-top: 16px; }
-  .mini-departure-card-stat { display: flex; flex-direction: column; gap: 3px; }
-  .mini-departure-card-number { font-size: 23px; line-height: 26px; font-weight: 900; }
-  .mini-departure-card-label { font-size: 10px; color: var(--text-dim); }
-  .mini-departure-card-bottom { margin-top: 14px; color: var(--text-dim); font-size: 12px; }
-  .mini-list-secondary-action {
-    width: 100%;
-    margin-top: 10px;
-    padding: 11px;
-    border: 1px solid rgba(255, 255, 255, .1);
-    border-radius: 10px;
-    background: rgba(255, 255, 255, .04);
-    color: #d4d4d8;
-    font-size: 12px;
+  .mini-departure-card-top { font-size: 16px; line-height: 20px; font-weight: 850; }
+  .mini-departure-card-state {
+    color: rgba(255,255,255,.46);
+    font-size: 9px;
+    line-height: 13px;
     font-weight: 800;
-    cursor: pointer;
+    letter-spacing: .35px;
+    text-transform: uppercase;
+  }
+  .mini-departure-list-card.is-active .mini-departure-card-state { color: var(--yellow); }
+  .mini-departure-progress { margin-top: 18px; }
+  .mini-departure-progress-copy { margin-bottom: 8px; color: rgba(255,255,255,.54); font-size: 10px; line-height: 14px; }
+  .mini-departure-progress-copy strong { color: rgba(255,255,255,.92); font-size: 11px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .mini-departure-progress-track {
+    width: 100%;
+    height: 5px;
+    overflow: hidden;
+    border-radius: 99px;
+    background: rgba(255,255,255,.09);
+  }
+  .mini-departure-progress-track span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--yellow);
+    transition: width .22s ease;
+  }
+  .mini-departure-card-stats { display: flex; align-items: baseline; gap: 6px; margin-top: 15px; }
+  .mini-departure-card-stat { display: flex; align-items: baseline; gap: 5px; min-width: 0; }
+  .mini-departure-card-number { color: #fff; font-size: 21px; line-height: 24px; font-weight: 850; font-variant-numeric: tabular-nums; }
+  .mini-departure-card-label { color: var(--text-dim); font-size: 10px; line-height: 13px; }
+  .mini-departure-card-separator { flex: 1 1 auto; min-width: 4px; }
+  .mini-departure-empty-note { margin: 9px 2px 0; color: rgba(255,255,255,.42); font-size: 10px; line-height: 14px; }
+  @media (max-width: 350px) {
+    .mini-departure-list-card { padding: 12px; }
+    .mini-departure-card-stats { gap: 5px; }
+    .mini-departure-card-number { font-size: 19px; }
+    .mini-departure-card-label { font-size: 9px; }
   }
 
   /* Notification Message */
@@ -1386,11 +1467,18 @@
 <body>
 <div id="app">
   <!-- Top Header with Queue Indicator -->
-  <header class="top-bar">
+  <header class="top-bar" id="homeTopBar">
     <div class="hotel-info">
       <div class="hotel-title">MINIBAR OS</div>
       <div class="queue-count" id="queueCount">В очереди: 0 номеров</div>
       <div class="upload-status" id="uploadStatus" aria-live="polite"></div>
+    </div>
+    <div class="home-list-controls" id="homeListControls" hidden>
+      <select class="home-list-sort" id="homeDepartureSort" aria-label="Порядок номеров">
+        <option value="asc">↑ Сверху вниз</option>
+        <option value="desc">↓ Снизу вверх</option>
+      </select>
+      <button class="home-list-return" id="btnReturnToAll" type="button">Все номера</button>
     </div>
   </header>
 
@@ -1798,6 +1886,7 @@ function applyDepartureList(data, preferredNumber = null) {
     JSON.stringify([...checkedTodayNumbers()].sort());
 
   renderDepartureListCard();
+  renderHomeListControls();
 
   if (activeListKey === 'departures' && listChanged) {
     buildCarousel(nextCarouselNumber(preferredNumber || selectedRoom?.number, visibleCarouselRooms()));
@@ -1832,46 +1921,50 @@ async function refreshDepartureList(preferredNumber = null) {
 function renderDepartureListCard() {
   if (activePlaceholderName !== 'Списки' || !navPlaceholderBody) return;
   const active = activeListKey === 'departures';
-  const sourceMessage = departureList.sourceReady
-    ? departureList.fileName
-    : (departureList.assignedCount ? 'Список сформирован вручную' : 'Список пока не загружен с сайта');
+  const total = Math.max(0, departureList.assignedCount);
+  const completed = Math.max(0, departureList.completedCount);
+  const remaining = Math.max(0, departureList.remainingCount);
+  const progress = total > 0 ? Math.max(0, Math.min(100, Math.round(completed / total * 100))) : 0;
 
   navPlaceholderBody.innerHTML =
     '<button type="button" class="mini-departure-list-card' + (active ? ' is-active' : '') +
-      '" data-select-departures-list>' +
-      '<div class="mini-departure-card-top"><span>Выезды</span><span aria-hidden="true">›</span></div>' +
-      '<div class="mini-departure-card-file">' + escapeCameraHtml(sourceMessage) + '</div>' +
-      '<label class="mini-departure-sort-control">Порядок карусели <select data-departure-sort aria-label="Порядок сортировки карусели">' +
-        '<option value="asc"' + (departureSort === 'asc' ? ' selected' : '') + '>Сверху вниз</option>' +
-        '<option value="desc"' + (departureSort === 'desc' ? ' selected' : '') + '>Снизу вверх</option>' +
-      '</select></label>' +
-      '<div class="mini-departure-card-stats">' +
-        '<div class="mini-departure-card-stat"><span class="mini-departure-card-number">' +
-          departureList.remainingCount + '</span><span class="mini-departure-card-label">осталось</span></div>' +
-        '<div class="mini-departure-card-stat"><span class="mini-departure-card-number">' +
-          departureList.completedCount + '</span><span class="mini-departure-card-label">проверено сегодня</span></div>' +
-        '<div class="mini-departure-card-stat"><span class="mini-departure-card-number">' +
-          departureList.assignedCount + '</span><span class="mini-departure-card-label">всего в работе</span></div>' +
+      '" data-select-departures-list aria-label="Выбрать список Выезды">' +
+      '<div class="mini-departure-card-top"><span>Выезды</span><span class="mini-departure-card-state">' +
+        (active ? 'Активен' : 'Открыть') + '</span></div>' +
+      '<div class="mini-departure-progress">' +
+        '<div class="mini-departure-progress-copy"><span>Проверено <strong>' + completed +
+          '</strong> из <strong>' + total + '</strong></span><span>Осталось <strong>' + remaining + '</strong></span></div>' +
+        '<div class="mini-departure-progress-track" role="progressbar" aria-label="Прогресс проверок" aria-valuemin="0" aria-valuemax="' +
+          total + '" aria-valuenow="' + Math.min(completed, total) + '"><span style="width:' + progress + '%"></span></div>' +
       '</div>' +
-      '<div class="mini-departure-card-bottom"><span>' +
-        (active ? 'Список выбран' : 'Открыть рабочий список') +
-      '</span><span>' + escapeCameraHtml(departureList.dateKey) + '</span></div>' +
+      '<div class="mini-departure-card-stats">' +
+        '<span class="mini-departure-card-number">' + remaining + '</span>' +
+        '<span class="mini-departure-card-label">осталось</span>' +
+        '<span class="mini-departure-card-separator"></span>' +
+        '<span class="mini-departure-card-number">' + completed + '</span>' +
+        '<span class="mini-departure-card-label">проверено</span>' +
+      '</div>' +
     '</button>' +
-    (active
-      ? '<button type="button" class="mini-list-secondary-action" data-select-all-rooms>Вернуться ко всем номерам</button>'
-      : '<div class="mini-departure-card-file" style="margin-top:12px">Проверка через VK автоматически убирает номер из ежедневного списка.</div>');
-  navPlaceholderBody.querySelector('[data-departure-sort]')?.addEventListener('change', event => {
-    departureSort = event.target.value === 'desc' ? 'desc' : 'asc';
-    try { localStorage.setItem('minibar-departure-sort-v1', departureSort); } catch (_) {}
-    if (activeListKey === 'departures') buildCarousel(selectedRoom?.number);
-    renderDepartureListCard();
-  });
+    (!departureList.sourceReady && total === 0
+      ? '<div class="mini-departure-empty-note">Загрузите PDF со списком на сайте.</div>'
+      : '');
+}
+
+function renderHomeListControls() {
+  const controls = document.getElementById('homeListControls');
+  const topBar = document.getElementById('homeTopBar');
+  const sort = document.getElementById('homeDepartureSort');
+  const active = activeListKey === 'departures';
+  if (controls) controls.hidden = !active;
+  if (topBar) topBar.classList.toggle('has-active-list', active);
+  if (sort) sort.value = departureSort;
 }
 
 async function openListsScreen() {
   closeToolScreens();
   closeSheet();
   activePlaceholderName = 'Списки';
+  navPlaceholderBody.className = 'nav-placeholder-body is-lists-screen';
   navPlaceholderTitle.textContent = 'Списки';
   navPlaceholderModal.setAttribute('aria-label', 'Списки');
   navPlaceholderModal.classList.remove('hidden');
@@ -1895,6 +1988,7 @@ function activateDepartureList() {
   activeListDateKey = departureList.dateKey || '';
   drawerMode = 'list';
   persistActiveListSelection();
+  renderHomeListControls();
   const rooms = visibleCarouselRooms();
   buildCarousel(nextCarouselNumber(selectedRoom?.number, rooms));
   closeNavPlaceholderModal();
@@ -1908,6 +2002,7 @@ function deactivateActiveList() {
   activeListDateKey = '';
   drawerMode = 'all';
   persistActiveListSelection();
+  renderHomeListControls();
   buildCarousel(nextCarouselNumber(selectedRoom?.number, ALL_ROOMS));
   closeNavPlaceholderModal();
 }
@@ -4241,6 +4336,7 @@ function closeNavPlaceholderModal(){
   navPlaceholderModal.classList.add('hidden');
   navPlaceholderModal.setAttribute('aria-hidden','true');
   activePlaceholderName = '';
+  navPlaceholderBody.className = 'nav-placeholder-body';
   bottomNav.querySelectorAll('[data-nav-modal]').forEach(button => button.classList.remove('is-active'));
 }
 
@@ -4370,12 +4466,16 @@ sheetAddRoomToggle.addEventListener('click', () => {
   if (!sheetAddRoomForm.classList.contains('hidden')) sheetAddRoomInput.focus();
 });
 sheetAddRoomForm.addEventListener('submit', event => { void submitDepartureRoomAdd(event); });
+document.getElementById('btnReturnToAll').addEventListener('click', deactivateActiveList);
+document.getElementById('homeDepartureSort').addEventListener('change', event => {
+  departureSort = event.target.value === 'desc' ? 'desc' : 'asc';
+  try { localStorage.setItem('minibar-departure-sort-v1', departureSort); } catch (_) {}
+  if (activeListKey === 'departures') buildCarousel(selectedRoom?.number);
+  renderHomeListControls();
+});
+
 navPlaceholderBody.addEventListener('click', event => {
-  if (event.target.closest('[data-select-departures-list]')) {
-    activateDepartureList();
-  } else if (event.target.closest('[data-select-all-rooms]')) {
-    deactivateActiveList();
-  }
+  if (event.target.closest('[data-select-departures-list]')) activateDepartureList();
 });
 sheetContent.addEventListener('click', event => {
   const removeButton = event.target.closest('[data-departure-remove]');
@@ -4940,6 +5040,7 @@ void restorePhotoUploadQueue();
     return;
   }
 
+  renderHomeListControls();
   showCameraStandby();
   await initVK();
 })();
