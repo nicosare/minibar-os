@@ -2020,11 +2020,6 @@ function refillRoomType(request) {
   const room = ROOM_BY_NUMBER.get(String(request.roomNumber));
   return normalizeRoomType({category:request.roomCategory||room?.category||'',roomCategory:request.roomCategory||room?.category||'',type:room?.type||''});
 }
-function refillRecipeSignature(items) {
-  return (Array.isArray(items)?items:[]).filter(item=>Number(item.qty)>0)
-    .map(item=>({key:refillItemKey(item),qty:Math.max(1,Number(item.qty)||1)}))
-    .sort((a,b)=>a.key.localeCompare(b.key)).map(item=>item.key+'='+item.qty).join('|');
-}
 function requestMatchesFullTemplate(request) {
   const requested=new Map((request.items||[]).map(item=>[refillItemKey(item),Math.max(0,Number(item.qty)||0)]).filter(([,qty])=>qty>0));
   const template=new Map((request.templateItems||[]).map(item=>[refillItemKey(item),Math.max(1,Number(item.qty)||1)]));
