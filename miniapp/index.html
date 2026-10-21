@@ -1049,6 +1049,7 @@
   }
 
   .room-chip {
+    position: relative;
     padding: 8px 4px;
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.05);
@@ -1086,6 +1087,182 @@
     color: #06202b;
     border-color: #4cc7f4;
     background: #4cc7f4;
+  }
+
+  .room-chip.in-departure-list:not(.selected) {
+    border: 2px solid var(--yellow);
+    padding: 7px 3px;
+  }
+
+  .room-chip.today-checked:not(.selected):not(.empty-room) {
+    color: #b8f7cc;
+    border-color: rgba(74, 222, 128, .78);
+    background: rgba(34, 197, 94, .15);
+  }
+
+  .room-chip.today-checked::after {
+    content: '✓';
+    position: absolute;
+    top: 1px;
+    left: 5px;
+    color: #4ade80;
+    font-size: 10px;
+    line-height: 12px;
+    font-weight: 900;
+  }
+
+  .room-chip-mark {
+    max-width: 100%;
+    color: #facc15;
+    font-size: 9px;
+    line-height: 11px;
+    font-weight: 800;
+    overflow-wrap: anywhere;
+  }
+
+  .room-chip-arrival {
+    width: 100%;
+    padding: 3px 1px;
+    border: 1px solid rgba(250, 204, 21, .25);
+    border-radius: 5px;
+    background: rgba(250, 204, 21, .06);
+    color: #d4d4d8;
+    font-size: 8px;
+    line-height: 10px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .room-chip-arrival.is-marked {
+    border-color: rgba(250, 204, 21, .7);
+    background: rgba(250, 204, 21, .15);
+    color: #fde68a;
+  }
+
+  .room-chip-remove {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 17px;
+    height: 17px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: 5px;
+    background: rgba(244, 63, 94, .16);
+    color: #fda4af;
+    font-size: 14px;
+    line-height: 1;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .sheet-list-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .sheet-view-switch {
+    display: inline-flex;
+    padding: 3px;
+    gap: 2px;
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, .04);
+  }
+
+  .sheet-view-switch button,
+  .sheet-add-room-toggle,
+  .sheet-add-room-submit {
+    border: 0;
+    border-radius: 7px;
+    padding: 8px 11px;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 12px;
+    line-height: 15px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .sheet-view-switch button.active {
+    background: var(--yellow);
+    color: #111;
+  }
+
+  .sheet-add-room-toggle,
+  .sheet-add-room-submit {
+    background: rgba(255, 204, 0, .12);
+    color: var(--yellow);
+    border: 1px solid rgba(255, 204, 0, .25);
+    white-space: nowrap;
+  }
+
+  .sheet-add-room-form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .sheet-add-room-input {
+    flex: 1;
+    min-width: 0;
+    padding: 9px 11px;
+    border: 1px solid var(--card-border);
+    border-radius: 9px;
+    outline: none;
+    background: rgba(255, 255, 255, .05);
+    color: #fff;
+    font-size: 14px;
+  }
+
+  .mini-departure-list-card {
+    width: 100%;
+    padding: 16px;
+    border: 1px solid rgba(255, 204, 0, .25);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, .035);
+    color: #fff;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .mini-departure-list-card.is-active {
+    border-color: var(--yellow);
+    background: rgba(255, 204, 0, .08);
+  }
+
+  .mini-departure-card-top,
+  .mini-departure-card-stats,
+  .mini-departure-card-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .mini-departure-card-top { font-size: 17px; font-weight: 850; }
+  .mini-departure-card-file { margin-top: 5px; color: var(--text-dim); font-size: 12px; line-height: 16px; overflow-wrap: anywhere; }
+  .mini-departure-card-stats { margin-top: 16px; }
+  .mini-departure-card-stat { display: flex; flex-direction: column; gap: 3px; }
+  .mini-departure-card-number { font-size: 23px; line-height: 26px; font-weight: 900; }
+  .mini-departure-card-label { font-size: 10px; color: var(--text-dim); }
+  .mini-departure-card-bottom { margin-top: 14px; color: var(--text-dim); font-size: 12px; }
+  .mini-list-secondary-action {
+    width: 100%;
+    margin-top: 10px;
+    padding: 11px;
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, .04);
+    color: #d4d4d8;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
   }
 
   /* Notification Message */
@@ -1410,7 +1587,7 @@
   </div>
 </div>
 <!-- Placeholder modal shells for the future bottom-navigation sections -->
-<div class="deadline-modal hidden" id="navPlaceholderModal" role="dialog" aria-modal="true" aria-label="Раздел меню" aria-hidden="true"><div class="deadline-modal-card nav-placeholder-card"><div class="deadline-modal-header"><div class="deadline-modal-room" id="navPlaceholderTitle">Акцизы</div><button type="button" class="deadline-modal-close" id="navPlaceholderClose" aria-label="Закрыть окно">×</button></div><div class="nav-placeholder-body">Раздел подготовлен к реализации</div></div></div>
+<div class="deadline-modal hidden" id="navPlaceholderModal" role="dialog" aria-modal="true" aria-label="Раздел меню" aria-hidden="true"><div class="deadline-modal-card nav-placeholder-card"><div class="deadline-modal-header"><div class="deadline-modal-room" id="navPlaceholderTitle">Акцизы</div><button type="button" class="deadline-modal-close" id="navPlaceholderClose" aria-label="Закрыть окно">×</button></div><div class="nav-placeholder-body" id="navPlaceholderBody">Раздел подготовлен к реализации</div></div></div>
 
 <!-- Bottom Sheet Modal -->
 <div class="sheet-overlay" id="sheetOverlay"></div>
@@ -1423,12 +1600,23 @@
   <div class="sheet-header">
     <div class="sheet-title-row">
       <div>
-        <div class="sheet-title">Все номера отеля</div>
+        <div class="sheet-title" id="sheetTitle">Все номера отеля</div>
         <div class="sheet-subtitle" id="sheetSubtitle">293 номера</div>
       </div>
       <button class="btn-close-sheet" id="btnCloseSheet" type="button">Закрыть</button>
     </div>
     <input type="search" class="sheet-search" id="sheetSearch" placeholder="Поиск номера...">
+    <div class="sheet-list-toolbar hidden" id="sheetListToolbar">
+      <div class="sheet-view-switch" role="group" aria-label="Режим отображения номеров">
+        <button type="button" data-sheet-view="all">Все</button>
+        <button type="button" data-sheet-view="list" class="active">Список</button>
+      </div>
+      <button class="sheet-add-room-toggle" type="button" id="sheetAddRoomToggle">+ Добавить</button>
+    </div>
+    <form class="sheet-add-room-form hidden" id="sheetAddRoomForm">
+      <input class="sheet-add-room-input" id="sheetAddRoomInput" type="number" inputmode="numeric" min="1" max="9999" placeholder="Номер комнаты" aria-label="Номер комнаты для добавления">
+      <button class="sheet-add-room-submit" id="sheetAddRoomButton" type="submit">Добавить</button>
+    </form>
   </div>
 
   <div class="sheet-content" id="sheetContent"></div>
@@ -1443,6 +1631,40 @@ let ALL_ROOMS = [];
 let ROOM_BY_NUMBER = new Map();
 let FLOORS = [];
 let queueRemaining = 0;
+
+function readStoredListSelection() {
+  try {
+    return {
+      key: localStorage.getItem('minibar-active-list-v1') || '',
+      dateKey: localStorage.getItem('minibar-active-list-date-v1') || ''
+    };
+  } catch (_) {
+    return { key: '', dateKey: '' };
+  }
+}
+
+const storedListSelection = readStoredListSelection();
+let activeListKey = storedListSelection.key === 'departures' ? 'departures' : '';
+let activeListDateKey = storedListSelection.dateKey;
+let drawerMode = activeListKey === 'departures' ? 'list' : 'all';
+function readDepartureSort() { try { return localStorage.getItem('minibar-departure-sort-v1') === 'desc' ? 'desc' : 'asc'; } catch (_) { return 'asc'; } }
+let departureSort = readDepartureSort();
+let activePlaceholderName = '';
+let departureListRequestSequence = 0;
+let departureList = {
+  dateKey: '',
+  name: 'Выезды',
+  fileName: '',
+  sourceReady: false,
+  sourceCount: 0,
+  assignedCount: 0,
+  completedCount: 0,
+  remainingCount: 0,
+  roomNumbers: [],
+  checkedToday: [],
+  arrivalRooms: [],
+  overrides: {}
+};
 
 const API_BASE = '/minibar-os/api';
 
@@ -1487,6 +1709,262 @@ async function loadRooms() {
   ROOM_BY_NUMBER = new Map(ALL_ROOMS.map(room => [room.number, room]));
   FLOORS = [...new Set(ALL_ROOMS.map(room => room.floor))].sort((a, b) => a - b);
   queueRemaining = Number.isFinite(data.remaining) ? data.remaining : ALL_ROOMS.length;
+}
+
+
+function currentDepartureNumbers() {
+  return new Set((departureList.roomNumbers || []).map(String));
+}
+
+function checkedTodayNumbers() {
+  return new Set((departureList.checkedToday || []).map(item => String(item.number)));
+}
+
+function arrivalMarked(number) {
+  return (departureList.arrivalRooms || []).includes(String(number));
+}
+
+function visibleCarouselRooms() {
+  if (activeListKey !== 'departures') return ALL_ROOMS;
+  const members = currentDepartureNumbers();
+  return ALL_ROOMS
+    .filter(room => members.has(String(room.number)))
+    .sort((a, b) => { const d = departureSort === 'desc' ? -1 : 1; return d * (Number(a.floor) - Number(b.floor) || Number(a.number) - Number(b.number)); });
+}
+
+function nextCarouselNumber(previousNumber, rooms = visibleCarouselRooms()) {
+  if (!rooms.length) return null;
+  const previous = String(previousNumber ?? '');
+  if (previous && rooms.some(room => String(room.number) === previous)) return previous;
+  const previousValue = Number(previous);
+  const next = previous && Number.isFinite(previousValue)
+    ? rooms.find(room => Number(room.number) > previousValue)
+    : null;
+  return String((next || rooms[0]).number);
+}
+
+function persistActiveListSelection() {
+  try {
+    if (activeListKey) {
+      localStorage.setItem('minibar-active-list-v1', activeListKey);
+      localStorage.setItem('minibar-active-list-date-v1', activeListDateKey || departureList.dateKey || '');
+    } else {
+      localStorage.removeItem('minibar-active-list-v1');
+      localStorage.removeItem('minibar-active-list-date-v1');
+    }
+  } catch (_) {}
+}
+
+function applyDepartureList(data, preferredNumber = null) {
+  if (!data || typeof data !== 'object') return;
+
+  const previousDateKey = departureList.dateKey;
+  const previousNumbers = (departureList.roomNumbers || []).join(',');
+  const previousChecked = checkedTodayNumbers();
+
+  departureList = {
+    dateKey: String(data.dateKey || ''),
+    name: String(data.name || 'Выезды'),
+    fileName: String(data.fileName || ''),
+    sourceReady: Boolean(data.sourceReady),
+    sourceCount: Number(data.sourceCount) || 0,
+    assignedCount: Number(data.assignedCount) || 0,
+    completedCount: Number(data.completedCount) || 0,
+    remainingCount: Number(data.remainingCount) || 0,
+    roomNumbers: [...new Set((Array.isArray(data.roomNumbers) ? data.roomNumbers : []).map(String))],
+    checkedToday: Array.isArray(data.checkedToday)
+      ? data.checkedToday.map(item => ({ ...item, number: String(item.number) }))
+      : [],
+    arrivalRooms: [...new Set((Array.isArray(data.arrivalRooms) ? data.arrivalRooms : []).map(String))],
+    overrides: data.overrides && typeof data.overrides === 'object' ? data.overrides : {}
+  };
+
+  let expiredSelection = false;
+  if (activeListKey === 'departures' && activeListDateKey &&
+      departureList.dateKey && activeListDateKey !== departureList.dateKey) {
+    activeListKey = '';
+    activeListDateKey = '';
+    drawerMode = 'all';
+    expiredSelection = true;
+    persistActiveListSelection();
+  } else if (activeListKey === 'departures' && !activeListDateKey && departureList.dateKey) {
+    activeListDateKey = departureList.dateKey;
+    persistActiveListSelection();
+  }
+
+  const listChanged = previousNumbers !== departureList.roomNumbers.join(',') ||
+    previousDateKey !== departureList.dateKey || expiredSelection;
+  const checkedChanged = JSON.stringify([...previousChecked].sort()) !==
+    JSON.stringify([...checkedTodayNumbers()].sort());
+
+  renderDepartureListCard();
+
+  if (activeListKey === 'departures' && listChanged) {
+    buildCarousel(nextCarouselNumber(preferredNumber || selectedRoom?.number, visibleCarouselRooms()));
+  } else {
+    updateQueueDisplay();
+    if (checkedChanged || activeListKey === 'departures') renderDrawerRooms(sheetSearch.value);
+  }
+
+  if (selectedRoom && ROOM_BY_NUMBER.has(String(selectedRoom.number)) &&
+      (activeListKey !== 'departures' || currentDepartureNumbers().has(String(selectedRoom.number)))) {
+    updateSelectedRoomState(ROOM_BY_NUMBER.get(String(selectedRoom.number)), false);
+  }
+  updateQueueDisplay();
+}
+
+async function refreshDepartureList(preferredNumber = null) {
+  const sequence = ++departureListRequestSequence;
+  const response = await fetch(API_BASE + '/departures/miniapp-list', {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+      'X-Timezone-Offset': String(new Date().getTimezoneOffset())
+    },
+    cache: 'no-store'
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data?.error || 'Не удалось загрузить список Выезды');
+  if (sequence !== departureListRequestSequence) return;
+  applyDepartureList(data, preferredNumber);
+}
+
+function renderDepartureListCard() {
+  if (activePlaceholderName !== 'Списки' || !navPlaceholderBody) return;
+  const active = activeListKey === 'departures';
+  const sourceMessage = departureList.sourceReady
+    ? departureList.fileName
+    : (departureList.assignedCount ? 'Список сформирован вручную' : 'Список пока не загружен с сайта');
+
+  navPlaceholderBody.innerHTML =
+    '<button type="button" class="mini-departure-list-card' + (active ? ' is-active' : '') +
+      '" data-select-departures-list>' +
+      '<div class="mini-departure-card-top"><span>Выезды</span><span aria-hidden="true">›</span></div>' +
+      '<div class="mini-departure-card-file">' + escapeCameraHtml(sourceMessage) + '</div>' +
+      '<label class="mini-departure-sort-control">Порядок карусели <select data-departure-sort aria-label="Порядок сортировки карусели">' +
+        '<option value="asc"' + (departureSort === 'asc' ? ' selected' : '') + '>Сверху вниз</option>' +
+        '<option value="desc"' + (departureSort === 'desc' ? ' selected' : '') + '>Снизу вверх</option>' +
+      '</select></label>' +
+      '<div class="mini-departure-card-stats">' +
+        '<div class="mini-departure-card-stat"><span class="mini-departure-card-number">' +
+          departureList.remainingCount + '</span><span class="mini-departure-card-label">осталось</span></div>' +
+        '<div class="mini-departure-card-stat"><span class="mini-departure-card-number">' +
+          departureList.completedCount + '</span><span class="mini-departure-card-label">проверено сегодня</span></div>' +
+        '<div class="mini-departure-card-stat"><span class="mini-departure-card-number">' +
+          departureList.assignedCount + '</span><span class="mini-departure-card-label">всего в работе</span></div>' +
+      '</div>' +
+      '<div class="mini-departure-card-bottom"><span>' +
+        (active ? 'Список выбран' : 'Открыть рабочий список') +
+      '</span><span>' + escapeCameraHtml(departureList.dateKey) + '</span></div>' +
+    '</button>' +
+    (active
+      ? '<button type="button" class="mini-list-secondary-action" data-select-all-rooms>Вернуться ко всем номерам</button>'
+      : '<div class="mini-departure-card-file" style="margin-top:12px">Проверка через VK автоматически убирает номер из ежедневного списка.</div>');
+  navPlaceholderBody.querySelector('[data-departure-sort]')?.addEventListener('change', event => {
+    departureSort = event.target.value === 'desc' ? 'desc' : 'asc';
+    try { localStorage.setItem('minibar-departure-sort-v1', departureSort); } catch (_) {}
+    if (activeListKey === 'departures') buildCarousel(selectedRoom?.number);
+    renderDepartureListCard();
+  });
+}
+
+async function openListsScreen() {
+  closeToolScreens();
+  closeSheet();
+  activePlaceholderName = 'Списки';
+  navPlaceholderTitle.textContent = 'Списки';
+  navPlaceholderModal.setAttribute('aria-label', 'Списки');
+  navPlaceholderModal.classList.remove('hidden');
+  navPlaceholderModal.setAttribute('aria-hidden', 'false');
+  bottomNav.querySelectorAll('[data-nav-modal]').forEach(button => {
+    button.classList.toggle('is-active', button.dataset.navModal === 'Списки');
+  });
+  navPlaceholderBody.innerHTML = '<div class="tool-empty-state">Загрузка списков…</div>';
+  try {
+    await refreshDepartureList();
+    renderDepartureListCard();
+  } catch (error) {
+    navPlaceholderBody.innerHTML =
+      '<div class="tool-empty-state">Не удалось загрузить список. Проверь соединение и попробуй ещё раз.</div>';
+    showMessage(error.message || 'Не удалось загрузить список Выезды', 3500);
+  }
+}
+
+function activateDepartureList() {
+  activeListKey = 'departures';
+  activeListDateKey = departureList.dateKey || '';
+  drawerMode = 'list';
+  persistActiveListSelection();
+  const rooms = visibleCarouselRooms();
+  buildCarousel(nextCarouselNumber(selectedRoom?.number, rooms));
+  closeNavPlaceholderModal();
+  showMessage(rooms.length
+    ? 'Активен список «Выезды»'
+    : 'Список пуст. Добавьте номер или загрузите PDF на сайте', 2300);
+}
+
+function deactivateActiveList() {
+  activeListKey = '';
+  activeListDateKey = '';
+  drawerMode = 'all';
+  persistActiveListSelection();
+  buildCarousel(nextCarouselNumber(selectedRoom?.number, ALL_ROOMS));
+  closeNavPlaceholderModal();
+}
+
+async function updateDepartureListRoom(number, action, enabled) {
+  const rawNumber = String(number || '').trim();
+  if (!/^\d{1,4}$/.test(rawNumber)) {
+    showMessage('Введите корректный номер комнаты', 2500);
+    return;
+  }
+  const cleanNumber = String(Number(rawNumber));
+  if (!ROOM_BY_NUMBER.has(cleanNumber)) {
+    showMessage('Такого номера нет в системе', 2500);
+    return;
+  }
+
+  try {
+    const response = await fetch(API_BASE + '/departures/miniapp-list/room', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'X-Timezone-Offset': String(new Date().getTimezoneOffset())
+      },
+      body: JSON.stringify({
+        number: cleanNumber,
+        action,
+        ...(action === 'arrival' ? { enabled: Boolean(enabled) } : {})
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data?.error || 'Не удалось изменить список');
+    applyDepartureList(data.list, selectedRoom?.number || cleanNumber);
+
+    if (action === 'add') {
+      sheetAddRoomInput.value = '';
+      sheetAddRoomForm.classList.add('hidden');
+      showMessage('Номер ' + cleanNumber + ' добавлен в список', 1900);
+    } else if (action === 'remove') {
+      showMessage('Номер ' + cleanNumber + ' убран из списка', 1900);
+    } else {
+      showMessage(enabled ? 'Отметка «На заезд» добавлена' : 'Отметка «На заезд» снята', 1900);
+    }
+  } catch (error) {
+    showMessage(error.message || 'Не удалось изменить список', 3500);
+  }
+}
+
+async function submitDepartureRoomAdd(event) {
+  event.preventDefault();
+  if (activeListKey !== 'departures') return;
+  const number = String(sheetAddRoomInput.value || '').trim();
+  if (!/^\d{1,4}$/.test(number)) {
+    showMessage('Введите номер комнаты', 2300);
+    return;
+  }
+  await updateDepartureListRoom(number, 'add');
 }
 
 async function completeRoom(action) {
@@ -1700,6 +2178,7 @@ const roomHistoryModal = document.getElementById('roomHistoryModal');
 const bottomNav = document.getElementById('bottomNav');
 const navPlaceholderModal = document.getElementById('navPlaceholderModal');
 const navPlaceholderTitle = document.getElementById('navPlaceholderTitle');
+const navPlaceholderBody = document.getElementById('navPlaceholderBody');
 const navPlaceholderClose = document.getElementById('navPlaceholderClose');
 
 const exciseScreen = document.getElementById('exciseScreen');
@@ -1742,6 +2221,12 @@ const sheetSearch = document.getElementById('sheetSearch');
 const sheetHandleArea = document.getElementById('sheetHandleArea');
 const sheetPeekTitle = document.getElementById('sheetPeekTitle');
 const sheetSubtitle = document.getElementById('sheetSubtitle');
+const sheetTitle = document.getElementById('sheetTitle');
+const sheetListToolbar = document.getElementById('sheetListToolbar');
+const sheetAddRoomToggle = document.getElementById('sheetAddRoomToggle');
+const sheetAddRoomForm = document.getElementById('sheetAddRoomForm');
+const sheetAddRoomInput = document.getElementById('sheetAddRoomInput');
+const sheetAddRoomButton = document.getElementById('sheetAddRoomButton');
 
 let stream = null;
 let videoTrack = null;
@@ -2248,7 +2733,9 @@ async function submitGihCreate(){
  finally{gihCreateBusy=false;gihCreateSubmit.disabled=false;gihCreateClear.disabled=false}
 }
 function updateQueueDisplay() {
-  queueCount.textContent = `В очереди: ${queueRemaining} номеров`;
+  queueCount.textContent = activeListKey === 'departures'
+    ? ('Выезды · осталось ' + departureList.remainingCount)
+    : ('В очереди: ' + queueRemaining + ' номеров');
 }
 
 function showMessage(text, duration = 1800) {
@@ -3207,20 +3694,29 @@ async function openToolScreen(name) {
 }
 function openBottomNavDestination(name) {
   if (name === 'Акцизы' || name === 'Калькулятор') { void openToolScreen(name); return; }
+  if (name === 'Списки') { void openListsScreen(); return; }
   closeToolScreens();
+  closeSheet();
+  activePlaceholderName = name;
   navPlaceholderTitle.textContent = name;
   navPlaceholderModal.setAttribute('aria-label', name);
+  navPlaceholderBody.textContent = 'Раздел подготовлен к реализации';
   navPlaceholderModal.classList.remove('hidden');
   navPlaceholderModal.setAttribute('aria-hidden', 'false');
+  bottomNav.querySelectorAll('[data-nav-modal]').forEach(button => {
+    button.classList.toggle('is-active', button.dataset.navModal === name);
+  });
 }
 
 /* Carousel */
-function buildCarousel(preferredNumber = ALL_ROOMS[0]?.number) {
+function buildCarousel(preferredNumber = visibleCarouselRooms()[0]?.number) {
+  const rooms = visibleCarouselRooms();
   carousel.innerHTML = '';
   carouselItems.clear();
+  activeCarouselItem = null;
   const fragment = document.createDocumentFragment();
 
-  ALL_ROOMS.forEach(room => {
+  rooms.forEach(room => {
     const el = document.createElement('button');
     el.type = 'button';
     el.className = 'num-item';
@@ -3231,16 +3727,38 @@ function buildCarousel(preferredNumber = ALL_ROOMS[0]?.number) {
   });
 
   carousel.appendChild(fragment);
+  sheetPeekTitle.textContent = activeListKey === 'departures'
+    ? ('Список «Выезды» · ' + rooms.length)
+    : ('Показать все номера (' + ALL_ROOMS.length + ')');
+  sheetSubtitle.textContent = activeListKey === 'departures'
+    ? (rooms.length + ' номеров осталось в списке')
+    : (ALL_ROOMS.length + ' номеров из базы данных');
 
-  sheetPeekTitle.textContent = `Показать все номера (${ALL_ROOMS.length})`;
-  sheetSubtitle.textContent = `${ALL_ROOMS.length} номеров из базы данных`;
+  const noRooms = rooms.length === 0;
+  captureBtn.disabled = noRooms;
+  btnEmpty.disabled = noRooms;
+  cameraRefillPanel.disabled = noRooms;
+  if (noRooms) {
+    selectedRoom = null;
+    descRoomTitle.textContent = 'Нет номеров в списке';
+    descRoomTag.textContent = 'Добавьте номер через шторку или выберите «Все»';
+    descRoomTag.className = 'desc-tag';
+    renderDrawerRooms(sheetSearch.value);
+    updateQueueDisplay();
+    return;
+  }
 
+  captureBtn.disabled = false;
+  btnEmpty.disabled = false;
+  cameraRefillPanel.disabled = false;
   requestAnimationFrame(() => {
-    const targetNumber = ROOM_BY_NUMBER.has(String(preferredNumber))
+    const targetNumber = rooms.some(room => String(room.number) === String(preferredNumber))
       ? String(preferredNumber)
-      : ALL_ROOMS[0]?.number;
-    if (targetNumber != null) selectRoomByNumber(targetNumber, false, 'auto');
+      : String(rooms[0].number);
+    selectRoomByNumber(targetNumber, false, 'auto');
   });
+  renderDrawerRooms(sheetSearch.value);
+  updateQueueDisplay();
 }
 
 function updateSelectedRoomState(room, vibrate = false) {
@@ -3262,7 +3780,8 @@ function updateSelectedRoomState(room, vibrate = false) {
 
   descRoomTitle.textContent = 'Номер ' + room.number;
   const categoryLabel = normalizeRoomType(room) === 'suite' ? 'Люкс' : 'Стандарт';
-  descRoomTag.textContent = room.floor + ' этаж · ' + categoryLabel;
+  const arrivalLabel = activeListKey === 'departures' && arrivalMarked(room.number) ? ' · На заезд' : '';
+  descRoomTag.textContent = room.floor + ' этаж · ' + categoryLabel + arrivalLabel;
   // Room category is descriptive metadata, not a status: keep its styling neutral.
   descRoomTag.className = 'desc-tag';
 
@@ -3332,40 +3851,91 @@ let sheetHeight = window.innerHeight * 0.82;
 let rafId = null;
 
 function renderDrawerRooms(filterQuery = '') {
-  const q = filterQuery.trim().toLowerCase();
+  const q = String(filterQuery || '').trim().toLowerCase();
   const parts = [];
   let hasAny = false;
+  const hasActiveList = activeListKey === 'departures';
+  const listNumbers = currentDepartureNumbers();
+  const checkedNumbers = checkedTodayNumbers();
+  const arrivalNumbers = new Set((departureList.arrivalRooms || []).map(String));
+  const listMode = hasActiveList && drawerMode === 'list';
+  const roomsToShow = listMode
+    ? ALL_ROOMS.filter(room => listNumbers.has(String(room.number)))
+    : ALL_ROOMS;
+
+  sheetListToolbar.classList.toggle('hidden', !hasActiveList);
+  if (!hasActiveList) sheetAddRoomForm.classList.add('hidden');
+  sheetListToolbar.querySelectorAll('[data-sheet-view]').forEach(button => {
+    button.classList.toggle('active', button.dataset.sheetView === drawerMode);
+    button.setAttribute('aria-pressed', String(button.dataset.sheetView === drawerMode));
+  });
+  sheetTitle.textContent = listMode ? 'Список · Выезды' : 'Все номера отеля';
+  sheetSubtitle.textContent = listMode
+    ? roomsToShow.length + ' номеров осталось'
+    : (hasActiveList ? listNumbers.size + ' номеров в списке · все номера отеля' : ALL_ROOMS.length + ' номеров из базы данных');
 
   for (const floorNum of FLOORS) {
-    const floorRooms = ALL_ROOMS.filter(r => r.floor === floorNum && (!q || r.number.includes(q)));
+    const floorRooms = roomsToShow.filter(room =>
+      Number(room.floor) === Number(floorNum) && String(room.number).includes(q)
+    );
     if (!floorRooms.length) continue;
     hasAny = true;
-
     parts.push(`<div class="floor-section">
       <div class="floor-header">
         <span>${floorNum} этаж</span>
         <span class="floor-stats">${floorRooms.length} номеров</span>
       </div>
-      <div class="room-grid">${floorRooms.map(room => `
-        <div class="room-chip ${room.expiryStatus === 'empty' ? 'empty-room' : ''} ${room.number === selectedRoom?.number ? 'selected' : ''}" data-room-number="${room.number}">
-          <span>${room.number}</span>
-        </div>`).join('')}
+      <div class="room-grid">${floorRooms.map(room => {
+        const number = String(room.number);
+        const inList = hasActiveList && listNumbers.has(number);
+        const checked = checkedNumbers.has(number);
+        const arrival = inList && arrivalNumbers.has(number);
+        const classes = [
+          'room-chip',
+          room.expiryStatus === 'empty' ? 'empty-room' : '',
+          number === String(selectedRoom?.number || '') ? 'selected' : '',
+          inList ? 'in-departure-list' : '',
+          checked ? 'today-checked' : ''
+        ].filter(Boolean).join(' ');
+        const safeNumber = escapeCameraHtml(number);
+        const arrivalControl = listMode
+          ? '<button type="button" class="room-chip-arrival' + (arrival ? ' is-marked' : '') +
+            '" data-departure-arrival="' + safeNumber + '" aria-pressed="' + String(arrival) + '">' +
+            (arrival ? '✓ На заезд' : '+ На заезд') + '</button>'
+          : (arrival ? '<span class="room-chip-mark">На заезд</span>' : '');
+        const removeControl = listMode
+          ? '<button type="button" class="room-chip-remove" data-departure-remove="' + safeNumber +
+            '" aria-label="Убрать номер ' + safeNumber + ' из списка">×</button>'
+          : '';
+        return '<div class="' + classes + '" data-room-number="' + safeNumber + '">' +
+          '<span>' + safeNumber + '</span>' + arrivalControl + removeControl + '</div>';
+      }).join('')}
       </div>
     </div>`);
   }
 
   sheetContent.innerHTML = hasAny
     ? parts.join('')
-    : `<div style="text-align: center; color: var(--text-dim); padding: 40px 0;">Номера не найдены</div>`;
+    : `<div style="text-align: center; color: var(--text-dim); padding: 40px 8px;">${listMode
+      ? 'В списке нет доступных номеров. Добавьте номер или загрузите PDF на сайте.'
+      : 'Номера не найдены'}</div>`;
+
+  sheetPeekTitle.textContent = hasActiveList
+    ? (listMode ? 'Список «Выезды» · ' + listNumbers.size : 'Все номера · ' + ALL_ROOMS.length)
+    : 'Показать все номера (' + ALL_ROOMS.length + ')';
 }
 
 function updateDrawerSelectedChip(numStr) {
   const chips = sheetContent.querySelectorAll('.room-chip');
+  const listNumbers = currentDepartureNumbers();
+  const checkedNumbers = checkedTodayNumbers();
   chips.forEach(chip => {
-    const isSelected = chip.dataset.roomNumber === numStr;
-    const room = ROOM_BY_NUMBER.get(chip.dataset.roomNumber);
-    chip.classList.toggle('selected', isSelected);
+    const number = String(chip.dataset.roomNumber);
+    const room = ROOM_BY_NUMBER.get(number);
+    chip.classList.toggle('selected', number === String(numStr));
     chip.classList.toggle('empty-room', room?.expiryStatus === 'empty');
+    chip.classList.toggle('in-departure-list', activeListKey === 'departures' && listNumbers.has(number));
+    chip.classList.toggle('today-checked', checkedNumbers.has(number));
   });
 }
 
@@ -3474,6 +4044,10 @@ function startRoomLiveSync() {
         // Room product quantities and status are shared with the website.
         if (selectedRoom && !isCameraDeadlineModalOpen()) void loadRoomDeadlineData(selectedRoom, true);
       }
+      if (domains.some(domain => historyDomains.includes(domain) ||
+          domain === 'departures' || domain === 'settings')) {
+        void refreshDepartureList();
+      }
       if (domains.some(domain => historyDomains.includes(domain)) && selectedRoom) {
         void loadRoomHistory(selectedRoom, true);
       }
@@ -3488,6 +4062,7 @@ function startRoomLiveSync() {
   // Initial sync and replay-gap recovery are sent by the server's live stream.
   roomEventsSource.addEventListener('sync.required', () => {
     void syncRoomData();
+    void refreshDepartureList();
   });
 
   roomEventsSource.addEventListener('error', () => {
@@ -3497,9 +4072,12 @@ function startRoomLiveSync() {
 }
 
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && roomSyncPending) {
-    roomSyncPending = false;
-    void syncRoomData();
+  if (document.visibilityState === 'visible') {
+    void refreshDepartureList();
+    if (roomSyncPending) {
+      roomSyncPending = false;
+      void syncRoomData();
+    }
   }
 });
 
@@ -3659,7 +4237,12 @@ roomHistoryModalClose.addEventListener('click',closeRoomHistoryModal);
 exciseScreen.addEventListener('click',event=>{if(event.target===exciseScreen)closeToolScreens()});
 calculatorScreen.addEventListener('click',event=>{if(event.target===calculatorScreen)closeToolScreens()});
 bottomNav.addEventListener('click',event=>{const button=event.target.closest('[data-nav-modal]');if(!button)return;openBottomNavDestination(button.dataset.navModal)});
-function closeNavPlaceholderModal(){navPlaceholderModal.classList.add('hidden');navPlaceholderModal.setAttribute('aria-hidden','true')}
+function closeNavPlaceholderModal(){
+  navPlaceholderModal.classList.add('hidden');
+  navPlaceholderModal.setAttribute('aria-hidden','true');
+  activePlaceholderName = '';
+  bottomNav.querySelectorAll('[data-nav-modal]').forEach(button => button.classList.remove('is-active'));
+}
 
 exciseScreenClose.addEventListener('click', closeToolScreens);
 calculatorScreenClose.addEventListener('click', closeToolScreens);
@@ -3775,10 +4358,56 @@ deadlineModal.querySelectorAll('[data-deadline-action]').forEach(button => {
 });
 window.addEventListener('keydown',event=>{if(event.key!=='Escape')return;if(activeToolScreen){closeToolScreens();return}if(isCameraDeadlineModalOpen())closeCameraDeadlineModal();if(isGihCreateModalOpen())closeGihCreateModal();if(isRoomHistoryModalOpen())closeRoomHistoryModal();if(!navPlaceholderModal.classList.contains('hidden'))closeNavPlaceholderModal()});
 sheetSearch.addEventListener('input', e => renderDrawerRooms(e.target.value));
+sheetListToolbar.addEventListener('click', event => {
+  const button = event.target.closest('[data-sheet-view]');
+  if (!button || activeListKey !== 'departures') return;
+  drawerMode = button.dataset.sheetView === 'list' ? 'list' : 'all';
+  renderDrawerRooms(sheetSearch.value);
+});
+sheetAddRoomToggle.addEventListener('click', () => {
+  if (activeListKey !== 'departures') return;
+  sheetAddRoomForm.classList.toggle('hidden');
+  if (!sheetAddRoomForm.classList.contains('hidden')) sheetAddRoomInput.focus();
+});
+sheetAddRoomForm.addEventListener('submit', event => { void submitDepartureRoomAdd(event); });
+navPlaceholderBody.addEventListener('click', event => {
+  if (event.target.closest('[data-select-departures-list]')) {
+    activateDepartureList();
+  } else if (event.target.closest('[data-select-all-rooms]')) {
+    deactivateActiveList();
+  }
+});
 sheetContent.addEventListener('click', event => {
+  const removeButton = event.target.closest('[data-departure-remove]');
+  if (removeButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    void updateDepartureListRoom(removeButton.dataset.departureRemove, 'remove');
+    return;
+  }
+
+  const arrivalButton = event.target.closest('[data-departure-arrival]');
+  if (arrivalButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    void updateDepartureListRoom(
+      arrivalButton.dataset.departureArrival,
+      'arrival',
+      arrivalButton.getAttribute('aria-pressed') !== 'true'
+    );
+    return;
+  }
+
   const chip = event.target.closest('.room-chip');
   if (!chip) return;
-  selectRoomByNumber(chip.dataset.roomNumber, true);
+  const number = String(chip.dataset.roomNumber);
+  if (activeListKey === 'departures' && !currentDepartureNumbers().has(number)) {
+    showMessage(checkedTodayNumbers().has(number)
+      ? 'Номер уже проверен сегодня'
+      : 'Номер не входит в список. Добавьте его через «+ Добавить».', 2800);
+    return;
+  }
+  selectRoomByNumber(number, true);
   closeSheet();
 });
 
@@ -4139,6 +4768,9 @@ async function processPhotoQueue() {
         // VK accepted the message, reusing the ID helps avoid duplicate messages.
         await photoQueueDbAction('readwrite', 'delete', item.id);
         sentAny = true;
+        // The proxy syncs the daily check before returning success. Reconcile both
+        // arrival/departure workflows from the canonical backend check record.
+        void refreshDepartureList();
 
         if (result.site_synced === false) {
           console.warn('[MINIBAR PHOTO QUEUE] Фото отправлено в VK, но сайт не синхронизирован:', result.site_sync_error);
@@ -4235,6 +4867,12 @@ btnSend.addEventListener('click', () => {
   // in the background while the user selects the next room and takes another photo.
   const pendingId = String(Date.now()) + '-' + String(requestId || Math.random());
   pendingPhotoWrites.set(pendingId, { roomNumber, requestId, blobPromise });
+  if (activeListKey === 'departures') {
+    const rooms = visibleCarouselRooms();
+    const i = rooms.findIndex(room => String(room.number) === roomNumber);
+    if (i >= 0 && rooms[i + 1]) selectRoomByNumber(rooms[i + 1].number, false, 'auto');
+    else void refreshDepartureList().then(() => { const n = nextCarouselNumber(roomNumber, visibleCarouselRooms()); if (n) selectRoomByNumber(n, false, 'auto'); });
+  }
   triggerHaptic();
   showMessage('Фото №' + roomNumber + ' принято — можно снимать следующее', 2200);
   setUploadStatus('Подготовка фото №' + roomNumber + ' в фоне…', 'pending');
@@ -4271,6 +4909,7 @@ btnEmpty.addEventListener('click', async () => {
     }
 
     showMessage('Сообщение по номеру ' + roomNumber + ' отправлено', 2200);
+    await refreshDepartureList();
   } catch (error) {
     console.error('[MINIBAR] Не удалось отправить сообщение об опустошении:', error);
     showMessage(error?.message || 'Не удалось отправить сообщение', 4000);
@@ -4286,6 +4925,11 @@ void restorePhotoUploadQueue();
 (async function boot() {
   try {
     await loadRooms();
+    try {
+      await refreshDepartureList();
+    } catch (listError) {
+      console.warn('[MINIBAR LISTS] Не удалось загрузить список Выезды:', listError);
+    }
     updateQueueDisplay();
     buildCarousel();
     renderDrawerRooms();
