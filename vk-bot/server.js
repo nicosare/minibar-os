@@ -268,7 +268,7 @@ async function handleCallback(req, res) {
 
 function looksOperationalText(value) {
   const text = String(value || '').trim();
-  return /^\s*\d{3,4}(?:[\s,;:/|+_-]*\d{3,4})*(?:\s+опустош\p{L}*)?(?:\s*\([^)]*\))?\s*$/iu.test(text);
+  return /^\s*\d{3,4}(?:[\s,;:/|+_-]*\d{3,4})*(?:\s+(?:опустош\p{L}*|проверен\p{L}*\s*,?\s*жилой))?(?:\s*\([^)]*\))?\s*$/iu.test(text);
 }
 
 function startServer() {
