@@ -69,54 +69,7 @@
     flex-shrink: 0;
   }
 
-  .hotel-info { min-width: 0; flex: 1 1 auto; }
-  .queue-count { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  .home-list-controls {
-    flex: 0 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 6px;
-  }
-  .home-list-controls[hidden] { display: none !important; }
-  .home-list-sort {
-    width: 125px;
-    max-width: 34vw;
-    min-width: 0;
-    height: 33px;
-    padding: 0 8px;
-    border: 1px solid rgba(255,255,255,.12);
-    border-radius: 9px;
-    outline: none;
-    background: #141416;
-    color: rgba(255,255,255,.9);
-    font-size: 10px;
-    font-weight: 750;
-  }
-  .home-list-sort option { background: #141416; color: #fff; }
-  .home-list-return {
-    flex: 0 0 auto;
-    min-height: 33px;
-    padding: 0 10px;
-    border: 1px solid rgba(255,204,0,.25);
-    border-radius: 9px;
-    background: rgba(255,204,0,.09);
-    color: var(--yellow);
-    font-size: 11px;
-    font-weight: 800;
-    white-space: nowrap;
-    cursor: pointer;
-  }
-  .home-list-return:active { background: rgba(255,204,0,.17); }
-  @media (max-width: 380px) {
-    .top-bar.has-active-list { flex-wrap: nowrap; }
-    .top-bar.has-active-list .hotel-info { flex: 1 1 auto; }
-    .top-bar.has-active-list .queue-count { display: none; }
-    .top-bar.has-active-list .home-list-controls { width: auto; }
-    .top-bar.has-active-list .home-list-sort { width: 112px; max-width: 35vw; }
-    .top-bar.has-active-list .home-list-return { padding: 0 8px; }
-  }
 
   .hotel-info {
     display: flex;
@@ -335,6 +288,7 @@
   .carousel::-webkit-scrollbar { display: none; }
 
   .num-item {
+    position: relative;
     flex: 0 0 88px;
     width: 88px;
     height: 48px;
@@ -354,16 +308,27 @@
 
   .num-item.active {
     color: var(--yellow);
-    font-size: 19px;
-    font-weight: 850;
-    transform: none;
-    text-shadow: 0 0 10px rgba(255, 204, 0, 0.22);
+    font-size: 29px;
+    font-weight: 800;
+    transform: scale(1.15);
+    text-shadow: 0 0 12px rgba(255, 204, 0, 0.3);
   }
+  .num-item.pinned::after {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    border: 1.5px solid rgba(255, 204, 0, .92);
+    border-radius: 10px;
+    pointer-events: none;
+  }
+  .num-item.pinned.empty-room::after { border-color: rgba(76, 199, 244, .95); }
+  .num-item.pinned { text-shadow: 0 0 12px rgba(255, 204, 0, .26); }
 
   .num-item.active.empty-room {
     color: #4cc7f4;
     text-shadow: 0 0 12px rgba(76, 199, 244, 0.3);
   }
+  .num-item.pinned.empty-room { color: #4cc7f4; }
 
   /* Standby information is modular; the viewfinder itself remains unchanged. */
   .camera-info-panel {
@@ -1152,104 +1117,18 @@
     background: #4cc7f4;
   }
 
-  .room-chip.in-departure-list:not(.selected) {
-    border: 1px solid rgba(255, 204, 0, .82);
-    padding: 7px 4px;
-    background: rgba(255, 204, 0, .055);
-  }
+  /* Membership is conveyed by the List filter, not by a second tile style. */
 
-  .room-chip.today-checked:not(.selected):not(.empty-room) {
+  .room-chip.today-checked:not(.selected) {
     color: #b8f7cc;
-    border-color: rgba(74, 222, 128, .78);
+    border-color: rgba(74, 222, 128, .72);
     background: rgba(34, 197, 94, .15);
-  }
-
-  .room-chip.today-checked::after {
-    content: '✓';
-    position: absolute;
-    top: 1px;
-    left: 5px;
-    color: #4ade80;
-    font-size: 10px;
-    line-height: 12px;
-    font-weight: 900;
-  }
-
-  .room-chip-mark {
-    position: absolute;
-    left: 2px;
-    right: 2px;
-    bottom: 1px;
-    max-width: calc(100% - 4px);
-    color: #facc15;
-    font-size: 8px;
-    line-height: 9px;
-    font-weight: 800;
-    overflow-wrap: anywhere;
-    text-align: center;
-    pointer-events: none;
-  }
-  .room-chip.selected .room-chip-mark { color: #111; }
-
-  .room-chip-arrival {
-    width: 100%;
-    padding: 3px 1px;
-    border: 1px solid rgba(250, 204, 21, .25);
-    border-radius: 5px;
-    background: rgba(250, 204, 21, .06);
-    color: #d4d4d8;
-    font-size: 8px;
-    line-height: 10px;
-    font-weight: 800;
-    cursor: pointer;
-  }
-
-  .room-chip-arrival.is-marked {
-    border-color: rgba(250, 204, 21, .7);
-    background: rgba(250, 204, 21, .15);
-    color: #fde68a;
-  }
-
-  /* Keep list-mode room tiles uniform: the arrival control sits inside a fixed tile. */
-  .sheet-content.departure-list-mode .room-chip {
-    height: 52px;
-    min-height: 52px;
-    padding: 6px 4px 19px;
-    justify-content: flex-start;
-    overflow: hidden;
-  }
-  .sheet-content.departure-list-mode .room-chip.in-departure-list:not(.selected) {
-    padding: 6px 4px 19px;
-  }
-  .sheet-content.departure-list-mode .room-chip-arrival {
-    position: absolute;
-    left: 3px;
-    right: 3px;
-    bottom: 3px;
-    width: auto;
-    height: 13px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 1px;
-    border: 0;
-    border-radius: 4px;
-    background: transparent;
-    color: rgba(255,255,255,.48);
-    font-size: 8px;
-    line-height: 11px;
-    white-space: nowrap;
-  }
-  .sheet-content.departure-list-mode .room-chip-arrival.is-marked {
-    border: 0;
-    background: rgba(255,204,0,.08);
-    color: var(--yellow);
   }
 
   .room-chip-remove {
     position: absolute;
-    top: 2px;
-    right: 2px;
+    top: 1px;
+    right: 1px;
     width: 17px;
     height: 17px;
     display: flex;
@@ -1257,21 +1136,43 @@
     justify-content: center;
     padding: 0;
     border: 0;
-    border-radius: 5px;
-    background: rgba(244, 63, 94, .16);
-    color: #fda4af;
+    border-radius: 0;
+    background: transparent;
+    color: rgba(255,255,255,.28);
     font-size: 14px;
     line-height: 1;
-    font-weight: 800;
+    font-weight: 650;
     cursor: pointer;
   }
-
+  .room-chip-remove:active,
+  .room-chip-remove:focus-visible {
+    outline: none;
+    background: transparent;
+    color: rgba(255,120,125,.95);
+  }
   .sheet-list-toolbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
   }
+  .sheet-sort-order {
+    flex: 0 0 auto;
+    width: 35px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 9px;
+    background: rgba(255,255,255,.045);
+    color: rgba(255,255,255,.68);
+    cursor: pointer;
+  }
+  .sheet-sort-order[hidden] { display: none !important; }
+  .sheet-sort-order svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .sheet-sort-order[data-order="desc"] { color: var(--yellow); border-color: rgba(255,204,0,.3); }
 
   .sheet-view-switch {
     display: inline-flex;
@@ -1513,18 +1414,11 @@
 <body>
 <div id="app">
   <!-- Top Header with Queue Indicator -->
-  <header class="top-bar" id="homeTopBar">
+  <header class="top-bar">
     <div class="hotel-info">
       <div class="hotel-title">MINIBAR OS</div>
       <div class="queue-count" id="queueCount">В очереди: 0 номеров</div>
       <div class="upload-status" id="uploadStatus" aria-live="polite"></div>
-    </div>
-    <div class="home-list-controls" id="homeListControls" hidden>
-      <select class="home-list-sort" id="homeDepartureSort" aria-label="Порядок номеров">
-        <option value="asc">↑ Сверху вниз</option>
-        <option value="desc">↓ Снизу вверх</option>
-      </select>
-      <button class="home-list-return" id="btnReturnToAll" type="button">Все номера</button>
     </div>
   </header>
 
@@ -1745,12 +1639,10 @@
         <button type="button" data-sheet-view="all">Все</button>
         <button type="button" data-sheet-view="list" class="active">Список</button>
       </div>
-      <button class="sheet-add-room-toggle" type="button" id="sheetAddRoomToggle">+ Добавить</button>
+      <button class="sheet-sort-order" type="button" id="sheetSortOrder" aria-label="Изменить порядок номеров" title="Изменить порядок номеров">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v16M3.5 7.5 7 4l3.5 3.5M17 20V4m-3.5 12.5L17 20l3.5-3.5"/></svg>
+      </button>
     </div>
-    <form class="sheet-add-room-form hidden" id="sheetAddRoomForm">
-      <input class="sheet-add-room-input" id="sheetAddRoomInput" type="number" inputmode="numeric" min="1" max="9999" placeholder="Номер комнаты" aria-label="Номер комнаты для добавления">
-      <button class="sheet-add-room-submit" id="sheetAddRoomButton" type="submit">Добавить</button>
-    </form>
   </div>
 
   <div class="sheet-content" id="sheetContent"></div>
@@ -1932,7 +1824,6 @@ function applyDepartureList(data, preferredNumber = null) {
     JSON.stringify([...checkedTodayNumbers()].sort());
 
   renderDepartureListCard();
-  renderHomeListControls();
 
   if (activeListKey === 'departures' && listChanged) {
     buildCarousel(nextCarouselNumber(preferredNumber || selectedRoom?.number, visibleCarouselRooms()));
@@ -1989,16 +1880,6 @@ function renderDepartureListCard() {
       : '');
 }
 
-function renderHomeListControls() {
-  const controls = document.getElementById('homeListControls');
-  const topBar = document.getElementById('homeTopBar');
-  const sort = document.getElementById('homeDepartureSort');
-  const active = activeListKey === 'departures';
-  if (controls) controls.hidden = !active;
-  if (topBar) topBar.classList.toggle('has-active-list', active);
-  if (sort) sort.value = departureSort;
-}
-
 async function openListsScreen() {
   closeToolScreens();
   closeSheet();
@@ -2046,7 +1927,7 @@ function deactivateActiveList() {
   closeNavPlaceholderModal();
 }
 
-async function updateDepartureListRoom(number, action, enabled) {
+async function updateDepartureListRoom(number, action, enabled, options = {}) {
   const rawNumber = String(number || '').trim();
   if (!/^\d{1,4}$/.test(rawNumber)) {
     showMessage('Введите корректный номер комнаты', 2500);
@@ -2074,11 +1955,13 @@ async function updateDepartureListRoom(number, action, enabled) {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data?.error || 'Не удалось изменить список');
-    applyDepartureList(data.list, selectedRoom?.number || cleanNumber);
+    applyDepartureList(data.list, action === 'add' ? cleanNumber : (selectedRoom?.number || cleanNumber));
 
     if (action === 'add') {
-      sheetAddRoomInput.value = '';
-      sheetAddRoomForm.classList.add('hidden');
+      if (currentDepartureNumbers().has(cleanNumber)) {
+        selectRoomByNumber(cleanNumber, true, 'smooth', true);
+        if (options.closeSheet) closeSheet();
+      }
       showMessage('Номер ' + cleanNumber + ' добавлен в список', 1900);
     } else if (action === 'remove') {
       showMessage('Номер ' + cleanNumber + ' убран из списка', 1900);
@@ -2088,17 +1971,6 @@ async function updateDepartureListRoom(number, action, enabled) {
   } catch (error) {
     showMessage(error.message || 'Не удалось изменить список', 3500);
   }
-}
-
-async function submitDepartureRoomAdd(event) {
-  event.preventDefault();
-  if (activeListKey !== 'departures') return;
-  const number = String(sheetAddRoomInput.value || '').trim();
-  if (!/^\d{1,4}$/.test(number)) {
-    showMessage('Введите номер комнаты', 2300);
-    return;
-  }
-  await updateDepartureListRoom(number, 'add');
 }
 
 async function completeRoom(action) {
@@ -2357,10 +2229,8 @@ const sheetPeekTitle = document.getElementById('sheetPeekTitle');
 const sheetSubtitle = document.getElementById('sheetSubtitle');
 const sheetTitle = document.getElementById('sheetTitle');
 const sheetListToolbar = document.getElementById('sheetListToolbar');
-const sheetAddRoomToggle = document.getElementById('sheetAddRoomToggle');
-const sheetAddRoomForm = document.getElementById('sheetAddRoomForm');
-const sheetAddRoomInput = document.getElementById('sheetAddRoomInput');
-const sheetAddRoomButton = document.getElementById('sheetAddRoomButton');
+const sheetSortOrder = document.getElementById('sheetSortOrder');
+
 
 let stream = null;
 let videoTrack = null;
@@ -2387,6 +2257,8 @@ let orientationPermissionAsked = false;
 let orientationPermissionPromise = null;
 const carouselItems = new Map();
 let activeCarouselItem = null;
+let pinnedRoomNumber = '';
+let carouselReturnTimer = null;
 
 function escapeCameraHtml(value) {
   return String(value == null ? '' : value)
@@ -3848,6 +3720,8 @@ function buildCarousel(preferredNumber = visibleCarouselRooms()[0]?.number) {
   carousel.innerHTML = '';
   carouselItems.clear();
   activeCarouselItem = null;
+  clearTimeout(carouselReturnTimer);
+  carouselReturnTimer = null;
   const fragment = document.createDocumentFragment();
 
   rooms.forEach(room => {
@@ -3874,6 +3748,7 @@ function buildCarousel(preferredNumber = visibleCarouselRooms()[0]?.number) {
   cameraRefillPanel.disabled = noRooms;
   if (noRooms) {
     selectedRoom = null;
+    pinnedRoomNumber = '';
     descRoomTitle.textContent = 'Нет номеров в списке';
     descRoomTag.textContent = 'Добавьте номер через шторку или выберите «Все»';
     descRoomTag.className = 'desc-tag';
@@ -3895,6 +3770,12 @@ function buildCarousel(preferredNumber = visibleCarouselRooms()[0]?.number) {
   updateQueueDisplay();
 }
 
+function updatePinnedCarouselItem() {
+  carouselItems.forEach((item, number) => {
+    item.classList.toggle('pinned', String(number) === String(pinnedRoomNumber));
+  });
+}
+
 function updateSelectedRoomState(room, vibrate = false) {
   if (!room) return;
   const changed = selectedRoom !== room;
@@ -3911,6 +3792,7 @@ function updateSelectedRoomState(room, vibrate = false) {
     currentItem.classList.add('active');
     activeCarouselItem = currentItem;
   }
+  updatePinnedCarouselItem();
 
   descRoomTitle.textContent = 'Номер ' + room.number;
   const categoryLabel = normalizeRoomType(room) === 'suite' ? 'Люкс' : 'Стандарт';
@@ -3926,48 +3808,69 @@ function updateSelectedRoomState(room, vibrate = false) {
   if (vibrate && changed) triggerHaptic();
 }
 
-function selectRoomByNumber(numStr, vibrate = true, behavior = 'smooth') {
+function selectRoomByNumber(numStr, vibrate = true, behavior = 'smooth', pin = true) {
   const room = ROOM_BY_NUMBER.get(String(numStr));
   if (!room) return;
 
   const el = carouselItems.get(room.number);
   if (el) {
+    if (pin) {
+      pinnedRoomNumber = String(room.number);
+      updatePinnedCarouselItem();
+    }
+    clearTimeout(carouselReturnTimer);
+    carouselReturnTimer = null;
     updateSelectedRoomState(room, vibrate);
     el.scrollIntoView({ behavior, inline: 'center', block: 'nearest' });
   }
 }
 
-function updateNumberFromScroll() {
+function closestCarouselItem() {
   const items = carousel.querySelectorAll('.num-item');
-  if (!items.length) return;
-
+  if (!items.length) return null;
   const carouselRect = carousel.getBoundingClientRect();
   const center = carouselRect.left + carouselRect.width / 2;
-
   let closest = null;
   let minDistance = Infinity;
-
   items.forEach(el => {
     const rect = el.getBoundingClientRect();
-    const itemCenter = rect.left + rect.width / 2;
-    const distance = Math.abs(itemCenter - center);
-
+    const distance = Math.abs(rect.left + rect.width / 2 - center);
     if (distance < minDistance) {
       minDistance = distance;
       closest = el;
     }
   });
+  return closest;
+}
 
-  if (closest) {
-    const room = ROOM_BY_NUMBER.get(closest.dataset.number);
-    if (room) updateSelectedRoomState(room, true);
-  }
+function updateNumberFromScroll() {
+  const closest = closestCarouselItem();
+  if (!closest) return;
+  const room = ROOM_BY_NUMBER.get(closest.dataset.number);
+  if (!room) return;
+  if (activeCarouselItem) activeCarouselItem.classList.remove('active');
+  closest.classList.add('active');
+  closest.classList.toggle('empty-room', room.expiryStatus === 'empty');
+  activeCarouselItem = closest;
+}
+
+function schedulePinnedCarouselReturn() {
+  clearTimeout(carouselReturnTimer);
+  carouselReturnTimer = setTimeout(() => {
+    carouselReturnTimer = null;
+    if (!pinnedRoomNumber || !carouselItems.has(pinnedRoomNumber)) return;
+    const centered = closestCarouselItem();
+    if (String(centered?.dataset.number || '') !== String(pinnedRoomNumber)) {
+      selectRoomByNumber(pinnedRoomNumber, false, 'smooth', false);
+    }
+  }, 3000);
 }
 
 carousel.addEventListener('scroll', () => {
   updateNumberFromScroll();
   clearTimeout(snapTimer);
-  snapTimer = setTimeout(() => updateNumberFromScroll(), 80);
+  snapTimer = setTimeout(updateNumberFromScroll, 80);
+  schedulePinnedCarouselReturn();
 }, { passive: true });
 
 carousel.addEventListener('click', event => {
@@ -3996,10 +3899,13 @@ function renderDrawerRooms(filterQuery = '') {
   const roomsToShow = listMode
     ? ALL_ROOMS.filter(room => listNumbers.has(String(room.number)))
     : ALL_ROOMS;
+  const floorOrder = listMode && departureSort === 'desc' ? [...FLOORS].reverse() : FLOORS;
 
-  sheetContent.classList.toggle('departure-list-mode', listMode);
   sheetListToolbar.classList.toggle('hidden', !hasActiveList);
-  if (!hasActiveList) sheetAddRoomForm.classList.add('hidden');
+  sheetSortOrder.hidden = !listMode;
+  sheetSortOrder.dataset.order = departureSort;
+  sheetSortOrder.setAttribute('aria-label',
+    'Порядок списка: ' + (departureSort === 'desc' ? 'снизу вверх' : 'сверху вниз') + '. Нажмите, чтобы изменить');
   sheetListToolbar.querySelectorAll('[data-sheet-view]').forEach(button => {
     button.classList.toggle('active', button.dataset.sheetView === drawerMode);
     button.setAttribute('aria-pressed', String(button.dataset.sheetView === drawerMode));
@@ -4009,10 +3915,12 @@ function renderDrawerRooms(filterQuery = '') {
     ? roomsToShow.length + ' номеров осталось'
     : (hasActiveList ? listNumbers.size + ' номеров в списке · все номера отеля' : ALL_ROOMS.length + ' номеров из базы данных');
 
-  for (const floorNum of FLOORS) {
+  for (const floorNum of floorOrder) {
     const floorRooms = roomsToShow.filter(room =>
       Number(room.floor) === Number(floorNum) && String(room.number).includes(q)
-    );
+    ).sort((a, b) => listMode && departureSort === 'desc'
+      ? Number(b.number) - Number(a.number)
+      : Number(a.number) - Number(b.number));
     if (!floorRooms.length) continue;
     hasAny = true;
     parts.push(`<div class="floor-section">
@@ -4022,28 +3930,20 @@ function renderDrawerRooms(filterQuery = '') {
       </div>
       <div class="room-grid">${floorRooms.map(room => {
         const number = String(room.number);
-        const inList = hasActiveList && listNumbers.has(number);
         const checked = checkedNumbers.has(number);
-        const arrival = inList && arrivalNumbers.has(number);
         const classes = [
           'room-chip',
           room.expiryStatus === 'empty' ? 'empty-room' : '',
           number === String(selectedRoom?.number || '') ? 'selected' : '',
-          inList ? 'in-departure-list' : '',
           checked ? 'today-checked' : ''
         ].filter(Boolean).join(' ');
         const safeNumber = escapeCameraHtml(number);
-        const arrivalControl = listMode
-          ? '<button type="button" class="room-chip-arrival' + (arrival ? ' is-marked' : '') +
-            '" data-departure-arrival="' + safeNumber + '" aria-pressed="' + String(arrival) + '">' +
-            (arrival ? '✓ На заезд' : '+ На заезд') + '</button>'
-          : (arrival ? '<span class="room-chip-mark">На заезд</span>' : '');
         const removeControl = listMode
           ? '<button type="button" class="room-chip-remove" data-departure-remove="' + safeNumber +
             '" aria-label="Убрать номер ' + safeNumber + ' из списка">×</button>'
           : '';
         return '<div class="' + classes + '" data-room-number="' + safeNumber + '">' +
-          '<span>' + safeNumber + '</span>' + arrivalControl + removeControl + '</div>';
+          '<span>' + safeNumber + '</span>' + removeControl + '</div>';
       }).join('')}
       </div>
     </div>`);
@@ -4500,19 +4400,14 @@ sheetListToolbar.addEventListener('click', event => {
   drawerMode = button.dataset.sheetView === 'list' ? 'list' : 'all';
   renderDrawerRooms(sheetSearch.value);
 });
-sheetAddRoomToggle.addEventListener('click', () => {
-  if (activeListKey !== 'departures') return;
-  sheetAddRoomForm.classList.toggle('hidden');
-  if (!sheetAddRoomForm.classList.contains('hidden')) sheetAddRoomInput.focus();
-});
-sheetAddRoomForm.addEventListener('submit', event => { void submitDepartureRoomAdd(event); });
-document.getElementById('btnReturnToAll').addEventListener('click', deactivateActiveList);
-document.getElementById('homeDepartureSort').addEventListener('change', event => {
-  departureSort = event.target.value === 'desc' ? 'desc' : 'asc';
+sheetSortOrder.addEventListener('click', () => {
+  if (activeListKey !== 'departures' || drawerMode !== 'list') return;
+  departureSort = departureSort === 'asc' ? 'desc' : 'asc';
   try { localStorage.setItem('minibar-departure-sort-v1', departureSort); } catch (_) {}
-  if (activeListKey === 'departures') buildCarousel(selectedRoom?.number);
-  renderHomeListControls();
+  renderDrawerRooms(sheetSearch.value);
+  buildCarousel(selectedRoom?.number);
 });
+
 
 navPlaceholderBody.addEventListener('click', event => {
   if (event.target.closest('[data-select-departures-list]')) activateDepartureList();
@@ -4526,25 +4421,12 @@ sheetContent.addEventListener('click', event => {
     return;
   }
 
-  const arrivalButton = event.target.closest('[data-departure-arrival]');
-  if (arrivalButton) {
-    event.preventDefault();
-    event.stopPropagation();
-    void updateDepartureListRoom(
-      arrivalButton.dataset.departureArrival,
-      'arrival',
-      arrivalButton.getAttribute('aria-pressed') !== 'true'
-    );
-    return;
-  }
-
   const chip = event.target.closest('.room-chip');
   if (!chip) return;
   const number = String(chip.dataset.roomNumber);
-  if (activeListKey === 'departures' && !currentDepartureNumbers().has(number)) {
-    showMessage(checkedTodayNumbers().has(number)
-      ? 'Номер уже проверен сегодня'
-      : 'Номер не входит в список. Добавьте его через «+ Добавить».', 2800);
+  if (activeListKey === 'departures' && drawerMode === 'all' &&
+      !currentDepartureNumbers().has(number)) {
+    void updateDepartureListRoom(number, 'add', undefined, { closeSheet: true });
     return;
   }
   selectRoomByNumber(number, true);
