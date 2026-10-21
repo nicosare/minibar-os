@@ -329,6 +329,10 @@
     text-shadow: 0 0 12px rgba(76, 199, 244, 0.3);
   }
   .num-item.pinned.empty-room { color: #4cc7f4; }
+  .num-item.active.today-checked:not(.empty-room),
+  .num-item.pinned.today-checked:not(.empty-room) { color: #4ade80; }
+  .num-item.active.today-checked:not(.empty-room) { text-shadow: 0 0 12px rgba(74, 222, 128, .3); }
+  .num-item.pinned.today-checked:not(.empty-room)::after { border-color: rgba(74, 222, 128, .95); }
 
   /* Standby information is modular; the viewfinder itself remains unchanged. */
   .camera-info-panel {
@@ -625,6 +629,25 @@
     gap: 8px;
   }
 
+  .desc-room-remove {
+    flex: 0 0 26px;
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 8px;
+    background: transparent;
+    color: rgba(255,255,255,.42);
+    font-size: 19px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .desc-room-remove[hidden] { display: none; }
+  .desc-room-remove:active { color: rgba(255,120,125,.95); border-color: rgba(255,120,125,.45); }
+
   .desc-title {
     min-width: 0;
     font-size: 14px;
@@ -826,7 +849,7 @@
     margin-top: 10px;
     margin-bottom: 10px;
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
   }
 
@@ -856,6 +879,11 @@
     border: 1px solid var(--yellow);
     background: var(--yellow);
     color: #000;
+  }
+  .room-action-row #btnResidential {
+    border: 1px solid rgba(74,222,128,.48);
+    background: rgba(34,197,94,.13);
+    color: #86efac;
   }
 
   .btn-side {
@@ -1448,6 +1476,7 @@
           <div class="room-description-box" id="roomDescription">
             <div class="desc-header">
               <span class="desc-title" id="descRoomTitle">Номер 500</span>
+              <button type="button" class="desc-room-remove" id="descRoomRemove" aria-label="Убрать номер из списка" title="Убрать из списка" hidden>×</button>
               <span class="desc-tag" id="descRoomTag">5 этаж</span>
             </div>
           </div>
@@ -1480,8 +1509,9 @@
     </div>
 
     <div class="room-action-row" aria-label="Действия с номером">
-      <button class="btn-side danger room-action-button" id="btnEmpty" type="button">Опустошить</button>
+      <button class="btn-side danger room-action-button" id="btnEmpty" type="button">Опустошён</button>
       <button type="button" class="camera-refill-panel room-action-button" id="cameraRefillPanel" aria-label="Открыть выбор продуктов для пополнения">Нужно пополнить</button>
+      <button type="button" class="room-action-button" id="btnResidential" aria-label="Отметить номер как проверенный, жилой">Жилой</button>
     </div>
 
     <!-- Shutter Controls -->
@@ -1739,6 +1769,58 @@ async function loadRooms() {
 }
 
 
+let revisitRoomNumbers = new Set();
+let revisitRoomDateKey = '';
+
+function loadRevisitRoomNumbers(dateKey) {
+  revisitRoomDateKey = String(dateKey || '');
+  try {
+    const storedDate = localStorage.getItem('minibar-miniapp-revisit-date-v1') || '';
+    const storedNumbers = localStorage.getItem('minibar-miniapp-revisit-numbers-v1') || '[]';
+    revisitRoomNumbers = storedDate === revisitRoomDateKey
+      ? new Set(JSON.parse(storedNumbers).map(String))
+      : new Set();
+  } catch (_) {
+    revisitRoomNumbers = new Set();
+  }
+}
+
+function persistRevisitRoomNumbers() {
+  try {
+    localStorage.setItem('minibar-miniapp-revisit-date-v1', revisitRoomDateKey);
+    localStorage.setItem('minibar-miniapp-revisit-numbers-v1', JSON.stringify([...revisitRoomNumbers]));
+  } catch (_) {}
+}
+
+function addRoomForReview(number) {
+  const cleanNumber = String(number);
+  if (!checkedTodayNumbers().has(cleanNumber)) return false;
+  revisitRoomNumbers.add(cleanNumber);
+  persistRevisitRoomNumbers();
+  buildCarousel(cleanNumber);
+  closeSheet();
+  showMessage('Номер ' + cleanNumber + ' возвращён в карусель', 1900);
+  return true;
+}
+
+function removeRoomFromPersonalList(number) {
+  const cleanNumber = String(number);
+  if (checkedTodayNumbers().has(cleanNumber)) {
+    revisitRoomNumbers.delete(cleanNumber);
+    persistRevisitRoomNumbers();
+    const remaining = visibleCarouselRooms();
+    if (activeListKey === 'departures' && remaining.length) {
+      buildCarousel(nextCarouselNumber(cleanNumber, remaining));
+    } else {
+      renderDrawerRooms(sheetSearch.value);
+      updateQueueDisplay();
+    }
+    showMessage('Номер ' + cleanNumber + ' убран из личного списка', 1900);
+    return;
+  }
+  void updateDepartureListRoom(cleanNumber, 'remove');
+}
+
 function currentDepartureNumbers() {
   return new Set((departureList.roomNumbers || []).map(String));
 }
@@ -1754,8 +1836,10 @@ function arrivalMarked(number) {
 function visibleCarouselRooms() {
   if (activeListKey !== 'departures') return ALL_ROOMS;
   const members = currentDepartureNumbers();
+  const checked = checkedTodayNumbers();
   return ALL_ROOMS
-    .filter(room => members.has(String(room.number)))
+    .filter(room => members.has(String(room.number)) ||
+      (revisitRoomNumbers.has(String(room.number)) && checked.has(String(room.number))))
     .sort((a, b) => { const d = departureSort === 'desc' ? -1 : 1; return d * (Number(a.floor) - Number(b.floor) || Number(a.number) - Number(b.number)); });
 }
 
@@ -1808,6 +1892,13 @@ function applyDepartureList(data, preferredNumber = null) {
     arrivalRooms: [...new Set((Array.isArray(data.arrivalRooms) ? data.arrivalRooms : []).map(String))],
     overrides: data.overrides && typeof data.overrides === 'object' ? data.overrides : {}
   };
+  if (previousDateKey !== departureList.dateKey || revisitRoomDateKey !== departureList.dateKey) {
+    loadRevisitRoomNumbers(departureList.dateKey);
+  }
+  revisitRoomNumbers = new Set([...revisitRoomNumbers].filter(number =>
+    checkedTodayNumbers().has(number) && ROOM_BY_NUMBER.has(number)
+  ));
+  persistRevisitRoomNumbers();
 
   let expiredSelection = false;
   if (activeListKey === 'departures' && activeListDateKey &&
@@ -2147,6 +2238,7 @@ const captureBtn = document.getElementById('captureBtn');
 const btnRetake = document.getElementById('btnRetake');
 const btnSend = document.getElementById('btnSend');
 const btnEmpty = document.getElementById('btnEmpty');
+const btnResidential = document.getElementById('btnResidential');
 const cameraActions = document.getElementById('cameraActions');
 const previewActions = document.getElementById('previewActions');
 const carouselWrap = document.getElementById('carouselWrap');
@@ -2157,6 +2249,7 @@ const uploadStatus = document.getElementById('uploadStatus');
 const cameraInfoPanel = document.getElementById('cameraInfoPanel');
 const roomHistoryItems = document.getElementById('roomHistoryItems');
 const descRoomTitle = document.getElementById('descRoomTitle');
+const descRoomRemove = document.getElementById('descRoomRemove');
 const descRoomTag = document.getElementById('descRoomTag');
 const cameraDeadlinePanel = document.getElementById('cameraDeadlinePanel');
 const cameraDeadlineStatus = document.getElementById('cameraDeadlineStatus');
@@ -3783,9 +3876,13 @@ function updateSelectedRoomState(room, vibrate = false) {
   const changed = selectedRoom !== room;
   selectedRoom = room;
 
+  const checkedNumbers = checkedTodayNumbers();
   ALL_ROOMS.forEach(item => {
     const carouselItem = carouselItems.get(item.number);
-    if (carouselItem) carouselItem.classList.toggle('empty-room', item.expiryStatus === 'empty');
+    if (carouselItem) {
+      carouselItem.classList.toggle('empty-room', item.expiryStatus === 'empty');
+      carouselItem.classList.toggle('today-checked', checkedNumbers.has(String(item.number)));
+    }
   });
   if (activeCarouselItem) activeCarouselItem.classList.remove('active');
   const currentItem = carouselItems.get(room.number);
@@ -3795,6 +3892,8 @@ function updateSelectedRoomState(room, vibrate = false) {
     activeCarouselItem = currentItem;
   }
   updatePinnedCarouselItem();
+  descRoomRemove.hidden = activeListKey !== 'departures' ||
+    (!currentDepartureNumbers().has(String(room.number)) && !revisitRoomNumbers.has(String(room.number)));
 
   descRoomTitle.textContent = 'Номер ' + room.number;
   const categoryLabel = normalizeRoomType(room) === 'suite' ? 'Люкс' : 'Стандарт';
@@ -4415,6 +4514,12 @@ sheetSortOrder.addEventListener('click', () => {
 navPlaceholderBody.addEventListener('click', event => {
   if (event.target.closest('[data-select-departures-list]')) activateDepartureList();
 });
+descRoomRemove.addEventListener('click', event => {
+  event.preventDefault();
+  event.stopPropagation();
+  if (selectedRoom?.number) removeRoomFromPersonalList(selectedRoom.number);
+});
+
 sheetContent.addEventListener('click', event => {
   const removeButton = event.target.closest('[data-departure-remove]');
   if (removeButton) {
@@ -4429,7 +4534,11 @@ sheetContent.addEventListener('click', event => {
   const number = String(chip.dataset.roomNumber);
   if (activeListKey === 'departures' && drawerMode === 'all' &&
       !currentDepartureNumbers().has(number)) {
-    void updateDepartureListRoom(number, 'add', undefined, { closeSheet: true });
+    if (checkedTodayNumbers().has(number)) {
+      addRoomForReview(number);
+    } else {
+      void updateDepartureListRoom(number, 'add', undefined, { closeSheet: true });
+    }
     return;
   }
   selectRoomByNumber(number, true);
@@ -4905,6 +5014,37 @@ btnSend.addEventListener('click', () => {
   void flushPendingPhotoWrites();
 });
 
+async function sendRoomMessage(messageText, busyButton, roomNumber, actionLabel) {
+  if (busyButton.classList.contains('busy')) return;
+  if (!roomNumber) {
+    showMessage('Сначала выберите номер');
+    return;
+  }
+  setBusy(busyButton, true);
+  try {
+    triggerHaptic();
+    const response = await fetch('/minibar-os/vk-proxy/send-message', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      },
+      body: JSON.stringify({ message: messageText })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.error || 'Не удалось отправить сообщение в беседу');
+    }
+    showMessage(actionLabel + ' · номер ' + roomNumber, 2200);
+    await refreshDepartureList();
+  } catch (error) {
+    console.error('[MINIBAR] Не удалось отправить сообщение по номеру:', error);
+    showMessage(error?.message || 'Не удалось отправить сообщение', 4000);
+  } finally {
+    setBusy(busyButton, false);
+  }
+}
+
 btnEmpty.addEventListener('click', async () => {
   if (btnEmpty.classList.contains('busy')) return;
 
@@ -4914,33 +5054,16 @@ btnEmpty.addEventListener('click', async () => {
   }
 
   const roomNumber = String(selectedRoom.number);
-  const requestMessage = roomNumber + ' опустошён';
-  setBusy(btnEmpty, true);
+  await sendRoomMessage(roomNumber + ' опустошён', btnEmpty, roomNumber, 'Опустошение отправлено');
+});
 
-  try {
-    triggerHaptic();
-    const response = await fetch('/minibar-os/vk-proxy/send-message', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json'
-      },
-      body: JSON.stringify({ message: requestMessage })
-    });
-
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data?.ok) {
-      throw new Error(data?.error || 'Не удалось отправить сообщение в беседу');
-    }
-
-    showMessage('Сообщение по номеру ' + roomNumber + ' отправлено', 2200);
-    await refreshDepartureList();
-  } catch (error) {
-    console.error('[MINIBAR] Не удалось отправить сообщение об опустошении:', error);
-    showMessage(error?.message || 'Не удалось отправить сообщение', 4000);
-  } finally {
-    setBusy(btnEmpty, false);
+btnResidential.addEventListener('click', async () => {
+  if (!selectedRoom?.number) {
+    showMessage('Сначала выберите номер');
+    return;
   }
+  const roomNumber = String(selectedRoom.number);
+  await sendRoomMessage(roomNumber + ' проверен, жилой', btnResidential, roomNumber, 'Отметка «Жилой» отправлена');
 });
 
 loaderRetry.addEventListener('click', () => { void takePhoto(); });
