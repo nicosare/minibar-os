@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { processVkBotMessage } from '../services/vkBot.js';
+import { publishDataChanged } from '../lib/live-events.js';
 
 const router = Router();
 
@@ -34,6 +35,15 @@ router.post('/events', async (req, res) => {
       occurredAt: body.occurredAt ?? null
     });
 
+    if (result?.status === 'processed' && Array.isArray(result.rooms) && result.rooms.length) {
+      publishDataChanged({
+        models: ['Setting', 'Room', 'Check'],
+        actions: ['deleteMany', 'update', 'create'],
+        source: 'vk-bot',
+        path: '/api/vk-bot/events',
+        domains: ['refills', 'rooms', 'deadlines', 'history', 'miniapp']
+      });
+    }
     return res.json(result);
   } catch (error) {
     console.error('POST /api/vk-bot/events error:', error);
