@@ -2043,10 +2043,10 @@ function aggregateActiveRefills() {
     if(options.size!==1)continue;
     const recipe=new Map(),option=[...options.values()][0];
     option.items.forEach(item=>{const key=refillItemKey(item),qty=Math.max(1,Number(item.qty)||1);recipe.set(key,(recipe.get(key)||0)+qty)});
-    if(recipe.size)recipes.push({type,name:type==='suite'?'Корзинка люкс':'Корзинка стандарт',recipe});
+    if(recipe.size)recipes.push({type,name:type==='suite'?'Корзинка люкс':'Корзинка стандарт',recipe,roomCount:option.count});
   }
   const possible=recipes.map(candidate=>{
-    let max=requests.length;
+    let max=Math.min(requests.length,Number(candidate.roomCount)||requests.length);
     for(const [key,qty] of candidate.recipe)max=Math.min(max,Math.floor((available.get(key)||0)/qty));
     return Math.max(0,max);
   });
