@@ -2379,6 +2379,7 @@ let refillCurrentRequestId = null;
 let refillModalBusy = false;
 const activeRefillsByNumber = new Map();
 let previewRefillRequestId = null;
+let previewRoomNumber = null;
 const gihCreateModal = document.getElementById('gihCreateModal');
 const gihCreateRoomNumber = document.getElementById('gihCreateRoomNumber');
 const gihCreateProducts = document.getElementById('gihCreateProducts');
@@ -3451,6 +3452,7 @@ function resetPhoto() {
   previewBlobPromise = null;
   previewRequestId = null;
   previewRefillRequestId = null;
+  previewRoomNumber = null;
   void stopCamera();
 
   previewActions.classList.add('hidden');
@@ -4443,21 +4445,36 @@ function setRefillFeedback(text, visible = true) {
 }
 function renderRefillProducts(room, existingRequest = null) {
   const byId = new Map();
-  (room?.template?.items || []).forEach(item => {
-    const product = item.product || {};
-    const id = Number(item.productId || product.id);
-    if (!id) return;
-    byId.set(id, {id, maxQty:Math.max(1,Number(item.qty)||1), product, snapshotOnly:false});
-  });
-  (existingRequest?.items || []).forEach(item => {
-    const id = Number(item.productId);
-    if (!id || byId.has(id)) return;
-    byId.set(id, {
-      id, maxQty:Math.max(1,Number(item.qty)||1),
-      product:{id,name:item.name,category:item.category,volume:item.volume,unit:item.unit,emoji:item.emoji,bgColor:item.bgColor},
-      snapshotOnly:true
+  const existingItems = Array.isArray(existingRequest?.items) ? existingRequest.items : [];
+  if (existingRequest?.allProducts) {
+    existingItems.forEach(item => {
+      const id = Number(item.productId);
+      if (!id) return;
+      byId.set(id, {
+        id, maxQty:Math.max(1,Number(item.maxQty)||Number(item.qty)||1),
+        product:{id,name:item.name,category:item.category,volume:item.volume,unit:item.unit,emoji:item.emoji,bgColor:item.bgColor},
+        snapshotOnly:false
+      });
     });
-  });
+  } else {
+    (room?.template?.items || []).forEach(item => {
+      const product = item.product || {};
+      const id = Number(item.productId || product.id);
+      if (!id) return;
+      byId.set(id, {id, maxQty:Math.max(1,Number(item.qty)||1), product, snapshotOnly:false});
+    });
+    existingItems.forEach(item => {
+      const id = Number(item.productId);
+      if (!id) return;
+      const templateItem = byId.get(id);
+      byId.set(id, {
+        id,
+        maxQty:Math.max(1,Number(item.maxQty)||Number(templateItem?.maxQty)||Number(item.qty)||1),
+        product:{id,name:item.name,category:item.category,volume:item.volume,unit:item.unit,emoji:item.emoji,bgColor:item.bgColor},
+        snapshotOnly: !templateItem
+      });
+    });
+  }
   if (!byId.size) {
     refillModalProducts.innerHTML = '<div class="camera-deadline-empty">У этого номера нет продуктов в шаблоне наполнения.</div>';
     return;
@@ -4540,7 +4557,12 @@ async function saveRefillRequest() {
   try {
     const result = await deadlineApiRequest('/refills', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({roomId,allProducts:refillAllProducts,items})
+      body:JSON.stringify({
+        roomId,
+        allProducts:refillAllProducts,
+        expectedRequestId: refillCurrentRequestId,
+        items
+      })
     });
     if (result.request?.status === 'cancelled') activeRefillsByNumber.delete(String(selectedRoom.number));
     else activeRefillsByNumber.set(String(selectedRoom.number), result.request);
@@ -4800,7 +4822,8 @@ sheetContent.addEventListener('click', event => {
 /* Actions */
 async function takePhoto() {
   if (isCapturing || isPreview) return;
-  const refillRequestAtCapture = activeRefillsByNumber.get(String(selectedRoom?.number || ''))?.id || null;
+  const roomNumberAtCapture = String(selectedRoom?.number || '').trim();
+  const refillRequestAtCapture = activeRefillsByNumber.get(roomNumberAtCapture)?.id || null;
 
   isCapturing = true;
   setBusy(captureBtn, true);
@@ -4848,6 +4871,7 @@ async function takePhoto() {
     showPreviewFromCanvas();
     previewRequestId = String(Math.floor(Math.random() * 2147483647) + 1);
     previewRefillRequestId = refillRequestAtCapture;
+    previewRoomNumber = roomNumberAtCapture;
     encodePreviewBlob();
   } catch (error) {
     console.warn('[MINIBAR CAMERA] Capture failed:', error);
@@ -5285,7 +5309,7 @@ document.addEventListener('visibilitychange', () => {
 btnSend.addEventListener('click', () => {
   if (!isPreview || btnSend.classList.contains('busy')) return;
 
-  const roomNumber = String(selectedRoom?.number || '').trim();
+  const roomNumber = String(previewRoomNumber || selectedRoom?.number || '').trim();
   const requestId = previewRequestId;
   const blobPromise = Promise.resolve(
     previewBlob || (previewBlobPromise ? previewBlobPromise : null)

@@ -36,7 +36,8 @@ function serializeRecord(record) {
       unit: item.unit || 'шт',
       emoji: item.emoji || null,
       bgColor: item.bgColor || 'slate',
-      qty: Math.max(0, Number(item.qty) || 0)
+      qty: Math.max(0, Number(item.qty) || 0),
+      maxQty: Math.max(1, Number(item.maxQty) || Number(item.qty) || 1)
     }))
   };
 }
@@ -118,6 +119,12 @@ router.post('/', async (req, res) => {
     const roomId = Number.parseInt(req.body?.roomId, 10);
     const allProducts = req.body?.allProducts === true;
     const requestedItems = Array.isArray(req.body?.items) ? req.body.items : [];
+    const hasExpectedRequest = Object.prototype.hasOwnProperty.call(req.body || {}, 'expectedRequestId');
+    const expectedRequestId = req.body?.expectedRequestId == null ? null : Number(req.body.expectedRequestId);
+    if (hasExpectedRequest && expectedRequestId !== null &&
+        (!Number.isSafeInteger(expectedRequestId) || expectedRequestId <= 0)) {
+      return res.status(400).json({ error: 'Некорректная версия пополнения' });
+    }
     if (!Number.isInteger(roomId) || roomId <= 0) {
       return res.status(400).json({ error: 'Некорректный номер комнаты' });
     }
@@ -137,6 +144,11 @@ router.post('/', async (req, res) => {
       const key = activeKey(roomId);
       const stored = await tx.setting.findUnique({ where: { key } });
       const existing = parseRecord(stored);
+      if (hasExpectedRequest && (existing ? Number(existing.id) : null) !== expectedRequestId) {
+        const error = new Error('Потребность изменилась с момента открытия. Закрой окно и открой пополнение ещё раз.');
+        error.statusCode = 409;
+        throw error;
+      }
       const templateItems = (room.template?.items || [])
         .filter(item => item.product && item.product.isActive)
         .map(item => ({
@@ -147,10 +159,23 @@ router.post('/', async (req, res) => {
       const templateByProduct = new Map(templateItems.map(item => [item.productId, item]));
       let normalized;
 
-      if (allProducts) {
+      if (allProducts && existing?.allProducts && Array.isArray(existing.items)) {
+        normalized = existing.items.map(item => ({
+          productId: Number(item.productId),
+          qty: Number(item.qty),
+          maxQty: Math.max(1, Number(item.maxQty) || Number(item.qty) || 1),
+          name: item.name,
+          category: item.category || 'Напитки',
+          volume: item.volume ?? null,
+          unit: item.unit || 'шт',
+          emoji: item.emoji || null,
+          bgColor: item.bgColor || 'slate'
+        }));
+      } else if (allProducts) {
         normalized = templateItems.map(item => ({
           productId: item.productId,
           qty: item.qty,
+          maxQty: item.qty,
           name: item.product.name,
           category: item.product.category || 'Напитки',
           volume: item.product.volume ?? null,
@@ -181,6 +206,25 @@ router.post('/', async (req, res) => {
         normalized = [];
         for (const [productId, qty] of unique) {
           const current = templateByProduct.get(productId);
+          const previous = previousByProduct.get(productId);
+          if (previous) {
+            const maxQty = Math.max(1, Number(previous.maxQty) || Number(previous.qty) || 1);
+            if (qty > maxQty) {
+              const error = new Error('Количество превышает сохранённый шаблон наполнения номера');
+              error.statusCode = 400;
+              throw error;
+            }
+            normalized.push({
+              productId, qty, maxQty,
+              name: previous.name,
+              category: previous.category || 'Напитки',
+              volume: previous.volume ?? null,
+              unit: previous.unit || 'шт',
+              emoji: previous.emoji || null,
+              bgColor: previous.bgColor || 'slate'
+            });
+            continue;
+          }
           if (current) {
             if (qty > current.qty) {
               const error = new Error('Количество превышает шаблон наполнения номера');
@@ -188,7 +232,7 @@ router.post('/', async (req, res) => {
               throw error;
             }
             normalized.push({
-              productId, qty,
+              productId, qty, maxQty: current.qty,
               name: current.product.name,
               category: current.product.category || 'Напитки',
               volume: current.product.volume ?? null,
@@ -198,7 +242,6 @@ router.post('/', async (req, res) => {
             });
             continue;
           }
-          const previous = previousByProduct.get(productId);
           if (!previous || qty > Number(previous.qty)) {
             const error = new Error('Продукта больше нет в шаблоне номера. Обнови список и попробуй снова.');
             error.statusCode = 409;
@@ -236,7 +279,10 @@ router.post('/', async (req, res) => {
         allProducts,
         createdAt: existing?.createdAt || now,
         updatedAt: now,
-        items: normalized
+        items: normalized.map(item => ({
+          ...item,
+          maxQty: Math.max(1, Number(item.maxQty) || Number(item.qty) || 1)
+        }))
       };
       await tx.setting.upsert({
         where: { key },
