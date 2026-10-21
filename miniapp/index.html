@@ -2333,7 +2333,7 @@ function renderRefillSection() {
             ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10l-1 18H8L7 3Z"/><path d="M9 3l2 5M14 3l-2 5M9 13h6"/></svg>'
             : (String(product.category||'').toLowerCase().includes('алког')
               ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6v4l2 3v10H7V10l2-3V3Z"/><path d="M9 7h6M8 14h8"/></svg>'
-              : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6v3l2 2v12H7V8l2-2V3Z"/><path d="M9 6h6M8 14h8"/></svg>'));
+              : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6v3l2 2v12H7V8l2-2V3Z"/><path d="M9 6h6M8 14h8"/></svg>')));
       const color=product.basket?'rgba(255,177,110,.16)':(CAMERA_DEADLINE_PRODUCT_COLORS[product.bgColor]||CAMERA_DEADLINE_PRODUCT_COLORS.slate);
       const iconColor=product.basket?'#ffb16e':'#18202a';
       return '<div class="sheet-refill-product"><span class="sheet-refill-product-icon" style="background:'+color+';color:'+iconColor+'">'+icon+'</span>'+
