@@ -1348,10 +1348,13 @@
   .sheet-refill-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding-bottom:9px; border-bottom:1px solid rgba(251,146,60,.16); }
   .sheet-refill-title { color:#ffb16e; font-size:13px; font-weight:850; line-height:17px; }
   .sheet-refill-count { color:rgba(255,190,130,.75); font-size:10px; font-weight:750; white-space:nowrap; }
-  .sheet-refill-products { display:flex; flex-direction:column; gap:7px; margin-top:10px; }
-  .sheet-refill-product { display:grid; grid-template-columns:max-content max-content; align-items:baseline; justify-content:start; column-gap:8px; width:100%; }
-  .sheet-refill-product-name { color:rgba(255,255,255,.88); font-size:12px; line-height:16px; min-width:0; overflow-wrap:normal; word-break:normal; }
-  .sheet-refill-product-qty { color:#ffb16e; font-size:12px; line-height:16px; font-weight:850; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .sheet-refill-products { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:12px; }
+  .sheet-refill-product { position:relative; min-width:0; min-height:60px; display:flex; align-items:center; gap:9px; padding:9px 30px 9px 9px; border:1px solid rgba(255,255,255,.09); border-radius:11px; background:rgba(255,255,255,.045); }
+  .sheet-refill-product-icon { flex:0 0 auto; width:31px; height:31px; display:flex; align-items:center; justify-content:center; border-radius:8px; font-size:17px; }
+  .sheet-refill-product-icon svg { width:19px; height:19px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .sheet-refill-product-name { display:block; min-width:0; color:rgba(255,255,255,.9); font-size:11px; line-height:14px; font-weight:700; overflow-wrap:anywhere; }
+  .sheet-refill-product-qty { position:absolute; top:5px; right:5px; min-width:20px; height:20px; display:flex; align-items:center; justify-content:center; padding:0 5px; border:2px solid #171719; border-radius:11px; background:#ffb16e; color:#24170d; font-size:10px; line-height:12px; font-weight:900; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  @media(max-width:360px){ .sheet-refill-products { grid-template-columns:minmax(0,1fr); } }
   .sheet-refill-room-lines { display:flex; flex-direction:column; gap:5px; margin-top:12px; padding-top:10px; border-top:1px solid rgba(255,255,255,.08); }
   .sheet-refill-room-line { display:flex; align-items:flex-start; gap:8px; width:100%; padding:3px 0; border:0; background:transparent; color:rgba(255,255,255,.7); text-align:left; font-size:10px; line-height:14px; cursor:pointer; }
   .sheet-refill-room-line:active { color:#ffb16e; }
@@ -2132,6 +2135,9 @@ function aggregateActiveRefills() {
       });
     }
     grouped.get(key).qty += qty;
+    const aggregatedProduct = grouped.get(key);
+    if (!aggregatedProduct.emoji && item.emoji) aggregatedProduct.emoji = item.emoji;
+    if (!aggregatedProduct.bgColor && item.bgColor) aggregatedProduct.bgColor = item.bgColor;
   }
 
   for (const request of requests) {
@@ -2318,8 +2324,15 @@ function aggregateActiveRefills() {
 function renderRefillSection() {
   const summary=aggregateActiveRefills();
   const productsHtml=summary.products.length
-    ? '<div class="sheet-refill-products">'+summary.products.map(product=>'<div class="sheet-refill-product"><span class="sheet-refill-product-name">'+
-      escapeCameraHtml(product.name)+'</span><span class="sheet-refill-product-qty">'+product.qty+' шт.</span></div>').join('')+'</div>'
+    ? '<div class="sheet-refill-products">'+summary.products.map(product=>{
+      const icon=product.basket
+        ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 10 2 10h12l2-10H4Z"/><path d="m8 10 4-6 4 6M8 14v3M12 14v3M16 14v3"/></svg>'
+        : escapeCameraHtml(product.emoji || String(product.name||'?').charAt(0).toUpperCase());
+      const color=product.basket?'rgba(255,177,110,.16)':(CAMERA_DEADLINE_PRODUCT_COLORS[product.bgColor]||CAMERA_DEADLINE_PRODUCT_COLORS.slate);
+      const iconColor=product.basket?'#ffb16e':'#18202a';
+      return '<div class="sheet-refill-product"><span class="sheet-refill-product-icon" style="background:'+color+';color:'+iconColor+'">'+icon+'</span>'+
+        '<span class="sheet-refill-product-name">'+escapeCameraHtml(product.name)+'</span><span class="sheet-refill-product-qty">'+product.qty+'</span></div>';
+    }).join('')+'</div>'
     : '<div class="sheet-refill-empty">'+(summary.roomLines.length
       ? 'Нет товаров в заявках на пополнение.'
       : 'Нет номеров, ожидающих пополнения.')+'</div>';
