@@ -1937,13 +1937,6 @@ function renderDepartureListCard() {
         '<div class="mini-departure-progress-track" role="progressbar" aria-label="Прогресс проверок" aria-valuemin="0" aria-valuemax="' +
           total + '" aria-valuenow="' + Math.min(completed, total) + '"><span style="width:' + progress + '%"></span></div>' +
       '</div>' +
-      '<div class="mini-departure-card-stats">' +
-        '<span class="mini-departure-card-number">' + remaining + '</span>' +
-        '<span class="mini-departure-card-label">осталось</span>' +
-        '<span class="mini-departure-card-separator"></span>' +
-        '<span class="mini-departure-card-number">' + completed + '</span>' +
-        '<span class="mini-departure-card-label">проверено</span>' +
-      '</div>' +
     '</button>' +
     (!departureList.sourceReady && total === 0
       ? '<div class="mini-departure-empty-note">Загрузите PDF со списком на сайте.</div>'
