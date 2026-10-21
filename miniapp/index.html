@@ -335,6 +335,10 @@
   .num-item.pinned.today-checked:not(.empty-room) { color: #4ade80; }
   .num-item.active.today-checked:not(.empty-room) { text-shadow: 0 0 12px rgba(74, 222, 128, .3); }
   .num-item.pinned.today-checked:not(.empty-room)::after { border-color: rgba(74, 222, 128, .95); }
+  .num-item.needs-refill { color: rgba(251, 146, 60, .56); }
+  .num-item.active.needs-refill, .num-item.pinned.needs-refill { color: #fb923c; }
+  .num-item.active.needs-refill { text-shadow: 0 0 12px rgba(251, 146, 60, .3); }
+  .num-item.pinned.needs-refill::after { border-color: rgba(251, 146, 60, .95); }
 
   /* Standby information is modular; the viewfinder itself remains unchanged. */
   .camera-info-panel {
@@ -635,7 +639,7 @@
 
   .desc-room-remove {
     position: absolute;
-    left: 0;
+    right: 0;
     top: 50%;
     transform: translateY(-50%);
     flex: 0 0 26px;
@@ -658,7 +662,7 @@
 
   .desc-title {
     min-width: 0;
-    margin-left: 34px;
+    margin-left: 0;
     font-size: 14px;
     font-weight: 800;
     color: #fff;
@@ -667,6 +671,7 @@
   .desc-tag {
     flex: 0 0 auto;
     margin-left: auto;
+    margin-right: 34px;
     font-size: 10px;
     padding: 4px 7px;
     border-radius: 6px;
@@ -1314,6 +1319,23 @@
   .mini-departure-card-label { color: var(--text-dim); font-size: 10px; line-height: 13px; }
   .mini-departure-card-separator { flex: 1 1 auto; min-width: 4px; }
   .mini-departure-empty-note { margin: 9px 2px 0; color: rgba(255,255,255,.42); font-size: 10px; line-height: 14px; }
+  .mini-refill-section { margin-top: 12px; padding: 15px; border: 1px solid rgba(251,146,60,.25); border-radius: 14px; background: linear-gradient(135deg, rgba(251,146,60,.055), #151517 65%); }
+  .mini-refill-head { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:16px; line-height:20px; font-weight:850; }
+  .mini-refill-head-count { color:#fb923c; font-size:10px; font-weight:800; white-space:nowrap; }
+  .mini-refill-stats { margin-top:12px; color:rgba(255,255,255,.58); font-size:10px; line-height:14px; }
+  .mini-refill-products { display:flex; flex-direction:column; gap:11px; margin-top:14px; }
+  .mini-refill-product { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+  .mini-refill-product-main { min-width:0; flex:1; }
+  .mini-refill-product-name { color:rgba(255,255,255,.94); font-size:12px; font-weight:750; line-height:16px; overflow-wrap:anywhere; }
+  .mini-refill-room-list { display:flex; flex-wrap:wrap; gap:4px; margin-top:5px; }
+  .mini-refill-room { padding:3px 6px; border:1px solid rgba(251,146,60,.2); border-radius:6px; background:rgba(251,146,60,.07); color:rgba(255,190,130,.9); font-size:9px; font-weight:750; }
+  .mini-refill-product-qty { flex:0 0 auto; color:#fb923c; font-size:13px; font-weight:850; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .mini-refill-empty { margin-top:12px; color:rgba(255,255,255,.42); font-size:11px; line-height:16px; }
+  .refill-modal-footer { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; padding:12px 15px calc(12px + env(safe-area-inset-bottom)); border-top:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.025); }
+  .refill-modal-all.is-selected { border-color:rgba(251,146,60,.9); background:rgba(251,146,60,.15); color:#ffb16e; }
+  .refill-modal-feedback { display:none; padding:0 15px 8px; color:rgba(255,255,255,.58); font-size:11px; line-height:15px; }
+  .refill-modal-feedback.visible { display:block; }
+  .refill-modal-save { grid-column:1 / -1; }
   @media (max-width: 350px) {
     .mini-departure-list-card { padding: 12px; }
     .mini-departure-card-stats { gap: 5px; }
@@ -1626,14 +1648,20 @@
   </div>
 </div>
 
-<!-- Refill product selection (UI scaffold; no submission behavior yet) -->
-<div class="deadline-modal hidden" id="refillModal" role="dialog" aria-modal="true" aria-label="Нужно пополнить" aria-hidden="true">
+<!-- Persistent product refill request -->
+<div class="deadline-modal hidden" id="refillModal" role="dialog" aria-modal="true" aria-label="Пополнить номер" aria-hidden="true">
   <div class="deadline-modal-card">
     <div class="deadline-modal-header">
-      <div class="deadline-modal-room">Нужно пополнить · номер <span id="refillModalRoomNumber"></span></div>
+      <div class="deadline-modal-room">Пополнить · номер <span id="refillModalRoomNumber"></span></div>
       <button type="button" class="deadline-modal-close" id="refillModalClose" aria-label="Закрыть выбор продуктов">×</button>
     </div>
     <div class="deadline-modal-products" id="refillModalProducts"><div class="camera-deadline-empty">Загрузка продуктов…</div></div>
+    <div class="refill-modal-feedback" id="refillModalFeedback" role="status"></div>
+    <div class="refill-modal-footer">
+      <button type="button" class="deadline-modal-action refill-modal-all" id="refillModalAll" aria-pressed="false">Всё в списке продуктов</button>
+      <button type="button" class="deadline-modal-action reset" id="refillModalClear">Очистить</button>
+      <button type="button" class="deadline-modal-action save refill-modal-save" id="refillModalSave">Сохранить пополнение</button>
+    </div>
   </div>
 </div>
 <!-- Full room history modal -->
@@ -1949,6 +1977,62 @@ async function refreshDepartureList(preferredNumber = null) {
   applyDepartureList(data, preferredNumber);
 }
 
+function activeRefillRequests() {
+  return [...activeRefillsByNumber.values()]
+    .filter(request => request && request.status === 'pending')
+    .sort((a, b) => Number(a.roomNumber) - Number(b.roomNumber));
+}
+
+function aggregateActiveRefills() {
+  const grouped = new Map();
+  let totalUnits = 0;
+  for (const request of activeRefillRequests()) {
+    for (const item of request.items || []) {
+      const qty = Math.max(0, Number(item.qty) || 0);
+      if (!qty) continue;
+      totalUnits += qty;
+      const key = String(item.productId) + '\u001f' + String(item.name || '');
+      if (!grouped.has(key)) {
+        grouped.set(key, {productId:item.productId,name:item.name||'Продукт',category:item.category||'Напитки',unit:item.unit||'шт',qty:0,rooms:[]});
+      }
+      const product = grouped.get(key);
+      product.qty += qty;
+      product.rooms.push({number:String(request.roomNumber),qty});
+    }
+  }
+  return {
+    requests: activeRefillRequests(),
+    products: [...grouped.values()].map(product => ({
+      ...product, rooms: product.rooms.sort((a,b)=>Number(a.number)-Number(b.number))
+    })).sort((a,b)=>(a.category||'').localeCompare(b.category||'','ru')||(a.name||'').localeCompare(b.name||'','ru')),
+    totalUnits
+  };
+}
+
+function renderRefillCarouselStatuses() {
+  carouselItems.forEach((item, number) => {
+    item.classList.toggle('needs-refill', activeRefillsByNumber.has(String(number)));
+  });
+}
+
+async function refreshActiveRefills(roomId = null) {
+  const query = roomId ? '?roomId=' + encodeURIComponent(String(roomId)) : '';
+  const data = await deadlineApiRequest('/refills/active' + query);
+  const requests = Array.isArray(data.requests) ? data.requests : [];
+  if (roomId) {
+    const room = ALL_ROOMS.find(item => Number(item.id) === Number(roomId));
+    if (room) activeRefillsByNumber.delete(String(room.number));
+    requests.forEach(request => activeRefillsByNumber.set(String(request.roomNumber), request));
+  } else {
+    activeRefillsByNumber.clear();
+    requests.forEach(request => activeRefillsByNumber.set(String(request.roomNumber), request));
+  }
+  renderRefillCarouselStatuses();
+  if (selectedRoom) updateSelectedRoomState(selectedRoom, false);
+  renderDepartureListCard();
+  return requests;
+}
+
 function renderDepartureListCard() {
   if (activePlaceholderName !== 'Списки' || !navPlaceholderBody) return;
   const active = activeListKey === 'departures';
@@ -1956,6 +2040,26 @@ function renderDepartureListCard() {
   const completed = Math.max(0, departureList.completedCount);
   const remaining = Math.max(0, departureList.remainingCount);
   const progress = total > 0 ? Math.max(0, Math.min(100, Math.round(completed / total * 100))) : 0;
+  const refillSummary = aggregateActiveRefills();
+  const refillRooms = refillSummary.requests.length;
+  const refillCard = '<section class="mini-refill-section" aria-label="Общий список пополнения">' +
+    '<div class="mini-refill-head"><span>Пополнение</span><span class="mini-refill-head-count">' +
+      refillRooms + ' ' + (refillRooms === 1 ? 'номер' : 'номеров') + '</span></div>' +
+    '<div class="mini-refill-stats">К сборке: <strong>' + refillSummary.totalUnits +
+      ' шт.</strong> · позиции объединены по всем незакрытым номерам</div>' +
+    (refillSummary.products.length
+      ? '<div class="mini-refill-products">' + refillSummary.products.map(product =>
+          '<div class="mini-refill-product"><div class="mini-refill-product-main">' +
+            '<div class="mini-refill-product-name">' + escapeCameraHtml(product.name) + '</div>' +
+            '<div class="mini-refill-room-list">' + product.rooms.map(room =>
+              '<button type="button" class="mini-refill-room" data-refill-room-number="' + escapeCameraHtml(room.number) +
+              '" title="Открыть номер ' + escapeCameraHtml(room.number) + '">' +
+              escapeCameraHtml(room.number) + ' × ' + room.qty + '</button>'
+            ).join('') + '</div></div><div class="mini-refill-product-qty">' + product.qty +
+            ' ' + escapeCameraHtml(product.unit || 'шт') + '</div></div>'
+        ).join('') + '</div>'
+      : '<div class="mini-refill-empty">Нет номеров, ожидающих пополнения.</div>') +
+    '</section>';
 
   navPlaceholderBody.innerHTML =
     '<button type="button" class="mini-departure-list-card' + (active ? ' is-active' : '') +
@@ -1967,11 +2071,10 @@ function renderDepartureListCard() {
           '</strong> из <strong>' + total + '</strong></span><span>Осталось <strong>' + remaining + '</strong></span></div>' +
         '<div class="mini-departure-progress-track" role="progressbar" aria-label="Прогресс проверок" aria-valuemin="0" aria-valuemax="' +
           total + '" aria-valuenow="' + Math.min(completed, total) + '"><span style="width:' + progress + '%"></span></div>' +
-      '</div>' +
-    '</button>' +
+      '</div></button>' +
     (!departureList.sourceReady && total === 0
       ? '<div class="mini-departure-empty-note">Загрузите PDF со списком на сайте.</div>'
-      : '');
+      : '') + refillCard;
 }
 
 async function openListsScreen() {
@@ -1989,6 +2092,7 @@ async function openListsScreen() {
   navPlaceholderBody.innerHTML = '<div class="tool-empty-state">Загрузка списков…</div>';
   try {
     await refreshDepartureList();
+    await refreshActiveRefills().catch(error => console.warn('[MINIBAR REFILLS] Не удалось обновить список:', error));
     renderDepartureListCard();
   } catch (error) {
     navPlaceholderBody.innerHTML =
@@ -2265,7 +2369,16 @@ const refillModal = document.getElementById('refillModal');
 const refillModalRoomNumber = document.getElementById('refillModalRoomNumber');
 const refillModalClose = document.getElementById('refillModalClose');
 const refillModalProducts = document.getElementById('refillModalProducts');
-let refillSelectedProductIds = new Set();
+const refillModalFeedback = document.getElementById('refillModalFeedback');
+const refillModalAll = document.getElementById('refillModalAll');
+const refillModalClear = document.getElementById('refillModalClear');
+const refillModalSave = document.getElementById('refillModalSave');
+let refillSelectedCounts = {};
+let refillAllProducts = false;
+let refillCurrentRequestId = null;
+let refillModalBusy = false;
+const activeRefillsByNumber = new Map();
+let previewRefillRequestId = null;
 const gihCreateModal = document.getElementById('gihCreateModal');
 const gihCreateRoomNumber = document.getElementById('gihCreateRoomNumber');
 const gihCreateProducts = document.getElementById('gihCreateProducts');
@@ -3337,6 +3450,7 @@ function resetPhoto() {
   previewBlob = null;
   previewBlobPromise = null;
   previewRequestId = null;
+  previewRefillRequestId = null;
   void stopCamera();
 
   previewActions.classList.add('hidden');
@@ -3881,12 +3995,14 @@ function updateSelectedRoomState(room, vibrate = false) {
     if (carouselItem) {
       carouselItem.classList.toggle('empty-room', item.expiryStatus === 'empty');
       carouselItem.classList.toggle('today-checked', checkedNumbers.has(String(item.number)));
+      carouselItem.classList.toggle('needs-refill', activeRefillsByNumber.has(String(item.number)));
     }
   });
   if (activeCarouselItem) activeCarouselItem.classList.remove('active');
   const currentItem = carouselItems.get(room.number);
   if (currentItem) {
     currentItem.classList.toggle('empty-room', room.expiryStatus === 'empty');
+    currentItem.classList.toggle('needs-refill', activeRefillsByNumber.has(String(room.number)));
     currentItem.classList.add('active');
     activeCarouselItem = currentItem;
   }
@@ -4175,10 +4291,14 @@ function startRoomLiveSync() {
       const domains = Array.isArray(change.domains) ? change.domains : ['all'];
       const roomDomains = ['all', 'miniapp', 'rooms', 'deadlines', 'products', 'templates'];
       const historyDomains = ['all', 'checks', 'history', 'gih'];
+      const refillDomains = ['all', 'refills'];
       if (domains.some(domain => roomDomains.includes(domain))) {
         void syncRoomData();
         // Room product quantities and status are shared with the website.
         if (selectedRoom && !isCameraDeadlineModalOpen()) void loadRoomDeadlineData(selectedRoom, true);
+      }
+      if (domains.some(domain => refillDomains.includes(domain))) {
+        void refreshActiveRefills().catch(error => console.warn('[MINIBAR REFILLS] Не удалось обновить пополнения:', error));
       }
       if (domains.some(domain => historyDomains.includes(domain) ||
           domain === 'departures' || domain === 'settings')) {
@@ -4199,6 +4319,7 @@ function startRoomLiveSync() {
   roomEventsSource.addEventListener('sync.required', () => {
     void syncRoomData();
     void refreshDepartureList();
+    void refreshActiveRefills().catch(error => console.warn('[MINIBAR REFILLS] Не удалось восстановить пополнения:', error));
   });
 
   roomEventsSource.addEventListener('error', () => {
@@ -4316,46 +4437,160 @@ sheetOverlay.addEventListener('click', closeSheet);
 
 cameraDeadlinePanel.addEventListener('click', () => { void openCameraDeadlineModal(); });
 cameraGihPanel.addEventListener('click',()=>{void openGihCreateModal()});
-function renderRefillProducts(room){
-  const items=room?.template?.items||[];
-  if(!items.length){refillModalProducts.innerHTML='<div class="camera-deadline-empty">У этого номера нет шаблона наполнения.</div>';return}
-  const grouped={};
-  items.forEach(item=>{const product=item.product||{},category=product.category||'Напитки';(grouped[category]||(grouped[category]=[])).push({id:Number(item.productId||product.id),product})});
-  const order=['Дверца','Напитки','Алкоголь','Соки'];
-  const categories=[...order.filter(category=>grouped[category]?.length),...Object.keys(grouped).filter(category=>!order.includes(category)).sort((a,b)=>a.localeCompare(b,'ru'))];
-  refillModalProducts.innerHTML=categories.map(category=>'<section class="deadline-modal-category"><div class="deadline-modal-category-title">'+escapeCameraHtml(category)+'</div><div class="deadline-modal-product-grid">'+grouped[category].map(item=>{
-    const product=item.product,selected=refillSelectedProductIds.has(item.id),color=CAMERA_DEADLINE_PRODUCT_COLORS[product.bgColor]||CAMERA_DEADLINE_PRODUCT_COLORS.slate,emoji=product.emoji||String(product.name||'?').charAt(0).toUpperCase();
-    return '<button type="button" class="deadline-modal-product'+(selected?' selected':'')+'" data-refill-product-id="'+item.id+'" aria-pressed="'+String(selected)+'"><span class="deadline-modal-product-icon" style="background:'+color+';color:#18202a">'+escapeCameraHtml(emoji)+'</span><span class="deadline-modal-product-text"><span class="deadline-modal-product-name">'+escapeCameraHtml(product.name||'Продукт')+'</span></span></button>';
-  }).join('')+'</div></section>').join('');
+function setRefillFeedback(text, visible = true) {
+  refillModalFeedback.textContent = text || '';
+  refillModalFeedback.classList.toggle('visible', Boolean(text) && visible);
 }
-async function openRefillModal(){
-  if(!selectedRoom)return;
-  const roomAtOpen=selectedRoom,id=Number(roomAtOpen.id);
-  refillSelectedProductIds=new Set();
-  refillModalRoomNumber.textContent=String(roomAtOpen.number??roomAtOpen.roomNumber??'');
-  refillModalProducts.innerHTML='<div class="camera-deadline-empty">Загрузка продуктов…</div>';
+function renderRefillProducts(room, existingRequest = null) {
+  const byId = new Map();
+  (room?.template?.items || []).forEach(item => {
+    const product = item.product || {};
+    const id = Number(item.productId || product.id);
+    if (!id) return;
+    byId.set(id, {id, maxQty:Math.max(1,Number(item.qty)||1), product, snapshotOnly:false});
+  });
+  (existingRequest?.items || []).forEach(item => {
+    const id = Number(item.productId);
+    if (!id || byId.has(id)) return;
+    byId.set(id, {
+      id, maxQty:Math.max(1,Number(item.qty)||1),
+      product:{id,name:item.name,category:item.category,volume:item.volume,unit:item.unit,emoji:item.emoji,bgColor:item.bgColor},
+      snapshotOnly:true
+    });
+  });
+  if (!byId.size) {
+    refillModalProducts.innerHTML = '<div class="camera-deadline-empty">У этого номера нет продуктов в шаблоне наполнения.</div>';
+    return;
+  }
+  const grouped = {};
+  byId.forEach(item => {
+    const category = item.product.category || 'Напитки';
+    (grouped[category] || (grouped[category] = [])).push(item);
+  });
+  const order = ['Дверца','Напитки','Алкоголь','Соки'];
+  const categories = [...order.filter(c=>grouped[c]?.length), ...Object.keys(grouped).filter(c=>!order.includes(c)).sort((a,b)=>a.localeCompare(b,'ru'))];
+  refillModalProducts.innerHTML = categories.map(category =>
+    '<section class="deadline-modal-category"><div class="deadline-modal-category-title">' + escapeCameraHtml(category) +
+    '</div><div class="deadline-modal-product-grid">' + grouped[category].map(item => {
+      const product = item.product;
+      const count = refillAllProducts && !item.snapshotOnly ? item.maxQty : Math.min(item.maxQty, Number(refillSelectedCounts[item.id]) || 0);
+      const selected = count > 0;
+      const color = CAMERA_DEADLINE_PRODUCT_COLORS[product.bgColor] || CAMERA_DEADLINE_PRODUCT_COLORS.slate;
+      const emoji = product.emoji || String(product.name || '?').charAt(0).toUpperCase();
+      return '<button type="button" class="deadline-modal-product' + (selected?' selected':'') +
+        '" data-refill-product-id="' + item.id + '" data-refill-max="' + item.maxQty + '" aria-pressed="' + String(selected) + '">' +
+        (selected ? '<span class="deadline-modal-counter">' + count + '</span>' : '') +
+        '<span class="deadline-modal-product-icon" style="background:' + color + ';color:#18202a">' + escapeCameraHtml(emoji) +
+        '</span><span class="deadline-modal-product-text"><span class="deadline-modal-product-name">' + escapeCameraHtml(product.name||'Продукт') +
+        '</span></span></button>';
+    }).join('') + '</div></section>'
+  ).join('');
+  refillModalAll.classList.toggle('is-selected', refillAllProducts);
+  refillModalAll.setAttribute('aria-pressed', String(refillAllProducts));
+  refillModalSave.disabled = refillModalBusy;
+  refillModalClear.disabled = refillModalBusy;
+  refillModalAll.disabled = refillModalBusy;
+}
+async function openRefillModal() {
+  if (!selectedRoom || refillModalBusy) return;
+  const roomAtOpen = selectedRoom, roomId = Number(roomAtOpen.id);
+  refillSelectedCounts = {};
+  refillAllProducts = false;
+  refillCurrentRequestId = null;
+  setRefillFeedback('');
+  refillModalRoomNumber.textContent = String(roomAtOpen.number ?? roomAtOpen.roomNumber ?? '');
+  refillModalProducts.innerHTML = '<div class="camera-deadline-empty">Загрузка продуктов…</div>';
   refillModal.classList.remove('hidden');
-  refillModal.setAttribute('aria-hidden','false');
-  const data=await loadRoomDeadlineData(roomAtOpen,true);
-  if(refillModal.classList.contains('hidden')||Number(selectedRoom?.id)!==id)return;
-  if(!data||(data.error&&!data.loadedAt)){refillModalProducts.innerHTML='<div class="camera-deadline-empty">Не удалось загрузить продукты.</div>';return}
-  renderRefillProducts(data.room||roomAtOpen);
+  refillModal.setAttribute('aria-hidden', 'false');
+  const [roomData] = await Promise.all([
+    loadRoomDeadlineData(roomAtOpen, true),
+    refreshActiveRefills(roomId).catch(error => {
+      console.warn('[MINIBAR REFILLS] Не удалось загрузить сохранённую потребность:', error);
+      setRefillFeedback('Не удалось загрузить сохранённое состояние. Проверь соединение и повтори попытку.');
+      return [];
+    })
+  ]);
+  if (refillModal.classList.contains('hidden') || Number(selectedRoom?.id) !== roomId) return;
+  if (!roomData || (roomData.error && !roomData.loadedAt)) {
+    refillModalProducts.innerHTML = '<div class="camera-deadline-empty">Не удалось загрузить продукты.</div>';
+    return;
+  }
+  const existing = activeRefillsByNumber.get(String(roomAtOpen.number));
+  refillCurrentRequestId = existing?.id || null;
+  refillAllProducts = Boolean(existing?.allProducts);
+  (existing?.items || []).forEach(item => { refillSelectedCounts[Number(item.productId)] = Number(item.qty) || 0; });
+  renderRefillProducts(roomData.room || roomAtOpen, existing || null);
 }
-function closeRefillModal(){
+function closeRefillModal() {
+  if (refillModalBusy) return;
   refillModal.classList.add('hidden');
-  refillModal.setAttribute('aria-hidden','true');
+  refillModal.setAttribute('aria-hidden', 'true');
 }
-cameraRefillPanel.addEventListener('click',openRefillModal);
-refillModalClose.addEventListener('click',closeRefillModal);
-refillModal.addEventListener('click',e=>{if(e.target===refillModal)closeRefillModal()});
-refillModalProducts.addEventListener('click',e=>{
-  const button=e.target.closest('[data-refill-product-id]');
-  if(!button)return;
-  const id=Number(button.dataset.refillProductId);
-  if(refillSelectedProductIds.has(id))refillSelectedProductIds.delete(id);else refillSelectedProductIds.add(id);
-  button.classList.toggle('selected',refillSelectedProductIds.has(id));
-  button.setAttribute('aria-pressed',String(refillSelectedProductIds.has(id)));
+async function saveRefillRequest() {
+  if (!selectedRoom || refillModalBusy) return;
+  const roomId = Number(selectedRoom.id);
+  const items = Object.entries(refillSelectedCounts).map(([productId,qty])=>({productId:Number(productId),qty:Number(qty)}))
+    .filter(item=>Number.isInteger(item.productId)&&item.productId>0&&item.qty>0);
+  if (!refillAllProducts && !items.length && !refillCurrentRequestId) {
+    setRefillFeedback('Отметь продукты или включи «Всё в списке продуктов».');
+    return;
+  }
+  refillModalBusy = true;
+  refillModalSave.disabled = true; refillModalClear.disabled = true; refillModalAll.disabled = true;
+  try {
+    const result = await deadlineApiRequest('/refills', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({roomId,allProducts:refillAllProducts,items})
+    });
+    await refreshActiveRefills();
+    closeRefillModal();
+    showMessage(result.request?.status === 'cancelled'
+      ? 'Потребность в пополнении снята'
+      : 'Пополнение сохранено · номер ' + selectedRoom.number, 2500);
+    triggerHaptic();
+  } catch (error) {
+    setRefillFeedback(error?.message || 'Не удалось сохранить пополнение');
+  } finally {
+    refillModalBusy = false;
+    refillModalSave.disabled = false; refillModalClear.disabled = false; refillModalAll.disabled = false;
+    if (!refillModal.classList.contains('hidden')) renderRefillProducts(
+      deadlineRoomCache.get(roomId)?.room || selectedRoom,
+      activeRefillsByNumber.get(String(selectedRoom?.number)) || null
+    );
+  }
+}
+cameraRefillPanel.addEventListener('click', () => { void openRefillModal(); });
+refillModalClose.addEventListener('click', closeRefillModal);
+refillModal.addEventListener('click', event => { if(event.target===refillModal) closeRefillModal(); });
+refillModalProducts.addEventListener('click', event => {
+  const button = event.target.closest('[data-refill-product-id]');
+  if (!button || refillModalBusy) return;
+  const id = Number(button.dataset.refillProductId), max = Math.max(1,Number(button.dataset.refillMax)||1);
+  if (refillAllProducts) { refillAllProducts = false; refillSelectedCounts = {}; }
+  const current = Number(refillSelectedCounts[id]) || 0, next = current >= max ? 0 : current + 1;
+  if (next) refillSelectedCounts[id] = next; else delete refillSelectedCounts[id];
+  renderRefillProducts(deadlineRoomCache.get(Number(selectedRoom?.id))?.room || selectedRoom,
+    activeRefillsByNumber.get(String(selectedRoom?.number)) || null);
+  triggerHaptic();
 });
+refillModalAll.addEventListener('click', () => {
+  if (refillModalBusy) return;
+  refillAllProducts = !refillAllProducts;
+  if (!refillAllProducts) refillSelectedCounts = {};
+  renderRefillProducts(deadlineRoomCache.get(Number(selectedRoom?.id))?.room || selectedRoom,
+    activeRefillsByNumber.get(String(selectedRoom?.number)) || null);
+  triggerHaptic();
+});
+refillModalClear.addEventListener('click', () => {
+  if (refillModalBusy) return;
+  refillAllProducts = false; refillSelectedCounts = {};
+  setRefillFeedback(refillCurrentRequestId
+    ? 'Все отметки сняты. Сохранение пустого списка отменит текущую потребность.'
+    : 'Выбор очищен.');
+  renderRefillProducts(deadlineRoomCache.get(Number(selectedRoom?.id))?.room || selectedRoom,
+    activeRefillsByNumber.get(String(selectedRoom?.number)) || null);
+});
+refillModalSave.addEventListener('click', () => { void saveRefillRequest(); });
 roomHistoryOpen.addEventListener('click',()=>{void openRoomHistoryModal()});
 roomHistoryOpen.addEventListener('keydown',event=>{
   if(event.key==='Enter'||event.key===' '){
@@ -4511,6 +4746,19 @@ sheetSortOrder.addEventListener('click', () => {
 
 
 navPlaceholderBody.addEventListener('click', event => {
+  const refillRoomButton = event.target.closest('[data-refill-room-number]');
+  if (refillRoomButton) {
+    const number = String(refillRoomButton.dataset.refillRoomNumber || '');
+    if (ROOM_BY_NUMBER.has(number)) {
+      activeListKey = '';
+      activeListDateKey = '';
+      drawerMode = 'all';
+      persistActiveListSelection();
+      buildCarousel(number);
+      closeNavPlaceholderModal();
+    }
+    return;
+  }
   if (event.target.closest('[data-select-departures-list]')) activateDepartureList();
 });
 descRoomRemove.addEventListener('click', event => {
@@ -4547,6 +4795,7 @@ sheetContent.addEventListener('click', event => {
 /* Actions */
 async function takePhoto() {
   if (isCapturing || isPreview) return;
+  const refillRequestAtCapture = activeRefillsByNumber.get(String(selectedRoom?.number || ''))?.id || null;
 
   isCapturing = true;
   setBusy(captureBtn, true);
@@ -4593,6 +4842,7 @@ async function takePhoto() {
     }
     showPreviewFromCanvas();
     previewRequestId = String(Math.floor(Math.random() * 2147483647) + 1);
+    previewRefillRequestId = refillRequestAtCapture;
     encodePreviewBlob();
   } catch (error) {
     console.warn('[MINIBAR CAMERA] Capture failed:', error);
@@ -4617,11 +4867,14 @@ captureBtn.addEventListener('pointercancel', disarmTorch);
 captureBtn.addEventListener('click', takePhoto);
 btnRetake.addEventListener('click', () => { resetPhoto(); triggerHaptic(); });
 
-async function sendPhotoToServer(blobFile, roomNum, requestId) {
+async function sendPhotoToServer(blobFile, roomNum, requestId, refillRequestId = null) {
   const formData = new FormData();
   formData.append('photo', blobFile, 'photo.jpg');
   formData.append('room', roomNum);
   if (requestId) formData.append('random_id', requestId);
+  if (Number.isInteger(Number(refillRequestId)) && Number(refillRequestId) > 0) {
+    formData.append('refill_request_id', String(Number(refillRequestId)));
+  }
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 60000);
@@ -4656,7 +4909,10 @@ async function sendPhotoToServer(blobFile, roomNum, requestId) {
     return {
       ok: true, mode: data.mode || 'photo',
       site_synced: data.site_synced !== false,
-      site_sync_error: data.site_sync_error || ''
+      site_sync_error: data.site_sync_error || '',
+      refill_synced: data.refill_synced !== false,
+      refill_sync_error: data.refill_sync_error || '',
+      photo_sent: true
     };
   } catch (err) {
     return { ok: false, error: 'Сбой сети: ' + err.message };
@@ -4763,7 +5019,7 @@ function sortPhotoQueue(items) {
   );
 }
 
-async function queuePhotoForUpload(roomNumber, blob, requestId) {
+async function queuePhotoForUpload(roomNumber, blob, requestId, refillRequestId = null) {
   let stableRequestId = Number(requestId);
   if (!Number.isInteger(stableRequestId) || stableRequestId < 1 || stableRequestId > 2147483647) {
     stableRequestId = Math.floor(Math.random() * 2147483647) + 1;
@@ -4774,6 +5030,8 @@ async function queuePhotoForUpload(roomNumber, blob, requestId) {
     id: String(now) + '-' + stableRequestId + '-' + Math.random().toString(36).slice(2, 9),
     roomNumber: String(roomNumber),
     requestId: stableRequestId,
+    refillRequestId: Number.isInteger(Number(refillRequestId)) && Number(refillRequestId) > 0 ? Number(refillRequestId) : null,
+    photoSent: false,
     blob,
     createdAt: now,
     attempts: 0,
@@ -4814,7 +5072,7 @@ async function flushPendingPhotoWrites() {
       }
 
       try {
-        await queuePhotoForUpload(pending.roomNumber, blob, pending.requestId);
+        await queuePhotoForUpload(pending.roomNumber, blob, pending.requestId, pending.refillRequestId);
         pendingPhotoWrites.delete(id);
         setUploadStatus(
           'Фото №' + pending.roomNumber + ' сохранено в очереди. Отправляю в фоне…',
@@ -4840,6 +5098,23 @@ async function flushPendingPhotoWrites() {
 function formatPhotoRetryDelay(ms) {
   if (ms >= 60000) return Math.ceil(ms / 60000) + ' мин.';
   return Math.max(1, Math.ceil(ms / 1000)) + ' сек.';
+}
+
+async function retryRefillCompletion(roomNumber, refillRequestId) {
+  try {
+    const response = await fetch('/minibar-os/vk-proxy/complete-refill', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json', Accept:'application/json'},
+      body: JSON.stringify({room:String(roomNumber),refill_request_id:Number(refillRequestId)})
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok || data.refill_synced === false) {
+      return {ok:false,photo_sent:true,refill_synced:false,refill_sync_error:data.error||'Не удалось синхронизировать пополнение'};
+    }
+    return {ok:true,photo_sent:true,refill_synced:true};
+  } catch (error) {
+    return {ok:false,photo_sent:true,refill_synced:false,refill_sync_error:error.message||'Ошибка сети'};
+  }
 }
 
 function schedulePhotoQueueRetry(delay) {
@@ -4894,25 +5169,35 @@ async function processPhotoQueue() {
         'pending'
       );
 
-      const result = await sendPhotoToServer(item.blob, item.roomNumber, item.requestId);
+      const result = item.photoSent && item.refillRequestId
+        ? await retryRefillCompletion(item.roomNumber, item.refillRequestId)
+        : await sendPhotoToServer(item.blob, item.roomNumber, item.requestId, item.refillRequestId);
 
       if (result.ok) {
-        // Keep the same VK random_id on retries. If the response was lost after
-        // VK accepted the message, reusing the ID helps avoid duplicate messages.
-        await photoQueueDbAction('readwrite', 'delete', item.id);
-        sentAny = true;
-        // The proxy syncs the daily check before returning success. Reconcile both
-        // arrival/departure workflows from the canonical backend check record.
-        void refreshDepartureList();
-
-        if (result.site_synced === false) {
-          console.warn('[MINIBAR PHOTO QUEUE] Фото отправлено в VK, но сайт не синхронизирован:', result.site_sync_error);
-          showMessage(
-            'Фото №' + item.roomNumber + ' отправлено в VK, но сайт не обновился',
-            4500
-          );
+        if (item.refillRequestId && result.refill_synced === false) {
+          // The image is already in VK; keep it queued but retry only request completion.
+          const attempts = (Number(item.attempts) || 0) + 1;
+          const retryDelay = Math.min(1000 * Math.pow(2, Math.min(attempts - 1, 6)), 60000);
+          await photoQueueDbAction('readwrite', 'put', {
+            ...item, photoSent: Boolean(item.photoSent || result.photo_sent),
+            attempts, nextAttemptAt: Date.now() + retryDelay,
+            lastError: result.refill_sync_error || 'Ожидаю подтверждения пополнения'
+          });
+          setUploadStatus('Фото №' + item.roomNumber + ' отправлено; завершаю синхронизацию пополнения…', 'pending');
+          schedulePhotoQueueRetry(retryDelay);
+          return;
         }
 
+        await photoQueueDbAction('readwrite', 'delete', item.id);
+        sentAny = true;
+        void refreshDepartureList();
+        if (item.refillRequestId) {
+          void refreshActiveRefills().catch(error => console.warn('[MINIBAR REFILLS] Не удалось обновить пополнения:', error));
+        }
+        if (result.site_synced === false) {
+          console.warn('[MINIBAR PHOTO QUEUE] Фото отправлено в VK, но сайт не синхронизирован:', result.site_sync_error);
+          showMessage('Фото №' + item.roomNumber + ' отправлено в VK, но сайт не обновился', 4500);
+        }
         continue;
       }
 
@@ -4999,7 +5284,10 @@ btnSend.addEventListener('click', () => {
   // Close the preview immediately. Encoding and IndexedDB persistence continue
   // in the background while the user selects the next room and takes another photo.
   const pendingId = String(Date.now()) + '-' + String(requestId || Math.random());
-  pendingPhotoWrites.set(pendingId, { roomNumber, requestId, blobPromise });
+  pendingPhotoWrites.set(pendingId, {
+    roomNumber, requestId, blobPromise,
+    refillRequestId: previewRefillRequestId
+  });
   if (activeListKey === 'departures') {
     const rooms = visibleCarouselRooms();
     const i = rooms.findIndex(room => String(room.number) === roomNumber);
@@ -5076,6 +5364,11 @@ void restorePhotoUploadQueue();
       await refreshDepartureList();
     } catch (listError) {
       console.warn('[MINIBAR LISTS] Не удалось загрузить список Выезды:', listError);
+    }
+    try {
+      await refreshActiveRefills();
+    } catch (refillError) {
+      console.warn('[MINIBAR REFILLS] Не удалось загрузить постоянный список пополнения:', refillError);
     }
     updateQueueDisplay();
     buildCarousel();
