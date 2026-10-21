@@ -110,9 +110,12 @@
   }
   .home-list-return:active { background: rgba(255,204,0,.17); }
   @media (max-width: 380px) {
-    .top-bar.has-active-list { flex-wrap: wrap; row-gap: 6px; }
-    .top-bar.has-active-list .home-list-controls { width: 100%; }
-    .top-bar.has-active-list .home-list-sort { width: 132px; max-width: none; }
+    .top-bar.has-active-list { flex-wrap: nowrap; }
+    .top-bar.has-active-list .hotel-info { flex: 1 1 auto; }
+    .top-bar.has-active-list .queue-count { display: none; }
+    .top-bar.has-active-list .home-list-controls { width: auto; }
+    .top-bar.has-active-list .home-list-sort { width: 112px; max-width: 35vw; }
+    .top-bar.has-active-list .home-list-return { padding: 0 8px; }
   }
 
   .hotel-info {
