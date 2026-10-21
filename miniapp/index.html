@@ -1142,33 +1142,45 @@
     background: rgba(70, 195, 245, 0.13);
   }
 
-  .room-chip.empty-room.selected {
-    color: #06202b;
-    border-color: #4cc7f4;
-    background: #4cc7f4;
-  }
-
   .room-chip.selected {
     background: var(--yellow);
     color: #000;
     border-color: var(--yellow);
   }
 
+  .room-chip.empty-room:not(.selected) {
+    color: #7ddcff;
+    border-color: rgba(70, 195, 245, 0.62);
+    background: rgba(70, 195, 245, 0.13);
+  }
+
   .room-chip.empty-room.selected {
     color: #06202b;
     border-color: #4cc7f4;
     background: #4cc7f4;
   }
 
-  /* Membership is conveyed by the List filter, not by a second tile style. */
+  /* Refill status takes precedence over empty/checked status, including selection. */
+  .room-chip.needs-refill,
+  .room-chip.needs-refill:not(.selected),
+  .room-chip.needs-refill.selected {
+    color: #ffb16e;
+    border-color: rgba(251, 146, 60, .78);
+    background: rgba(251, 146, 60, .13);
+    box-shadow: none;
+  }
 
-  .room-chip.today-checked:not(.selected) {
+  .room-chip.needs-refill.selected {
+    border-color: #fb923c;
+    background: rgba(251, 146, 60, .2);
+    box-shadow: inset 0 0 0 1px #fb923c;
+  }
+
+  .room-chip.today-checked:not(.selected):not(.empty-room):not(.needs-refill) {
     color: #b8f7cc;
     border-color: rgba(74, 222, 128, .72);
     background: rgba(34, 197, 94, .15);
   }
-  .room-chip.needs-refill:not(.selected) { color:#ffb16e; border-color:rgba(251,146,60,.78); background:rgba(251,146,60,.13); }
-  .room-chip.needs-refill.selected { color:#141414; background:var(--yellow); border-color:#fb923c; box-shadow:inset 0 0 0 1px #fb923c; }
 
   .room-chip-remove {
     position: absolute;
@@ -4246,6 +4258,7 @@ function updateDrawerSelectedChip(numStr) {
     const room = ROOM_BY_NUMBER.get(number);
     chip.classList.toggle('selected', number === String(numStr));
     chip.classList.toggle('empty-room', room?.expiryStatus === 'empty');
+    chip.classList.toggle('needs-refill', activeRefillsByNumber.has(number));
     chip.classList.toggle('in-departure-list', activeListKey === 'departures' && listNumbers.has(number));
     chip.classList.toggle('today-checked', checkedNumbers.has(number));
   });
