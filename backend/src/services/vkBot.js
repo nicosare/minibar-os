@@ -1,6 +1,8 @@
 import { prisma } from '../lib/prisma.js';
 import { upsertTodayRoomStats, updateAllTargets } from './deadlines.js';
 
+const ACTIVE_REFILL_PREFIX = 'miniapp-refill-active:';
+
 const ROOM_RE = /\b\d{3,4}\b/g;
 const SEPARATOR_RE = /^[\s,;:/|+_-]*$/u;
 const COMMENT_RE = /\(([^)]*)\)\s*$/u;
@@ -345,6 +347,15 @@ export async function processVkBotMessage({
       if (!room) {
         missingRooms.push(roomNumber);
         continue;
+      }
+
+      // A regular room message confirms the room was checked/refilled.
+      // Remove its pending Mini App refill marker so the room stops appearing orange.
+      // An explicit "Опустошён" message must keep the empty status instead.
+      if (!parsed.emptied) {
+        await tx.setting.deleteMany({
+          where: { key: ACTIVE_REFILL_PREFIX + String(room.id) }
+        });
       }
 
       const productsBefore = await tx.roomProductStatus.findMany({
