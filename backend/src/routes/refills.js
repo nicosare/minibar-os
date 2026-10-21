@@ -83,10 +83,14 @@ function summarizeRequests(requests) {
   return { totalRooms: requests.length, totalUnits, products };
 }
 
-function newRequestId() {
-  // Numeric and safely representable in JavaScript / form data. Every save gets
-  // a new version ID, so a photo captured before editing cannot close newer work.
-  return Date.now() * 1000 + Math.floor(Math.random() * 1000);
+function newRequestId(previousId = null) {
+  // Numeric and safely representable in JavaScript / form data. Always advance
+  // beyond the current version so a photo captured earlier cannot match an edit.
+  const candidate = Date.now() * 1000 + Math.floor(Math.random() * 1000);
+  const previous = Number(previousId);
+  return Number.isSafeInteger(previous) && previous > 0 && candidate <= previous
+    ? previous + 1
+    : candidate;
 }
 
 router.get('/active', async (req, res) => {
@@ -260,7 +264,7 @@ router.post('/', async (req, res) => {
 
       const now = new Date().toISOString();
       const record = {
-        id: newRequestId(),
+        id: newRequestId(existing?.id),
         roomId,
         roomNumber: String(room.number),
         floor: room.floor,

@@ -4609,7 +4609,7 @@ refillModalProducts.addEventListener('click', event => {
     [...refillModalProducts.querySelectorAll('[data-refill-product-id]')].forEach(productButton => {
       const productId = Number(productButton.dataset.refillProductId);
       const maxQty = Math.max(1, Number(productButton.dataset.refillMax) || 1);
-      if (!Object.prototype.hasOwnProperty.call(refillSelectedCounts, productId)) refillSelectedCounts[productId] = maxQty;
+      refillSelectedCounts[productId] = maxQty;
     });
   }
   const current = Number(refillSelectedCounts[id]) || 0, next = current >= max ? 0 : current + 1;
