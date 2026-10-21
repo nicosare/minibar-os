@@ -2029,93 +2029,291 @@ function requestMatchesFullTemplate(request) {
   for(const [key,qty] of template)if(requested.get(key)!==qty)return false;
   return true;
 }
-function aggregateActiveRefills() {
-  // The drawer's refill summary belongs to the active departures list.
-  // Include empty rooms, but never show requests for rooms outside that list.
-  const listNumbers = currentDepartureNumbers();
-  const requests=activeRefillRequests().filter(request => listNumbers.has(String(request.roomNumber))),grouped=new Map();
-  let totalUnits=0;
-  for(const request of requests)for(const item of request.items||[]){
-    const qty=Math.max(0,Number(item.qty)||0);if(!qty)continue;
-    totalUnits+=qty;
-    const key=refillItemKey(item);
-    if(!grouped.has(key))grouped.set(key,{productId:item.productId,name:item.name||'Продукт',qty:0});
-    grouped.get(key).qty+=qty;
-  }
-  const rawProducts=[...grouped.values()].sort((a,b)=>(a.name||'').localeCompare(b.name||'','ru'));
-  const available=new Map(rawProducts.map(item=>[refillItemKey(item),item.qty]));
-  const recipeGroups=new Map();
-  for(const request of requests){
-    const type=refillRoomType(request),recipe=Array.isArray(request.templateItems)?request.templateItems:[];
-    if(!recipe.length)continue;
-    const signature=refillRecipeSignature(recipe);if(!signature)continue;
-    if(!recipeGroups.has(type))recipeGroups.set(type,new Map());
-    const options=recipeGroups.get(type);
-    if(!options.has(signature))options.set(signature,{count:0,items:recipe});
-    options.get(signature).count+=1;
-  }
-  const recipes=[];
-  for(const [type,options] of recipeGroups){
-    if(options.size!==1)continue;
-    const recipe=new Map(),option=[...options.values()][0];
-    option.items.forEach(item=>{const key=refillItemKey(item),qty=Math.max(1,Number(item.qty)||1);recipe.set(key,(recipe.get(key)||0)+qty)});
-    if(recipe.size)recipes.push({type,name:type==='suite'?'Корзинка люкс':'Корзинка стандарт',recipe,roomCount:option.count});
-  }
-  const possible=recipes.map(candidate=>{
-    let max=Math.min(requests.length,Number(candidate.roomCount)||requests.length);
-    for(const [key,qty] of candidate.recipe)max=Math.min(max,Math.floor((available.get(key)||0)/qty));
-    return Math.max(0,max);
+async function ensureRefillRoomTemplates(force = false) {
+  const fresh = refillRoomTemplatesLoadedAt && Date.now() - refillRoomTemplatesLoadedAt < 60000;
+  if (!force && fresh && refillRoomTemplatesByNumber.size) return refillRoomTemplatesByNumber;
+  if (refillRoomTemplatesPromise) return refillRoomTemplatesPromise;
+
+  refillRoomTemplatesPromise = (async () => {
+    const rooms = await deadlineApiRequest('/rooms');
+    if (!Array.isArray(rooms) || !rooms.length) {
+      throw new Error('Сервер не вернул шаблоны наполнения номеров');
+    }
+    const next = new Map();
+    rooms.forEach(room => {
+      if (room?.number == null) return;
+      next.set(String(room.number), room);
+    });
+    if (!next.size) throw new Error('Не удалось сопоставить шаблоны с номерами');
+
+    refillRoomTemplatesByNumber.clear();
+    next.forEach((room, number) => refillRoomTemplatesByNumber.set(number, room));
+    refillRoomTemplatesLoadedAt = Date.now();
+
+    // Re-render after the one-time template fetch so empty-room basket totals
+    // are recalculated as soon as the real room templates become available.
+    if (isSheetOpen && activeListKey === 'departures' && drawerMode === 'list') {
+      renderDrawerRooms(sheetSearch.value);
+    }
+    return refillRoomTemplatesByNumber;
+  })().finally(() => {
+    refillRoomTemplatesPromise = null;
   });
-  let best=recipes.map(()=>0),bestTotal=0,bestStandard=-1;
-  if(recipes.length===1){best=[possible[0]];bestTotal=possible[0]}
-  else if(recipes.length>1){
-    const si=recipes.findIndex(r=>r.type==='standard'),li=recipes.findIndex(r=>r.type==='suite');
-    if(si>=0&&li>=0)for(let sc=possible[si];sc>=0;sc--)for(let lc=possible[li];lc>=0;lc--){
-      const used=new Map();
-      for(const [key,qty] of recipes[si].recipe)used.set(key,qty*sc);
-      for(const [key,qty] of recipes[li].recipe)used.set(key,(used.get(key)||0)+qty*lc);
-      let valid=true;for(const [key,qty] of used)if(qty>(available.get(key)||0)){valid=false;break}
-      const total=sc+lc;
-      if(valid&&(total>bestTotal||(total===bestTotal&&sc>bestStandard))){best[si]=sc;best[li]=lc;bestTotal=total;bestStandard=sc}
+
+  return refillRoomTemplatesPromise;
+}
+
+function normalizeRefillTemplateItems(items) {
+  return (Array.isArray(items) ? items : []).map(item => {
+    const product = item?.product || {};
+    const productId = Number(item?.productId || product.id);
+    if (!Number.isInteger(productId) || productId <= 0 || product.isActive === false) return null;
+    return {
+      productId,
+      name: String(item?.name || product.name || ('Продукт #' + productId)),
+      category: item?.category || product.category || 'Напитки',
+      volume: item?.volume ?? product.volume ?? null,
+      unit: item?.unit || product.unit || 'шт',
+      emoji: item?.emoji || product.emoji || null,
+      bgColor: item?.bgColor || product.bgColor || 'slate',
+      qty: Math.max(1, Number(item?.qty) || 1)
+    };
+  }).filter(Boolean);
+}
+
+function refillTemplateItemsForRoom(room, requestByNumber) {
+  const number = String(room.number);
+  const detailedRoom = refillRoomTemplatesByNumber.get(number);
+  const detailItems = normalizeRefillTemplateItems(detailedRoom?.template?.items);
+  if (detailItems.length) return detailItems;
+
+  // A saved refill request contains a point-in-time copy of its room template.
+  const requestItems = normalizeRefillTemplateItems(requestByNumber.get(number)?.templateItems);
+  if (requestItems.length) return requestItems;
+
+  // Some rooms may not have their own template assigned. Fall back only when
+  // their category has one unambiguous active template among the hotel's rooms.
+  const type = normalizeRoomType(room);
+  const candidates = new Map();
+  refillRoomTemplatesByNumber.forEach(candidateRoom => {
+    if (normalizeRoomType(candidateRoom) !== type) return;
+    const items = normalizeRefillTemplateItems(candidateRoom.template?.items);
+    const signature = refillRecipeSignature(items);
+    if (signature && !candidates.has(signature)) candidates.set(signature, items);
+  });
+  return candidates.size === 1 ? [...candidates.values()][0] : [];
+}
+
+function aggregateActiveRefills() {
+  const listNumbers = currentDepartureNumbers();
+  const displayRequests = activeRefillRequests()
+    .filter(request => listNumbers.has(String(request.roomNumber)));
+  const emptyRooms = ALL_ROOMS.filter(room =>
+    listNumbers.has(String(room.number)) && room.expiryStatus === 'empty'
+  );
+  const emptyNumbers = new Set(emptyRooms.map(room => String(room.number)));
+  // An empty room contributes its category's entire basket instead of also
+  // contributing a separately saved refill request, preventing double-counting.
+  const requests = displayRequests.filter(request => !emptyNumbers.has(String(request.roomNumber)));
+  const displayRequestByNumber = new Map(displayRequests.map(request => [String(request.roomNumber), request]));
+  const grouped = new Map();
+  let totalUnits = 0;
+
+  function addProduct(item, multiplier = 1) {
+    const qty = Math.max(0, Number(item.qty) || 0) * multiplier;
+    if (!qty) return;
+    totalUnits += qty;
+    const key = refillItemKey(item);
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        productId: item.productId,
+        name: item.name || 'Продукт',
+        qty: 0
+      });
+    }
+    grouped.get(key).qty += qty;
+  }
+
+  for (const request of requests) {
+    for (const item of request.items || []) addProduct(item);
+  }
+
+  const emptyBasketCounts = { standard: 0, suite: 0 };
+  const emptyBasketRecipes = [];
+  for (const room of emptyRooms) {
+    const type = normalizeRoomType(room);
+    emptyBasketCounts[type] = (emptyBasketCounts[type] || 0) + 1;
+    const templateItems = refillTemplateItemsForRoom(room, displayRequestByNumber);
+    emptyBasketRecipes.push({ type, items: templateItems });
+    templateItems.forEach(item => addProduct(item));
+  }
+
+  const rawProducts = [...grouped.values()]
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ru'));
+  const available = new Map(rawProducts.map(item => [refillItemKey(item), item.qty]));
+
+  // Empty rooms are known full baskets, so reserve their exact template
+  // quantities first. Remaining product quantities belong to explicit requests.
+  for (const basket of emptyBasketRecipes) {
+    basket.items.forEach(item => {
+      const key = refillItemKey(item);
+      available.set(key, Math.max(0, (available.get(key) || 0) - Math.max(1, Number(item.qty) || 1)));
+    });
+  }
+
+  const recipeGroups = new Map();
+  for (const request of requests) {
+    const type = refillRoomType(request);
+    const recipe = Array.isArray(request.templateItems) ? request.templateItems : [];
+    if (!recipe.length) continue;
+    const signature = refillRecipeSignature(recipe);
+    if (!signature) continue;
+    if (!recipeGroups.has(type)) recipeGroups.set(type, new Map());
+    const options = recipeGroups.get(type);
+    if (!options.has(signature)) options.set(signature, { count: 0, items: recipe });
+    options.get(signature).count += 1;
+  }
+
+  const recipes = [];
+  for (const [type, options] of recipeGroups) {
+    if (options.size !== 1) continue;
+    const option = [...options.values()][0];
+    const recipe = new Map();
+    option.items.forEach(item => {
+      const key = refillItemKey(item);
+      const qty = Math.max(1, Number(item.qty) || 1);
+      recipe.set(key, (recipe.get(key) || 0) + qty);
+    });
+    if (recipe.size) {
+      recipes.push({
+        type,
+        name: type === 'suite' ? 'Корзинка люкс' : 'Корзинка стандарт',
+        recipe,
+        roomCount: option.count
+      });
     }
   }
-  const products=[];
-  recipes.forEach((recipe,index)=>{
-    const count=best[index]||0;if(count<=0)return;
-    products.push({name:recipe.name,qty:count,basket:true});
-    recipe.recipe.forEach((qty,key)=>available.set(key,Math.max(0,(available.get(key)||0)-qty*count)));
+
+  const possible = recipes.map(candidate => {
+    let max = Math.min(requests.length, Number(candidate.roomCount) || requests.length);
+    for (const [key, qty] of candidate.recipe) {
+      max = Math.min(max, Math.floor((available.get(key) || 0) / qty));
+    }
+    return Math.max(0, max);
   });
-  rawProducts.forEach(item=>{const qty=available.get(refillItemKey(item))||0;if(qty>0)products.push({name:item.name,qty,basket:false})});
-  // Room lines are the union of pending refill requests and rooms marked empty
-  // in the system. Empty rooms without a saved request appear here, but do not
-  // contribute products or baskets to the aggregate above.
-  const roomLinesByNumber=new Map();
-  requests.forEach(request=>{
-    const type=refillRoomType(request);let productsText;
-    if(request.allProducts||requestMatchesFullTemplate(request))productsText=type==='suite'?'Корзинка люкс':'Корзинка стандарт';
-    else productsText=(request.items||[]).filter(item=>Number(item.qty)>0).map(item=>{
-      const qty=Math.max(0,Number(item.qty)||0),name=String(item.name||'Продукт');return qty>1?name+' × '+qty:name;
-    }).join(', ')||'продукты не указаны';
-    const number=String(request.roomNumber);
-    const room=ROOM_BY_NUMBER.get(number);
-    roomLinesByNumber.set(number,{
-      roomNumber:number,
-      floor:Number(request.floor)||Number(room?.floor)||0,
+  const best = recipes.map(() => 0);
+  let bestTotal = 0;
+  let bestStandard = -1;
+
+  if (recipes.length === 1) {
+    best[0] = possible[0];
+    bestTotal = possible[0];
+  } else if (recipes.length > 1) {
+    const standardIndex = recipes.findIndex(recipe => recipe.type === 'standard');
+    const suiteIndex = recipes.findIndex(recipe => recipe.type === 'suite');
+    if (standardIndex >= 0 && suiteIndex >= 0) {
+      for (let standardCount = possible[standardIndex]; standardCount >= 0; standardCount--) {
+        for (let suiteCount = possible[suiteIndex]; suiteCount >= 0; suiteCount--) {
+          const used = new Map();
+          for (const [key, qty] of recipes[standardIndex].recipe) used.set(key, qty * standardCount);
+          for (const [key, qty] of recipes[suiteIndex].recipe) {
+            used.set(key, (used.get(key) || 0) + qty * suiteCount);
+          }
+          let valid = true;
+          for (const [key, qty] of used) {
+            if (qty > (available.get(key) || 0)) {
+              valid = false;
+              break;
+            }
+          }
+          const total = standardCount + suiteCount;
+          if (valid && (total > bestTotal || (total === bestTotal && standardCount > bestStandard))) {
+            best[standardIndex] = standardCount;
+            best[suiteIndex] = suiteCount;
+            bestTotal = total;
+            bestStandard = standardCount;
+          }
+        }
+      }
+    }
+  }
+
+  const products = [];
+  for (const type of ['standard', 'suite']) {
+    const count = emptyBasketCounts[type] || 0;
+    if (count > 0) {
+      products.push({
+        name: type === 'suite' ? 'Корзинка люкс' : 'Корзинка стандарт',
+        qty: count,
+        basket: true
+      });
+    }
+  }
+
+  recipes.forEach((recipe, index) => {
+    const count = best[index] || 0;
+    if (count <= 0) return;
+    products.push({ name: recipe.name, qty: count, basket: true });
+    recipe.recipe.forEach((qty, key) => {
+      available.set(key, Math.max(0, (available.get(key) || 0) - qty * count));
+    });
+  });
+
+  rawProducts.forEach(item => {
+    const qty = available.get(refillItemKey(item)) || 0;
+    if (qty > 0) products.push({ name: item.name, qty, basket: false });
+  });
+
+  // Empty status takes precedence in the room list, even if a pending request
+  // exists for that room. The aggregate above still counts its category basket.
+  const roomLinesByNumber = new Map();
+  displayRequests.forEach(request => {
+    const number = String(request.roomNumber);
+    const room = ROOM_BY_NUMBER.get(number);
+    if (emptyNumbers.has(number) || room?.expiryStatus === 'empty') {
+      roomLinesByNumber.set(number, {
+        roomNumber: number,
+        floor: Number(request.floor) || Number(room?.floor) || 0,
+        productsText: 'Пустой'
+      });
+      return;
+    }
+
+    const type = refillRoomType(request);
+    const productsText = request.allProducts || requestMatchesFullTemplate(request)
+      ? (type === 'suite' ? 'Корзинка люкс' : 'Корзинка стандарт')
+      : (request.items || []).filter(item => Number(item.qty) > 0).map(item => {
+          const qty = Math.max(0, Number(item.qty) || 0);
+          const name = String(item.name || 'Продукт');
+          return qty > 1 ? name + ' × ' + qty : name;
+        }).join(', ') || 'продукты не указаны';
+
+    roomLinesByNumber.set(number, {
+      roomNumber: number,
+      floor: Number(request.floor) || Number(room?.floor) || 0,
       productsText
     });
   });
-  for(const room of ALL_ROOMS){
-    const number=String(room.number);
-    if(!listNumbers.has(number)||room.expiryStatus!=='empty'||roomLinesByNumber.has(number))continue;
-    roomLinesByNumber.set(number,{
-      roomNumber:number,
-      floor:Number(room.floor)||0,
-      productsText:'Пустой'
+
+  for (const room of emptyRooms) {
+    const number = String(room.number);
+    if (roomLinesByNumber.has(number)) continue;
+    roomLinesByNumber.set(number, {
+      roomNumber: number,
+      floor: Number(room.floor) || 0,
+      productsText: 'Пустой'
     });
   }
-  const roomLines=[...roomLinesByNumber.values()]
-    .sort((a,b)=>a.floor-b.floor||Number(a.roomNumber)-Number(b.roomNumber));
-  return {requests,products,roomLines,totalUnits,basketCounts:products.filter(item=>item.basket).reduce((sum,item)=>sum+item.qty,0)};
+
+  const roomLines = [...roomLinesByNumber.values()]
+    .sort((a, b) => a.floor - b.floor || Number(a.roomNumber) - Number(b.roomNumber));
+  return {
+    requests,
+    products,
+    roomLines,
+    totalUnits,
+    basketCounts: products.filter(item => item.basket).reduce((sum, item) => sum + item.qty, 0)
+  };
 }
 function renderRefillSection() {
   const summary=aggregateActiveRefills();
@@ -2473,6 +2671,9 @@ let refillAllProducts = false;
 let refillCurrentRequestId = null;
 let refillModalBusy = false;
 const activeRefillsByNumber = new Map();
+const refillRoomTemplatesByNumber = new Map();
+let refillRoomTemplatesLoadedAt = 0;
+let refillRoomTemplatesPromise = null;
 let previewRefillRequestId = null;
 let previewRoomNumber = null;
 const gihCreateModal = document.getElementById('gihCreateModal');
@@ -4210,6 +4411,13 @@ function renderDrawerRooms(filterQuery = '') {
   const listNumbers = currentDepartureNumbers();
   const checkedNumbers = checkedTodayNumbers();
   const listMode = hasActiveList && drawerMode === 'list';
+  if (listMode && ALL_ROOMS.some(room =>
+    listNumbers.has(String(room.number)) && room.expiryStatus === 'empty'
+  )) {
+    void ensureRefillRoomTemplates().catch(error => {
+      console.warn('[MINIBAR REFILLS] Не удалось загрузить шаблоны пустых номеров:', error);
+    });
+  }
   const roomsToShow = listMode
     ? ALL_ROOMS.filter(room => listNumbers.has(String(room.number)))
     : ALL_ROOMS;
@@ -4393,6 +4601,9 @@ function startRoomLiveSync() {
       const historyDomains = ['all', 'checks', 'history', 'gih'];
       const refillDomains = ['all', 'refills'];
       if (domains.some(domain => roomDomains.includes(domain))) {
+        if (domains.some(domain => ['all', 'rooms', 'templates', 'products'].includes(domain))) {
+          refillRoomTemplatesLoadedAt = 0;
+        }
         void syncRoomData();
         // Room product quantities and status are shared with the website.
         if (selectedRoom && !isCameraDeadlineModalOpen()) void loadRoomDeadlineData(selectedRoom, true);
