@@ -4864,26 +4864,50 @@ async function saveRefillRequest() {
   refillModalBusy = true;
   refillModalSave.disabled = true; refillModalClear.disabled = true; refillModalAll.disabled = true;
   try {
-    const result = await deadlineApiRequest('/refills', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        roomId,
-        allProducts:refillAllProducts,
-        expectedRequestId: refillCurrentRequestId,
-        items
-      })
-    });
-    if (result.request?.status === 'cancelled') activeRefillsByNumber.delete(String(selectedRoom.number));
-    else activeRefillsByNumber.set(String(selectedRoom.number), result.request);
-    renderRefillCarouselStatuses();
-    renderDepartureListCard();
-    refillModal.classList.add('hidden');
-    refillModal.setAttribute('aria-hidden', 'true');
-    showMessage(result.request?.status === 'cancelled'
-      ? 'Потребность в пополнении снята'
-      : 'Пополнение сохранено · номер ' + selectedRoom.number, 2500);
-    triggerHaptic();
-    void refreshActiveRefills().catch(error => console.warn('[MINIBAR REFILLS] Сохранено, но обновление списка не удалось:', error));
+    if (refillAllProducts) {
+      // "Пополнить всё" means the room was found empty during inspection.
+      // Mirror the system status used by "Опустошён" in Сроки, but do not
+      // create a refill request or a history/VK message.
+      await deadlineApiRequest('/rooms/' + roomId, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expiryStatus: 'empty' })
+      });
+      const room = ROOM_BY_NUMBER.get(String(selectedRoom.number));
+      if (room) room.expiryStatus = 'empty';
+      refillRoomTemplatesLoadedAt = 0;
+      await syncRoomData();
+      await loadRoomDeadlineData(selectedRoom, true);
+      renderRefillCarouselStatuses();
+      renderDepartureListCard();
+      renderDrawerRooms(sheetSearch.value);
+      refillModal.classList.add('hidden');
+      refillModal.setAttribute('aria-hidden', 'true');
+      showMessage('Номер ' + selectedRoom.number + ' отмечен как пустой', 2500);
+      triggerHaptic();
+      void refreshActiveRefills().catch(error => console.warn('[MINIBAR REFILLS] Не удалось обновить пополнения:', error));
+    } else {
+      const result = await deadlineApiRequest('/refills', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          roomId,
+          allProducts:false,
+          expectedRequestId: refillCurrentRequestId,
+          items
+        })
+      });
+      if (result.request?.status === 'cancelled') activeRefillsByNumber.delete(String(selectedRoom.number));
+      else activeRefillsByNumber.set(String(selectedRoom.number), result.request);
+      renderRefillCarouselStatuses();
+      renderDepartureListCard();
+      refillModal.classList.add('hidden');
+      refillModal.setAttribute('aria-hidden', 'true');
+      showMessage(result.request?.status === 'cancelled'
+        ? 'Потребность в пополнении снята'
+        : 'Пополнение сохранено · номер ' + selectedRoom.number, 2500);
+      triggerHaptic();
+      void refreshActiveRefills().catch(error => console.warn('[MINIBAR REFILLS] Сохранено, но обновление списка не удалось:', error));
+    }
   } catch (error) {
     setRefillFeedback(error?.message || 'Не удалось сохранить пополнение');
   } finally {
