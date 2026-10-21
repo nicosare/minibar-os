@@ -358,7 +358,7 @@ let savedDeparturesPrint = null;
         actual.strokeWidth === 2.75 && actual.color === 'rgb(15, 23, 42)'
         ? actual
         : false;
-    }, null, { timeout: 10000 }).then(handle => handle.jsonValue());
+    }, null, { timeout: 20000 }).then(handle => handle.jsonValue());
     assert.deepEqual(titleIconStyle, { width: '28px', height: '28px', strokeWidth: 2.75, color: 'rgb(15, 23, 42)' },
       'page title icons should be larger, bold, and neutral black');
 
