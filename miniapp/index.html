@@ -1167,6 +1167,8 @@
     border-color: rgba(74, 222, 128, .72);
     background: rgba(34, 197, 94, .15);
   }
+  .room-chip.needs-refill:not(.selected) { color:#ffb16e; border-color:rgba(251,146,60,.78); background:rgba(251,146,60,.13); }
+  .room-chip.needs-refill.selected { color:#141414; background:var(--yellow); border-color:#fb923c; box-shadow:inset 0 0 0 1px #fb923c; }
 
   .room-chip-remove {
     position: absolute;
@@ -1329,18 +1331,20 @@
   .mini-departure-card-label { color: var(--text-dim); font-size: 10px; line-height: 13px; }
   .mini-departure-card-separator { flex: 1 1 auto; min-width: 4px; }
   .mini-departure-empty-note { margin: 9px 2px 0; color: rgba(255,255,255,.42); font-size: 10px; line-height: 14px; }
-  .mini-refill-section { margin-top: 12px; padding: 15px; border: 1px solid rgba(251,146,60,.25); border-radius: 14px; background: linear-gradient(135deg, rgba(251,146,60,.055), #151517 65%); }
-  .mini-refill-head { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:16px; line-height:20px; font-weight:850; }
-  .mini-refill-head-count { color:#fb923c; font-size:10px; font-weight:800; white-space:nowrap; }
-  .mini-refill-stats { margin-top:12px; color:rgba(255,255,255,.58); font-size:10px; line-height:14px; }
-  .mini-refill-products { display:flex; flex-direction:column; gap:11px; margin-top:14px; }
-  .mini-refill-product { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
-  .mini-refill-product-main { min-width:0; flex:1; }
-  .mini-refill-product-name { color:rgba(255,255,255,.94); font-size:12px; font-weight:750; line-height:16px; overflow-wrap:anywhere; }
-  .mini-refill-room-list { display:flex; flex-wrap:wrap; gap:4px; margin-top:5px; }
-  .mini-refill-room { padding:3px 6px; border:1px solid rgba(251,146,60,.2); border-radius:6px; background:rgba(251,146,60,.07); color:rgba(255,190,130,.9); font-size:9px; font-weight:750; }
-  .mini-refill-product-qty { flex:0 0 auto; color:#fb923c; font-size:13px; font-weight:850; white-space:nowrap; font-variant-numeric:tabular-nums; }
-  .mini-refill-empty { margin-top:12px; color:rgba(255,255,255,.42); font-size:11px; line-height:16px; }
+  .sheet-refill-section { margin-top:8px; padding:13px; border:1px solid rgba(251,146,60,.25); border-radius:12px; background:linear-gradient(135deg,rgba(251,146,60,.055),rgba(255,255,255,.018) 70%); }
+  .sheet-refill-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding-bottom:9px; border-bottom:1px solid rgba(251,146,60,.16); }
+  .sheet-refill-title { color:#ffb16e; font-size:13px; font-weight:850; line-height:17px; }
+  .sheet-refill-count { color:rgba(255,190,130,.75); font-size:10px; font-weight:750; white-space:nowrap; }
+  .sheet-refill-products { display:flex; flex-direction:column; gap:7px; margin-top:10px; }
+  .sheet-refill-product { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .sheet-refill-product-name { color:rgba(255,255,255,.88); font-size:12px; line-height:16px; min-width:0; overflow-wrap:anywhere; }
+  .sheet-refill-product-qty { flex:0 0 auto; color:#ffb16e; font-size:12px; line-height:16px; font-weight:850; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .sheet-refill-room-lines { display:flex; flex-direction:column; gap:5px; margin-top:12px; padding-top:10px; border-top:1px solid rgba(255,255,255,.08); }
+  .sheet-refill-room-line { display:flex; align-items:flex-start; gap:8px; width:100%; padding:3px 0; border:0; background:transparent; color:rgba(255,255,255,.7); text-align:left; font-size:10px; line-height:14px; cursor:pointer; }
+  .sheet-refill-room-line:active { color:#ffb16e; }
+  .sheet-refill-room-number { flex:0 0 36px; color:#ffb16e; font-weight:850; font-variant-numeric:tabular-nums; }
+  .sheet-refill-room-products { min-width:0; flex:1; overflow-wrap:anywhere; }
+  .sheet-refill-empty { margin-top:10px; color:rgba(255,255,255,.42); font-size:11px; line-height:15px; }
   .refill-modal-footer { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; padding:12px 15px calc(12px + env(safe-area-inset-bottom)); border-top:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.025); }
   .refill-modal-all.is-selected { border-color:rgba(251,146,60,.9); background:rgba(251,146,60,.15); color:#ffb16e; }
   .refill-modal-feedback { display:none; padding:0 15px 8px; color:rgba(255,255,255,.58); font-size:11px; line-height:15px; }
@@ -1993,30 +1997,102 @@ function activeRefillRequests() {
     .sort((a, b) => Number(a.roomNumber) - Number(b.roomNumber));
 }
 
+function refillItemKey(item) {
+  return String(item.productId) + '\u001f' + String(item.name || '');
+}
+function refillRoomType(request) {
+  const room = ROOM_BY_NUMBER.get(String(request.roomNumber));
+  return normalizeRoomType({category:request.roomCategory||room?.category||'',roomCategory:request.roomCategory||room?.category||'',type:room?.type||''});
+}
+function refillRecipeSignature(items) {
+  return (Array.isArray(items)?items:[]).filter(item=>Number(item.qty)>0)
+    .map(item=>({key:refillItemKey(item),qty:Math.max(1,Number(item.qty)||1)}))
+    .sort((a,b)=>a.key.localeCompare(b.key)).map(item=>item.key+'='+item.qty).join('|');
+}
+function requestMatchesFullTemplate(request) {
+  const requested=new Map((request.items||[]).map(item=>[refillItemKey(item),Math.max(0,Number(item.qty)||0)]).filter(([,qty])=>qty>0));
+  const template=new Map((request.templateItems||[]).map(item=>[refillItemKey(item),Math.max(1,Number(item.qty)||1)]));
+  if(!requested.size||requested.size!==template.size)return false;
+  for(const [key,qty] of template)if(requested.get(key)!==qty)return false;
+  return true;
+}
 function aggregateActiveRefills() {
-  const grouped = new Map();
-  let totalUnits = 0;
-  for (const request of activeRefillRequests()) {
-    for (const item of request.items || []) {
-      const qty = Math.max(0, Number(item.qty) || 0);
-      if (!qty) continue;
-      totalUnits += qty;
-      const key = String(item.productId) + '\u001f' + String(item.name || '');
-      if (!grouped.has(key)) {
-        grouped.set(key, {productId:item.productId,name:item.name||'Продукт',category:item.category||'Напитки',unit:item.unit||'шт',qty:0,rooms:[]});
-      }
-      const product = grouped.get(key);
-      product.qty += qty;
-      product.rooms.push({number:String(request.roomNumber),qty});
+  const requests=activeRefillRequests(),grouped=new Map();
+  let totalUnits=0;
+  for(const request of requests)for(const item of request.items||[]){
+    const qty=Math.max(0,Number(item.qty)||0);if(!qty)continue;
+    totalUnits+=qty;
+    const key=refillItemKey(item);
+    if(!grouped.has(key))grouped.set(key,{productId:item.productId,name:item.name||'Продукт',qty:0});
+    grouped.get(key).qty+=qty;
+  }
+  const rawProducts=[...grouped.values()].sort((a,b)=>(a.name||'').localeCompare(b.name||'','ru'));
+  const available=new Map(rawProducts.map(item=>[refillItemKey(item),item.qty]));
+  const recipeGroups=new Map();
+  for(const request of requests){
+    const type=refillRoomType(request),recipe=Array.isArray(request.templateItems)?request.templateItems:[];
+    if(!recipe.length)continue;
+    const signature=refillRecipeSignature(recipe);if(!signature)continue;
+    if(!recipeGroups.has(type))recipeGroups.set(type,new Map());
+    const options=recipeGroups.get(type);
+    if(!options.has(signature))options.set(signature,{count:0,items:recipe});
+    options.get(signature).count+=1;
+  }
+  const recipes=[];
+  for(const [type,options] of recipeGroups){
+    if(options.size!==1)continue;
+    const recipe=new Map(),option=[...options.values()][0];
+    option.items.forEach(item=>{const key=refillItemKey(item),qty=Math.max(1,Number(item.qty)||1);recipe.set(key,(recipe.get(key)||0)+qty)});
+    if(recipe.size)recipes.push({type,name:type==='suite'?'Корзинка люкс':'Корзинка стандарт',recipe});
+  }
+  const possible=recipes.map(candidate=>{
+    let max=requests.length;
+    for(const [key,qty] of candidate.recipe)max=Math.min(max,Math.floor((available.get(key)||0)/qty));
+    return Math.max(0,max);
+  });
+  let best=recipes.map(()=>0),bestTotal=0,bestStandard=-1;
+  if(recipes.length===1){best=[possible[0]];bestTotal=possible[0]}
+  else if(recipes.length>1){
+    const si=recipes.findIndex(r=>r.type==='standard'),li=recipes.findIndex(r=>r.type==='suite');
+    if(si>=0&&li>=0)for(let sc=possible[si];sc>=0;sc--)for(let lc=possible[li];lc>=0;lc--){
+      const used=new Map();
+      for(const [key,qty] of recipes[si].recipe)used.set(key,qty*sc);
+      for(const [key,qty] of recipes[li].recipe)used.set(key,(used.get(key)||0)+qty*lc);
+      let valid=true;for(const [key,qty] of used)if(qty>(available.get(key)||0)){valid=false;break}
+      const total=sc+lc;
+      if(valid&&(total>bestTotal||(total===bestTotal&&sc>bestStandard))){best[si]=sc;best[li]=lc;bestTotal=total;bestStandard=sc}
     }
   }
-  return {
-    requests: activeRefillRequests(),
-    products: [...grouped.values()].map(product => ({
-      ...product, rooms: product.rooms.sort((a,b)=>Number(a.number)-Number(b.number))
-    })).sort((a,b)=>(a.category||'').localeCompare(b.category||'','ru')||(a.name||'').localeCompare(b.name||'','ru')),
-    totalUnits
-  };
+  const products=[];
+  recipes.forEach((recipe,index)=>{
+    const count=best[index]||0;if(count<=0)return;
+    products.push({name:recipe.name,qty:count,basket:true});
+    recipe.recipe.forEach((qty,key)=>available.set(key,Math.max(0,(available.get(key)||0)-qty*count)));
+  });
+  rawProducts.forEach(item=>{const qty=available.get(refillItemKey(item))||0;if(qty>0)products.push({name:item.name,qty,basket:false})});
+  const roomLines=requests.map(request=>{
+    const type=refillRoomType(request);let productsText;
+    if(request.allProducts||requestMatchesFullTemplate(request))productsText=type==='suite'?'Корзинка люкс':'Корзинка стандарт';
+    else productsText=(request.items||[]).filter(item=>Number(item.qty)>0).map(item=>{
+      const qty=Math.max(0,Number(item.qty)||0),name=String(item.name||'Продукт');return qty>1?name+' × '+qty:name;
+    }).join(', ')||'продукты не указаны';
+    return {roomNumber:String(request.roomNumber),floor:Number(request.floor)||0,productsText};
+  }).sort((a,b)=>a.floor-b.floor||Number(a.roomNumber)-Number(b.roomNumber));
+  return {requests,products,roomLines,totalUnits,basketCounts:products.filter(item=>item.basket).reduce((sum,item)=>sum+item.qty,0)};
+}
+function renderRefillSection() {
+  const summary=aggregateActiveRefills();
+  const productsHtml=summary.products.length
+    ? '<div class="sheet-refill-products">'+summary.products.map(product=>'<div class="sheet-refill-product"><span class="sheet-refill-product-name">'+
+      escapeCameraHtml(product.name)+'</span><span class="sheet-refill-product-qty">'+product.qty+' шт.</span></div>').join('')+'</div>'
+    : '<div class="sheet-refill-empty">Нет номеров, ожидающих пополнения.</div>';
+  const roomsHtml=summary.roomLines.length
+    ? '<div class="sheet-refill-room-lines">'+summary.roomLines.map(room=>'<button type="button" class="sheet-refill-room-line" data-refill-room-number="'+
+      escapeCameraHtml(room.roomNumber)+'" title="Открыть номер '+escapeCameraHtml(room.roomNumber)+'"><span class="sheet-refill-room-number">'+
+      escapeCameraHtml(room.roomNumber)+'</span><span class="sheet-refill-room-products">'+escapeCameraHtml(room.productsText)+'</span></button>').join('')+'</div>'
+    : '';
+  return '<section class="sheet-refill-section" aria-label="Список пополнения"><div class="sheet-refill-head"><span class="sheet-refill-title">Пополнение</span><span class="sheet-refill-count">'+
+    summary.requests.length+' номеров</span></div>'+productsHtml+roomsHtml+'</section>';
 }
 
 function renderRefillCarouselStatuses() {
@@ -2039,54 +2115,24 @@ async function refreshActiveRefills(roomId = null) {
   }
   renderRefillCarouselStatuses();
   if (selectedRoom) updateSelectedRoomState(selectedRoom, false);
+  if (isSheetOpen) renderDrawerRooms(sheetSearch.value);
   renderDepartureListCard();
   return requests;
 }
 
 function renderDepartureListCard() {
   if (activePlaceholderName !== 'Списки' || !navPlaceholderBody) return;
-  const active = activeListKey === 'departures';
-  const total = Math.max(0, departureList.assignedCount);
-  const completed = Math.max(0, departureList.completedCount);
-  const remaining = Math.max(0, departureList.remainingCount);
-  const progress = total > 0 ? Math.max(0, Math.min(100, Math.round(completed / total * 100))) : 0;
-  const refillSummary = aggregateActiveRefills();
-  const refillRooms = refillSummary.requests.length;
-  const refillCard = '<section class="mini-refill-section" aria-label="Общий список пополнения">' +
-    '<div class="mini-refill-head"><span>Пополнение</span><span class="mini-refill-head-count">' +
-      refillRooms + ' ' + (refillRooms === 1 ? 'номер' : 'номеров') + '</span></div>' +
-    '<div class="mini-refill-stats">К сборке: <strong>' + refillSummary.totalUnits +
-      ' шт.</strong> · позиции объединены по всем незакрытым номерам</div>' +
-    (refillSummary.products.length
-      ? '<div class="mini-refill-products">' + refillSummary.products.map(product =>
-          '<div class="mini-refill-product"><div class="mini-refill-product-main">' +
-            '<div class="mini-refill-product-name">' + escapeCameraHtml(product.name) + '</div>' +
-            '<div class="mini-refill-room-list">' + product.rooms.map(room =>
-              '<button type="button" class="mini-refill-room" data-refill-room-number="' + escapeCameraHtml(room.number) +
-              '" title="Открыть номер ' + escapeCameraHtml(room.number) + '">' +
-              escapeCameraHtml(room.number) + ' × ' + room.qty + '</button>'
-            ).join('') + '</div></div><div class="mini-refill-product-qty">' + product.qty +
-            ' ' + escapeCameraHtml(product.unit || 'шт') + '</div></div>'
-        ).join('') + '</div>'
-      : '<div class="mini-refill-empty">Нет номеров, ожидающих пополнения.</div>') +
-    '</section>';
-
-  navPlaceholderBody.innerHTML =
-    '<button type="button" class="mini-departure-list-card' + (active ? ' is-active' : '') +
-      '" data-select-departures-list aria-label="Выбрать список Выезды">' +
-      '<div class="mini-departure-card-top"><span>Выезды</span><span class="mini-departure-card-state">' +
-        (active ? 'Активен' : 'Открыть') + '</span></div>' +
-      '<div class="mini-departure-progress">' +
-        '<div class="mini-departure-progress-copy"><span>Проверено <strong>' + completed +
-          '</strong> из <strong>' + total + '</strong></span><span>Осталось <strong>' + remaining + '</strong></span></div>' +
-        '<div class="mini-departure-progress-track" role="progressbar" aria-label="Прогресс проверок" aria-valuemin="0" aria-valuemax="' +
-          total + '" aria-valuenow="' + Math.min(completed, total) + '"><span style="width:' + progress + '%"></span></div>' +
-      '</div></button>' +
-    (!departureList.sourceReady && total === 0
-      ? '<div class="mini-departure-empty-note">Загрузите PDF со списком на сайте.</div>'
-      : '') + refillCard;
+  const active=activeListKey==='departures';
+  const total=Math.max(0,departureList.assignedCount),completed=Math.max(0,departureList.completedCount),remaining=Math.max(0,departureList.remainingCount);
+  const progress=total>0?Math.max(0,Math.min(100,Math.round(completed/total*100))):0;
+  navPlaceholderBody.innerHTML=
+    '<button type="button" class="mini-departure-list-card'+(active?' is-active':'')+'" data-select-departures-list aria-label="Выбрать список Выезды">'+
+    '<div class="mini-departure-card-top"><span>Выезды</span><span class="mini-departure-card-state">'+(active?'Активен':'Открыть')+'</span></div>'+
+    '<div class="mini-departure-progress"><div class="mini-departure-progress-copy"><span>Проверено <strong>'+completed+'</strong> из <strong>'+total+
+    '</strong></span><span>Осталось <strong>'+remaining+'</strong></span></div><div class="mini-departure-progress-track" role="progressbar" aria-label="Прогресс проверок" aria-valuemin="0" aria-valuemax="'+
+    total+'" aria-valuenow="'+Math.min(completed,total)+'"><span style="width:'+progress+'%"></span></div></div></button>'+
+    (!departureList.sourceReady&&total===0?'<div class="mini-departure-empty-note">Загрузите PDF со списком на сайте.</div>':'');
 }
-
 async function openListsScreen() {
   closeToolScreens();
   closeSheet();
@@ -4163,6 +4209,7 @@ function renderDrawerRooms(filterQuery = '') {
         const classes = [
           'room-chip',
           room.expiryStatus === 'empty' ? 'empty-room' : '',
+          activeRefillsByNumber.has(number) ? 'needs-refill' : '',
           number === String(selectedRoom?.number || '') ? 'selected' : '',
           checked ? 'today-checked' : ''
         ].filter(Boolean).join(' ');
@@ -4178,11 +4225,12 @@ function renderDrawerRooms(filterQuery = '') {
     </div>`);
   }
 
-  sheetContent.innerHTML = hasAny
+  const roomsHtml = hasAny
     ? parts.join('')
     : `<div style="text-align: center; color: var(--text-dim); padding: 40px 8px;">${listMode
       ? 'В списке нет доступных номеров. Добавьте номер или загрузите PDF на сайте.'
       : 'Номера не найдены'}</div>`;
+  sheetContent.innerHTML = roomsHtml + (listMode ? renderRefillSection() : '');
 
   sheetPeekTitle.textContent = hasActiveList
     ? (listMode ? 'Список «Выезды» · ' + listNumbers.size : 'Все номера · ' + ALL_ROOMS.length)
@@ -4812,6 +4860,19 @@ descRoomRemove.addEventListener('click', event => {
 });
 
 sheetContent.addEventListener('click', event => {
+  const refillRoomButton = event.target.closest('[data-refill-room-number]');
+  if (refillRoomButton) {
+    const number = String(refillRoomButton.dataset.refillRoomNumber || '');
+    if (ROOM_BY_NUMBER.has(number)) {
+      activeListKey = '';
+      activeListDateKey = '';
+      drawerMode = 'all';
+      persistActiveListSelection();
+      buildCarousel(number);
+      closeSheet();
+    }
+    return;
+  }
   const removeButton = event.target.closest('[data-departure-remove]');
   if (removeButton) {
     event.preventDefault();
