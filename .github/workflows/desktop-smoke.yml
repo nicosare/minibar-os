@@ -68,6 +68,10 @@ jobs:
           exit 1
 
       - name: Run desktop browser smoke tests
+        if: >-
+          github.event_name != 'push' ||
+          contains(toJSON(github.event.head_commit.modified), 'frontend/') ||
+          contains(toJSON(github.event.head_commit.modified), 'miniapp/')
         run: node frontend/tests/desktop-smoke.cjs
 
       - name: Test VK Mini App photo destination
