@@ -62,9 +62,14 @@ export function parseVkOperationalMessage(rawText) {
     : text;
 
   const lowered = baseText.toLocaleLowerCase('ru-RU');
-  const emptyMatch = lowered.match(/опустош\p{L}*/u);
-  const prefixEnd = emptyMatch ? emptyMatch.index : baseText.length;
-  const prefix = baseText.slice(0, prefixEnd).trim();
+  const residentialMatch = lowered.match(/\s+проверен\p{L}*\s*,?\s*жилой\s*$/u);
+  const operationalText = residentialMatch
+    ? baseText.slice(0, residentialMatch.index).trim()
+    : baseText;
+  const operationalLowered = operationalText.toLocaleLowerCase('ru-RU');
+  const emptyMatch = operationalLowered.match(/опустош\p{L}*/u);
+  const prefixEnd = emptyMatch ? emptyMatch.index : operationalText.length;
+  const prefix = operationalText.slice(0, prefixEnd).trim();
 
   const matches = [...prefix.matchAll(ROOM_RE)];
   if (!matches.length) return null;
@@ -90,7 +95,7 @@ export function parseVkOperationalMessage(rawText) {
   }
 
   if (emptyMatch) {
-    const afterKeyword = baseText.slice(
+    const afterKeyword = operationalText.slice(
       emptyMatch.index + emptyMatch[0].length
     );
 
@@ -103,6 +108,7 @@ export function parseVkOperationalMessage(rawText) {
     rooms: [...new Set(matches.map(match => Number(match[0])))],
     undo: false,
     emptied: Boolean(emptyMatch),
+    residential: Boolean(residentialMatch),
     note
   };
 }
@@ -392,7 +398,7 @@ export async function processVkBotMessage({
           checkDate: eventDate,
           type: parsed.emptied ? 'vk_emptied' : 'vk_room',
           status: 'done',
-          notes: parsed.note,
+          notes: parsed.note || (parsed.residential ? 'Проверен, жилой' : null),
           operationSnapshot: {
             version: 1,
             source: 'vk_bot',
