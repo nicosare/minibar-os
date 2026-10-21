@@ -157,6 +157,37 @@ router.get('/active', async (req, res) => {
           }));
       });
     }
+    // Active requests can outlive product metadata changes and older records may
+    // not contain emoji/bgColor snapshots. Always hydrate presentation metadata
+    // from the canonical Product rows so the Mini App uses the same source as
+    // the calculator and product picker.
+    const productIds = [...new Set(parsedRequests.flatMap(request => [
+      ...(request.items || []),
+      ...(request.templateItems || [])
+    ]).map(item => Number(item.productId)).filter(id => Number.isInteger(id) && id > 0))];
+    const products = productIds.length
+      ? await prisma.product.findMany({
+          where: { id: { in: productIds } },
+          select: { id: true, emoji: true, bgColor: true, category: true, volume: true, unit: true }
+        })
+      : [];
+    const productById = new Map(products.map(product => [Number(product.id), product]));
+    const hydrateItem = item => {
+      const product = productById.get(Number(item.productId));
+      if (!product) return item;
+      return {
+        ...item,
+        emoji: product.emoji || item.emoji || null,
+        bgColor: product.bgColor || item.bgColor || 'slate',
+        category: product.category || item.category || 'Напитки',
+        volume: product.volume ?? item.volume ?? null,
+        unit: product.unit || item.unit || 'шт'
+      };
+    };
+    parsedRequests.forEach(request => {
+      request.items = (request.items || []).map(hydrateItem);
+      request.templateItems = (request.templateItems || []).map(hydrateItem);
+    });
     const requests = parsedRequests.map(serializeRecord);
     res.set('Cache-Control', 'no-store');
     res.json({ requests, ...summarizeRequests(requests) });
