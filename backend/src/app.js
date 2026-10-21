@@ -11,6 +11,7 @@ import excisesRouter from './routes/excises.js';
 import listsRouter from './routes/lists.js';
 import departuresRouter from './routes/departures.js';
 import miniappRouter from './routes/miniapp.js';
+import refillsRouter from './routes/refills.js';
 import vkBotRouter from './routes/vk-bot.js';
 import eventsRouter from './routes/events.js';
 import { dataChangeRequestMiddleware } from './lib/live-events.js';
@@ -40,6 +41,7 @@ export function createApp() {
   app.use('/api/lists', listsRouter);
   app.use('/api/departures', departuresRouter);
   app.use('/api/miniapp', miniappRouter);
+  app.use('/api/refills', refillsRouter);
   app.use('/api/vk-bot', vkBotRouter);
 
   app.use((err, req, res, next) => {

@@ -214,6 +214,12 @@ router.post('/', async (req, res) => {
         }
       }
 
+      if (allProducts && !normalized.length) {
+        const error = new Error('У этого номера нет активных продуктов в шаблоне наполнения');
+        error.statusCode = 400;
+        throw error;
+      }
+
       if (!normalized.length) {
         if (!existing) {
           const error = new Error('Выбери продукты или включи «Всё в списке продуктов»');

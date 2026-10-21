@@ -141,6 +141,40 @@ async function syncSentMessage(peerId, rawMessageId, text) {
   }
 }
 
+async function completeRefillAfterPhoto(roomNumber, refillRequestId) {
+  if (!INTERNAL_TOKEN) {
+    return {synced: false, error: 'VK_BOT_INTERNAL_TOKEN не настроен в vk-proxy'};
+  }
+  const payload = {
+    roomNumber: String(roomNumber || '').trim(),
+    refillRequestId: Number(refillRequestId)
+  };
+  let lastError = null;
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
+    try {
+      const response = await fetch(API_BASE_URL + '/api/refills/complete-after-photo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Minibar-Bot-Token': INTERNAL_TOKEN
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || 'Не удалось подтвердить пополнение (HTTP ' + response.status + ')');
+      }
+      // A stale ID is terminal but must never close a newer request.
+      return {synced: true, status: data.status || 'completed'};
+    } catch (error) {
+      lastError = error;
+      console.warn('[VK proxy] Refill completion attempt ' + attempt + '/5 failed:', error.message);
+      if (attempt < 5) await sleep(Math.min(400 * attempt, 2000));
+    }
+  }
+  return {synced: false, error: lastError?.message || 'Не удалось синхронизировать пополнение'};
+}
+
 function isLegacyPhotoUploadUrl(value) {
   try {
     const url = new URL(value);
@@ -307,10 +341,22 @@ app.post('/send-photo', upload.single('photo'), async (req, res) => {
     });
 
     const siteSync = await syncSentMessage(peerId, messageData.response, roomNumber);
+    const requestedRefillId = Number(req.body?.refill_request_id);
+    const hasRefillRequest = Number.isSafeInteger(requestedRefillId) && requestedRefillId > 0;
+    const refillSync = hasRefillRequest
+      ? await completeRefillAfterPhoto(roomNumber, requestedRefillId)
+      : {synced: true, status: 'no_refill_for_photo'};
     console.log('[VK proxy] photo sent peer=' + peerId +
-      ' room=' + roomNumber + ' message=' + String(messageData.response ?? '-'));
+      ' room=' + roomNumber + ' message=' + String(messageData.response ?? '-') +
+      ' refill_synced=' + String(refillSync.synced));
     return res.json({
-      ok: true, message_id: messageData.response, mode: savedAttachment.mode, ...siteSync
+      ok: true,
+      message_id: messageData.response,
+      mode: savedAttachment.mode,
+      ...siteSync,
+      refill_synced: refillSync.synced,
+      refill_sync_status: refillSync.status || 'pending',
+      refill_sync_error: refillSync.error || ''
     });
   } catch (error) {
     console.error('[VK proxy]', error);
@@ -322,6 +368,24 @@ app.post('/send-photo', upload.single('photo'), async (req, res) => {
   }
 });
 
+
+app.post('/complete-refill', async (req, res) => {
+  try {
+    const roomNumber = String(req.body?.room || '').trim();
+    const requestId = Number(req.body?.refill_request_id);
+    if (!/^\\d{1,4}$/.test(roomNumber) || !Number.isSafeInteger(requestId) || requestId <= 0) {
+      return res.status(400).json({ok: false, error: 'Некорректные данные завершения пополнения'});
+    }
+    const result = await completeRefillAfterPhoto(roomNumber, requestId);
+    if (!result.synced) {
+      return res.status(503).json({ok: false, refill_synced: false, error: result.error || 'Синхронизация ещё не выполнена'});
+    }
+    return res.json({ok: true, refill_synced: true, status: result.status});
+  } catch (error) {
+    console.error('[VK proxy] Refill completion endpoint failed:', error.message);
+    return res.status(503).json({ok: false, refill_synced: false, error: error.message || 'Не удалось завершить пополнение'});
+  }
+});
 
 app.post('/send-message', async (req, res) => {
   try {

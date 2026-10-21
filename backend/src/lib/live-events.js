@@ -26,6 +26,8 @@ const MODEL_DOMAINS = {
   DeadlineDailyStat: ['deadlines', 'dashboard'],
   DeadlineTarget: ['deadlines', 'dashboard'],
   MiniAppRoomTask: ['miniapp', 'rooms', 'dashboard'],
+  RefillRequest: ['refills', 'miniapp'],
+  RefillRequestItem: ['refills', 'miniapp'],
   VkBotEvent: ['bot'],
   ActiveList: ['lists'],
   ListRoom: ['lists'],
