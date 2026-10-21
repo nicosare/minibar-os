@@ -1082,6 +1082,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 2px;
   }
 
@@ -3823,8 +3824,10 @@ function selectRoomByNumber(numStr, vibrate = true, behavior = 'smooth', pin = t
     }
     clearTimeout(carouselReturnTimer);
     carouselReturnTimer = null;
-    updateSelectedRoomState(room, vibrate);
+    // The pinned room is a return target, not necessarily the currently active
+    // room. Camera details always follow whichever item is physically centered.
     el.scrollIntoView({ behavior, inline: 'center', block: 'nearest' });
+    requestAnimationFrame(() => updateNumberFromScroll(false));
   }
 }
 
@@ -3846,15 +3849,15 @@ function closestCarouselItem() {
   return closest;
 }
 
-function updateNumberFromScroll() {
+function updateNumberFromScroll(vibrate = true) {
   const closest = closestCarouselItem();
   if (!closest) return;
   const room = ROOM_BY_NUMBER.get(closest.dataset.number);
   if (!room) return;
-  if (activeCarouselItem) activeCarouselItem.classList.remove('active');
-  closest.classList.add('active');
-  closest.classList.toggle('empty-room', room.expiryStatus === 'empty');
-  activeCarouselItem = closest;
+
+  const changed = String(selectedRoom?.number || '') !== String(room.number);
+  updateSelectedRoomState(room, false);
+  if (changed && vibrate) triggerHaptic();
 }
 
 function schedulePinnedCarouselReturn() {
