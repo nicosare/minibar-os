@@ -1162,18 +1162,19 @@
 
   /* Refill status takes precedence over empty/checked status, including selection. */
   .room-chip.needs-refill,
-  .room-chip.needs-refill:not(.selected),
-  .room-chip.needs-refill.selected {
+  .room-chip.needs-refill:not(.selected) {
     color: #ffb16e;
-    border-color: rgba(251, 146, 60, .78);
+    border-color: #fb923c;
     background: rgba(251, 146, 60, .13);
     box-shadow: none;
   }
 
+  /* Selected refill rooms use the same solid status treatment as selected empty rooms. */
   .room-chip.needs-refill.selected {
+    color: #fff;
     border-color: #fb923c;
-    background: rgba(251, 146, 60, .2);
-    box-shadow: inset 0 0 0 1px #fb923c;
+    background: #fb923c;
+    box-shadow: none;
   }
 
   .room-chip.today-checked:not(.selected):not(.empty-room):not(.needs-refill) {
@@ -2029,7 +2030,10 @@ function requestMatchesFullTemplate(request) {
   return true;
 }
 function aggregateActiveRefills() {
-  const requests=activeRefillRequests(),grouped=new Map();
+  // The drawer's refill summary belongs to the active departures list.
+  // Include empty rooms, but never show requests for rooms outside that list.
+  const listNumbers = currentDepartureNumbers();
+  const requests=activeRefillRequests().filter(request => listNumbers.has(String(request.roomNumber))),grouped=new Map();
   let totalUnits=0;
   for(const request of requests)for(const item of request.items||[]){
     const qty=Math.max(0,Number(item.qty)||0);if(!qty)continue;
@@ -4876,12 +4880,10 @@ sheetContent.addEventListener('click', event => {
   const refillRoomButton = event.target.closest('[data-refill-room-number]');
   if (refillRoomButton) {
     const number = String(refillRoomButton.dataset.refillRoomNumber || '');
-    if (ROOM_BY_NUMBER.has(number)) {
-      activeListKey = '';
-      activeListDateKey = '';
-      drawerMode = 'all';
-      persistActiveListSelection();
-      buildCarousel(number);
+    // Summary entries are restricted to the current list; preserve that list
+    // and select the room inside it rather than switching to all hotel rooms.
+    if (ROOM_BY_NUMBER.has(number) && currentDepartureNumbers().has(number)) {
+      selectRoomByNumber(number, true);
       closeSheet();
     }
     return;
