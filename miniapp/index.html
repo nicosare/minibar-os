@@ -336,9 +336,19 @@
   .num-item.active.today-checked:not(.empty-room) { text-shadow: 0 0 12px rgba(74, 222, 128, .3); }
   .num-item.pinned.today-checked:not(.empty-room)::after { border-color: rgba(74, 222, 128, .95); }
   .num-item.needs-refill { color: rgba(251, 146, 60, .56); }
-  .num-item.active.needs-refill, .num-item.pinned.needs-refill { color: #fb923c; }
-  .num-item.active.needs-refill { text-shadow: 0 0 12px rgba(251, 146, 60, .3); }
-  .num-item.pinned.needs-refill::after { border-color: rgba(251, 146, 60, .95); }
+  .num-item.today-checked.needs-refill:not(.empty-room),
+  .num-item.empty-room.needs-refill { color: rgba(251, 146, 60, .56); }
+  .num-item.active.needs-refill,
+  .num-item.pinned.needs-refill,
+  .num-item.active.today-checked.needs-refill,
+  .num-item.pinned.today-checked.needs-refill,
+  .num-item.active.empty-room.needs-refill,
+  .num-item.pinned.empty-room.needs-refill { color: #fb923c; }
+  .num-item.active.needs-refill,
+  .num-item.active.today-checked.needs-refill,
+  .num-item.active.empty-room.needs-refill { text-shadow: 0 0 12px rgba(251, 146, 60, .3); }
+  .num-item.pinned.needs-refill::after,
+  .num-item.pinned.empty-room.needs-refill::after { border-color: rgba(251, 146, 60, .95); }
 
   /* Standby information is modular; the viewfinder itself remains unchanged. */
   .camera-info-panel {
@@ -4593,7 +4603,15 @@ refillModalProducts.addEventListener('click', event => {
   const button = event.target.closest('[data-refill-product-id]');
   if (!button || refillModalBusy) return;
   const id = Number(button.dataset.refillProductId), max = Math.max(1,Number(button.dataset.refillMax)||1);
-  if (refillAllProducts) { refillAllProducts = false; refillSelectedCounts = {}; }
+  if (refillAllProducts) {
+    refillAllProducts = false;
+    // Switch to individual products while keeping every currently listed quantity.
+    [...refillModalProducts.querySelectorAll('[data-refill-product-id]')].forEach(productButton => {
+      const productId = Number(productButton.dataset.refillProductId);
+      const maxQty = Math.max(1, Number(productButton.dataset.refillMax) || 1);
+      if (!Object.prototype.hasOwnProperty.call(refillSelectedCounts, productId)) refillSelectedCounts[productId] = maxQty;
+    });
+  }
   const current = Number(refillSelectedCounts[id]) || 0, next = current >= max ? 0 : current + 1;
   if (next) refillSelectedCounts[id] = next; else delete refillSelectedCounts[id];
   renderRefillProducts(deadlineRoomCache.get(Number(selectedRoom?.id))?.room || selectedRoom,
@@ -4603,7 +4621,6 @@ refillModalProducts.addEventListener('click', event => {
 refillModalAll.addEventListener('click', () => {
   if (refillModalBusy) return;
   refillAllProducts = !refillAllProducts;
-  if (!refillAllProducts) refillSelectedCounts = {};
   renderRefillProducts(deadlineRoomCache.get(Number(selectedRoom?.id))?.room || selectedRoom,
     activeRefillsByNumber.get(String(selectedRoom?.number)) || null);
   triggerHaptic();

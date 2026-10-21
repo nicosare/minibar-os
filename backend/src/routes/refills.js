@@ -242,20 +242,9 @@ router.post('/', async (req, res) => {
             });
             continue;
           }
-          if (!previous || qty > Number(previous.qty)) {
-            const error = new Error('Продукта больше нет в шаблоне номера. Обнови список и попробуй снова.');
-            error.statusCode = 409;
-            throw error;
-          }
-          normalized.push({
-            productId, qty,
-            name: previous.name,
-            category: previous.category || 'Напитки',
-            volume: previous.volume ?? null,
-            unit: previous.unit || 'шт',
-            emoji: previous.emoji || null,
-            bgColor: previous.bgColor || 'slate'
-          });
+          const error = new Error('Продукта больше нет в сохранённом списке пополнения. Обнови список и попробуй снова.');
+          error.statusCode = 409;
+          throw error;
         }
       }
 
