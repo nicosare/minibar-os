@@ -1173,13 +1173,20 @@
   }
 
   .room-chip-mark {
-    max-width: 100%;
+    position: absolute;
+    left: 2px;
+    right: 2px;
+    bottom: 1px;
+    max-width: calc(100% - 4px);
     color: #facc15;
-    font-size: 9px;
-    line-height: 11px;
+    font-size: 8px;
+    line-height: 9px;
     font-weight: 800;
     overflow-wrap: anywhere;
+    text-align: center;
+    pointer-events: none;
   }
+  .room-chip.selected .room-chip-mark { color: #111; }
 
   .room-chip-arrival {
     width: 100%;
