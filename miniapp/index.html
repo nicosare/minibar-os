@@ -4542,12 +4542,17 @@ async function saveRefillRequest() {
       method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({roomId,allProducts:refillAllProducts,items})
     });
-    await refreshActiveRefills();
-    closeRefillModal();
+    if (result.request?.status === 'cancelled') activeRefillsByNumber.delete(String(selectedRoom.number));
+    else activeRefillsByNumber.set(String(selectedRoom.number), result.request);
+    renderRefillCarouselStatuses();
+    renderDepartureListCard();
+    refillModal.classList.add('hidden');
+    refillModal.setAttribute('aria-hidden', 'true');
     showMessage(result.request?.status === 'cancelled'
       ? 'Потребность в пополнении снята'
       : 'Пополнение сохранено · номер ' + selectedRoom.number, 2500);
     triggerHaptic();
+    void refreshActiveRefills().catch(error => console.warn('[MINIBAR REFILLS] Сохранено, но обновление списка не удалось:', error));
   } catch (error) {
     setRefillFeedback(error?.message || 'Не удалось сохранить пополнение');
   } finally {
@@ -4912,6 +4917,7 @@ async function sendPhotoToServer(blobFile, roomNum, requestId, refillRequestId =
       site_sync_error: data.site_sync_error || '',
       refill_synced: data.refill_synced !== false,
       refill_sync_error: data.refill_sync_error || '',
+      refill_retry_token: data.refill_retry_token || '',
       photo_sent: true
     };
   } catch (err) {
@@ -5030,7 +5036,8 @@ async function queuePhotoForUpload(roomNumber, blob, requestId, refillRequestId 
     id: String(now) + '-' + stableRequestId + '-' + Math.random().toString(36).slice(2, 9),
     roomNumber: String(roomNumber),
     requestId: stableRequestId,
-    refillRequestId: Number.isInteger(Number(refillRequestId)) && Number(refillRequestId) > 0 ? Number(refillRequestId) : null,
+    refillRequestId: Number.isSafeInteger(Number(refillRequestId)) && Number(refillRequestId) > 0 ? Number(refillRequestId) : null,
+    refillRetryToken: null,
     photoSent: false,
     blob,
     createdAt: now,
@@ -5100,12 +5107,17 @@ function formatPhotoRetryDelay(ms) {
   return Math.max(1, Math.ceil(ms / 1000)) + ' сек.';
 }
 
-async function retryRefillCompletion(roomNumber, refillRequestId) {
+async function retryRefillCompletion(roomNumber, refillRequestId, retryToken, randomId) {
   try {
     const response = await fetch('/minibar-os/vk-proxy/complete-refill', {
       method: 'POST',
       headers: {'Content-Type':'application/json', Accept:'application/json'},
-      body: JSON.stringify({room:String(roomNumber),refill_request_id:Number(refillRequestId)})
+      body: JSON.stringify({
+        room:String(roomNumber),
+        refill_request_id:Number(refillRequestId),
+        refill_retry_token:String(retryToken || ''),
+        random_id:Number(randomId)
+      })
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.ok || data.refill_synced === false) {
@@ -5170,7 +5182,7 @@ async function processPhotoQueue() {
       );
 
       const result = item.photoSent && item.refillRequestId
-        ? await retryRefillCompletion(item.roomNumber, item.refillRequestId)
+        ? await retryRefillCompletion(item.roomNumber, item.refillRequestId, item.refillRetryToken, item.requestId)
         : await sendPhotoToServer(item.blob, item.roomNumber, item.requestId, item.refillRequestId);
 
       if (result.ok) {
@@ -5179,7 +5191,9 @@ async function processPhotoQueue() {
           const attempts = (Number(item.attempts) || 0) + 1;
           const retryDelay = Math.min(1000 * Math.pow(2, Math.min(attempts - 1, 6)), 60000);
           await photoQueueDbAction('readwrite', 'put', {
-            ...item, photoSent: Boolean(item.photoSent || result.photo_sent),
+            ...item,
+            photoSent: Boolean(item.photoSent || result.photo_sent),
+            refillRetryToken: result.refill_retry_token || item.refillRetryToken || null,
             attempts, nextAttemptAt: Date.now() + retryDelay,
             lastError: result.refill_sync_error || 'Ожидаю подтверждения пополнения'
           });

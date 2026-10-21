@@ -164,7 +164,6 @@ async function completeRefillAfterPhoto(roomNumber, refillRequestId) {
       if (!response.ok || !data.ok) {
         throw new Error(data.error || 'Не удалось подтвердить пополнение (HTTP ' + response.status + ')');
       }
-      // A stale ID is terminal but must never close a newer request.
       return {synced: true, status: data.status || 'completed'};
     } catch (error) {
       lastError = error;
@@ -173,6 +172,18 @@ async function completeRefillAfterPhoto(roomNumber, refillRequestId) {
     }
   }
   return {synced: false, error: lastError?.message || 'Не удалось синхронизировать пополнение'};
+}
+
+function refillCompletionToken(roomNumber, refillRequestId, randomId) {
+  return crypto.createHmac('sha256', INTERNAL_TOKEN)
+    .update([String(roomNumber), String(refillRequestId), String(randomId)].join('\x1f'))
+    .digest('hex');
+}
+
+function safeTokenEqual(actual, expected) {
+  const a = Buffer.from(String(actual || ''));
+  const b = Buffer.from(String(expected || ''));
+  return a.length === b.length && a.length > 0 && crypto.timingSafeEqual(a, b);
 }
 
 function isLegacyPhotoUploadUrl(value) {
@@ -346,6 +357,9 @@ app.post('/send-photo', upload.single('photo'), async (req, res) => {
     const refillSync = hasRefillRequest
       ? await completeRefillAfterPhoto(roomNumber, requestedRefillId)
       : {synced: true, status: 'no_refill_for_photo'};
+    const refillRetryToken = hasRefillRequest && !refillSync.synced
+      ? refillCompletionToken(roomNumber, requestedRefillId, randomId)
+      : '';
     console.log('[VK proxy] photo sent peer=' + peerId +
       ' room=' + roomNumber + ' message=' + String(messageData.response ?? '-') +
       ' refill_synced=' + String(refillSync.synced));
@@ -356,7 +370,8 @@ app.post('/send-photo', upload.single('photo'), async (req, res) => {
       ...siteSync,
       refill_synced: refillSync.synced,
       refill_sync_status: refillSync.status || 'pending',
-      refill_sync_error: refillSync.error || ''
+      refill_sync_error: refillSync.error || '',
+      refill_retry_token: refillRetryToken
     });
   } catch (error) {
     console.error('[VK proxy]', error);
@@ -373,8 +388,14 @@ app.post('/complete-refill', async (req, res) => {
   try {
     const roomNumber = String(req.body?.room || '').trim();
     const requestId = Number(req.body?.refill_request_id);
-    if (!/^\\d{1,4}$/.test(roomNumber) || !Number.isSafeInteger(requestId) || requestId <= 0) {
+    const randomId = Number(req.body?.random_id);
+    const retryToken = String(req.body?.refill_retry_token || '');
+    if (!/^\\d{1,4}$/.test(roomNumber) || !Number.isSafeInteger(requestId) || requestId <= 0 ||
+        !Number.isSafeInteger(randomId) || randomId <= 0) {
       return res.status(400).json({ok: false, error: 'Некорректные данные завершения пополнения'});
+    }
+    if (!INTERNAL_TOKEN || !safeTokenEqual(retryToken, refillCompletionToken(roomNumber, requestId, randomId))) {
+      return res.status(401).json({ok: false, error: 'Недействительное подтверждение отправленного фото'});
     }
     const result = await completeRefillAfterPhoto(roomNumber, requestId);
     if (!result.synced) {
