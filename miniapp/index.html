@@ -1912,7 +1912,6 @@ function activateDepartureList() {
   activeListDateKey = departureList.dateKey || '';
   drawerMode = 'list';
   persistActiveListSelection();
-  renderHomeListControls();
   const rooms = visibleCarouselRooms();
   buildCarousel(nextCarouselNumber(selectedRoom?.number, rooms));
   closeNavPlaceholderModal();
@@ -1926,7 +1925,6 @@ function deactivateActiveList() {
   activeListDateKey = '';
   drawerMode = 'all';
   persistActiveListSelection();
-  renderHomeListControls();
   buildCarousel(nextCarouselNumber(selectedRoom?.number, ALL_ROOMS));
   closeNavPlaceholderModal();
 }
