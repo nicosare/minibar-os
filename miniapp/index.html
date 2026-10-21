@@ -2086,14 +2086,35 @@ function aggregateActiveRefills() {
     recipe.recipe.forEach((qty,key)=>available.set(key,Math.max(0,(available.get(key)||0)-qty*count)));
   });
   rawProducts.forEach(item=>{const qty=available.get(refillItemKey(item))||0;if(qty>0)products.push({name:item.name,qty,basket:false})});
-  const roomLines=requests.map(request=>{
+  // Room lines are the union of pending refill requests and rooms marked empty
+  // in the system. Empty rooms without a saved request appear here, but do not
+  // contribute products or baskets to the aggregate above.
+  const roomLinesByNumber=new Map();
+  requests.forEach(request=>{
     const type=refillRoomType(request);let productsText;
     if(request.allProducts||requestMatchesFullTemplate(request))productsText=type==='suite'?'Корзинка люкс':'Корзинка стандарт';
     else productsText=(request.items||[]).filter(item=>Number(item.qty)>0).map(item=>{
       const qty=Math.max(0,Number(item.qty)||0),name=String(item.name||'Продукт');return qty>1?name+' × '+qty:name;
     }).join(', ')||'продукты не указаны';
-    return {roomNumber:String(request.roomNumber),floor:Number(request.floor)||0,productsText};
-  }).sort((a,b)=>a.floor-b.floor||Number(a.roomNumber)-Number(b.roomNumber));
+    const number=String(request.roomNumber);
+    const room=ROOM_BY_NUMBER.get(number);
+    roomLinesByNumber.set(number,{
+      roomNumber:number,
+      floor:Number(request.floor)||Number(room?.floor)||0,
+      productsText
+    });
+  });
+  for(const room of ALL_ROOMS){
+    const number=String(room.number);
+    if(!listNumbers.has(number)||room.expiryStatus!=='empty'||roomLinesByNumber.has(number))continue;
+    roomLinesByNumber.set(number,{
+      roomNumber:number,
+      floor:Number(room.floor)||0,
+      productsText:'Пустой'
+    });
+  }
+  const roomLines=[...roomLinesByNumber.values()]
+    .sort((a,b)=>a.floor-b.floor||Number(a.roomNumber)-Number(b.roomNumber));
   return {requests,products,roomLines,totalUnits,basketCounts:products.filter(item=>item.basket).reduce((sum,item)=>sum+item.qty,0)};
 }
 function renderRefillSection() {
@@ -2101,14 +2122,16 @@ function renderRefillSection() {
   const productsHtml=summary.products.length
     ? '<div class="sheet-refill-products">'+summary.products.map(product=>'<div class="sheet-refill-product"><span class="sheet-refill-product-name">'+
       escapeCameraHtml(product.name)+'</span><span class="sheet-refill-product-qty">'+product.qty+' шт.</span></div>').join('')+'</div>'
-    : '<div class="sheet-refill-empty">Нет номеров, ожидающих пополнения.</div>';
+    : '<div class="sheet-refill-empty">'+(summary.roomLines.length
+      ? 'Нет товаров в заявках на пополнение.'
+      : 'Нет номеров, ожидающих пополнения.')+'</div>';
   const roomsHtml=summary.roomLines.length
     ? '<div class="sheet-refill-room-lines">'+summary.roomLines.map(room=>'<button type="button" class="sheet-refill-room-line" data-refill-room-number="'+
       escapeCameraHtml(room.roomNumber)+'" title="Открыть номер '+escapeCameraHtml(room.roomNumber)+'"><span class="sheet-refill-room-number">'+
       escapeCameraHtml(room.roomNumber)+'</span><span class="sheet-refill-room-products">'+escapeCameraHtml(room.productsText)+'</span></button>').join('')+'</div>'
     : '';
   return '<section class="sheet-refill-section" aria-label="Список пополнения"><div class="sheet-refill-head"><span class="sheet-refill-title">Пополнение</span><span class="sheet-refill-count">'+
-    summary.requests.length+' номеров</span></div>'+productsHtml+roomsHtml+'</section>';
+    summary.roomLines.length+' номеров</span></div>'+productsHtml+roomsHtml+'</section>';
 }
 
 function renderRefillCarouselStatuses() {
