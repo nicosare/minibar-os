@@ -1348,12 +1348,12 @@
   .sheet-refill-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding-bottom:9px; border-bottom:1px solid rgba(251,146,60,.16); }
   .sheet-refill-title { color:#ffb16e; font-size:13px; font-weight:850; line-height:17px; }
   .sheet-refill-count { color:rgba(255,190,130,.75); font-size:10px; font-weight:750; white-space:nowrap; }
-  .sheet-refill-products { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:12px; }
-  .sheet-refill-product { position:relative; min-width:0; min-height:60px; display:flex; align-items:center; gap:9px; padding:9px 30px 9px 9px; border:1px solid rgba(255,255,255,.09); border-radius:11px; background:rgba(255,255,255,.045); }
-  .sheet-refill-product-icon { flex:0 0 auto; width:31px; height:31px; display:flex; align-items:center; justify-content:center; border-radius:8px; font-size:17px; }
+  .sheet-refill-products { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; margin-top:11px; }
+  .sheet-refill-product { display:grid; grid-template-columns:28px minmax(0,1fr) 58px; align-items:center; gap:7px; min-width:0; min-height:49px; padding:7px 8px; border:1px solid rgba(255,255,255,.09); border-radius:10px; background:rgba(255,255,255,.045); }
+  .sheet-refill-product-icon { flex:0 0 auto; width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:8px; font-size:19px; line-height:1; }
   .sheet-refill-product-icon svg { width:19px; height:19px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
   .sheet-refill-product-name { display:block; min-width:0; color:rgba(255,255,255,.9); font-size:11px; line-height:14px; font-weight:700; overflow-wrap:anywhere; }
-  .sheet-refill-product-qty { position:absolute; top:5px; right:5px; min-width:20px; height:20px; display:flex; align-items:center; justify-content:center; padding:0 5px; border:2px solid #171719; border-radius:11px; background:#ffb16e; color:#24170d; font-size:10px; line-height:12px; font-weight:900; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .sheet-refill-product-qty { display:flex; align-items:center; justify-content:center; min-width:0; min-height:32px; padding:0 3px; border-left:1px solid rgba(255,177,110,.22); color:#ffb16e; font-size:14px; line-height:18px; font-weight:900; text-align:center; white-space:nowrap; font-variant-numeric:tabular-nums; }
   @media(max-width:360px){ .sheet-refill-products { grid-template-columns:minmax(0,1fr); } }
   .sheet-refill-room-lines { display:flex; flex-direction:column; gap:5px; margin-top:12px; padding-top:10px; border-top:1px solid rgba(255,255,255,.08); }
   .sheet-refill-room-line { display:flex; align-items:flex-start; gap:8px; width:100%; padding:3px 0; border:0; background:transparent; color:rgba(255,255,255,.7); text-align:left; font-size:10px; line-height:14px; cursor:pointer; }
@@ -2032,81 +2032,6 @@ function requestMatchesFullTemplate(request) {
   for(const [key,qty] of template)if(requested.get(key)!==qty)return false;
   return true;
 }
-async function ensureRefillRoomTemplates(force = false) {
-  const fresh = refillRoomTemplatesLoadedAt && Date.now() - refillRoomTemplatesLoadedAt < 60000;
-  if (!force && fresh && refillRoomTemplatesByNumber.size) return refillRoomTemplatesByNumber;
-  if (refillRoomTemplatesPromise) return refillRoomTemplatesPromise;
-
-  refillRoomTemplatesPromise = (async () => {
-    const rooms = await deadlineApiRequest('/rooms');
-    if (!Array.isArray(rooms) || !rooms.length) {
-      throw new Error('Сервер не вернул шаблоны наполнения номеров');
-    }
-    const next = new Map();
-    rooms.forEach(room => {
-      if (room?.number == null) return;
-      next.set(String(room.number), room);
-    });
-    if (!next.size) throw new Error('Не удалось сопоставить шаблоны с номерами');
-
-    refillRoomTemplatesByNumber.clear();
-    next.forEach((room, number) => refillRoomTemplatesByNumber.set(number, room));
-    refillRoomTemplatesLoadedAt = Date.now();
-
-    // Re-render after the one-time template fetch so empty-room basket totals
-    // are recalculated as soon as the real room templates become available.
-    if (isSheetOpen && activeListKey === 'departures' && drawerMode === 'list') {
-      renderDrawerRooms(sheetSearch.value);
-    }
-    return refillRoomTemplatesByNumber;
-  })().finally(() => {
-    refillRoomTemplatesPromise = null;
-  });
-
-  return refillRoomTemplatesPromise;
-}
-
-function normalizeRefillTemplateItems(items) {
-  return (Array.isArray(items) ? items : []).map(item => {
-    const product = item?.product || {};
-    const productId = Number(item?.productId || product.id);
-    if (!Number.isInteger(productId) || productId <= 0 || product.isActive === false) return null;
-    return {
-      productId,
-      name: String(item?.name || product.name || ('Продукт #' + productId)),
-      category: item?.category || product.category || 'Напитки',
-      volume: item?.volume ?? product.volume ?? null,
-      unit: item?.unit || product.unit || 'шт',
-      emoji: item?.emoji || product.emoji || null,
-      bgColor: item?.bgColor || product.bgColor || 'slate',
-      qty: Math.max(1, Number(item?.qty) || 1)
-    };
-  }).filter(Boolean);
-}
-
-function refillTemplateItemsForRoom(room, requestByNumber) {
-  const number = String(room.number);
-  const detailedRoom = refillRoomTemplatesByNumber.get(number);
-  const detailItems = normalizeRefillTemplateItems(detailedRoom?.template?.items);
-  if (detailItems.length) return detailItems;
-
-  // A saved refill request contains a point-in-time copy of its room template.
-  const requestItems = normalizeRefillTemplateItems(requestByNumber.get(number)?.templateItems);
-  if (requestItems.length) return requestItems;
-
-  // Some rooms may not have their own template assigned. Fall back only when
-  // their category has one unambiguous active template among the hotel's rooms.
-  const type = normalizeRoomType(room);
-  const candidates = new Map();
-  refillRoomTemplatesByNumber.forEach(candidateRoom => {
-    if (normalizeRoomType(candidateRoom) !== type) return;
-    const items = normalizeRefillTemplateItems(candidateRoom.template?.items);
-    const signature = refillRecipeSignature(items);
-    if (signature && !candidates.has(signature)) candidates.set(signature, items);
-  });
-  return candidates.size === 1 ? [...candidates.values()][0] : [];
-}
-
 function aggregateActiveRefills() {
   const listNumbers = currentDepartureNumbers();
   const displayRequests = activeRefillRequests()
@@ -2115,184 +2040,100 @@ function aggregateActiveRefills() {
     listNumbers.has(String(room.number)) && room.expiryStatus === 'empty'
   );
   const emptyNumbers = new Set(emptyRooms.map(room => String(room.number)));
-  // An empty room contributes its category's entire basket instead of also
-  // contributing a separately saved refill request, preventing double-counting.
+
+  // A system-empty room is always counted as one basket of its own category.
+  // Do not count a stale/overlapping refill request for that same room again.
   const requests = displayRequests.filter(request => !emptyNumbers.has(String(request.roomNumber)));
-  const displayRequestByNumber = new Map(displayRequests.map(request => [String(request.roomNumber), request]));
-  const grouped = new Map();
+  const basketCounts = { standard: 0, suite: 0 };
+  const groupedProducts = new Map();
   let totalUnits = 0;
 
-  function addProduct(item, multiplier = 1) {
-    const qty = Math.max(0, Number(item.qty) || 0) * multiplier;
+  function addBasket(type) {
+    const normalizedType = type === 'suite' ? 'suite' : 'standard';
+    basketCounts[normalizedType] += 1;
+  }
+
+  function addProduct(item) {
+    const qty = Math.max(0, Number(item?.qty) || 0);
     if (!qty) return;
     totalUnits += qty;
-    const key = refillItemKey(item);
-    if (!grouped.has(key)) {
-      grouped.set(key, {
-        productId: item.productId,
-        name: item.name || 'Продукт',
+
+    const productId = Number(item.productId) || 0;
+    const name = String(item.name || 'Продукт');
+    // Product ID is the canonical identity; do not split one product into
+    // multiple totals just because old request snapshots have different labels.
+    const key = productId > 0 ? 'id:' + productId : 'name:' + name.trim().toLocaleLowerCase('ru-RU');
+    if (!groupedProducts.has(key)) {
+      groupedProducts.set(key, {
+        productId: productId || null,
+        name,
+        category: item.category || 'Напитки',
+        volume: item.volume ?? null,
+        unit: item.unit || 'шт',
+        emoji: item.emoji ?? null,
+        bgColor: item.bgColor || 'slate',
         qty: 0
       });
     }
-    grouped.get(key).qty += qty;
-    const aggregatedProduct = grouped.get(key);
-    if (!aggregatedProduct.emoji && item.emoji) aggregatedProduct.emoji = item.emoji;
-    if (!aggregatedProduct.bgColor && item.bgColor) aggregatedProduct.bgColor = item.bgColor;
+
+    const product = groupedProducts.get(key);
+    product.qty += qty;
+    // Some older snapshots may lack presentation fields. Keep any valid
+    // database-backed metadata from another active request for the same ID.
+    if (!product.emoji && item.emoji) product.emoji = item.emoji;
+    if ((!product.bgColor || product.bgColor === 'slate') && item.bgColor) product.bgColor = item.bgColor;
+    if ((!product.category || product.category === 'Напитки') && item.category) product.category = item.category;
+    if (!product.name && item.name) product.name = String(item.name);
   }
 
-  for (const request of requests) {
-    for (const item of request.items || []) addProduct(item);
-  }
+  // Empty rooms contribute baskets, not a second copy of every item in them.
+  emptyRooms.forEach(room => addBasket(normalizeRoomType(room)));
 
-  const emptyBasketCounts = { standard: 0, suite: 0 };
-  const emptyBasketRecipes = [];
-  for (const room of emptyRooms) {
-    const type = normalizeRoomType(room);
-    emptyBasketCounts[type] = (emptyBasketCounts[type] || 0) + 1;
-    const templateItems = refillTemplateItemsForRoom(room, displayRequestByNumber);
-    emptyBasketRecipes.push({ type, items: templateItems });
-    templateItems.forEach(item => addProduct(item));
-  }
-
-  const rawProducts = [...grouped.values()]
-    .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ru'));
-  const available = new Map(rawProducts.map(item => [refillItemKey(item), item.qty]));
-
-  // Empty rooms are known full baskets, so reserve their exact template
-  // quantities first. Remaining product quantities belong to explicit requests.
-  for (const basket of emptyBasketRecipes) {
-    basket.items.forEach(item => {
-      const key = refillItemKey(item);
-      available.set(key, Math.max(0, (available.get(key) || 0) - Math.max(1, Number(item.qty) || 1)));
-    });
-  }
-
-  const recipeGroups = new Map();
+  // Classify each pending room directly. Full-template requests count as one
+  // basket; partial requests contribute only their explicitly selected items.
+  // This avoids inferring duplicate baskets from a combined product total.
   for (const request of requests) {
     const type = refillRoomType(request);
-    const recipe = Array.isArray(request.templateItems) ? request.templateItems : [];
-    if (!recipe.length) continue;
-    const signature = refillRecipeSignature(recipe);
-    if (!signature) continue;
-    if (!recipeGroups.has(type)) recipeGroups.set(type, new Map());
-    const options = recipeGroups.get(type);
-    if (!options.has(signature)) options.set(signature, { count: 0, items: recipe });
-    options.get(signature).count += 1;
-  }
-
-  const recipes = [];
-  for (const [type, options] of recipeGroups) {
-    if (options.size !== 1) continue;
-    const option = [...options.values()][0];
-    const recipe = new Map();
-    option.items.forEach(item => {
-      const key = refillItemKey(item);
-      const qty = Math.max(1, Number(item.qty) || 1);
-      recipe.set(key, (recipe.get(key) || 0) + qty);
-    });
-    if (recipe.size) {
-      recipes.push({
-        type,
-        name: type === 'suite' ? 'Корзинка люкс' : 'Корзинка стандарт',
-        recipe,
-        roomCount: option.count
-      });
+    if (request.allProducts || requestMatchesFullTemplate(request)) {
+      addBasket(type);
+      continue;
     }
-  }
-
-  const possible = recipes.map(candidate => {
-    let max = Math.min(requests.length, Number(candidate.roomCount) || requests.length);
-    for (const [key, qty] of candidate.recipe) {
-      max = Math.min(max, Math.floor((available.get(key) || 0) / qty));
-    }
-    return Math.max(0, max);
-  });
-  const best = recipes.map(() => 0);
-  let bestTotal = 0;
-  let bestStandard = -1;
-
-  if (recipes.length === 1) {
-    best[0] = possible[0];
-    bestTotal = possible[0];
-  } else if (recipes.length > 1) {
-    const standardIndex = recipes.findIndex(recipe => recipe.type === 'standard');
-    const suiteIndex = recipes.findIndex(recipe => recipe.type === 'suite');
-    if (standardIndex >= 0 && suiteIndex >= 0) {
-      for (let standardCount = possible[standardIndex]; standardCount >= 0; standardCount--) {
-        for (let suiteCount = possible[suiteIndex]; suiteCount >= 0; suiteCount--) {
-          const used = new Map();
-          for (const [key, qty] of recipes[standardIndex].recipe) used.set(key, qty * standardCount);
-          for (const [key, qty] of recipes[suiteIndex].recipe) {
-            used.set(key, (used.get(key) || 0) + qty * suiteCount);
-          }
-          let valid = true;
-          for (const [key, qty] of used) {
-            if (qty > (available.get(key) || 0)) {
-              valid = false;
-              break;
-            }
-          }
-          const total = standardCount + suiteCount;
-          if (valid && (total > bestTotal || (total === bestTotal && standardCount > bestStandard))) {
-            best[standardIndex] = standardCount;
-            best[suiteIndex] = suiteCount;
-            bestTotal = total;
-            bestStandard = standardCount;
-          }
-        }
-      }
-    }
+    (request.items || []).forEach(addProduct);
   }
 
   const products = [];
   for (const type of ['standard', 'suite']) {
-    const count = emptyBasketCounts[type] || 0;
-    if (count > 0) {
+    const qty = basketCounts[type];
+    if (qty > 0) {
       products.push({
         name: type === 'suite' ? 'Корзинка люкс' : 'Корзинка стандарт',
-        qty: count,
+        qty,
         basket: true
       });
     }
   }
 
-  recipes.forEach((recipe, index) => {
-    const count = best[index] || 0;
-    if (count <= 0) return;
-    products.push({ name: recipe.name, qty: count, basket: true });
-    recipe.recipe.forEach((qty, key) => {
-      available.set(key, Math.max(0, (available.get(key) || 0) - qty * count));
-    });
-  });
+  [...groupedProducts.values()]
+    .filter(product => product.qty > 0)
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ru'))
+    .forEach(product => products.push({ ...product, basket: false }));
 
-  rawProducts.forEach(item => {
-    const qty = available.get(refillItemKey(item)) || 0;
-    if (qty > 0) products.push({ name: item.name, qty, basket: false });
-  });
-
-  // Empty status takes precedence in the room list, even if a pending request
-  // exists for that room. The aggregate above still counts its category basket.
+  // Room status takes precedence over any saved request in the room list.
   const roomLinesByNumber = new Map();
   displayRequests.forEach(request => {
     const number = String(request.roomNumber);
     const room = ROOM_BY_NUMBER.get(number);
-    if (emptyNumbers.has(number) || room?.expiryStatus === 'empty') {
-      roomLinesByNumber.set(number, {
-        roomNumber: number,
-        floor: Number(request.floor) || Number(room?.floor) || 0,
-        productsText: 'Пустой'
-      });
-      return;
-    }
-
+    const isEmpty = emptyNumbers.has(number) || room?.expiryStatus === 'empty';
     const type = refillRoomType(request);
-    const productsText = request.allProducts || requestMatchesFullTemplate(request)
-      ? (type === 'suite' ? 'Корзинка люкс' : 'Корзинка стандарт')
-      : (request.items || []).filter(item => Number(item.qty) > 0).map(item => {
-          const qty = Math.max(0, Number(item.qty) || 0);
-          const name = String(item.name || 'Продукт');
-          return qty > 1 ? name + ' × ' + qty : name;
-        }).join(', ') || 'продукты не указаны';
+    const productsText = isEmpty
+      ? 'Пустой'
+      : request.allProducts || requestMatchesFullTemplate(request)
+        ? (type === 'suite' ? 'Корзинка люкс' : 'Корзинка стандарт')
+        : (request.items || []).filter(item => Number(item.qty) > 0).map(item => {
+            const qty = Math.max(0, Number(item.qty) || 0);
+            const name = String(item.name || 'Продукт');
+            return qty > 1 ? name + ' × ' + qty : name;
+          }).join(', ') || 'продукты не указаны';
 
     roomLinesByNumber.set(number, {
       roomNumber: number,
@@ -2301,24 +2142,25 @@ function aggregateActiveRefills() {
     });
   });
 
-  for (const room of emptyRooms) {
+  emptyRooms.forEach(room => {
     const number = String(room.number);
-    if (roomLinesByNumber.has(number)) continue;
+    if (roomLinesByNumber.has(number)) return;
     roomLinesByNumber.set(number, {
       roomNumber: number,
       floor: Number(room.floor) || 0,
       productsText: 'Пустой'
     });
-  }
+  });
 
   const roomLines = [...roomLinesByNumber.values()]
     .sort((a, b) => a.floor - b.floor || Number(a.roomNumber) - Number(b.roomNumber));
+
   return {
     requests,
     products,
     roomLines,
     totalUnits,
-    basketCounts: products.filter(item => item.basket).reduce((sum, item) => sum + item.qty, 0)
+    basketCounts: basketCounts.standard + basketCounts.suite
   };
 }
 function renderRefillSection() {
@@ -2327,17 +2169,12 @@ function renderRefillSection() {
     ? '<div class="sheet-refill-products">'+summary.products.map(product=>{
       const icon=product.basket
         ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 10 2 10h12l2-10H4Z"/><path d="m8 10 4-6 4 6M8 14v3M12 14v3M16 14v3"/></svg>'
-        : (product.emoji
-          ? escapeCameraHtml(product.emoji)
-          : (String(product.category||'').toLowerCase().includes('сок')
-            ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10l-1 18H8L7 3Z"/><path d="M9 3l2 5M14 3l-2 5M9 13h6"/></svg>'
-            : (String(product.category||'').toLowerCase().includes('алког')
-              ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6v4l2 3v10H7V10l2-3V3Z"/><path d="M9 7h6M8 14h8"/></svg>'
-              : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6v3l2 2v12H7V8l2-2V3Z"/><path d="M9 6h6M8 14h8"/></svg>')));
+        : escapeCameraHtml(product.emoji);
       const color=product.basket?'rgba(255,177,110,.16)':(CAMERA_DEADLINE_PRODUCT_COLORS[product.bgColor]||CAMERA_DEADLINE_PRODUCT_COLORS.slate);
       const iconColor=product.basket?'#ffb16e':'#18202a';
+      const qtyLabel=product.qty+' шт.';
       return '<div class="sheet-refill-product"><span class="sheet-refill-product-icon" style="background:'+color+';color:'+iconColor+'">'+icon+'</span>'+
-        '<span class="sheet-refill-product-name">'+escapeCameraHtml(product.name)+'</span><span class="sheet-refill-product-qty">'+product.qty+'</span></div>';
+        '<span class="sheet-refill-product-name">'+escapeCameraHtml(product.name)+'</span><span class="sheet-refill-product-qty">'+qtyLabel+'</span></div>';
     }).join('')+'</div>'
     : '<div class="sheet-refill-empty">'+(summary.roomLines.length
       ? 'Нет товаров в заявках на пополнение.'
@@ -2690,9 +2527,6 @@ let refillAllProducts = false;
 let refillCurrentRequestId = null;
 let refillModalBusy = false;
 const activeRefillsByNumber = new Map();
-const refillRoomTemplatesByNumber = new Map();
-let refillRoomTemplatesLoadedAt = 0;
-let refillRoomTemplatesPromise = null;
 let previewRefillRequestId = null;
 let previewRoomNumber = null;
 const gihCreateModal = document.getElementById('gihCreateModal');
@@ -4430,13 +4264,6 @@ function renderDrawerRooms(filterQuery = '') {
   const listNumbers = currentDepartureNumbers();
   const checkedNumbers = checkedTodayNumbers();
   const listMode = hasActiveList && drawerMode === 'list';
-  if (listMode && ALL_ROOMS.some(room =>
-    listNumbers.has(String(room.number)) && room.expiryStatus === 'empty'
-  )) {
-    void ensureRefillRoomTemplates().catch(error => {
-      console.warn('[MINIBAR REFILLS] Не удалось загрузить шаблоны пустых номеров:', error);
-    });
-  }
   const roomsToShow = listMode
     ? ALL_ROOMS.filter(room => listNumbers.has(String(room.number)))
     : ALL_ROOMS;
@@ -4620,9 +4447,6 @@ function startRoomLiveSync() {
       const historyDomains = ['all', 'checks', 'history', 'gih'];
       const refillDomains = ['all', 'refills'];
       if (domains.some(domain => roomDomains.includes(domain))) {
-        if (domains.some(domain => ['all', 'rooms', 'templates', 'products'].includes(domain))) {
-          refillRoomTemplatesLoadedAt = 0;
-        }
         void syncRoomData();
         // Room product quantities and status are shared with the website.
         if (selectedRoom && !isCameraDeadlineModalOpen()) void loadRoomDeadlineData(selectedRoom, true);
@@ -4894,7 +4718,6 @@ async function saveRefillRequest() {
       });
       const room = ROOM_BY_NUMBER.get(String(selectedRoom.number));
       if (room) room.expiryStatus = 'empty';
-      refillRoomTemplatesLoadedAt = 0;
       await syncRoomData();
       await loadRoomDeadlineData(selectedRoom, true);
       renderRefillCarouselStatuses();
