@@ -26,6 +26,19 @@ function serializeRecord(record) {
     floor: Number(record.floor) || null,
     status: record.status || 'pending',
     allProducts: Boolean(record.allProducts),
+    roomCategory: String(record.roomCategory || ''),
+    templateName: String(record.templateName || ''),
+    templateCategory: String(record.templateCategory || ''),
+    templateItems: (Array.isArray(record.templateItems) ? record.templateItems : []).map(item => ({
+      productId: Number(item.productId),
+      name: String(item.name || 'Продукт'),
+      category: item.category || 'Напитки',
+      volume: item.volume ?? null,
+      unit: item.unit || 'шт',
+      emoji: item.emoji || null,
+      bgColor: item.bgColor || 'slate',
+      qty: Math.max(1, Number(item.qty) || 1)
+    })),
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
     items: (Array.isArray(record.items) ? record.items : []).map(item => ({
@@ -107,9 +120,44 @@ router.get('/active', async (req, res) => {
         : { key: { startsWith: ACTIVE_PREFIX } },
       orderBy: [{ updatedAt: 'asc' }, { key: 'asc' }]
     });
-    const requests = settings.map(parseRecord).filter(Boolean)
-      .map(serializeRecord)
-      .filter(request => !roomId || request.roomId === roomId);
+    const parsedRequests = settings.map(parseRecord).filter(Boolean)
+      .filter(request => !roomId || Number(request.roomId) === roomId);
+    const needsRecipe = parsedRequests.filter(request =>
+      !Array.isArray(request.templateItems) || !request.templateItems.length
+    );
+    if (needsRecipe.length) {
+      const roomIds = [...new Set(needsRecipe.map(request => Number(request.roomId)).filter(Number.isInteger))];
+      const rooms = await prisma.room.findMany({
+        where: { id: { in: roomIds } },
+        include: {
+          template: {
+            include: { items: { include: { product: true }, orderBy: { sortOrder: 'asc' } } }
+          }
+        }
+      });
+      const roomById = new Map(rooms.map(room => [Number(room.id), room]));
+      parsedRequests.forEach(request => {
+        if (Array.isArray(request.templateItems) && request.templateItems.length) return;
+        const room = roomById.get(Number(request.roomId));
+        if (!room) return;
+        request.roomCategory = request.roomCategory || room.category || '';
+        request.templateName = request.templateName || room.template?.name || '';
+        request.templateCategory = request.templateCategory || room.template?.category || '';
+        request.templateItems = (room.template?.items || [])
+          .filter(item => item.product && item.product.isActive)
+          .map(item => ({
+            productId: Number(item.productId),
+            name: item.product.name,
+            category: item.product.category || 'Напитки',
+            volume: item.product.volume ?? null,
+            unit: item.product.unit || 'шт',
+            emoji: item.product.emoji || null,
+            bgColor: item.product.bgColor || 'slate',
+            qty: Math.max(1, Number(item.qty) || 1)
+          }));
+      });
+    }
+    const requests = parsedRequests.map(serializeRecord);
     res.set('Cache-Control', 'no-store');
     res.json({ requests, ...summarizeRequests(requests) });
   } catch (error) {
@@ -263,11 +311,27 @@ router.post('/', async (req, res) => {
       }
 
       const now = new Date().toISOString();
+      const currentTemplateSnapshot = templateItems.map(item => ({
+        productId: item.productId,
+        name: item.product.name,
+        category: item.product.category || 'Напитки',
+        volume: item.product.volume ?? null,
+        unit: item.product.unit || 'шт',
+        emoji: item.product.emoji || null,
+        bgColor: item.product.bgColor || 'slate',
+        qty: item.qty
+      }));
       const record = {
         id: newRequestId(existing?.id),
         roomId,
         roomNumber: String(room.number),
         floor: room.floor,
+        roomCategory: existing?.roomCategory || room.category || '',
+        templateName: existing?.templateName || room.template?.name || '',
+        templateCategory: existing?.templateCategory || room.template?.category || '',
+        templateItems: Array.isArray(existing?.templateItems) && existing.templateItems.length
+          ? existing.templateItems
+          : currentTemplateSnapshot,
         status: 'pending',
         allProducts,
         createdAt: existing?.createdAt || now,
