@@ -310,7 +310,7 @@
     color: var(--yellow);
     font-size: 29px;
     font-weight: 800;
-    transform: scale(1.15);
+    transform: none;
     text-shadow: 0 0 12px rgba(255, 204, 0, 0.3);
   }
   .num-item.pinned::after {
@@ -1763,8 +1763,11 @@ function nextCarouselNumber(previousNumber, rooms = visibleCarouselRooms()) {
   const previous = String(previousNumber ?? '');
   if (previous && rooms.some(room => String(room.number) === previous)) return previous;
   const previousValue = Number(previous);
+  const descending = activeListKey === 'departures' && departureSort === 'desc';
   const next = previous && Number.isFinite(previousValue)
-    ? rooms.find(room => Number(room.number) > previousValue)
+    ? rooms.find(room => descending
+      ? Number(room.number) < previousValue
+      : Number(room.number) > previousValue)
     : null;
   return String((next || rooms[0]).number);
 }
@@ -3894,7 +3897,6 @@ function renderDrawerRooms(filterQuery = '') {
   const hasActiveList = activeListKey === 'departures';
   const listNumbers = currentDepartureNumbers();
   const checkedNumbers = checkedTodayNumbers();
-  const arrivalNumbers = new Set((departureList.arrivalRooms || []).map(String));
   const listMode = hasActiveList && drawerMode === 'list';
   const roomsToShow = listMode
     ? ALL_ROOMS.filter(room => listNumbers.has(String(room.number)))
