@@ -76,7 +76,6 @@ model Room {
   listRooms        ListRoom[]
   productStatuses  RoomProductStatus[]
   miniAppTasks     MiniAppRoomTask[]
-  refillRequests   RefillRequest[]
 
   @@map("rooms")
 }
@@ -270,41 +269,4 @@ model VkBotEvent {
 
   @@index([peerId, occurredAt])
   @@map("vk_bot_events")
-}
-
-model RefillRequest {
-  id          Int       @id @default(autoincrement())
-  roomId      Int       @map("room_id")
-  status      String    @default("pending")
-  allProducts Boolean   @default(false) @map("all_products")
-  activeKey   String?   @unique @map("active_key")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
-  completedAt DateTime? @map("completed_at")
-
-  room  Room                @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  items RefillRequestItem[]
-
-  @@index([roomId, status])
-  @@index([status, createdAt])
-  @@map("refill_requests")
-}
-
-model RefillRequestItem {
-  id              Int     @id @default(autoincrement())
-  requestId       Int     @map("request_id")
-  productId       Int     @map("product_id")
-  productName     String  @map("product_name")
-  productCategory String? @map("product_category")
-  productVolume   Float?  @map("product_volume")
-  productUnit     String? @default("шт") @map("product_unit")
-  productEmoji    String? @map("product_emoji")
-  productBgColor  String? @default("slate") @map("product_bg_color")
-  qty             Int     @default(1)
-
-  request RefillRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-
-  @@unique([requestId, productId])
-  @@index([productId])
-  @@map("refill_request_items")
 }

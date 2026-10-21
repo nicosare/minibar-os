@@ -2,28 +2,41 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 
 const router = Router();
+const ACTIVE_PREFIX = 'miniapp-refill-active:';
 
-function serializeRequest(request) {
+function activeKey(roomId) {
+  return ACTIVE_PREFIX + String(roomId);
+}
+
+function parseRecord(setting) {
+  try {
+    const record = JSON.parse(String(setting?.value || 'null'));
+    if (!record || record.status !== 'pending' || !record.roomId || !record.id) return null;
+    return record;
+  } catch (_) {
+    return null;
+  }
+}
+
+function serializeRecord(record) {
   return {
-    id: request.id,
-    roomId: request.roomId,
-    roomNumber: String(request.room?.number ?? ''),
-    floor: request.room?.floor ?? null,
-    status: request.status,
-    allProducts: Boolean(request.allProducts),
-    createdAt: request.createdAt,
-    updatedAt: request.updatedAt,
-    completedAt: request.completedAt,
-    items: (request.items || []).map(item => ({
-      id: item.id,
-      productId: item.productId,
-      name: item.productName,
-      category: item.productCategory || 'Напитки',
-      volume: item.productVolume,
-      unit: item.productUnit || 'шт',
-      emoji: item.productEmoji,
-      bgColor: item.productBgColor || 'slate',
-      qty: Number(item.qty) || 0
+    id: Number(record.id),
+    roomId: Number(record.roomId),
+    roomNumber: String(record.roomNumber || ''),
+    floor: Number(record.floor) || null,
+    status: record.status || 'pending',
+    allProducts: Boolean(record.allProducts),
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+    items: (Array.isArray(record.items) ? record.items : []).map(item => ({
+      productId: Number(item.productId),
+      name: String(item.name || 'Продукт'),
+      category: item.category || 'Напитки',
+      volume: item.volume ?? null,
+      unit: item.unit || 'шт',
+      emoji: item.emoji || null,
+      bgColor: item.bgColor || 'slate',
+      qty: Math.max(0, Number(item.qty) || 0)
     }))
   };
 }
@@ -32,30 +45,31 @@ function summarizeRequests(requests) {
   const grouped = new Map();
   let totalUnits = 0;
   for (const request of requests) {
-    const roomNumber = String(request.room?.number ?? '');
     for (const item of request.items || []) {
       const qty = Math.max(0, Number(item.qty) || 0);
       if (!qty) continue;
       totalUnits += qty;
-      // Names/categories are snapshots. If the catalog was renamed while this
-      // request remained open, retain the distinct saved identity in the list.
-      const key = String(item.productId) + '\u001f' + String(item.productName || '');
+      const key = String(item.productId) + '\u001f' + String(item.name || '');
       if (!grouped.has(key)) {
         grouped.set(key, {
           productId: item.productId,
-          name: item.productName,
-          category: item.productCategory || 'Напитки',
-          volume: item.productVolume,
-          unit: item.productUnit || 'шт',
-          emoji: item.productEmoji,
-          bgColor: item.productBgColor || 'slate',
+          name: item.name,
+          category: item.category || 'Напитки',
+          volume: item.volume ?? null,
+          unit: item.unit || 'шт',
+          emoji: item.emoji || null,
+          bgColor: item.bgColor || 'slate',
           qty: 0,
           rooms: []
         });
       }
-      const entry = grouped.get(key);
-      entry.qty += qty;
-      entry.rooms.push({ roomId: request.roomId, number: roomNumber, qty });
+      const product = grouped.get(key);
+      product.qty += qty;
+      product.rooms.push({
+        roomId: request.roomId,
+        number: String(request.roomNumber),
+        qty
+      });
     }
   }
   const products = [...grouped.values()]
@@ -65,11 +79,13 @@ function summarizeRequests(requests) {
     }))
     .sort((a, b) => (a.category || '').localeCompare(b.category || '', 'ru') ||
       (a.name || '').localeCompare(b.name || '', 'ru'));
-  return {
-    totalRooms: requests.length,
-    totalUnits,
-    products
-  };
+  return { totalRooms: requests.length, totalUnits, products };
+}
+
+function newRequestId() {
+  // Numeric and safely representable in JavaScript / form data. Every save gets
+  // a new version ID, so a photo captured before editing cannot close newer work.
+  return Date.now() * 1000 + Math.floor(Math.random() * 1000);
 }
 
 router.get('/active', async (req, res) => {
@@ -80,24 +96,17 @@ router.get('/active', async (req, res) => {
       return res.status(400).json({ error: 'Некорректный ID номера' });
     }
 
-    const requests = await prisma.refillRequest.findMany({
-      where: {
-        status: 'pending',
-        activeKey: { not: null },
-        ...(roomId ? { roomId } : {})
-      },
-      include: {
-        room: { select: { id: true, number: true, floor: true } },
-        items: { orderBy: [{ productCategory: 'asc' }, { productName: 'asc' }] }
-      },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }]
+    const settings = await prisma.setting.findMany({
+      where: roomId
+        ? { key: activeKey(roomId) }
+        : { key: { startsWith: ACTIVE_PREFIX } },
+      orderBy: [{ updatedAt: 'asc' }, { key: 'asc' }]
     });
-    const serialized = requests.map(serializeRequest);
+    const requests = settings.map(parseRecord).filter(Boolean)
+      .map(serializeRecord)
+      .filter(request => !roomId || request.roomId === roomId);
     res.set('Cache-Control', 'no-store');
-    res.json({
-      requests: serialized,
-      ...summarizeRequests(requests)
-    });
+    res.json({ requests, ...summarizeRequests(requests) });
   } catch (error) {
     console.error('GET active refills error:', error);
     res.status(500).json({ error: error.message || 'Не удалось загрузить пополнения' });
@@ -117,13 +126,7 @@ router.post('/', async (req, res) => {
       await tx.$queryRaw`SELECT id FROM rooms WHERE id = ${roomId} FOR UPDATE`;
       const room = await tx.room.findUnique({
         where: { id: roomId },
-        include: {
-          template: {
-            include: {
-              items: { include: { product: true } }
-            }
-          }
-        }
+        include: { template: { include: { items: { include: { product: true } } } } }
       });
       if (!room) {
         const error = new Error('Номер не найден');
@@ -131,6 +134,9 @@ router.post('/', async (req, res) => {
         throw error;
       }
 
+      const key = activeKey(roomId);
+      const stored = await tx.setting.findUnique({ where: { key } });
+      const existing = parseRecord(stored);
       const templateItems = (room.template?.items || [])
         .filter(item => item.product && item.product.isActive)
         .map(item => ({
@@ -139,24 +145,24 @@ router.post('/', async (req, res) => {
           product: item.product
         }));
       const templateByProduct = new Map(templateItems.map(item => [item.productId, item]));
-      const activeKey = String(roomId);
-      const existing = await tx.refillRequest.findUnique({
-        where: { activeKey },
-        include: { items: true }
-      });
-
       let normalized;
+
       if (allProducts) {
         normalized = templateItems.map(item => ({
           productId: item.productId,
           qty: item.qty,
-          productName: item.product.name,
-          productCategory: item.product.category || 'Напитки',
-          productVolume: item.product.volume,
-          productUnit: item.product.unit || 'шт',
-          productEmoji: item.product.emoji,
-          productBgColor: item.product.bgColor || 'slate'
+          name: item.product.name,
+          category: item.product.category || 'Напитки',
+          volume: item.product.volume ?? null,
+          unit: item.product.unit || 'шт',
+          emoji: item.product.emoji || null,
+          bgColor: item.product.bgColor || 'slate'
         }));
+        if (!normalized.length) {
+          const error = new Error('У этого номера нет активных продуктов в шаблоне наполнения');
+          error.statusCode = 400;
+          throw error;
+        }
       } else {
         const unique = new Map();
         for (const item of requestedItems) {
@@ -171,7 +177,7 @@ router.post('/', async (req, res) => {
           if (qty > 0) unique.set(productId, qty);
         }
 
-        const previousByProduct = new Map((existing?.items || []).map(item => [item.productId, item]));
+        const previousByProduct = new Map((existing?.items || []).map(item => [Number(item.productId), item]));
         normalized = [];
         for (const [productId, qty] of unique) {
           const current = templateByProduct.get(productId);
@@ -182,42 +188,32 @@ router.post('/', async (req, res) => {
               throw error;
             }
             normalized.push({
-              productId,
-              qty,
-              productName: current.product.name,
-              productCategory: current.product.category || 'Напитки',
-              productVolume: current.product.volume,
-              productUnit: current.product.unit || 'шт',
-              productEmoji: current.product.emoji,
-              productBgColor: current.product.bgColor || 'slate'
+              productId, qty,
+              name: current.product.name,
+              category: current.product.category || 'Напитки',
+              volume: current.product.volume ?? null,
+              unit: current.product.unit || 'шт',
+              emoji: current.product.emoji || null,
+              bgColor: current.product.bgColor || 'slate'
             });
             continue;
           }
-          // Existing snapshot-only items stay editable even if an administrator
-          // later removed them from the current template.
           const previous = previousByProduct.get(productId);
           if (!previous || qty > Number(previous.qty)) {
-            const error = new Error('В списке есть продукт, которого нет в шаблоне номера. Обнови список и попробуй снова.');
+            const error = new Error('Продукта больше нет в шаблоне номера. Обнови список и попробуй снова.');
             error.statusCode = 409;
             throw error;
           }
           normalized.push({
-            productId,
-            qty,
-            productName: previous.productName,
-            productCategory: previous.productCategory,
-            productVolume: previous.productVolume,
-            productUnit: previous.productUnit,
-            productEmoji: previous.productEmoji,
-            productBgColor: previous.productBgColor
+            productId, qty,
+            name: previous.name,
+            category: previous.category || 'Напитки',
+            volume: previous.volume ?? null,
+            unit: previous.unit || 'шт',
+            emoji: previous.emoji || null,
+            bgColor: previous.bgColor || 'slate'
           });
         }
-      }
-
-      if (allProducts && !normalized.length) {
-        const error = new Error('У этого номера нет активных продуктов в шаблоне наполнения');
-        error.statusCode = 400;
-        throw error;
       }
 
       if (!normalized.length) {
@@ -226,63 +222,32 @@ router.post('/', async (req, res) => {
           error.statusCode = 400;
           throw error;
         }
-        return tx.refillRequest.update({
-          where: { id: existing.id },
-          data: { status: 'cancelled', activeKey: null, completedAt: null },
-          include: {
-            room: { select: { id: true, number: true, floor: true } },
-            items: true
-          }
-        });
+        await tx.setting.delete({ where: { key } });
+        return { ...existing, status: 'cancelled' };
       }
 
-      let saved;
-      if (existing) {
-        saved = await tx.refillRequest.update({
-          where: { id: existing.id },
-          data: {
-            allProducts,
-            status: 'pending',
-            completedAt: null,
-            updatedAt: new Date()
-          },
-          include: {
-            room: { select: { id: true, number: true, floor: true } },
-            items: true
-          }
-        });
-        await tx.refillRequestItem.deleteMany({ where: { requestId: existing.id } });
-        await tx.refillRequestItem.createMany({
-          data: normalized.map(item => ({ requestId: existing.id, ...item }))
-        });
-        saved = await tx.refillRequest.findUnique({
-          where: { id: existing.id },
-          include: {
-            room: { select: { id: true, number: true, floor: true } },
-            items: true
-          }
-        });
-      } else {
-        saved = await tx.refillRequest.create({
-          data: {
-            roomId,
-            status: 'pending',
-            activeKey,
-            allProducts,
-            items: { create: normalized }
-          },
-          include: {
-            room: { select: { id: true, number: true, floor: true } },
-            items: true
-          }
-        });
-      }
-
-      return saved;
+      const now = new Date().toISOString();
+      const record = {
+        id: newRequestId(),
+        roomId,
+        roomNumber: String(room.number),
+        floor: room.floor,
+        status: 'pending',
+        allProducts,
+        createdAt: existing?.createdAt || now,
+        updatedAt: now,
+        items: normalized
+      };
+      await tx.setting.upsert({
+        where: { key },
+        create: { key, value: JSON.stringify(record) },
+        update: { value: JSON.stringify(record), updatedAt: new Date() }
+      });
+      return record;
     });
 
     res.set('Cache-Control', 'no-store');
-    res.json({ ok: true, request: serializeRequest(result) });
+    res.json({ ok: true, request: serializeRecord(result) });
   } catch (error) {
     console.error('POST refill request error:', error);
     res.status(error.statusCode || 500).json({
@@ -291,48 +256,37 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Called only by the VK proxy after VK confirms the photo message was sent.
+// Only the VK proxy calls this endpoint after VK confirms the photo was sent.
 router.post('/complete-after-photo', async (req, res) => {
   const expected = String(process.env.VK_BOT_INTERNAL_TOKEN || '').trim();
   const actual = String(req.get('x-minibar-bot-token') || '').trim();
-  if (!expected || actual !== expected) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+  if (!expected || actual !== expected) return res.status(401).json({ error: 'Unauthorized' });
 
   try {
-    const requestId = Number.parseInt(req.body?.refillRequestId, 10);
+    const requestId = Number(req.body?.refillRequestId);
     const roomNumber = String(req.body?.roomNumber || '').trim();
-    if (!Number.isInteger(requestId) || requestId <= 0 || !/^\d{1,4}$/.test(roomNumber)) {
+    if (!Number.isSafeInteger(requestId) || requestId <= 0 || !/^\d{1,4}$/.test(roomNumber)) {
       return res.status(400).json({ error: 'Некорректные данные подтверждения фото' });
     }
 
-    const current = await prisma.refillRequest.findUnique({
-      where: { id: requestId },
-      include: { room: { select: { id: true, number: true } } }
-    });
-    if (!current || String(current.room?.number ?? '') !== roomNumber) {
-      return res.json({ ok: true, status: 'stale_request', completed: false });
-    }
-    if (current.status === 'completed') {
-      return res.json({ ok: true, status: 'already_completed', completed: false });
-    }
-    if (current.status !== 'pending') {
-      return res.json({ ok: true, status: 'stale_request', completed: false });
-    }
+    const room = await prisma.room.findUnique({ where: { number: Number(roomNumber) }, select: { id: true, number: true } });
+    if (!room) return res.json({ ok: true, status: 'stale_request', completed: false });
 
-    const completed = await prisma.$transaction(async tx => {
-      await tx.$queryRaw`SELECT id FROM rooms WHERE id = ${current.roomId} FOR UPDATE`;
-      const locked = await tx.refillRequest.findUnique({ where: { id: requestId } });
-      if (!locked || locked.status !== 'pending' || locked.activeKey !== String(current.roomId)) {
-        return { status: locked?.status === 'completed' ? 'already_completed' : 'stale_request', completed: false };
+    const completion = await prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM rooms WHERE id = ${room.id} FOR UPDATE`;
+      const key = activeKey(room.id);
+      const setting = await tx.setting.findUnique({ where: { key } });
+      const record = parseRecord(setting);
+      if (!record || Number(record.id) !== requestId) {
+        // This photo belongs to an older version (or no active refill); leave
+        // any newer request untouched.
+        return { status: 'stale_request', completed: false };
       }
-      await tx.refillRequest.update({
-        where: { id: requestId },
-        data: { status: 'completed', activeKey: null, completedAt: new Date() }
-      });
+      await tx.setting.delete({ where: { key } });
       return { status: 'completed', completed: true };
     });
-    return res.json({ ok: true, ...completed });
+
+    return res.json({ ok: true, ...completion });
   } catch (error) {
     console.error('POST refill photo completion error:', error);
     return res.status(500).json({ error: error.message || 'Не удалось закрыть пополнение' });
