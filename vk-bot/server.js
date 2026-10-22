@@ -166,6 +166,7 @@ function defaultPrivateUserSettings() {
     ),
     awaitingMenuTime: false,
     settingsMessageCmid: null,
+    settingsMessageId: null,
     lastDailyMenuDate: null,
     // Avoid an unsolicited catch-up on the first interaction after the default time.
     // If the user selects a future time for today, this suppression is cleared.
@@ -198,6 +199,10 @@ function normalizePrivateUserSettings(value = {}) {
     settingsMessageCmid: Number.isSafeInteger(Number(value?.settingsMessageCmid)) &&
       Number(value.settingsMessageCmid) > 0
       ? Number(value.settingsMessageCmid)
+      : null,
+    settingsMessageId: Number.isSafeInteger(Number(value?.settingsMessageId)) &&
+      Number(value.settingsMessageId) > 0
+      ? Number(value.settingsMessageId)
       : null,
     lastDailyMenuDate: /^\d{4}-\d{2}-\d{2}$/u.test(String(value?.lastDailyMenuDate || ''))
       ? String(value.lastDailyMenuDate)
@@ -421,7 +426,11 @@ function formatMenuListLine(label, list) {
 function formatPrivateMenuText(summary) {
   const lists = summary.lists || {};
   const goal = summary.deadlinesToday || {};
+  const operations = summary.operationsToday || {};
   const excises = summary.excises || {};
+  const checkedToday = Math.max(0, Math.trunc(Number(operations.checked) || 0));
+  const emptiedToday = Math.max(0, Math.trunc(Number(operations.emptied) || 0));
+  const refilledEmptyToday = Math.max(0, Math.trunc(Number(operations.refilledEmpty) || 0));
   const target = Math.max(0, Math.trunc(Number(goal.target) || 0));
   const processed = Math.max(0, Math.trunc(Number(goal.processed) || 0));
   const remaining = Math.max(0, Math.trunc(Number(goal.remaining) || 0));
@@ -431,6 +440,11 @@ function formatPrivateMenuText(summary) {
   const lines = [
     '📋 MINIBAR OS',
     formatMenuDate(summary.dateKey),
+    '',
+    '📊 Сегодня',
+    'Проверено всего: ' + checkedToday,
+    'Опустошено: ' + emptiedToday,
+    'Пополнено пустых: ' + refilledEmptyToday,
     '',
     '📑 Списки',
     formatMenuListLine('Заезды', lists.arrivals),
@@ -746,6 +760,9 @@ async function sendPrivateText(peerId, message, keyboard = null) {
   if (!response.ok || data.error) {
     throw new Error(data.error?.error_msg || 'VK messages.send failed');
   }
+
+  const messageId = Number(data.response?.message_id ?? data.response?.id ?? data.response);
+  return Number.isSafeInteger(messageId) && messageId > 0 ? messageId : null;
 }
 
 
@@ -820,12 +837,27 @@ function buildPrivateSettingsKeyboard(settings) {
 }
 
 async function showPrivateSettings(peerId) {
-  const settings = await getPrivateUserSettings(peerId);
-  await sendPrivateText(
-    peerId,
-    formatPrivateSettingsText(settings),
-    buildPrivateSettingsKeyboard(settings)
-  );
+  let settings = await getPrivateUserSettings(peerId);
+  const messageText = formatPrivateSettingsText(settings);
+  const keyboard = buildPrivateSettingsKeyboard(settings);
+
+  // Reuse the existing settings panel rather than adding another settings
+  // message every time the persistent keyboard's Settings button is pressed.
+  if (settings.settingsMessageId) {
+    const available = await isStoredPrivateMenuAvailable(peerId, settings.settingsMessageId);
+    if (available) {
+      await editPrivateMenu(peerId, settings.settingsMessageId, keyboard, messageText);
+      return;
+    }
+    settings = await updatePrivateUserSettings(peerId, { settingsMessageId: null });
+  }
+
+  const messageId = await sendPrivateText(peerId, messageText, keyboard);
+  if (messageId) {
+    await updatePrivateUserSettings(peerId, { settingsMessageId: messageId });
+  } else {
+    console.warn('[VK] VK did not return a message id for settings panel user=' + peerId);
+  }
 }
 
 async function checkDailyPrivateMenus() {
@@ -1540,6 +1572,16 @@ async function sendDeadlineNotifications(notifications, eventId) {
     refilled_empty: 'refilledEmpty',
     refilled_with_comment: 'refilledWithComment'
   };
+  const roomsWithDetailedEmptying = new Set(
+    notifications
+      .filter(notification =>
+        notification?.type === 'emptied_with_deadlines' &&
+        Array.isArray(notification.products) &&
+        notification.products.length > 0
+      )
+      .map(notification => Number(notification.roomNumber))
+      .filter(roomNumber => Number.isSafeInteger(roomNumber))
+  );
 
   for (const notification of notifications) {
     const roomNumber = Number(notification?.roomNumber);
@@ -1582,6 +1624,15 @@ async function sendDeadlineNotifications(notifications, eventId) {
             settings.notificationSubscriptions[subscriptionKey] !== true) {
           continue;
         }
+
+        // Detailed emptying notices take precedence over generic emptying notices
+        // per user. If the detail subscription is enabled, send only one message.
+        if (notification.type === 'emptied' &&
+            roomsWithDetailedEmptying.has(roomNumber) &&
+            settings.notificationSubscriptions.emptiedWithDeadlines === true) {
+          continue;
+        }
+
         await sendPrivateText(recipientId, messageText, keyboard);
       } catch (error) {
         console.error('[VK] operational notification failed for room=' + roomNumber +
