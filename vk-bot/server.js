@@ -42,6 +42,7 @@ const PRIVATE_DIALOGS_FILE = process.env.VK_BOT_PRIVATE_DIALOGS_FILE || '/data/p
 const PRIVATE_MENU_MESSAGES_FILE = process.env.VK_BOT_PRIVATE_MENU_MESSAGES_FILE || '/data/private-menu-messages.json';
 const EXCISE_MENU_STATE_FILE = process.env.VK_BOT_EXCISE_MENU_STATE_FILE || '/data/excise-menu-state.json';
 const PRIVATE_USER_SETTINGS_FILE = process.env.VK_BOT_PRIVATE_USER_SETTINGS_FILE || '/data/private-user-settings.json';
+const PRIVATE_ROOM_INFO_MESSAGES_FILE = process.env.VK_BOT_PRIVATE_ROOM_INFO_MESSAGES_FILE || '/data/private-room-info-messages.json';
 const NOTIFICATION_CATEGORIES = [
   { key: 'emptied', label: 'Опустошение минибара' },
   { key: 'emptiedWithDeadlines', label: 'Опустошение со сроками' },
@@ -51,6 +52,11 @@ const NOTIFICATION_CATEGORIES = [
 const privateDialogIds = new Set();
 const privateMenuMessageIds = new Map();
 const privateUserSettings = new Map();
+const privateRoomInfoMessages = new Map();
+let privateRoomInfoMessagesLoaded = false;
+let privateRoomInfoRefreshRunning = false;
+let privateRoomInfoRefreshPending = false;
+let privateRoomInfoStreamStarted = false;
 let privateDialogsLoaded = false;
 let privateMenuMessagesLoaded = false;
 let privateUserSettingsLoaded = false;
@@ -234,6 +240,98 @@ async function loadPrivateUserSettings() {
       throw error;
     }
   }
+}
+
+
+function privateRoomInfoMessageKey(peerIdValue, roomNumberValue) {
+  return String(Number(peerIdValue)) + ':' + String(Number(roomNumberValue));
+}
+
+async function loadPrivateRoomInfoMessages() {
+  if (privateRoomInfoMessagesLoaded) return;
+  privateRoomInfoMessagesLoaded = true;
+  try {
+    const stored = JSON.parse(await fs.readFile(PRIVATE_ROOM_INFO_MESSAGES_FILE, 'utf8'));
+    if (stored && typeof stored === 'object' && !Array.isArray(stored)) {
+      for (const [key, value] of Object.entries(stored)) {
+        const peerId = Number(value?.peerId);
+        const roomNumber = Number(value?.roomNumber);
+        const messageId = Number(value?.messageId);
+        if (!Number.isSafeInteger(peerId) || peerId <= 0 ||
+            !Number.isInteger(roomNumber) || roomNumber < 100 || roomNumber > 9999 ||
+            !Number.isSafeInteger(messageId) || messageId <= 0) continue;
+        privateRoomInfoMessages.set(privateRoomInfoMessageKey(peerId, roomNumber), {
+          peerId,
+          roomNumber,
+          messageId,
+          view: ['info', 'history', 'gih'].includes(value?.view) ? value.view : 'info',
+          lastText: typeof value?.lastText === 'string' ? value.lastText : '',
+          updatedAt: typeof value?.updatedAt === 'string' ? value.updatedAt : ''
+        });
+      }
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      privateRoomInfoMessagesLoaded = false;
+      throw error;
+    }
+  }
+}
+
+async function persistPrivateRoomInfoMessages() {
+  await fs.mkdir(path.dirname(PRIVATE_ROOM_INFO_MESSAGES_FILE), { recursive: true });
+  const tempPath = PRIVATE_ROOM_INFO_MESSAGES_FILE + '.tmp';
+  const values = Object.fromEntries(
+    [...privateRoomInfoMessages.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+  );
+  await fs.writeFile(tempPath, JSON.stringify(values, null, 2), 'utf8');
+  await fs.rename(tempPath, PRIVATE_ROOM_INFO_MESSAGES_FILE);
+}
+
+async function getPrivateRoomInfoMessage(peerIdValue, roomNumberValue) {
+  await loadPrivateRoomInfoMessages();
+  return privateRoomInfoMessages.get(
+    privateRoomInfoMessageKey(peerIdValue, roomNumberValue)
+  ) || null;
+}
+
+async function savePrivateRoomInfoMessage(peerIdValue, roomNumberValue, messageIdValue, view, lastText) {
+  const peerId = Number(peerIdValue);
+  const roomNumber = Number(roomNumberValue);
+  const messageId = Number(messageIdValue);
+  if (!Number.isSafeInteger(peerId) || peerId <= 0 ||
+      !Number.isInteger(roomNumber) || roomNumber < 100 || roomNumber > 9999 ||
+      !Number.isSafeInteger(messageId) || messageId <= 0) return;
+  await loadPrivateRoomInfoMessages();
+  privateRoomInfoMessages.set(privateRoomInfoMessageKey(peerId, roomNumber), {
+    peerId,
+    roomNumber,
+    messageId,
+    view: ['info', 'history', 'gih'].includes(view) ? view : 'info',
+    lastText: typeof lastText === 'string' ? lastText : '',
+    updatedAt: new Date().toISOString()
+  });
+  await persistPrivateRoomInfoMessages();
+}
+
+async function updatePrivateRoomInfoMessageView(peerIdValue, roomNumberValue, view, lastText) {
+  await loadPrivateRoomInfoMessages();
+  const key = privateRoomInfoMessageKey(peerIdValue, roomNumberValue);
+  const existing = privateRoomInfoMessages.get(key);
+  if (!existing) return;
+  privateRoomInfoMessages.set(key, {
+    ...existing,
+    view: ['info', 'history', 'gih'].includes(view) ? view : existing.view,
+    lastText: typeof lastText === 'string' ? lastText : existing.lastText,
+    updatedAt: new Date().toISOString()
+  });
+  await persistPrivateRoomInfoMessages();
+}
+
+async function forgetPrivateRoomInfoMessage(peerIdValue, roomNumberValue) {
+  await loadPrivateRoomInfoMessages();
+  privateRoomInfoMessages.delete(privateRoomInfoMessageKey(peerIdValue, roomNumberValue));
+  await persistPrivateRoomInfoMessages();
 }
 
 async function persistPrivateUserSettings() {
@@ -1866,7 +1964,26 @@ function buildRoomHistoryKeyboard(roomNumber, section, count, hasMore) {
 async function showPrivateRoomInfo(peerId, roomNumber) {
   try {
     const data = await requestPrivateRoomApi('room-info', { number: roomNumber });
-    await sendPrivateText(peerId, formatPrivateRoomInfo(data), buildRoomInfoKeyboard(roomNumber));
+    const messageText = formatPrivateRoomInfo(data);
+    const keyboard = buildRoomInfoKeyboard(roomNumber);
+    const tracked = await getPrivateRoomInfoMessage(peerId, roomNumber);
+
+    if (tracked && await isStoredPrivateMenuAvailable(peerId, tracked.messageId)) {
+      // Keep one room-info card per user and room; refreshing the same room edits it in place.
+      await editPrivateMenu(peerId, tracked.messageId, keyboard, messageText);
+      await savePrivateRoomInfoMessage(
+        peerId, roomNumber, tracked.messageId, 'info', messageText
+      );
+    } else {
+      if (tracked) await forgetPrivateRoomInfoMessage(peerId, roomNumber);
+      const messageId = await sendPrivateText(peerId, messageText, keyboard);
+      if (messageId) {
+        await savePrivateRoomInfoMessage(peerId, roomNumber, messageId, 'info', messageText);
+      } else {
+        console.warn('[VK] VK did not return a message id for room info room=' + roomNumber +
+          ' peer=' + peerId + '; automatic updates are unavailable for this card');
+      }
+    }
   } catch (error) {
     console.error('[VK] private room info failed room=' + roomNumber + ':',
       error?.stack || error?.message || error);
@@ -1892,7 +2009,9 @@ async function handleRoomInfoButton(event, payload) {
   const command = String(payload?.command || '');
   if (command === 'room_info') {
     const data = await requestPrivateRoomApi('room-info', { number: roomNumber });
-    await editPrivateMessage(peerId, cmid, formatPrivateRoomInfo(data), buildRoomInfoKeyboard(roomNumber));
+    const messageText = formatPrivateRoomInfo(data);
+    await editPrivateMessage(peerId, cmid, messageText, buildRoomInfoKeyboard(roomNumber));
+    await updatePrivateRoomInfoMessageView(peerId, roomNumber, 'info', messageText);
     return;
   }
 
@@ -1905,12 +2024,14 @@ async function handleRoomInfoButton(event, payload) {
     section,
     count
   });
+  const messageText = formatPrivateRoomHistory(data, section);
   await editPrivateMessage(
     peerId,
     cmid,
-    formatPrivateRoomHistory(data, section),
+    messageText,
     buildRoomHistoryKeyboard(roomNumber, section, count, data.hasMore === true)
   );
+  await updatePrivateRoomInfoMessageView(peerId, roomNumber, section, messageText);
 }
 
 async function handlePrivateMessage(message, peerId, text) {
@@ -2066,6 +2187,131 @@ async function forwardToBackend(payload) {
   throw lastError || new Error(
     'Не удалось отправить событие в MiniBar API'
   );
+}
+
+
+const PRIVATE_ROOM_INFO_REFRESH_DOMAINS = new Set([
+  'all', 'rooms', 'deadlines', 'history', 'gih', 'refills', 'miniapp'
+]);
+
+async function refreshTrackedPrivateRoomInfoMessages(reason = 'data.changed') {
+  if (privateRoomInfoRefreshRunning) {
+    privateRoomInfoRefreshPending = true;
+    return;
+  }
+  privateRoomInfoRefreshRunning = true;
+  try {
+    do {
+      privateRoomInfoRefreshPending = false;
+      await loadPrivateRoomInfoMessages();
+      let changed = false;
+
+      for (const [key, record] of [...privateRoomInfoMessages.entries()]) {
+        if (record.view !== 'info') continue;
+        try {
+          const data = await requestPrivateRoomApi('room-info', { number: record.roomNumber });
+          const messageText = formatPrivateRoomInfo(data);
+          if (messageText === record.lastText) continue;
+
+          await editPrivateMenu(
+            record.peerId,
+            record.messageId,
+            buildRoomInfoKeyboard(record.roomNumber),
+            messageText
+          );
+          privateRoomInfoMessages.set(key, {
+            ...record,
+            lastText: messageText,
+            updatedAt: new Date().toISOString()
+          });
+          changed = true;
+          console.log('[VK] auto-updated room info room=' + record.roomNumber +
+            ' peer=' + record.peerId + ' reason=' + reason);
+        } catch (error) {
+          console.warn('[VK] could not auto-update room info room=' + record.roomNumber +
+            ' peer=' + record.peerId + ': ' + error.message);
+          // Remove only if VK confirms the tracked message has disappeared; transient
+          // errors leave the record in place so a later data change can retry.
+          try {
+            if (!await isStoredPrivateMenuAvailable(record.peerId, record.messageId)) {
+              privateRoomInfoMessages.delete(key);
+              changed = true;
+            }
+          } catch (_) {}
+        }
+      }
+
+      if (changed) await persistPrivateRoomInfoMessages();
+    } while (privateRoomInfoRefreshPending);
+  } catch (error) {
+    console.error('[VK] room info refresh failed:', error.message);
+  } finally {
+    privateRoomInfoRefreshRunning = false;
+  }
+}
+
+function handlePrivateRoomInfoStreamBlock(block) {
+  let eventName = '';
+  const dataLines = [];
+  for (const line of String(block || '').split(/\\r?\\n/u)) {
+    if (line.startsWith('event:')) eventName = line.slice(6).trim();
+    else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
+  }
+  if (eventName === 'sync.required') {
+    void refreshTrackedPrivateRoomInfoMessages('sync.required');
+    return;
+  }
+  if (eventName !== 'data.changed' || !dataLines.length) return;
+
+  try {
+    const event = JSON.parse(dataLines.join('\\n'));
+    const domains = Array.isArray(event?.domains) ? event.domains.map(String) : ['all'];
+    if (domains.some(domain => PRIVATE_ROOM_INFO_REFRESH_DOMAINS.has(domain))) {
+      void refreshTrackedPrivateRoomInfoMessages(domains.join(','));
+    }
+  } catch (error) {
+    console.warn('[VK] could not parse live event for room info refresh:', error.message);
+  }
+}
+
+async function startPrivateRoomInfoLiveUpdates() {
+  if (privateRoomInfoStreamStarted) return;
+  privateRoomInfoStreamStarted = true;
+
+  while (true) {
+    try {
+      const url = API_BASE_URL + '/api/events?clientId=vk-bot-room-info-refresh';
+      const response = await fetch(url, {
+        headers: { Accept: 'text/event-stream' },
+        cache: 'no-store'
+      });
+      if (!response.ok || !response.body) {
+        throw new Error('Backend live stream HTTP ' + response.status);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      console.log('[VK] connected to backend live events for room info updates');
+
+      while (true) {
+        const result = await reader.read();
+        if (result.done) break;
+        buffer += decoder.decode(result.value, { stream: true });
+        let separator = buffer.indexOf('\\n\\n');
+        while (separator >= 0) {
+          const block = buffer.slice(0, separator);
+          buffer = buffer.slice(separator + 2);
+          handlePrivateRoomInfoStreamBlock(block);
+          separator = buffer.indexOf('\\n\\n');
+        }
+      }
+      throw new Error('Backend live event stream closed');
+    } catch (error) {
+      console.warn('[VK] backend live stream for room info disconnected:', error.message);
+    }
+    await new Promise(resolve => setTimeout(resolve, 3000));
+  }
 }
 
 async function handleCallback(req, res) {
@@ -2294,6 +2540,7 @@ function startServer() {
       Array.from(allowedPeerIds).join(', ')
     );
     void ensureMessageEventSubscription();
+    void startPrivateRoomInfoLiveUpdates();
     void checkExciseMenuState();
     void checkDailyPrivateMenus();
     setInterval(() => { void checkExciseMenuState(); }, 10000);
