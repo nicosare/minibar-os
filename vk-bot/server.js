@@ -446,14 +446,53 @@ async function uploadAndSendExciseFile(peerId, snapshot) {
     ' file=' + snapshot.filename + ' clearBefore=' + snapshot.clearBefore);
 }
 
-async function sendExcisesFile(peerId) {
+function getConfiguredChatPeerIds() {
+  return [...new Set([...allowedPeerIds].map(Number).filter(peerId =>
+    Number.isSafeInteger(peerId) && peerId >= 2000000000
+  ))];
+}
+
+async function sendExcisesFile(requesterPeerId) {
   const snapshot = await createExciseExportSnapshot();
   if (!snapshot.valid.length) {
-    await sendPrivateText(peerId, '⚠️ В базе нет валидных акцизов для Excel-файла.');
+    await sendPrivateText(requesterPeerId, '⚠️ В базе нет валидных акцизов для Excel-файла.');
     return { ok: false, count: 0 };
   }
-  await uploadAndSendExciseFile(String(peerId), snapshot);
-  return { ok: true, count: snapshot.valid.length, filename: snapshot.filename };
+
+  const peers = getConfiguredChatPeerIds();
+  if (!peers.length) {
+    const message = '⚠️ Не настроена рабочая беседа для отправки акцизов.';
+    await sendPrivateText(requesterPeerId, message);
+    return { ok: false, count: snapshot.valid.length };
+  }
+
+  const sentPeers = [];
+  const errors = [];
+  for (const peerId of peers) {
+    try {
+      await uploadAndSendExciseFile(String(peerId), snapshot);
+      sentPeers.push(peerId);
+    } catch (error) {
+      errors.push('peer=' + peerId + ': ' + error.message);
+      console.error('[VK] requested excise Excel failed peer=' + peerId + ': ' + error.message);
+    }
+  }
+
+  if (!sentPeers.length) {
+    await sendPrivateText(
+      requesterPeerId,
+      '⚠️ Не удалось отправить Excel в рабочую беседу. ' +
+        (errors[0] || 'Попробуй ещё раз позже.')
+    );
+    return { ok: false, count: snapshot.valid.length };
+  }
+
+  const warning = errors.length ? '\nЕсть беседа, в которую файл отправить не удалось.' : '';
+  await sendPrivateText(
+    requesterPeerId,
+    '✅ Excel с акцизами отправлен в рабочую беседу. Марок: ' + snapshot.valid.length + '.' + warning
+  );
+  return { ok: true, count: snapshot.valid.length, filename: snapshot.filename, peers: sentPeers };
 }
 
 async function handleExcisesSendRequest(req, res) {
@@ -461,9 +500,7 @@ async function handleExcisesSendRequest(req, res) {
   const token = String(req.headers['x-minibar-bot-token'] || '').trim();
   if (!sameSecret(token, INTERNAL_TOKEN)) return sendJson(res, 403, { error: 'Forbidden' });
 
-  const peers = [...allowedPeerIds].map(Number).filter(peerId =>
-    Number.isSafeInteger(peerId) && peerId >= 2000000000
-  );
+  const peers = getConfiguredChatPeerIds();
   if (!peers.length) {
     return sendJson(res, 503, { error: 'Не настроена беседа для отправки акцизов' });
   }
@@ -542,8 +579,9 @@ async function handleClearExcisesButton(event, payload) {
 
   // Refresh the persistent keyboard in a direct dialog so the conditional
   // "Получить акцизы" button disappears when the database is empty.
-  if (Number(peerId) === Number(event?.user_id)) {
-    try { await sendPrivateMenu(peerId); }
+  const userId = Number(event?.user_id);
+  if (Number.isSafeInteger(userId) && userId > 0) {
+    try { await sendPrivateMenu(String(userId)); }
     catch (error) { console.warn('[VK] could not refresh private menu after excise cleanup:', error.message); }
   }
 
