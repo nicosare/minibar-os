@@ -173,27 +173,45 @@ async function sendPrivateMenu(peerId) {
     throw new Error('VK_BOT_ACCESS_TOKEN не настроен');
   }
 
-  const keyboard = {
-    one_time: false,
-    buttons: [
-      [{
-        action: {
-          type: 'open_app',
-          label: '📱 Открыть Mini App',
-          app_id: MINI_APP_ID
-        }
-      }],
-      [{
+  const buttons = [
+    [{
+      action: {
+        type: 'open_app',
+        label: '📱 Открыть Mini App',
+        app_id: MINI_APP_ID
+      }
+    }],
+    [{
+      action: {
+        type: 'text',
+        label: '🧊 Опустошённые за сегодня',
+        payload: JSON.stringify({ command: 'emptied_today' })
+      },
+      color: 'primary'
+    }]
+  ];
+
+  try {
+    const response = await fetch(API_BASE_URL + '/api/excises', {
+      headers: { 'X-Minibar-Bot-Token': INTERNAL_TOKEN },
+      cache: 'no-store'
+    });
+    const rows = await response.json().catch(() => []);
+    if (response.ok && Array.isArray(rows) && rows.length > 0) {
+      buttons.push([{
         action: {
           type: 'text',
-          label: '🧊 Опустошённые за сегодня',
-          payload: JSON.stringify({ command: 'emptied_today' })
+          label: '📄 Получить акцизы',
+          payload: JSON.stringify({ command: 'get_excises' })
         },
         color: 'primary'
-      }]
-    ]
-  };
+      }]);
+    }
+  } catch (error) {
+    console.error('[VK] cannot check excises for the private menu:', error.message);
+  }
 
+  const keyboard = { one_time: false, buttons };
   const params = new URLSearchParams({
     peer_id: String(peerId),
     message: 'Меню MINIBAR OS',
@@ -214,7 +232,6 @@ async function sendPrivateMenu(peerId) {
     throw new Error(data.error?.error_msg || 'VK messages.send failed');
   }
 }
-
 async function sendPrivateText(peerId, message, keyboard = null) {
   if (!VK_ACCESS_TOKEN) {
     throw new Error('VK_BOT_ACCESS_TOKEN не настроен');
@@ -240,6 +257,299 @@ async function sendPrivateText(peerId, message, keyboard = null) {
   if (!response.ok || data.error) {
     throw new Error(data.error?.error_msg || 'VK messages.send failed');
   }
+}
+
+
+const EXCISE_XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+async function loadExcisesFromBackend() {
+  const response = await fetch(API_BASE_URL + '/api/excises', {
+    headers: { 'X-Minibar-Bot-Token': INTERNAL_TOKEN },
+    cache: 'no-store'
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !Array.isArray(data)) {
+    throw new Error(data.error || 'Не удалось загрузить акцизы из базы данных');
+  }
+  return data.map(item => ({
+    id: item.id,
+    markNumber: String(item.markNumber ?? item.mark_number ?? '').trim(),
+    createdAt: item.createdAt ?? item.created_at ?? null
+  }));
+}
+
+function isValidExciseMark(mark) {
+  const value = String(mark || '').trim();
+  return value.length >= 20 && /^\d/.test(value);
+}
+
+function exciseFileName(dateValue = new Date()) {
+  const two = value => String(value).padStart(2, '0');
+  const date = two(dateValue.getDate()) + '.' + two(dateValue.getMonth() + 1) + '.' +
+    String(dateValue.getFullYear()).slice(-2);
+  return 'Акцизы мини-бар ' + date + '.xlsx';
+}
+
+function exciseCrc32(bytes) {
+  let crc = 0xffffffff;
+  for (let i = 0; i < bytes.length; i++) {
+    crc ^= bytes[i];
+    for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function buildExciseXlsxBytes(values) {
+  const xml = value => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+  const rows = values.map((value, index) => {
+    const row = index + 1;
+    return '<row r="' + row + '"><c r="A' + row + '" t="inlineStr"><is><t xml:space="preserve">' +
+      xml(value) + '</t></is></c></row>';
+  }).join('');
+  const entries = [
+    ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+      '<Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+      '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>'],
+    ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+    ['xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+      '<sheets><sheet name="Акцизы" sheetId="1" r:id="rId1"/></sheets></workbook>'],
+    ['xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>'],
+    ['xl/worksheets/sheet1.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>' +
+      rows + '</sheetData></worksheet>']
+  ];
+
+  const localParts = [];
+  const centralParts = [];
+  let localOffset = 0;
+  for (const [name, content] of entries) {
+    const nameBytes = Buffer.from(name, 'utf8');
+    const data = Buffer.from(content, 'utf8');
+    const checksum = exciseCrc32(data);
+    const local = Buffer.alloc(30 + nameBytes.length);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(0, 6);
+    local.writeUInt16LE(0, 8);
+    local.writeUInt16LE(0, 10);
+    local.writeUInt16LE(0x0021, 12);
+    local.writeUInt32LE(checksum, 14);
+    local.writeUInt32LE(data.length, 18);
+    local.writeUInt32LE(data.length, 22);
+    local.writeUInt16LE(nameBytes.length, 26);
+    local.writeUInt16LE(0, 28);
+    nameBytes.copy(local, 30);
+    localParts.push(local, data);
+
+    const central = Buffer.alloc(46 + nameBytes.length);
+    central.writeUInt32LE(0x02014b50, 0);
+    central.writeUInt16LE(20, 4);
+    central.writeUInt16LE(20, 6);
+    central.writeUInt16LE(0, 8);
+    central.writeUInt16LE(0, 10);
+    central.writeUInt16LE(0, 12);
+    central.writeUInt16LE(0x0021, 14);
+    central.writeUInt32LE(checksum, 16);
+    central.writeUInt32LE(data.length, 20);
+    central.writeUInt32LE(data.length, 24);
+    central.writeUInt16LE(nameBytes.length, 28);
+    central.writeUInt16LE(0, 30);
+    central.writeUInt16LE(0, 32);
+    central.writeUInt16LE(0, 34);
+    central.writeUInt16LE(0, 36);
+    central.writeUInt32LE(0, 38);
+    central.writeUInt32LE(localOffset, 42);
+    nameBytes.copy(central, 46);
+    centralParts.push(central);
+    localOffset += local.length + data.length;
+  }
+
+  const directory = Buffer.concat(centralParts);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(0, 4);
+  end.writeUInt16LE(0, 6);
+  end.writeUInt16LE(entries.length, 8);
+  end.writeUInt16LE(entries.length, 10);
+  end.writeUInt32LE(directory.length, 12);
+  end.writeUInt32LE(localOffset, 16);
+  end.writeUInt16LE(0, 20);
+  return Buffer.concat([...localParts, directory, end]);
+}
+
+async function createExciseExportSnapshot() {
+  // New scans created after the snapshot remain in the database when this file is cleared.
+  const clearBefore = Date.now();
+  const rows = await loadExcisesFromBackend();
+  const valid = rows.filter(item => isValidExciseMark(item.markNumber)).map(item => item.markNumber);
+  return {
+    clearBefore,
+    filename: exciseFileName(new Date(clearBefore)),
+    valid,
+    bytes: valid.length ? buildExciseXlsxBytes(valid) : null
+  };
+}
+
+function clearExcisesKeyboard(clearBefore) {
+  return {
+    inline: true,
+    buttons: [[{
+      action: {
+        type: 'callback',
+        label: 'Очистить акцизы',
+        payload: JSON.stringify({ command: 'clear_excises', clearBefore: Number(clearBefore) })
+      },
+      color: 'negative'
+    }]]
+  };
+}
+
+async function uploadAndSendExciseFile(peerId, snapshot) {
+  const uploadServer = await callVkApi('docs.getMessagesUploadServer', {
+    peer_id: peerId,
+    type: 'doc'
+  });
+  if (!uploadServer?.upload_url) throw new Error('VK не вернул адрес загрузки Excel-файла');
+
+  const form = new FormData();
+  form.append('file', new Blob([snapshot.bytes], { type: EXCISE_XLSX_MIME }), snapshot.filename);
+  const uploadResponse = await fetch(uploadServer.upload_url, { method: 'POST', body: form });
+  const uploaded = await uploadResponse.json().catch(() => ({}));
+  if (!uploadResponse.ok || uploaded.error || !uploaded.file) {
+    throw new Error(uploaded.error || 'Не удалось загрузить Excel-файл в VK');
+  }
+
+  const saved = await callVkApi('docs.save', { file: uploaded.file, title: snapshot.filename });
+  const doc = saved?.doc || (Array.isArray(saved) ? (saved[0]?.doc || saved[0]) : saved);
+  if (!doc || !Number.isSafeInteger(Number(doc.id)) || !Number.isSafeInteger(Number(doc.owner_id))) {
+    throw new Error('VK не подтвердил сохранение Excel-документа');
+  }
+
+  const message = '📄 Акцизы мини-бар\nМарок: ' + snapshot.valid.length;
+  await callVkApi('messages.send', {
+    peer_id: peerId,
+    random_id: String(Math.floor(Math.random() * 2147483647) + 1),
+    message,
+    attachment: 'doc' + String(doc.owner_id) + '_' + String(doc.id),
+    keyboard: JSON.stringify(clearExcisesKeyboard(snapshot.clearBefore))
+  });
+  console.log('[VK] excise Excel sent peer=' + peerId + ' count=' + snapshot.valid.length +
+    ' file=' + snapshot.filename + ' clearBefore=' + snapshot.clearBefore);
+}
+
+async function sendExcisesFile(peerId) {
+  const snapshot = await createExciseExportSnapshot();
+  if (!snapshot.valid.length) {
+    await sendPrivateText(peerId, '⚠️ В базе нет валидных акцизов для Excel-файла.');
+    return { ok: false, count: 0 };
+  }
+  await uploadAndSendExciseFile(String(peerId), snapshot);
+  return { ok: true, count: snapshot.valid.length, filename: snapshot.filename };
+}
+
+async function handleExcisesSendRequest(req, res) {
+  if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method Not Allowed' });
+  const token = String(req.headers['x-minibar-bot-token'] || '').trim();
+  if (!sameSecret(token, INTERNAL_TOKEN)) return sendJson(res, 403, { error: 'Forbidden' });
+
+  const peers = [...allowedPeerIds].map(Number).filter(peerId =>
+    Number.isSafeInteger(peerId) && peerId >= 2000000000
+  );
+  if (!peers.length) {
+    return sendJson(res, 503, { error: 'Не настроена беседа для отправки акцизов' });
+  }
+
+  try {
+    const snapshot = await createExciseExportSnapshot();
+    if (!snapshot.valid.length) {
+      for (const peerId of peers) {
+        try {
+          await sendPrivateText(String(peerId), '⚠️ В базе нет валидных акцизов для Excel-файла.');
+        } catch (error) {
+          console.error('[VK] no-valid-excises notice failed peer=' + peerId + ': ' + error.message);
+        }
+      }
+      return sendJson(res, 409, { ok: false, error: 'В базе нет валидных акцизов для Excel-файла' });
+    }
+
+    const sentPeers = [];
+    const errors = [];
+    for (const peerId of peers) {
+      try {
+        await uploadAndSendExciseFile(String(peerId), snapshot);
+        sentPeers.push(peerId);
+      } catch (error) {
+        errors.push('peer=' + peerId + ': ' + error.message);
+        console.error('[VK] sending excise Excel failed peer=' + peerId + ': ' + error.message);
+      }
+    }
+    if (!sentPeers.length) {
+      return sendJson(res, 502, { ok: false, error: errors.join('; ') || 'Не удалось отправить акцизы' });
+    }
+    return sendJson(res, 200, {
+      ok: true,
+      count: snapshot.valid.length,
+      filename: snapshot.filename,
+      peers: sentPeers,
+      warnings: errors
+    });
+  } catch (error) {
+    console.error('[VK] excise export request failed:', error.message);
+    return sendJson(res, 500, { error: error.message || 'Не удалось отправить акцизы' });
+  }
+}
+
+async function handleClearExcisesButton(event, payload) {
+  const peerId = String(event?.peer_id || '').trim();
+  const cmid = Number(event?.conversation_message_id);
+  const clearBefore = Number(payload?.clearBefore);
+  if (!peerId || !Number.isSafeInteger(cmid) || cmid <= 0 ||
+      !Number.isSafeInteger(clearBefore) || clearBefore <= 0) {
+    throw new Error('Некорректные данные кнопки очистки акцизов');
+  }
+
+  const response = await fetch(API_BASE_URL + '/api/excises/clear-before', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Minibar-Bot-Token': INTERNAL_TOKEN
+    },
+    body: JSON.stringify({ before: new Date(clearBefore).toISOString() })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.ok !== true) {
+    throw new Error(data.error || 'Не удалось очистить акцизы в базе данных');
+  }
+
+  const confirmation = data.deleted > 0
+    ? '✅ Акцизы очищены в базе данных. Удалено: ' + data.deleted + '.'
+    : 'ℹ️ Акцизы из этого файла уже очищены. Новые марки сохранены.';
+  try {
+    await editPrivateMessage(peerId, cmid, confirmation);
+  } catch (error) {
+    console.warn('[VK] could not replace excise cleanup button:', error.message);
+    await sendPrivateText(peerId, confirmation);
+  }
+
+  // Refresh the persistent keyboard in a direct dialog so the conditional
+  // "Получить акцизы" button disappears when the database is empty.
+  if (Number(peerId) === Number(event?.user_id)) {
+    try { await sendPrivateMenu(peerId); }
+    catch (error) { console.warn('[VK] could not refresh private menu after excise cleanup:', error.message); }
+  }
+
+  console.log('[VK] excises cleared before=' + clearBefore + ' deleted=' + (Number(data.deleted) || 0) +
+    ' peer=' + peerId);
+  return data;
 }
 
 function parseMessagePayload(message) {
@@ -555,6 +865,12 @@ async function handlePrivateMessage(message, peerId, text) {
     return true;
   }
 
+  if (/^📄?\s*получить акцизы$/iu.test(normalized)) {
+    await sendExcisesFile(peerId);
+    console.log('[VK] requested excise Excel from private dialog user=' + peerId);
+    return true;
+  }
+
   if (/^🧊?\s*опустошённые за сегодня$/iu.test(normalized)) {
     const response = await fetch(API_BASE_URL + '/api/vk-bot/emptied-today', {
       method: 'GET',
@@ -680,7 +996,8 @@ async function handleCallback(req, res) {
         try {
           await answerMessageEvent(
             event,
-            payload?.command === 'deadlines_valid' ? 'Обновляю «Сроки»…' : 'Готово'
+            payload?.command === 'deadlines_valid' ? 'Обновляю «Сроки»…' :
+            payload?.command === 'clear_excises' ? 'Очищаю акцизы…' : 'Готово'
           );
         } catch (answerError) {
           console.error('[VK] immediate message event acknowledgement failed:', answerError.message);
@@ -688,6 +1005,8 @@ async function handleCallback(req, res) {
 
         if (payload?.command === 'deadlines_valid') {
           await handleDeadlinesValidButton(event, payload);
+        } else if (payload?.command === 'clear_excises') {
+          await handleClearExcisesButton(event, payload);
         } else {
           console.warn('[VK] unknown inline callback payload');
         }
@@ -696,7 +1015,9 @@ async function handleCallback(req, res) {
         try {
           await sendPrivateText(
             String(event.peer_id || ''),
-            '⚠️ Не удалось обновить «Сроки». Проверь номер и попробуй нажать кнопку ещё раз.'
+            payload?.command === 'clear_excises'
+              ? '⚠️ Не удалось очистить акцизы. Попробуй нажать кнопку ещё раз.'
+              : '⚠️ Не удалось обновить «Сроки». Проверь номер и попробуй нажать кнопку ещё раз.'
           );
         } catch (notifyError) {
           console.error('[VK] failed to send inline button error notice:', notifyError.message);
@@ -815,6 +1136,10 @@ function startServer() {
           status: 'ok',
           service: 'vk-callback'
         });
+      }
+
+      if (req.url === '/excises/send') {
+        return await handleExcisesSendRequest(req, res);
       }
 
       if (req.url === '/callback') {
