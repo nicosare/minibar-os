@@ -43,6 +43,7 @@ const PRIVATE_MENU_MESSAGES_FILE = process.env.VK_BOT_PRIVATE_MENU_MESSAGES_FILE
 const EXCISE_MENU_STATE_FILE = process.env.VK_BOT_EXCISE_MENU_STATE_FILE || '/data/excise-menu-state.json';
 const privateDialogIds = new Set();
 const privateMenuMessageIds = new Map();
+const pinnedPrivateMenuMessageIds = new Set();
 let privateDialogsLoaded = false;
 let privateMenuMessagesLoaded = false;
 let knownExcisePresence = null;
@@ -366,6 +367,27 @@ async function buildPrivateMenuKeyboard(summary = null) {
   return { one_time: false, buttons };
 }
 
+async function pinPrivateMenu(peerId, messageId) {
+  const key = String(peerId) + ':' + String(messageId);
+  if (pinnedPrivateMenuMessageIds.has(key)) return;
+
+  try {
+    await callVkApi('messages.pin', {
+      peer_id: String(peerId),
+      message_id: String(messageId)
+    });
+    pinnedPrivateMenuMessageIds.add(key);
+    console.log('[VK] pinned private menu user=' + peerId + ' message=' + messageId);
+  } catch (error) {
+    // If VK reports that the same message is already pinned, treat that as success.
+    if (/already pinned|already.*pin|уже закреп/iu.test(String(error.message || ''))) {
+      pinnedPrivateMenuMessageIds.add(key);
+      return;
+    }
+    throw error;
+  }
+}
+
 async function sendPrivateMenu(peerId, keyboard = null, messageText = null, summary = null) {
   if (!VK_ACCESS_TOKEN) {
     throw new Error('VK_BOT_ACCESS_TOKEN не настроен');
@@ -383,6 +405,14 @@ async function sendPrivateMenu(peerId, keyboard = null, messageText = null, summ
   const currentMessage = messageText ||
     (currentSummary ? formatPrivateMenuText(currentSummary) :
       '📋 MINIBAR OS\nСводка временно недоступна. Попробуй открыть меню ещё раз.');
+
+  const existingMessageId = await getPrivateMenuMessageId(peerId);
+  if (existingMessageId) {
+    // Never create a replacement automatically: keep one stable, pinned menu message.
+    await editPrivateMenu(peerId, existingMessageId, currentKeyboard, currentMessage);
+    await pinPrivateMenu(peerId, existingMessageId);
+    return;
+  }
 
   const params = new URLSearchParams({
     peer_id: String(peerId),
@@ -414,9 +444,11 @@ async function sendPrivateMenu(peerId, keyboard = null, messageText = null, summ
       await rememberPrivateMenuMessage(peerId, messageId);
     } catch (error) {
       console.error('[VK] could not persist menu message id for user=' + peerId + ': ' + error.message);
+      throw error;
     }
+    await pinPrivateMenu(peerId, messageId);
   } else {
-    console.warn('[VK] VK did not return a usable menu message id for user=' + peerId);
+    throw new Error('[VK] did not return a usable menu message id; refusing to send another menu');
   }
 }
 
@@ -459,13 +491,14 @@ async function refreshAllPrivateMenus(reason, summary = null) {
       if (menuMessageId) {
         try {
           await editPrivateMenu(recipientId, menuMessageId, keyboard, messageText);
+          await pinPrivateMenu(recipientId, menuMessageId);
           updated += 1;
-          continue;
         } catch (error) {
-          console.warn('[VK] could not edit stored menu for user=' + recipientId +
-            '; sending a replacement: ' + error.message);
-          await forgetPrivateMenuMessage(recipientId);
+          allUpdated = false;
+          console.warn('[VK] could not edit/pin stored menu for user=' + recipientId +
+            '; not sending a duplicate menu and will retry: ' + error.message);
         }
+        continue;
       }
 
       await sendPrivateMenu(recipientId, keyboard, messageText, currentSummary);
@@ -805,20 +838,17 @@ async function handleClearExcisesButton(event, payload) {
   const confirmation = data.deleted > 0
     ? '✅ Акцизы очищены в базе данных. Удалено: ' + data.deleted + '.'
     : 'ℹ️ Акцизы из этого файла уже очищены. Новые марки сохранены.';
+  // Do not edit the message that contains the Excel attachment: editing it as a
+  // plain-text confirmation removes the file. Keep the original file/button intact.
   try {
-    await editPrivateMessage(peerId, cmid, confirmation);
-  } catch (error) {
-    console.warn('[VK] could not replace excise cleanup button:', error.message);
     await sendPrivateText(peerId, confirmation);
+  } catch (error) {
+    console.error('[VK] could not send excise cleanup confirmation: ' + error.message);
   }
 
-  // Refresh the persistent keyboard in a direct dialog so the conditional
-  // "Получить акцизы" button disappears when the database is empty.
-  const userId = Number(event?.user_id);
-  if (Number.isSafeInteger(userId) && userId > 0) {
-    try { await sendPrivateMenu(String(userId)); }
-    catch (error) { console.warn('[VK] could not refresh private menu after excise cleanup:', error.message); }
-  }
+  // The regular monitor refreshes the existing pinned menu in place. It must not
+  // send another menu after the excise count changes.
+  void checkExciseMenuState();
 
   console.log('[VK] excises cleared before=' + clearBefore + ' deleted=' + (Number(data.deleted) || 0) +
     ' peer=' + peerId);
