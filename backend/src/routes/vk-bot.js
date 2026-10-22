@@ -118,7 +118,7 @@ router.get('/summary', async (req, res) => {
     const exciseCount = exciseRows.length;
     const validExciseCount = exciseRows.filter(row => {
       const mark = String(row.markNumber || '').trim();
-      return mark.length >= 20 && /^\\d/.test(mark);
+      return mark.length >= 20 && /^\d/.test(mark);
     }).length;
 
     res.set('Cache-Control', 'no-store');
