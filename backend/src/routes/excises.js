@@ -28,30 +28,6 @@ router.post('/', async (req, res) => {
 });
 
 
-router.post('/send-to-chat', async (req, res) => {
-  const token = String(process.env.VK_BOT_INTERNAL_TOKEN || '').trim();
-  if (!token) return res.status(503).json({ error: 'Сервис отправки акцизов не настроен' });
-
-  const botServiceUrl = String(process.env.VK_BOT_SERVICE_URL || 'http://vk-bot:3002').replace(/\/+$/, '');
-  try {
-    const response = await fetch(botServiceUrl + '/excises/send', {
-      method: 'POST',
-      headers: { 'X-Minibar-Bot-Token': token }
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || data.ok !== true) {
-      return res.status(response.status || 502).json({
-        ok: false,
-        error: data.error || 'Не удалось отправить Excel-файл в беседу'
-      });
-    }
-    return res.json(data);
-  } catch (err) {
-    console.error('POST /api/excises/send-to-chat error:', err);
-    return res.status(502).json({ error: 'Не удалось связаться с ботом для отправки акцизов' });
-  }
-});
-
 router.post('/clear-before', async (req, res) => {
   const expected = String(process.env.VK_BOT_INTERNAL_TOKEN || '').trim();
   const actual = String(req.get('x-minibar-bot-token') || '').trim();

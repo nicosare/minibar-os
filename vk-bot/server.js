@@ -423,9 +423,16 @@ async function uploadAndSendExciseFile(peerId, snapshot) {
   const form = new FormData();
   form.append('file', new Blob([snapshot.bytes], { type: EXCISE_XLSX_MIME }), snapshot.filename);
   const uploadResponse = await fetch(uploadServer.upload_url, { method: 'POST', body: form });
-  const uploaded = await uploadResponse.json().catch(() => ({}));
+  const uploadText = await uploadResponse.text();
+  let uploaded = {};
+  try { uploaded = JSON.parse(uploadText); }
+  catch { uploaded = { raw: uploadText }; }
   if (!uploadResponse.ok || uploaded.error || !uploaded.file) {
-    throw new Error(uploaded.error || 'Не удалось загрузить Excel-файл в VK');
+    const detail = uploaded.error
+      ? (typeof uploaded.error === 'string' ? uploaded.error : JSON.stringify(uploaded.error))
+      : (uploaded.raw || JSON.stringify(uploaded));
+    throw new Error('VK upload HTTP ' + uploadResponse.status + ': ' +
+      String(detail || 'поле file отсутствует').slice(0, 400));
   }
 
   const saved = await callVkApi('docs.save', { file: uploaded.file, title: snapshot.filename });
@@ -446,105 +453,31 @@ async function uploadAndSendExciseFile(peerId, snapshot) {
     ' file=' + snapshot.filename + ' clearBefore=' + snapshot.clearBefore);
 }
 
-function getConfiguredChatPeerIds() {
-  return [...new Set([...allowedPeerIds].map(Number).filter(peerId =>
-    Number.isSafeInteger(peerId) && peerId >= 2000000000
-  ))];
-}
+async function sendExcisesFile(peerId) {
+  const targetPeerId = String(peerId || '').trim();
+  if (!/^\d+$/.test(targetPeerId) ||
+      !Number.isSafeInteger(Number(targetPeerId)) ||
+      Number(targetPeerId) <= 0) {
+    throw new Error('Не удалось определить чат, в котором нажали кнопку');
+  }
 
-async function sendExcisesFile(requesterPeerId) {
   const snapshot = await createExciseExportSnapshot();
   if (!snapshot.valid.length) {
-    await sendPrivateText(requesterPeerId, '⚠️ В базе нет валидных акцизов для Excel-файла.');
+    await sendPrivateText(targetPeerId, '⚠️ В базе нет валидных акцизов для Excel-файла.');
     return { ok: false, count: 0 };
   }
 
-  const peers = getConfiguredChatPeerIds();
-  if (!peers.length) {
-    const message = '⚠️ Не настроена рабочая беседа для отправки акцизов.';
-    await sendPrivateText(requesterPeerId, message);
-    return { ok: false, count: snapshot.valid.length };
-  }
-
-  const sentPeers = [];
-  const errors = [];
-  for (const peerId of peers) {
-    try {
-      await uploadAndSendExciseFile(String(peerId), snapshot);
-      sentPeers.push(peerId);
-    } catch (error) {
-      errors.push('peer=' + peerId + ': ' + error.message);
-      console.error('[VK] requested excise Excel failed peer=' + peerId + ': ' + error.message);
-    }
-  }
-
-  if (!sentPeers.length) {
-    await sendPrivateText(
-      requesterPeerId,
-      '⚠️ Не удалось отправить Excel в рабочую беседу. ' +
-        (errors[0] || 'Попробуй ещё раз позже.')
-    );
-    return { ok: false, count: snapshot.valid.length };
-  }
-
-  const warning = errors.length ? '\nЕсть беседа, в которую файл отправить не удалось.' : '';
-  await sendPrivateText(
-    requesterPeerId,
-    '✅ Excel с акцизами отправлен в рабочую беседу. Марок: ' + snapshot.valid.length + '.' + warning
-  );
-  return { ok: true, count: snapshot.valid.length, filename: snapshot.filename, peers: sentPeers };
-}
-
-async function handleExcisesSendRequest(req, res) {
-  if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method Not Allowed' });
-  const token = String(req.headers['x-minibar-bot-token'] || '').trim();
-  if (!sameSecret(token, INTERNAL_TOKEN)) return sendJson(res, 403, { error: 'Forbidden' });
-
-  const peers = getConfiguredChatPeerIds();
-  if (!peers.length) {
-    return sendJson(res, 503, { error: 'Не настроена беседа для отправки акцизов' });
-  }
-
   try {
-    const snapshot = await createExciseExportSnapshot();
-    if (!snapshot.valid.length) {
-      for (const peerId of peers) {
-        try {
-          await sendPrivateText(String(peerId), '⚠️ В базе нет валидных акцизов для Excel-файла.');
-        } catch (error) {
-          console.error('[VK] no-valid-excises notice failed peer=' + peerId + ': ' + error.message);
-        }
-      }
-      return sendJson(res, 409, { ok: false, error: 'В базе нет валидных акцизов для Excel-файла' });
-    }
-
-    const sentPeers = [];
-    const errors = [];
-    for (const peerId of peers) {
-      try {
-        await uploadAndSendExciseFile(String(peerId), snapshot);
-        sentPeers.push(peerId);
-      } catch (error) {
-        errors.push('peer=' + peerId + ': ' + error.message);
-        console.error('[VK] sending excise Excel failed peer=' + peerId + ': ' + error.message);
-      }
-    }
-    if (!sentPeers.length) {
-      return sendJson(res, 502, { ok: false, error: errors.join('; ') || 'Не удалось отправить акцизы' });
-    }
-    return sendJson(res, 200, {
-      ok: true,
-      count: snapshot.valid.length,
-      filename: snapshot.filename,
-      peers: sentPeers,
-      warnings: errors
-    });
+    await uploadAndSendExciseFile(targetPeerId, snapshot);
+    console.log('[VK] requested excise Excel sent to invoking peer=' + targetPeerId +
+      ' count=' + snapshot.valid.length + ' file=' + snapshot.filename);
+    return { ok: true, count: snapshot.valid.length, filename: snapshot.filename, peer: targetPeerId };
   } catch (error) {
-    console.error('[VK] excise export request failed:', error.message);
-    return sendJson(res, 500, { error: error.message || 'Не удалось отправить акцизы' });
+    console.error('[VK] requested excise Excel failed in invoking peer=' + targetPeerId + ': ' + error.message);
+    await sendPrivateText(targetPeerId, '⚠️ Не удалось отправить Excel в этот чат. ' + error.message);
+    return { ok: false, count: snapshot.valid.length, error: error.message };
   }
 }
-
 async function handleClearExcisesButton(event, payload) {
   const peerId = String(event?.peer_id || '').trim();
   const cmid = Number(event?.conversation_message_id);
@@ -1174,10 +1107,6 @@ function startServer() {
           status: 'ok',
           service: 'vk-callback'
         });
-      }
-
-      if (req.url === '/excises/send') {
-        return await handleExcisesSendRequest(req, res);
       }
 
       if (req.url === '/callback') {
