@@ -7,6 +7,12 @@ const API_BASE_URL = String(
   process.env.MINIBAR_API_URL || 'http://backend:3000'
 ).replace(/\/$/, '');
 
+// JS Date.getTimezoneOffset semantics: UTC minus local time.
+// Default -300 means UTC+05:00; deployments can override this in .env.
+const VK_BOT_TIMEZONE_OFFSET = String(
+  process.env.VK_BOT_TIMEZONE_OFFSET ?? '-300'
+).trim();
+
 const INTERNAL_TOKEN = String(
   process.env.VK_BOT_INTERNAL_TOKEN || ''
 ).trim();
@@ -231,7 +237,10 @@ function readBody(req, limit = 1024 * 1024) {
 
 async function loadPrivateMenuSummary() {
   const response = await fetch(API_BASE_URL + '/api/vk-bot/summary', {
-    headers: { 'X-Minibar-Bot-Token': INTERNAL_TOKEN },
+    headers: {
+      'X-Minibar-Bot-Token': INTERNAL_TOKEN,
+      'X-Timezone-Offset': VK_BOT_TIMEZONE_OFFSET
+    },
     cache: 'no-store'
   });
   const summary = await response.json().catch(() => ({}));
@@ -1133,7 +1142,11 @@ async function handlePrivateMessage(message, peerId, text) {
   if (/^🧊?\s*опустошённые за сегодня$/iu.test(normalized)) {
     const response = await fetch(API_BASE_URL + '/api/vk-bot/emptied-today', {
       method: 'GET',
-      headers: { 'X-Minibar-Bot-Token': INTERNAL_TOKEN }
+      headers: {
+        'X-Minibar-Bot-Token': INTERNAL_TOKEN,
+        'X-Timezone-Offset': VK_BOT_TIMEZONE_OFFSET
+      },
+      cache: 'no-store'
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
