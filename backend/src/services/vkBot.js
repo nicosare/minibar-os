@@ -339,6 +339,7 @@ export async function processVkBotMessage({
 
     const processedRooms = [];
     const missingRooms = [];
+    const notifications = [];
     let roomStateChanged = false;
 
     for (const roomNumber of parsed.rooms) {
@@ -360,7 +361,13 @@ export async function processVkBotMessage({
 
       const productsBefore = await tx.roomProductStatus.findMany({
         where: { roomId: room.id },
-        select: { productId: true, expiryStatus: true, qtyToReplace: true, checkedAt: true }
+        select: {
+          productId: true,
+          expiryStatus: true,
+          qtyToReplace: true,
+          checkedAt: true,
+          product: { select: { name: true } }
+        }
       });
       const beforeSnapshot = {
         roomStatus: room.expiryStatus || 'neutral',
@@ -371,6 +378,24 @@ export async function processVkBotMessage({
           checkedAt: item.checkedAt.toISOString()
         }))
       };
+
+      if (parsed.emptied && productsBefore.length > 0) {
+        notifications.push({
+          type: 'emptied_with_deadlines',
+          roomId: room.id,
+          roomNumber: room.number,
+          products: productsBefore.map(item => ({
+            name: item.product?.name || ('Продукт #' + item.productId),
+            qtyToReplace: Number(item.qtyToReplace) || 0
+          }))
+        });
+      } else if (!parsed.emptied && room.expiryStatus === 'empty') {
+        notifications.push({
+          type: 'refilled_empty',
+          roomId: room.id,
+          roomNumber: room.number
+        });
+      }
 
       let nextRoomStatus = room.expiryStatus || 'neutral';
       if (parsed.emptied) {
@@ -440,7 +465,8 @@ export async function processVkBotMessage({
       eventId,
       action: parsed.emptied ? 'emptied' : 'room',
       rooms: processedRooms,
-      missingRooms
+      missingRooms,
+      notifications
     };
   }, { isolationLevel: 'Serializable' });
 }
