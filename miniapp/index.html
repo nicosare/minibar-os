@@ -1619,7 +1619,7 @@
         <div class="tool-input-row"><input class="tool-input" id="toolExciseInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Введите или отсканируйте марку"></div>
       </section>
       <div id="toolExciseFeedback" class="tool-feedback" hidden></div>
-      <div class="tool-actions"><button class="tool-btn tool-btn-primary" id="toolExciseDownload" type="button">Отправить</button><button class="tool-btn tool-btn-danger" id="toolExciseClear" type="button">Очистить все</button></div>
+      <div class="tool-actions"><button class="tool-btn tool-btn-danger" id="toolExciseClear" type="button">Очистить все</button></div>
     </div>
   </div>
 </div>
@@ -2597,7 +2597,6 @@ const navPlaceholderClose = document.getElementById('navPlaceholderClose');
 const exciseScreen = document.getElementById('exciseScreen');
 const exciseScreenClose = document.getElementById('exciseScreenClose');
 const toolExciseInput = document.getElementById('toolExciseInput');
-const toolExciseDownload = document.getElementById('toolExciseDownload');
 const toolExciseClear = document.getElementById('toolExciseClear');
 const toolExciseList = document.getElementById('toolExciseList');
 const toolExciseListCount = document.getElementById('toolExciseListCount');
@@ -3915,25 +3914,7 @@ function toolCreateXlsxBytes(values) {
   view.setUint32(12, directory.length, true); view.setUint32(16, localOffset, true); view.setUint16(20, 0, true);
   return toolConcatBytes(localParts.concat([directory, end]));
 }
-async function sendToolExcises() {
-  if (toolExciseDownload.disabled) return;
-  toolExciseDownload.disabled = true;
-  toolExciseDownload.textContent = 'Отправляю…';
-  try {
-    const result = await toolApiRequest('/excises/send-to-chat', {
-      method: 'POST',
-      body: JSON.stringify({})
-    });
-    if (!result || result.ok !== true) throw new Error(result?.error || 'Бот не подтвердил отправку файла');
-    const count = Number(result.count) || 0;
-    showToolFeedback(toolExciseFeedback, 'Excel отправлен в беседу. Валидных марок: ' + count + '.', 'info', 'excise', 9000);
-  } catch (error) {
-    showToolFeedback(toolExciseFeedback, 'Не удалось отправить Excel в беседу: ' + (error.message || 'ошибка'), 'error', 'excise', 9000);
-  } finally {
-    toolExciseDownload.disabled = false;
-    toolExciseDownload.textContent = 'Отправить';
-  }
-}
+
 function toolCalcGroups() {
   const grouped = {};
   toolProducts.forEach(function (product) {
@@ -4885,7 +4866,6 @@ toolExciseInput.addEventListener('input', function () {
 toolExciseInput.addEventListener('keydown', function (event) {
   if (event.key === 'Enter') { event.preventDefault(); void processToolExciseInput(); }
 });
-toolExciseDownload.addEventListener('click', sendToolExcises);
 toolExciseClear.addEventListener('click', function () { void clearToolExcises(); });
 toolExciseList.addEventListener('click', function (event) {
   const deleteButton = event.target.closest('[data-tool-excise-delete-id]');
