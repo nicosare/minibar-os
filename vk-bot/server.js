@@ -156,6 +156,7 @@ async function forgetPrivateMenuMessage(userIdValue) {
 }
 
 function defaultPrivateUserSettings() {
+  const localNow = getBotLocalDateTime();
   return {
     dailyMenuEnabled: true,
     dailyMenuTime: '09:00',
@@ -165,7 +166,9 @@ function defaultPrivateUserSettings() {
     ),
     awaitingMenuTime: false,
     settingsMessageCmid: null,
-    lastDailyMenuDate: null
+    // A newly registered user who first opens the bot after 09:00 should not
+    // receive an immediate duplicate; the next scheduled message is tomorrow.
+    lastDailyMenuDate: localNow.timeKey >= '09:00' ? localNow.dateKey : null
   };
 }
 
@@ -645,7 +648,7 @@ async function refreshAllPrivateMenus(reason, summary = null) {
           updated += 1;
         } catch (error) {
           allUpdated = false;
-          console.warn('[VK] could not verify/edit/pin stored menu for user=' + recipientId +
+          console.warn('[VK] could not verify/edit stored menu for user=' + recipientId +
             '; not sending a duplicate menu and will retry: ' + error.message);
         }
         continue;
@@ -828,7 +831,7 @@ async function checkDailyPrivateMenus() {
     for (const recipientId of recipientIds) {
       const settings = await getPrivateUserSettings(recipientId);
       if (settings.dailyMenuEnabled &&
-          localNow.timeKey === settings.dailyMenuTime &&
+          localNow.timeKey >= settings.dailyMenuTime &&
           settings.lastDailyMenuDate !== localNow.dateKey) {
         dueRecipientIds.push(recipientId);
       }
@@ -1449,9 +1452,14 @@ async function handlePrivateSettingsButton(event, payload) {
   const command = String(payload?.command || '');
 
   if (command === 'settings_toggle_daily_menu') {
+    const enable = !settings.dailyMenuEnabled;
+    const localNow = getBotLocalDateTime();
     settings = await updatePrivateUserSettings(userId, {
-      dailyMenuEnabled: !settings.dailyMenuEnabled,
-      awaitingMenuTime: false
+      dailyMenuEnabled: enable,
+      awaitingMenuTime: false,
+      ...(enable && localNow.timeKey > settings.dailyMenuTime
+        ? { lastDailyMenuDate: localNow.dateKey }
+        : {})
     });
   } else if (command === 'settings_toggle_notifications') {
     settings = await updatePrivateUserSettings(userId, {
@@ -1654,9 +1662,11 @@ async function handlePrivateMessage(message, peerId, text) {
     }
 
     const time = String(hour).padStart(2, '0') + ':' + match[2];
+    const localNow = getBotLocalDateTime();
     const updatedSettings = await updatePrivateUserSettings(senderId, {
       dailyMenuTime: time,
-      awaitingMenuTime: false
+      awaitingMenuTime: false,
+      ...(localNow.timeKey > time ? { lastDailyMenuDate: localNow.dateKey } : {})
     });
     const confirmationText = '✅ Время ежедневной отправки сохранено.\n\n' +
       formatPrivateSettingsText(updatedSettings);
