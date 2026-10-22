@@ -359,11 +359,11 @@ async function sendDeadlineNotifications(notifications, eventId) {
         const qty = Number(item?.qtyToReplace) || 0;
         return '• ' + name + (qty > 0 ? ' — ' + qty + ' шт.' : '');
       });
-      messageText = '🧊 Номер ' + roomNumber + ' опустошён.\\n\\n' +
-        'В «Сроках» были отмечены продукты:\\n' + productLines.join('\\n') +
-        '\\n\\nОтметки продуктов для этого номера очищены.';
+      messageText = '🧊 Номер ' + roomNumber + ' опустошён.\n\n' +
+        'В «Сроках» были отмечены продукты:\n' + productLines.join('\n') +
+        '\n\nОтметки продуктов для этого номера очищены.';
     } else if (notification.type === 'refilled_empty') {
-      messageText = '✅ Номер ' + roomNumber + ' пополнен после опустошения.\\n\\n' +
+      messageText = '✅ Номер ' + roomNumber + ' пополнен после опустошения.\n\n' +
         'Нажми кнопку ниже, чтобы отметить «Сроки» этого номера как «В порядке».';
       keyboard = deadlinesValidKeyboard(notification.roomId, roomNumber, eventId);
     } else {
@@ -378,6 +378,8 @@ async function sendDeadlineNotifications(notifications, eventId) {
           ' user=' + recipientId + ': ' + error.message);
       }
     }
+  }
+}
 
 async function handlePrivateMessage(message, peerId, text) {
   const senderId = Number(message.from_id);
