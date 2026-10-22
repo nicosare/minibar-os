@@ -242,7 +242,7 @@ async function handleDeadlinesValidButton(peerId, payload) {
 
   // The button is valid for the just-refilled room only while its status is still neutral.
   // This also makes repeated taps idempotent and prevents stale buttons overwriting new work.
-  if ((room.expiryStatus || 'neutral') !== 'neutral' || statuses.length > 0) {
+  if ((room.expiryStatus || 'neutral') !== 'neutral') {
     await sendPrivateText(
       peerId,
       'Статус номера ' + roomNumber + ' уже изменился. Ничего не менял.'
