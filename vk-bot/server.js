@@ -301,15 +301,15 @@ async function answerMessageEvent(event, text = 'Готово') {
 }
 
 async function handleDeadlinesValidButton(event, payload) {
-  const peerId = String(event.peer_id);
+  const peerId = String(event.peer_id || '');
   const roomId = Number(payload?.roomId);
   const roomNumber = Number(payload?.roomNumber);
   const cmid = Number(event.conversation_message_id);
 
-  if (!Number.isSafeInteger(roomId) || roomId <= 0 ||
+  if (!peerId ||
+      !Number.isSafeInteger(roomId) || roomId <= 0 ||
       !Number.isSafeInteger(roomNumber) || roomNumber < 100 || roomNumber > 9999) {
-    await answerMessageEvent(event, 'Не удалось определить номер');
-    return;
+    throw new Error('Не удалось определить номер для обновления «Сроков»');
   }
 
   const roomResponse = await fetch(API_BASE_URL + '/api/rooms/' + roomId);
@@ -318,8 +318,7 @@ async function handleDeadlinesValidButton(event, payload) {
     throw new Error(room.error || 'Не удалось загрузить номер');
   }
   if (Number(room.number) !== roomNumber) {
-    await answerMessageEvent(event, 'Номер уже не совпадает с данными системы');
-    return;
+    throw new Error('Номер уже не совпадает с данными системы');
   }
 
   const statusesResponse = await fetch(
@@ -333,8 +332,7 @@ async function handleDeadlinesValidButton(event, payload) {
   if (!(room.expiryStatus === 'valid' && statuses.length === 0)) {
     // Only change a neutral status, matching the website's «В порядке» action.
     if ((room.expiryStatus || 'neutral') !== 'neutral') {
-      await answerMessageEvent(event, 'Статус номера уже изменился');
-      return;
+      throw new Error('Статус номера уже изменился');
     }
 
     const updateResponse = await fetch(
@@ -351,12 +349,13 @@ async function handleDeadlinesValidButton(event, payload) {
     }
   }
 
+  // Editing the original notification is a presentation step: it must not block
+  // the earlier callback acknowledgement or undo the successful status update.
   await editPrivateMessage(
     peerId,
     cmid,
     '✅ Сроки номера ' + roomNumber + ' в порядке.'
   );
-  await answerMessageEvent(event, 'Сроки обновлены');
   console.log('[VK] deadlines marked valid for room=' + roomNumber + ' user=' + event.user_id);
 }
 
@@ -555,22 +554,40 @@ async function handleCallback(req, res) {
       try { payload = JSON.parse(payload); } catch { payload = null; }
     }
 
-    try {
-      if (payload?.command === 'deadlines_valid') {
-        await handleDeadlinesValidButton(event, payload);
-      } else {
-        await answerMessageEvent(event);
-      }
-    } catch (error) {
-      console.error('[VK] inline button handling failed:', error.message);
+    // Answer VK's callback immediately; do not keep the button spinner active
+    // while the backend is checking or updating room data.
+    sendText(res, 200, 'ok');
+
+    void (async () => {
       try {
-        await answerMessageEvent(event, 'Не удалось обновить «Сроки»');
-      } catch (answerError) {
-        console.error('[VK] message event acknowledgement failed:', answerError.message);
+        try {
+          await answerMessageEvent(
+            event,
+            payload?.command === 'deadlines_valid' ? 'Обновляю «Сроки»…' : 'Готово'
+          );
+        } catch (answerError) {
+          console.error('[VK] immediate message event acknowledgement failed:', answerError.message);
+        }
+
+        if (payload?.command === 'deadlines_valid') {
+          await handleDeadlinesValidButton(event, payload);
+        } else {
+          console.warn('[VK] unknown inline callback payload');
+        }
+      } catch (error) {
+        console.error('[VK] inline button handling failed:', error.message);
+        try {
+          await sendPrivateText(
+            String(event.peer_id || ''),
+            '⚠️ Не удалось обновить «Сроки». Проверь номер и попробуй нажать кнопку ещё раз.'
+          );
+        } catch (notifyError) {
+          console.error('[VK] failed to send inline button error notice:', notifyError.message);
+        }
       }
-      return sendText(res, 200, 'ok');
-    }
-    return sendText(res, 200, 'ok');
+    })();
+
+    return;
   }
 
   if (type !== 'message_new') {
