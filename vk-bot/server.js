@@ -1054,14 +1054,18 @@ async function createExciseExportSnapshot() {
   };
 }
 
-function clearExcisesKeyboard(clearBefore) {
+function clearExcisesKeyboard(clearBefore, count) {
   return {
     inline: true,
     buttons: [[{
       action: {
         type: 'callback',
         label: 'Очистить акцизы',
-        payload: JSON.stringify({ command: 'clear_excises', clearBefore: Number(clearBefore) })
+        payload: JSON.stringify({
+          command: 'clear_excises',
+          clearBefore: Number(clearBefore),
+          count: Number(count)
+        })
       },
       color: 'negative'
     }]]
@@ -1096,17 +1100,18 @@ async function uploadAndSendExciseFile(peerId, snapshot) {
     throw new Error('VK не подтвердил сохранение Excel-документа');
   }
 
-  // Send the status and the Excel document as two separate VK messages.
+  // The count message owns the clear button; the following document message
+  // contains only the Excel attachment so it can be forwarded independently.
   await callVkApi('messages.send', {
     peer_id: peerId,
     random_id: String(Math.floor(Math.random() * 2147483647) + 1),
-    message: '📄 Акцизы мини-бар\nМарок: ' + snapshot.valid.length
+    message: '📄 Акцизы мини-бар\nМарок: ' + snapshot.valid.length,
+    keyboard: JSON.stringify(clearExcisesKeyboard(snapshot.clearBefore, snapshot.valid.length))
   });
   await callVkApi('messages.send', {
     peer_id: peerId,
     random_id: String(Math.floor(Math.random() * 2147483647) + 1),
-    attachment: 'doc' + String(doc.owner_id) + '_' + String(doc.id),
-    keyboard: JSON.stringify(clearExcisesKeyboard(snapshot.clearBefore))
+    attachment: 'doc' + String(doc.owner_id) + '_' + String(doc.id)
   });
   console.log('[VK] excise Excel sent peer=' + peerId + ' count=' + snapshot.valid.length +
     ' file=' + snapshot.filename + ' clearBefore=' + snapshot.clearBefore);
@@ -1159,19 +1164,19 @@ async function handleClearExcisesButton(event, payload) {
     throw new Error(data.error || 'Не удалось очистить акцизы в базе данных');
   }
 
-  const confirmation = data.deleted > 0
-    ? '✅ Акцизы очищены в базе данных. Удалено: ' + data.deleted + '.'
-    : 'ℹ️ Акцизы из этого файла уже очищены. Новые марки сохранены.';
-  // Keep the Excel document attached while updating the status and removing the inline button.
-  // If VK does not return the original attachment metadata, leave that message untouched.
-  try {
-    await editPrivateMessagePreservingAttachments(peerId, cmid, confirmation);
-  } catch (error) {
-    console.warn('[VK] could not edit excise message while preserving its Excel file: ' + error.message);
+  // The button is on the count message, never on the file. Remove the button
+  // after clearing, without sending a confirmation or modifying the attachment.
+  const exportedCount = Number(payload?.count);
+  if (Number.isSafeInteger(exportedCount) && exportedCount >= 0) {
     try {
-      await sendPrivateText(peerId, confirmation);
-    } catch (notifyError) {
-      console.error('[VK] could not send excise cleanup confirmation: ' + notifyError.message);
+      await editPrivateMessage(
+        peerId,
+        cmid,
+        '📄 Акцизы мини-бар\nМарок: ' + exportedCount,
+        { inline: true, buttons: [] }
+      );
+    } catch (error) {
+      console.warn('[VK] could not remove excise clear button: ' + error.message);
     }
   }
 
