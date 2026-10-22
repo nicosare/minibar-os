@@ -546,8 +546,10 @@ function formatPrivateMenuText(summary) {
     '📑 Списки',
     formatMenuListLine('Заезды', lists.arrivals),
     formatMenuListLine('Выезды', lists.departures),
-    'GIH: ' + Math.max(0, Math.trunc(Number(lists.gih?.count) || 0)) + ' ' +
-      russianCount(Math.max(0, Math.trunc(Number(lists.gih?.count) || 0)), ['номер', 'номера', 'номеров']) + ' сегодня',
+    'GIH: ' +
+      Math.max(0, Math.trunc(Number(lists.gih?.saved) || 0)) + '/' +
+      Math.max(0, Math.trunc(Number(lists.gih?.total) || 0)) +
+      ' сохранено/всего сегодня',
     formatMenuListLine('Сроки', lists.deadlines),
     '',
     '🎯 Цель по срокам на сегодня'
