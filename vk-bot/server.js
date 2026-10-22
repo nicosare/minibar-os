@@ -320,7 +320,9 @@ async function handleDeadlinesValidButton(peerId, payload) {
 
 function deadlinesValidKeyboard(roomId, roomNumber, eventId) {
   return {
-    one_time: false,
+    // VK renders this button inline with the message instead of as the
+    // persistent keyboard shown below the conversation.
+    inline: true,
     buttons: [[{
       action: {
         type: 'text',
