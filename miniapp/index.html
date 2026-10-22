@@ -1761,7 +1761,7 @@ const requestedLaunchRoomParam = (() => {
     const hash = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''));
     const raw = hash.get('room') || hash.get('roomNumber') ||
       query.get('room') || query.get('roomNumber') || '';
-    return /^\\d{3,4}$/.test(String(raw)) ? String(Number(raw)) : '';
+    return /^\d{3,4}$/.test(String(raw)) ? String(Number(raw)) : '';
   } catch (_) {
     return '';
   }
