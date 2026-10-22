@@ -281,10 +281,18 @@ async function editPrivateMessage(peerId, conversationMessageId, message) {
 }
 
 async function answerMessageEvent(event, text = 'Готово') {
+  const eventId = String(event?.event_id || '').trim();
+  const userId = Number(event?.user_id);
+  const peerId = Number(event?.peer_id);
+  if (!eventId || !Number.isSafeInteger(userId) || userId <= 0 ||
+      !Number.isSafeInteger(peerId) || peerId <= 0) {
+    throw new Error('VK message_event lacks event_id, user_id or peer_id');
+  }
+
   const params = new URLSearchParams({
-    event_id: String(event.event_id || ''),
-    user_id: String(event.user_id || ''),
-    peer_id: String(event.peer_id || ''),
+    event_id: eventId,
+    user_id: String(userId),
+    peer_id: String(peerId),
     event_data: JSON.stringify({ type: 'show_snackbar', text }),
     access_token: VK_ACCESS_TOKEN,
     v: VK_API_VERSION
@@ -298,6 +306,8 @@ async function answerMessageEvent(event, text = 'Готово') {
   if (!response.ok || data.error) {
     throw new Error(data.error?.error_msg || 'VK message event acknowledgement failed');
   }
+  console.log('[VK] message_event answer accepted user=' + userId +
+    ' peer=' + peerId + ' event_id=' + eventId);
 }
 
 async function handleDeadlinesValidButton(event, payload) {
@@ -553,6 +563,11 @@ async function handleCallback(req, res) {
     if (typeof payload === 'string') {
       try { payload = JSON.parse(payload); } catch { payload = null; }
     }
+
+    console.log('[VK] message_event received user=' + String(event.user_id || '-') +
+      ' peer=' + String(event.peer_id || '-') +
+      ' event_id=' + String(event.event_id || '-') +
+      ' command=' + String(payload?.command || 'unknown'));
 
     // Answer VK's callback immediately; do not keep the button spinner active
     // while the backend is checking or updating room data.

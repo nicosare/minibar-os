@@ -3,6 +3,7 @@ import { processVkBotMessage } from '../services/vkBot.js';
 import { publishDataChanged } from '../lib/live-events.js';
 import { prisma } from '../lib/prisma.js';
 import { startOfLocalDay, addLocalDays } from '../lib/timezone.js';
+import { buildEmptiedTodayRooms } from '../services/emptiedToday.js';
 
 const router = Router();
 
@@ -20,27 +21,25 @@ router.get('/emptied-today', async (req, res) => {
   try {
     const from = startOfLocalDay(new Date());
     const to = addLocalDays(from, 1);
+    // A room belongs in the list only if its latest operational event today
+    // is an emptying. A later vk_room event means it was checked/refilled.
     const items = await prisma.check.findMany({
       where: {
-        type: 'vk_emptied',
+        type: { in: ['vk_emptied', 'vk_room'] },
         status: 'done',
         checkDate: { gte: from, lt: to },
         roomId: { not: null }
       },
       select: {
+        id: true,
+        type: true,
         checkDate: true,
         room: { select: { number: true } }
       },
-      orderBy: [{ checkDate: 'asc' }, { id: 'asc' }]
+      orderBy: [{ checkDate: 'desc' }, { id: 'desc' }]
     });
 
-    const rooms = [];
-    const seen = new Set();
-    for (const item of items) {
-      if (!item.room || seen.has(item.room.number)) continue;
-      seen.add(item.room.number);
-      rooms.push({ number: item.room.number, time: item.checkDate.toISOString() });
-    }
+    const rooms = buildEmptiedTodayRooms(items);
 
     res.set('Cache-Control', 'no-store');
     return res.json({ date: from.toISOString().slice(0, 10), total: rooms.length, rooms });
