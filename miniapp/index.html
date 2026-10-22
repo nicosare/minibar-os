@@ -1754,6 +1754,19 @@
 <script type="module">
 import bridge from 'https://cdn.jsdelivr.net/npm/@vkontakte/vk-bridge@3.0.2/+esm';
 
+// A room can be opened directly from the bot via https://vk.com/app54809268#room=1234.
+const requestedLaunchRoomParam = (() => {
+  try {
+    const query = new URLSearchParams(window.location.search);
+    const hash = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''));
+    const raw = hash.get('room') || hash.get('roomNumber') ||
+      query.get('room') || query.get('roomNumber') || '';
+    return /^\\d{3,4}$/.test(String(raw)) ? String(Number(raw)) : '';
+  } catch (_) {
+    return '';
+  }
+})();
+
 let ALL_ROOMS = [];
 let ROOM_BY_NUMBER = new Map();
 let FLOORS = [];
@@ -5623,6 +5636,17 @@ void restorePhotoUploadQueue();
 (async function boot() {
   try {
     await loadRooms();
+    const launchRoomNumber = requestedLaunchRoomParam &&
+      ROOM_BY_NUMBER.has(requestedLaunchRoomParam)
+      ? requestedLaunchRoomParam
+      : '';
+    if (launchRoomNumber) {
+      // A direct room link takes priority over a previously selected departures list.
+      activeListKey = '';
+      activeListDateKey = '';
+      drawerMode = 'all';
+      persistActiveListSelection();
+    }
     try {
       await refreshDepartureList();
     } catch (listError) {
@@ -5634,7 +5658,7 @@ void restorePhotoUploadQueue();
       console.warn('[MINIBAR REFILLS] Не удалось загрузить постоянный список пополнения:', refillError);
     }
     updateQueueDisplay();
-    buildCarousel();
+    buildCarousel(launchRoomNumber || undefined);
     renderDrawerRooms();
     startRoomLiveSync();
   } catch (error) {
