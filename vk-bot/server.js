@@ -398,7 +398,15 @@ async function ensureMessageEventSubscription() {
       server_id: target.server.id,
       message_event: 1
     });
-    console.log('[VK] enabled Callback API message_event on server=' + target.server.id);
+    const verifyResponse = await callVkApi('groups.getCallbackSettings', {
+      group_id: groupId,
+      server_id: target.server.id
+    });
+    const verifiedSettings = verifyResponse?.events || verifyResponse || {};
+    if (!vkSettingEnabled(verifiedSettings.message_event)) {
+      throw new Error('VK did not enable message_event on Callback API server=' + target.server.id);
+    }
+    console.log('[VK] Callback API message_event enabled and verified on server=' + target.server.id);
   } catch (error) {
     console.error('[VK] could not enable Callback API message_event:', error.message);
   }
