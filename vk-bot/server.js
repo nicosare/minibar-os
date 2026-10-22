@@ -310,6 +310,97 @@ async function answerMessageEvent(event, text = 'Готово') {
     ' peer=' + peerId + ' event_id=' + eventId);
 }
 
+async function callVkApi(method, values = {}) {
+  if (!VK_ACCESS_TOKEN) throw new Error('VK_BOT_ACCESS_TOKEN не настроен');
+  const params = new URLSearchParams({
+    ...Object.fromEntries(Object.entries(values).map(([key, value]) => [key, String(value)])),
+    access_token: VK_ACCESS_TOKEN,
+    v: VK_API_VERSION
+  });
+  const response = await fetch('https://api.vk.com/method/' + method, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+    body: params
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.error) {
+    throw new Error(data.error?.error_msg || 'VK API ' + method + ' failed');
+  }
+  return data.response;
+}
+
+function vkSettingEnabled(value) {
+  return value === true || value === 1 || value === '1';
+}
+
+// Callback buttons never finish loading unless VK delivers message_event and
+// the bot calls messages.sendMessageEventAnswer. Ensure the existing callback
+// server subscribes to that event, instead of leaving this as a manual setting.
+async function ensureMessageEventSubscription() {
+  if (!VK_ACCESS_TOKEN || !/^\\d+$/.test(groupId)) {
+    console.warn('[VK] cannot verify message_event subscription: group ID or access token missing');
+    return;
+  }
+
+  try {
+    const response = await callVkApi('groups.getCallbackServers', { group_id: groupId });
+    const servers = Array.isArray(response?.items) ? response.items : [];
+    if (!servers.length) {
+      console.warn('[VK] no Callback API servers found; message_event subscription was not changed');
+      return;
+    }
+
+    const configuredServerId = String(process.env.VK_CALLBACK_SERVER_ID || '').trim();
+    const serverSettings = [];
+    for (const server of servers) {
+      const settings = await callVkApi('groups.getCallbackSettings', {
+        group_id: groupId,
+        server_id: server.id
+      });
+      serverSettings.push({ server, settings: settings || {} });
+    }
+
+    let target;
+    if (configuredServerId) {
+      target = serverSettings.find(item => String(item.server.id) === configuredServerId);
+      if (!target) {
+        console.warn('[VK] VK_CALLBACK_SERVER_ID=' + configuredServerId +
+          ' was not found; message_event subscription was not changed');
+        return;
+      }
+    } else if (serverSettings.length === 1) {
+      target = serverSettings[0];
+    } else {
+      const messageServers = serverSettings.filter(item =>
+        vkSettingEnabled(item.settings.message_new)
+      );
+      if (messageServers.length === 1) {
+        target = messageServers[0];
+      } else {
+        console.warn('[VK] cannot safely select Callback API server for message_event; ' +
+          'servers=' + serverSettings.map(item =>
+            String(item.server.id) + ':message_new=' + String(item.settings.message_new)
+          ).join(', ') + '. Set VK_CALLBACK_SERVER_ID to the correct server ID.');
+        return;
+      }
+    }
+
+    if (vkSettingEnabled(target.settings.message_event)) {
+      console.log('[VK] Callback API message_event is already enabled on server=' + target.server.id);
+      return;
+    }
+
+    await callVkApi('groups.setCallbackSettings', {
+      group_id: groupId,
+      server_id: target.server.id,
+      message_event: 1
+    });
+    console.log('[VK] enabled Callback API message_event on server=' + target.server.id);
+  } catch (error) {
+    console.error('[VK] could not enable Callback API message_event:', error.message);
+  }
+}
+
 async function handleDeadlinesValidButton(event, payload) {
   const peerId = String(event.peer_id || '');
   const roomId = Number(payload?.roomId);
@@ -738,6 +829,7 @@ function startServer() {
       'VK callback peer_id whitelist: ' +
       Array.from(allowedPeerIds).join(', ')
     );
+    void ensureMessageEventSubscription();
   });
 }
 
