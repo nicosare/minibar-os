@@ -5123,10 +5123,11 @@ async function takePhoto() {
       // 180° landscape inversion in VK's WebView. Portrait output is unchanged.
       correctNativeLandscapeCapture();
     }
+    // Set the captured room before opening the modal, which renders the caption.
+    previewRoomNumber = roomNumberAtCapture;
     showPreviewFromCanvas();
     previewRequestId = String(Math.floor(Math.random() * 2147483647) + 1);
     previewRefillRequestId = refillRequestAtCapture;
-    previewRoomNumber = roomNumberAtCapture;
     encodePreviewBlob();
   } catch (error) {
     console.warn('[MINIBAR CAMERA] Capture failed:', error);
