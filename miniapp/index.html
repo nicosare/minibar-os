@@ -2014,17 +2014,22 @@ function activeRefillRequests() {
 }
 
 function refillItemKey(item) {
-  return String(item.productId) + '\u001f' + String(item.name || '');
+  // Product ID is the canonical identity; names can differ between old snapshots.
+  return String(Number(item?.productId) || 0);
 }
 function refillRoomType(request) {
   const room = ROOM_BY_NUMBER.get(String(request.roomNumber));
   return normalizeRoomType({category:request.roomCategory||room?.category||'',roomCategory:request.roomCategory||room?.category||'',type:room?.type||''});
 }
 function requestMatchesFullTemplate(request) {
-  const requested=new Map((request.items||[]).map(item=>[refillItemKey(item),Math.max(0,Number(item.qty)||0)]).filter(([,qty])=>qty>0));
-  const template=new Map((request.templateItems||[]).map(item=>[refillItemKey(item),Math.max(1,Number(item.qty)||1)]));
-  if(!requested.size||requested.size!==template.size)return false;
-  for(const [key,qty] of template)if(requested.get(key)!==qty)return false;
+  const requested = new Map((request.items || []).map(item => [
+    refillItemKey(item), Math.max(0, Number(item.qty) || 0)
+  ]).filter(([, qty]) => qty > 0));
+  const template = new Map((request.templateItems || []).map(item => [
+    refillItemKey(item), Math.max(1, Number(item.qty) || 1)
+  ]));
+  if (!requested.size || requested.size !== template.size) return false;
+  for (const [key, qty] of template) if (requested.get(key) !== qty) return false;
   return true;
 }
 function aggregateActiveRefills() {
@@ -2035,17 +2040,17 @@ function aggregateActiveRefills() {
     listNumbers.has(String(room.number)) && room.expiryStatus === 'empty'
   );
   const emptyNumbers = new Set(emptyRooms.map(room => String(room.number)));
-
-  // A system-empty room is always counted as one basket of its own category.
-  // Do not count a stale/overlapping refill request for that same room again.
+  // A system-empty room counts as a basket on its own. Its pending request,
+  // if any, must not count the same room a second time.
   const requests = displayRequests.filter(request => !emptyNumbers.has(String(request.roomNumber)));
   const basketCounts = { standard: 0, suite: 0 };
   const groupedProducts = new Map();
+  const templateByType = new Map();
   let totalUnits = 0;
 
-  function addBasket(type) {
+  function addBasket(type, count = 1) {
     const normalizedType = type === 'suite' ? 'suite' : 'standard';
-    basketCounts[normalizedType] += 1;
+    basketCounts[normalizedType] += count;
   }
 
   function addProduct(item) {
@@ -2055,9 +2060,7 @@ function aggregateActiveRefills() {
 
     const productId = Number(item.productId) || 0;
     const name = String(item.name || 'Продукт');
-    // Product ID is the canonical identity; do not split one product into
-    // multiple totals just because old request snapshots have different labels.
-    const key = productId > 0 ? 'id:' + productId : 'name:' + name.trim().toLocaleLowerCase('ru-RU');
+    const key = refillItemKey(item);
     if (!groupedProducts.has(key)) {
       groupedProducts.set(key, {
         productId: productId || null,
@@ -2073,27 +2076,62 @@ function aggregateActiveRefills() {
 
     const product = groupedProducts.get(key);
     product.qty += qty;
-    // Some older snapshots may lack presentation fields. Keep any valid
-    // database-backed metadata from another active request for the same ID.
     if (!product.emoji && item.emoji) product.emoji = item.emoji;
     if ((!product.bgColor || product.bgColor === 'slate') && item.bgColor) product.bgColor = item.bgColor;
     if ((!product.category || product.category === 'Напитки') && item.category) product.category = item.category;
-    if (!product.name && item.name) product.name = String(item.name);
+    if (name && (!product.name || product.name === 'Продукт')) product.name = name;
   }
 
-  // Empty rooms contribute baskets, not a second copy of every item in them.
-  emptyRooms.forEach(room => addBasket(normalizeRoomType(room)));
+  function registerTemplate(type, items) {
+    if (!Array.isArray(items) || !items.length) return;
+    const recipe = new Map();
+    for (const item of items) {
+      const key = refillItemKey(item);
+      const qty = Math.max(0, Number(item.qty) || 0);
+      if (key === '0' || !qty) continue;
+      recipe.set(key, (recipe.get(key) || 0) + qty);
+    }
+    if (!recipe.size) return;
+    const signature = [...recipe.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([key, qty]) => key + '=' + qty).join('|');
+    const recipes = templateByType.get(type) || new Map();
+    if (!recipes.has(signature)) recipes.set(signature, recipe);
+    templateByType.set(type, recipes);
+  }
 
-  // Classify each pending room directly. Full-template requests count as one
-  // basket; partial requests contribute only their explicitly selected items.
-  // This avoids inferring duplicate baskets from a combined product total.
+  // Learn the standard/suite recipe from the same room templates used by
+  // the product picker. Full refill requests are already baskets; partial
+  // requests contribute quantities that can combine into additional baskets.
   for (const request of requests) {
     const type = refillRoomType(request);
+    registerTemplate(type, request.templateItems);
     if (request.allProducts || requestMatchesFullTemplate(request)) {
       addBasket(type);
-      continue;
+    } else {
+      (request.items || []).forEach(addProduct);
     }
-    (request.items || []).forEach(addProduct);
+  }
+
+  // Convert complete sets in the aggregated product totals into basket cards.
+  // Leftover quantities remain individual products. The basket is added to
+  // already-counted empty/full baskets, never replacing those counts.
+  for (const type of ['standard', 'suite']) {
+    const recipes = templateByType.get(type);
+    if (!recipes?.size) continue;
+    const products = [...groupedProducts.values()];
+    const orderedRecipes = [...recipes.values()].sort((a, b) => b.size - a.size);
+    for (const recipe of orderedRecipes) {
+      const possible = Math.min(...[...recipe.entries()].map(([key, qty]) => {
+        const product = groupedProducts.get(key);
+        return product ? Math.floor(product.qty / qty) : 0;
+      }));
+      if (!Number.isFinite(possible) || possible <= 0) continue;
+      addBasket(type, possible);
+      for (const [key, qty] of recipe) {
+        const product = groupedProducts.get(key);
+        if (product) product.qty -= qty * possible;
+      }
+    }
   }
 
   const products = [];
@@ -2113,7 +2151,6 @@ function aggregateActiveRefills() {
     .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ru'))
     .forEach(product => products.push({ ...product, basket: false }));
 
-  // Room status takes precedence over any saved request in the room list.
   const roomLinesByNumber = new Map();
   displayRequests.forEach(request => {
     const number = String(request.roomNumber);
