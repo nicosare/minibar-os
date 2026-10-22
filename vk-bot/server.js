@@ -1748,10 +1748,20 @@ function buildRoomInfoKeyboard(roomNumber) {
   const extra = { roomNumber: Number(roomNumber) };
   return {
     inline: true,
-    buttons: [[
-      roomCallbackButton('История', 'room_history', extra),
-      roomCallbackButton('GIH', 'room_gih', extra)
-    ]]
+    buttons: [
+      [
+        roomCallbackButton('История', 'room_history', extra),
+        roomCallbackButton('GIH', 'room_gih', extra)
+      ],
+      [{
+        action: {
+          type: 'open_link',
+          label: 'Открыть в Mini App',
+          link: 'https://vk.com/app54809268#room=' + String(Number(roomNumber))
+        },
+        color: 'primary'
+      }]
+    ]
   };
 }
 
