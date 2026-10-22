@@ -379,22 +379,42 @@ export async function processVkBotMessage({
         }))
       };
 
-      if (parsed.emptied && productsBefore.length > 0) {
+      // Emptying and deadline details are separate subscriptions. A room with
+      // deadline marks therefore generates the general emptying notice plus
+      // the more detailed deadline notice.
+      if (parsed.emptied) {
         notifications.push({
-          type: 'emptied_with_deadlines',
-          roomId: room.id,
-          roomNumber: room.number,
-          products: productsBefore.map(item => ({
-            name: item.product?.name || ('Продукт #' + item.productId),
-            qtyToReplace: Number(item.qtyToReplace) || 0
-          }))
-        });
-      } else if (!parsed.emptied && !parsed.residential && room.expiryStatus === 'empty') {
-        notifications.push({
-          type: 'refilled_empty',
+          type: 'emptied',
           roomId: room.id,
           roomNumber: room.number
         });
+        if (productsBefore.length > 0) {
+          notifications.push({
+            type: 'emptied_with_deadlines',
+            roomId: room.id,
+            roomNumber: room.number,
+            products: productsBefore.map(item => ({
+              name: item.product?.name || ('Продукт #' + item.productId),
+              qtyToReplace: Number(item.qtyToReplace) || 0
+            }))
+          });
+        }
+      } else if (!parsed.residential) {
+        if (room.expiryStatus === 'empty') {
+          notifications.push({
+            type: 'refilled_empty',
+            roomId: room.id,
+            roomNumber: room.number
+          });
+        }
+        if (parsed.note) {
+          notifications.push({
+            type: 'refilled_with_comment',
+            roomId: room.id,
+            roomNumber: room.number,
+            note: parsed.note
+          });
+        }
       }
 
       let nextRoomStatus = room.expiryStatus || 'neutral';
