@@ -1755,17 +1755,28 @@
 import bridge from 'https://cdn.jsdelivr.net/npm/@vkontakte/vk-bridge@3.0.2/+esm';
 
 // A room can be opened directly from the bot via https://vk.com/app54809268#room=1234.
-const requestedLaunchRoomParam = (() => {
+// The VK client may reuse this webview, so the launch target must be read again
+// when its hash/location changes instead of being captured only during page load.
+function parseRoomLaunchTarget(locationValue = window.location.hash, searchValue = window.location.search) {
   try {
-    const query = new URLSearchParams(window.location.search);
-    const hash = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''));
-    const raw = hash.get('room') || hash.get('roomNumber') ||
-      query.get('room') || query.get('roomNumber') || '';
-    return /^\d{3,4}$/.test(String(raw)) ? String(Number(raw)) : '';
+    let fragment = String(locationValue || '').trim();
+    const hashIndex = fragment.lastIndexOf('#');
+    if (hashIndex >= 0) fragment = fragment.slice(hashIndex + 1);
+    else if (fragment.includes('?')) fragment = fragment.slice(fragment.lastIndexOf('?') + 1);
+    fragment = fragment.replace(/^[#?/]+/, '');
+    const fragmentParams = new URLSearchParams(fragment);
+    const queryParams = new URLSearchParams(String(searchValue || '').replace(/^\?/, ''));
+    const raw = fragmentParams.get('room') || fragmentParams.get('roomNumber') ||
+      queryParams.get('room') || queryParams.get('roomNumber') ||
+      (/^\d{3,4}$/.test(fragment) ? fragment : '');
+    return /^\d{3,4}$/.test(String(raw || '')) ? String(Number(raw)) : '';
   } catch (_) {
     return '';
   }
-})();
+}
+let pendingLaunchRoomNumber = parseRoomLaunchTarget();
+let miniAppRoomSelectionReady = false;
+let lastObservedLaunchHash = String(window.location.hash || '');
 
 let ALL_ROOMS = [];
 let ROOM_BY_NUMBER = new Map();
@@ -5631,22 +5642,82 @@ btnResidential.addEventListener('click', async () => {
 
 loaderRetry.addEventListener('click', () => { void takePhoto(); });
 
+function applyMiniAppLaunchRoom(rawRoomNumber, source = 'location') {
+  const roomNumber = /^\d{3,4}$/.test(String(rawRoomNumber || ''))
+    ? String(Number(rawRoomNumber))
+    : '';
+  if (!roomNumber || !ROOM_BY_NUMBER.has(roomNumber)) return false;
+
+  pendingLaunchRoomNumber = roomNumber;
+  if (!miniAppRoomSelectionReady) return true;
+
+  const listChanged = activeListKey !== '' || activeListDateKey !== '';
+  activeListKey = '';
+  activeListDateKey = '';
+  drawerMode = 'all';
+  persistActiveListSelection();
+
+  closeSheet();
+  closeToolScreens();
+  closeNavPlaceholderModal();
+
+  if (listChanged || !carouselItems.has(roomNumber)) {
+    buildCarousel(roomNumber);
+  } else {
+    selectRoomByNumber(roomNumber, false, 'smooth', true);
+  }
+  renderDrawerRooms();
+  console.log('[MINIBAR MINIAPP] launch room selected:', roomNumber, 'source=' + source);
+  return true;
+}
+
+function syncMiniAppLaunchRoomFromLocation(force = false, source = 'location') {
+  const currentHash = String(window.location.hash || '');
+  const hashChanged = currentHash !== lastObservedLaunchHash;
+  lastObservedLaunchHash = currentHash;
+  if (!force && !hashChanged) return;
+
+  const roomNumber = parseRoomLaunchTarget(currentHash, window.location.search);
+  if (roomNumber) applyMiniAppLaunchRoom(roomNumber, source);
+}
+
+window.addEventListener('hashchange', () => {
+  syncMiniAppLaunchRoomFromLocation(true, 'hashchange');
+});
+window.addEventListener('popstate', () => {
+  syncMiniAppLaunchRoomFromLocation(true, 'popstate');
+});
+window.addEventListener('focus', () => {
+  syncMiniAppLaunchRoomFromLocation(false, 'focus');
+});
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) syncMiniAppLaunchRoomFromLocation(false, 'visibilitychange');
+});
+
+bridge.subscribe(event => {
+  const detail = event?.detail || {};
+  const type = String(detail.type || '');
+  const data = detail.data || {};
+
+  if (type === 'VKWebAppLocationChanged' || type === 'VKWebAppChangeFragment') {
+    const locationValue = data.location ?? detail.location;
+    const roomNumber = locationValue != null
+      ? parseRoomLaunchTarget(String(locationValue), '')
+      : parseRoomLaunchTarget();
+    if (roomNumber) applyMiniAppLaunchRoom(roomNumber, type);
+    else syncMiniAppLaunchRoomFromLocation(true, type);
+  } else if (type === 'VKWebAppViewRestore') {
+    // On resume, apply a newly delivered location but do not reset a user-selected
+    // room merely because the app returned to the foreground with an unchanged hash.
+    syncMiniAppLaunchRoomFromLocation(false, type);
+  }
+});
+
 void restorePhotoUploadQueue();
 
 (async function boot() {
   try {
     await loadRooms();
-    const launchRoomNumber = requestedLaunchRoomParam &&
-      ROOM_BY_NUMBER.has(requestedLaunchRoomParam)
-      ? requestedLaunchRoomParam
-      : '';
-    if (launchRoomNumber) {
-      // A direct room link takes priority over a previously selected departures list.
-      activeListKey = '';
-      activeListDateKey = '';
-      drawerMode = 'all';
-      persistActiveListSelection();
-    }
     try {
       await refreshDepartureList();
     } catch (listError) {
@@ -5657,10 +5728,27 @@ void restorePhotoUploadQueue();
     } catch (refillError) {
       console.warn('[MINIBAR REFILLS] Не удалось загрузить постоянный список пополнения:', refillError);
     }
+    const launchRoomNumber = pendingLaunchRoomNumber &&
+      ROOM_BY_NUMBER.has(pendingLaunchRoomNumber)
+      ? pendingLaunchRoomNumber
+      : '';
+    if (launchRoomNumber) {
+      // A direct room link takes priority over a previously selected departures list.
+      activeListKey = '';
+      activeListDateKey = '';
+      drawerMode = 'all';
+      persistActiveListSelection();
+    }
     updateQueueDisplay();
     buildCarousel(launchRoomNumber || undefined);
     renderDrawerRooms();
     startRoomLiveSync();
+    miniAppRoomSelectionReady = true;
+    lastObservedLaunchHash = String(window.location.hash || '');
+    // A new target may have arrived while the initial room/list requests were in flight.
+    if (pendingLaunchRoomNumber && pendingLaunchRoomNumber !== launchRoomNumber) {
+      applyMiniAppLaunchRoom(pendingLaunchRoomNumber, 'boot');
+    }
   } catch (error) {
     console.error('Rooms load error:', error);
     showMessage(error.message || 'Не удалось загрузить номера', 5000);
