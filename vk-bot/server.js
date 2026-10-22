@@ -2253,7 +2253,7 @@ async function refreshTrackedPrivateRoomInfoMessages(reason = 'data.changed') {
 function handlePrivateRoomInfoStreamBlock(block) {
   let eventName = '';
   const dataLines = [];
-  for (const line of String(block || '').split(/\\r?\\n/u)) {
+  for (const line of String(block || '').split(/\r?\n/u)) {
     if (line.startsWith('event:')) eventName = line.slice(6).trim();
     else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
   }
@@ -2264,7 +2264,7 @@ function handlePrivateRoomInfoStreamBlock(block) {
   if (eventName !== 'data.changed' || !dataLines.length) return;
 
   try {
-    const event = JSON.parse(dataLines.join('\\n'));
+    const event = JSON.parse(dataLines.join('\n'));
     const domains = Array.isArray(event?.domains) ? event.domains.map(String) : ['all'];
     if (domains.some(domain => PRIVATE_ROOM_INFO_REFRESH_DOMAINS.has(domain))) {
       void refreshTrackedPrivateRoomInfoMessages(domains.join(','));
@@ -2298,12 +2298,12 @@ async function startPrivateRoomInfoLiveUpdates() {
         const result = await reader.read();
         if (result.done) break;
         buffer += decoder.decode(result.value, { stream: true });
-        let separator = buffer.indexOf('\\n\\n');
+        let separator = buffer.indexOf('\n\n');
         while (separator >= 0) {
           const block = buffer.slice(0, separator);
           buffer = buffer.slice(separator + 2);
           handlePrivateRoomInfoStreamBlock(block);
-          separator = buffer.indexOf('\\n\\n');
+          separator = buffer.indexOf('\n\n');
         }
       }
       throw new Error('Backend live event stream closed');
