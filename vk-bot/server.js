@@ -582,8 +582,13 @@ function isValidExciseMark(mark) {
 
 function exciseFileName(dateValue = new Date()) {
   const two = value => String(value).padStart(2, '0');
-  const date = two(dateValue.getDate()) + '.' + two(dateValue.getMonth() + 1) + '.' +
-    String(dateValue.getFullYear()).slice(-2);
+  const parsedOffset = Number.parseInt(VK_BOT_TIMEZONE_OFFSET, 10);
+  const offsetMinutes = Number.isFinite(parsedOffset) ? parsedOffset : -300;
+  // Shift the instant into the configured bot-local date and use UTC getters
+  // so the result is independent of the container's own TZ setting.
+  const localDate = new Date(dateValue.getTime() - offsetMinutes * 60 * 1000);
+  const date = two(localDate.getUTCDate()) + '.' + two(localDate.getUTCMonth() + 1) + '.' +
+    String(localDate.getUTCFullYear()).slice(-2);
   return 'Акцизы мини-бар ' + date + '.xlsx';
 }
 
