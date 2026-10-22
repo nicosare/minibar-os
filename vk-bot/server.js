@@ -33,8 +33,14 @@ const VK_API_VERSION = String(
 
 const MINI_APP_ID = 54809268;
 const PRIVATE_DIALOGS_FILE = process.env.VK_BOT_PRIVATE_DIALOGS_FILE || '/data/private-dialogs.json';
+const PRIVATE_MENU_MESSAGES_FILE = process.env.VK_BOT_PRIVATE_MENU_MESSAGES_FILE || '/data/private-menu-messages.json';
+const EXCISE_MENU_STATE_FILE = process.env.VK_BOT_EXCISE_MENU_STATE_FILE || '/data/excise-menu-state.json';
 const privateDialogIds = new Set();
+const privateMenuMessageIds = new Map();
 let privateDialogsLoaded = false;
+let privateMenuMessagesLoaded = false;
+let knownExcisePresence = null;
+let exciseMenuMonitorRunning = false;
 
 async function loadPrivateDialogs() {
   if (privateDialogsLoaded) return;
@@ -76,6 +82,60 @@ async function rememberPrivateDialog(userId) {
 async function getPrivateDialogIds() {
   await loadPrivateDialogs();
   return [...privateDialogIds];
+}
+
+async function loadPrivateMenuMessages() {
+  if (privateMenuMessagesLoaded) return;
+  privateMenuMessagesLoaded = true;
+  try {
+    const stored = JSON.parse(await fs.readFile(PRIVATE_MENU_MESSAGES_FILE, 'utf8'));
+    if (stored && typeof stored === 'object' && !Array.isArray(stored)) {
+      for (const [userIdValue, messageIdValue] of Object.entries(stored)) {
+        const userId = Number(userIdValue);
+        const messageId = Number(messageIdValue);
+        if (Number.isSafeInteger(userId) && userId > 0 &&
+            Number.isSafeInteger(messageId) && messageId > 0) {
+          privateMenuMessageIds.set(userId, messageId);
+        }
+      }
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      privateMenuMessagesLoaded = false;
+      throw error;
+    }
+  }
+}
+
+async function persistPrivateMenuMessages() {
+  await fs.mkdir(path.dirname(PRIVATE_MENU_MESSAGES_FILE), { recursive: true });
+  const tempPath = PRIVATE_MENU_MESSAGES_FILE + '.tmp';
+  const data = Object.fromEntries(
+    [...privateMenuMessageIds.entries()].sort((a, b) => a[0] - b[0])
+  );
+  await fs.writeFile(tempPath, JSON.stringify(data), 'utf8');
+  await fs.rename(tempPath, PRIVATE_MENU_MESSAGES_FILE);
+}
+
+async function rememberPrivateMenuMessage(userIdValue, messageIdValue) {
+  const userId = Number(userIdValue);
+  const messageId = Number(messageIdValue);
+  if (!Number.isSafeInteger(userId) || userId <= 0 ||
+      !Number.isSafeInteger(messageId) || messageId <= 0) return;
+  await loadPrivateMenuMessages();
+  privateMenuMessageIds.set(userId, messageId);
+  await persistPrivateMenuMessages();
+}
+
+async function getPrivateMenuMessageId(userIdValue) {
+  await loadPrivateMenuMessages();
+  return privateMenuMessageIds.get(Number(userIdValue)) || null;
+}
+
+async function forgetPrivateMenuMessage(userIdValue) {
+  await loadPrivateMenuMessages();
+  privateMenuMessageIds.delete(Number(userIdValue));
+  await persistPrivateMenuMessages();
 }
 
 const httpPort = Number(
@@ -168,11 +228,7 @@ function readBody(req, limit = 1024 * 1024) {
   });
 }
 
-async function sendPrivateMenu(peerId) {
-  if (!VK_ACCESS_TOKEN) {
-    throw new Error('VK_BOT_ACCESS_TOKEN не настроен');
-  }
-
+async function buildPrivateMenuKeyboard() {
   const buttons = [
     [{
       action: {
@@ -192,12 +248,8 @@ async function sendPrivateMenu(peerId) {
   ];
 
   try {
-    const response = await fetch(API_BASE_URL + '/api/excises', {
-      headers: { 'X-Minibar-Bot-Token': INTERNAL_TOKEN },
-      cache: 'no-store'
-    });
-    const rows = await response.json().catch(() => []);
-    if (response.ok && Array.isArray(rows) && rows.length > 0) {
+    const rows = await loadExcisesFromBackend();
+    if (rows.length > 0) {
       buttons.push([{
         action: {
           type: 'text',
@@ -211,11 +263,19 @@ async function sendPrivateMenu(peerId) {
     console.error('[VK] cannot check excises for the private menu:', error.message);
   }
 
-  const keyboard = { one_time: false, buttons };
+  return { one_time: false, buttons };
+}
+
+async function sendPrivateMenu(peerId, keyboard = null) {
+  if (!VK_ACCESS_TOKEN) {
+    throw new Error('VK_BOT_ACCESS_TOKEN не настроен');
+  }
+
+  const currentKeyboard = keyboard || await buildPrivateMenuKeyboard();
   const params = new URLSearchParams({
     peer_id: String(peerId),
     message: 'Меню MINIBAR OS',
-    keyboard: JSON.stringify(keyboard),
+    keyboard: JSON.stringify(currentKeyboard),
     random_id: String(Math.floor(Math.random() * 2147483647) + 1),
     access_token: VK_ACCESS_TOKEN,
     v: VK_API_VERSION
@@ -230,6 +290,124 @@ async function sendPrivateMenu(peerId) {
 
   if (!response.ok || data.error) {
     throw new Error(data.error?.error_msg || 'VK messages.send failed');
+  }
+
+  const messageId = Number(
+    data.response?.message_id ??
+    data.response?.id ??
+    data.response
+  );
+  if (Number.isSafeInteger(messageId) && messageId > 0) {
+    try {
+      await rememberPrivateMenuMessage(peerId, messageId);
+    } catch (error) {
+      console.error('[VK] could not persist menu message id for user=' + peerId + ': ' + error.message);
+    }
+  } else {
+    console.warn('[VK] VK did not return a usable menu message id for user=' + peerId);
+  }
+}
+
+async function editPrivateMenu(peerId, messageId, keyboard) {
+  const params = new URLSearchParams({
+    peer_id: String(peerId),
+    message_id: String(messageId),
+    message: 'Меню MINIBAR OS',
+    keyboard: JSON.stringify(keyboard),
+    access_token: VK_ACCESS_TOKEN,
+    v: VK_API_VERSION
+  });
+  const response = await fetch('https://api.vk.com/method/messages.edit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+    body: params
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.error || data.response !== 1) {
+    throw new Error(data.error?.error_msg || 'VK messages.edit failed');
+  }
+}
+
+async function refreshAllPrivateMenus(reason) {
+  const recipientIds = await getPrivateDialogIds();
+  if (!recipientIds.length) {
+    console.log('[VK] no registered private dialogs; excise menu refresh skipped');
+    return true;
+  }
+
+  const keyboard = await buildPrivateMenuKeyboard();
+  let allUpdated = true;
+  let updated = 0;
+
+  for (const recipientId of recipientIds) {
+    try {
+      const menuMessageId = await getPrivateMenuMessageId(recipientId);
+      if (menuMessageId) {
+        try {
+          await editPrivateMenu(recipientId, menuMessageId, keyboard);
+          updated += 1;
+          continue;
+        } catch (error) {
+          console.warn('[VK] could not edit stored menu for user=' + recipientId +
+            '; sending a replacement: ' + error.message);
+          await forgetPrivateMenuMessage(recipientId);
+        }
+      }
+
+      await sendPrivateMenu(recipientId, keyboard);
+      updated += 1;
+    } catch (error) {
+      allUpdated = false;
+      console.error('[VK] private menu refresh failed for user=' + recipientId +
+        ' reason=' + reason + ': ' + error.message);
+    }
+  }
+
+  console.log('[VK] private menus refreshed reason=' + reason +
+    ' updated=' + updated + '/' + recipientIds.length +
+    ' exciseButton=' + keyboard.buttons.some(row => row.some(button => button.action?.payload &&
+      String(button.action.payload).includes('get_excises'))));
+  return allUpdated;
+}
+
+async function persistExciseMenuState(hasExcises) {
+  await fs.mkdir(path.dirname(EXCISE_MENU_STATE_FILE), { recursive: true });
+  const tempPath = EXCISE_MENU_STATE_FILE + '.tmp';
+  await fs.writeFile(tempPath, JSON.stringify({ hasExcises }), 'utf8');
+  await fs.rename(tempPath, EXCISE_MENU_STATE_FILE);
+}
+
+async function checkExciseMenuState() {
+  if (exciseMenuMonitorRunning) return;
+  exciseMenuMonitorRunning = true;
+  try {
+    const hasExcises = (await loadExcisesFromBackend()).length > 0;
+    let previous = knownExcisePresence;
+    if (previous === null) {
+      try {
+        const stored = JSON.parse(await fs.readFile(EXCISE_MENU_STATE_FILE, 'utf8'));
+        if (typeof stored?.hasExcises === 'boolean') previous = stored.hasExcises;
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+      }
+    }
+
+    const changed = previous === null ? hasExcises : previous !== hasExcises;
+    if (changed) {
+      const reason = previous === null ? 'initial-state' : 'database-state-changed';
+      const refreshed = await refreshAllPrivateMenus(reason);
+      if (!refreshed) {
+        console.warn('[VK] not all private menus refreshed; will retry on the next poll');
+        return;
+      }
+    }
+
+    knownExcisePresence = hasExcises;
+    await persistExciseMenuState(hasExcises);
+  } catch (error) {
+    console.error('[VK] excise-menu monitor failed:', error.message);
+  } finally {
+    exciseMenuMonitorRunning = false;
   }
 }
 async function sendPrivateText(peerId, message, keyboard = null) {
@@ -1133,6 +1311,8 @@ function startServer() {
       Array.from(allowedPeerIds).join(', ')
     );
     void ensureMessageEventSubscription();
+    void checkExciseMenuState();
+    setInterval(() => { void checkExciseMenuState(); }, 10000);
   });
 }
 
