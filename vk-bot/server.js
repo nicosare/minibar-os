@@ -1681,18 +1681,23 @@ function formatRoomDateTime(value) {
     pad(localDate.getUTCHours()) + ':' + pad(localDate.getUTCMinutes());
 }
 
-function roomOperationalStatusLabel(lastAction) {
-  if (!lastAction) return 'Нет данных';
-  if (lastAction.type === 'vk_emptied') return 'Опустошён';
-  if (/жилой/iu.test(String(lastAction.notes || ''))) return 'Жилой';
-  if (lastAction.type === 'vk_room') return 'Полный / пополнен';
-  return String(lastAction.type || 'Нет данных');
+function roomOperationalStatusLabel(lastAction, lastCheck) {
+  const latest = lastAction || lastCheck;
+  if (!latest) return 'Нет данных';
+  if (['vk_emptied', 'emptied', 'empty'].includes(String(latest.type || ''))) {
+    return 'Опустошён';
+  }
+  if (/жилой/iu.test(String(latest.notes || ''))) return 'Жилой';
+  if (['vk_room', 'replenished'].includes(String(latest.type || ''))) {
+    return 'Полный / пополнен';
+  }
+  return 'Проверен';
 }
 
 function roomDeadlineStatusLabel(status) {
   const labels = {
     neutral: 'Не проверен',
-    empty: 'Опустошён',
+    empty: 'Пустой',
     valid: 'В порядке',
     needs_replacement: 'Требует замены'
   };
@@ -1706,7 +1711,7 @@ function formatPrivateRoomInfo(data) {
   return [
     '🏨 Номер ' + String(room.number || '—'),
     'Последняя проверка: ' + (lastCheck ? formatRoomDateTime(lastCheck.checkDate) : 'Нет данных'),
-    'Статус: ' + roomOperationalStatusLabel(lastAction),
+    'Статус: ' + roomOperationalStatusLabel(lastAction, lastCheck),
     'Статус сроков: ' + roomDeadlineStatusLabel(room.expiryStatus)
   ].join('\n');
 }
