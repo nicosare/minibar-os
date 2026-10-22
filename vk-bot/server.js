@@ -1096,11 +1096,15 @@ async function uploadAndSendExciseFile(peerId, snapshot) {
     throw new Error('VK не подтвердил сохранение Excel-документа');
   }
 
-  const message = '📄 Акцизы мини-бар\nМарок: ' + snapshot.valid.length;
+  // Send the status and the Excel document as two separate VK messages.
   await callVkApi('messages.send', {
     peer_id: peerId,
     random_id: String(Math.floor(Math.random() * 2147483647) + 1),
-    message,
+    message: '📄 Акцизы мини-бар\nМарок: ' + snapshot.valid.length
+  });
+  await callVkApi('messages.send', {
+    peer_id: peerId,
+    random_id: String(Math.floor(Math.random() * 2147483647) + 1),
     attachment: 'doc' + String(doc.owner_id) + '_' + String(doc.id),
     keyboard: JSON.stringify(clearExcisesKeyboard(snapshot.clearBefore))
   });
@@ -1641,6 +1645,240 @@ async function sendDeadlineNotifications(notifications, eventId) {
     }
   }
 }
+
+async function requestPrivateRoomApi(endpoint, values) {
+  const query = new URLSearchParams(
+    Object.fromEntries(Object.entries(values).map(([key, value]) => [key, String(value)]))
+  );
+  const response = await fetch(API_BASE_URL + '/api/vk-bot/' + endpoint + '?' + query.toString(), {
+    method: 'GET',
+    headers: {
+      'X-Minibar-Bot-Token': INTERNAL_TOKEN,
+      'X-Timezone-Offset': VK_BOT_TIMEZONE_OFFSET
+    },
+    cache: 'no-store'
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data.error || 'Не удалось загрузить данные номера');
+    error.statusCode = response.status;
+    throw error;
+  }
+  return data;
+}
+
+function formatRoomDateTime(value) {
+  if (!value) return 'Нет данных';
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return 'Нет данных';
+  const parsedOffset = Number.parseInt(VK_BOT_TIMEZONE_OFFSET, 10);
+  const offsetMinutes = Number.isFinite(parsedOffset) ? parsedOffset : -300;
+  const localDate = new Date(date.getTime() - offsetMinutes * 60 * 1000);
+  const pad = number => String(number).padStart(2, '0');
+  return pad(localDate.getUTCDate()) + '.' +
+    pad(localDate.getUTCMonth() + 1) + '.' +
+    localDate.getUTCFullYear() + ' ' +
+    pad(localDate.getUTCHours()) + ':' + pad(localDate.getUTCMinutes());
+}
+
+function roomOperationalStatusLabel(lastAction) {
+  if (!lastAction) return 'Нет данных';
+  if (lastAction.type === 'vk_emptied') return 'Опустошён';
+  if (/жилой/iu.test(String(lastAction.notes || ''))) return 'Жилой';
+  if (lastAction.type === 'vk_room') return 'Полный / пополнен';
+  return String(lastAction.type || 'Нет данных');
+}
+
+function roomDeadlineStatusLabel(status) {
+  const labels = {
+    neutral: 'Не проверен',
+    empty: 'Опустошён',
+    valid: 'В порядке',
+    needs_replacement: 'Требует замены'
+  };
+  return labels[String(status || '')] || (status ? String(status) : 'Неизвестен');
+}
+
+function formatPrivateRoomInfo(data) {
+  const room = data?.room || {};
+  const lastCheck = data?.lastCheck || null;
+  const lastAction = data?.lastAction || null;
+  return [
+    '🏨 Номер ' + String(room.number || '—'),
+    'Последняя проверка: ' + (lastCheck ? formatRoomDateTime(lastCheck.checkDate) : 'Нет данных'),
+    'Статус: ' + roomOperationalStatusLabel(lastAction),
+    'Статус сроков: ' + roomDeadlineStatusLabel(room.expiryStatus)
+  ].join('\n');
+}
+
+function roomCallbackButton(label, command, extra = {}, color = 'primary') {
+  return privateSettingsButton(label, command, extra, color);
+}
+
+function buildRoomInfoKeyboard(roomNumber) {
+  const extra = { roomNumber: Number(roomNumber) };
+  return {
+    inline: true,
+    buttons: [[
+      roomCallbackButton('История', 'room_history', extra),
+      roomCallbackButton('GIH', 'room_gih', extra)
+    ]]
+  };
+}
+
+function cleanHistoryText(value, maxLength = 140) {
+  return String(value || '').replace(/[\r\n\t]+/g, ' ').replace(/\s{2,}/g, ' ').trim().slice(0, maxLength);
+}
+
+function roomHistoryTypeLabel(record) {
+  const notes = String(record?.notes || '');
+  if (record?.type === 'vk_emptied' || record?.type === 'emptied') return 'Опустошён';
+  if (record?.type === 'vk_room') {
+    if (/жилой/iu.test(notes)) return 'Жилой';
+    return 'Полный / пополнен';
+  }
+  const labels = {
+    check: 'Проверка',
+    daily: 'Ежедневная проверка',
+    room: 'Проверка номера',
+    replenished: 'Пополнен',
+    empty: 'Опустошён'
+  };
+  return labels[String(record?.type || '')] || String(record?.type || 'Проверка');
+}
+
+function gihHistorySummary(record) {
+  const mode = String(record?.gihRoomStatus || '');
+  const modeLabels = {
+    dnd: 'DND',
+    all_in_place: 'Всё на месте',
+    all_out: 'Всё выложили',
+    empty: 'Опустошён',
+    not_checked: 'Не проверен'
+  };
+  if (modeLabels[mode]) return modeLabels[mode];
+
+  const statuses = (Array.isArray(record?.gihItems) ? record.gihItems : [])
+    .map(item => String(item?.itemStatus || 'pending'));
+  const hasReplenished = statuses.includes('replenished');
+  const hasNotReplenished = statuses.includes('not_replenished');
+  if (!hasReplenished) return 'Проверен';
+  if (hasNotReplenished) return 'Частично пополнен';
+  return 'Пополнен';
+}
+
+function formatRoomHistoryRecord(record, section) {
+  const date = formatRoomDateTime(record?.checkDate);
+  const notes = cleanHistoryText(record?.notes, 180);
+  if (section !== 'gih') {
+    const label = roomHistoryTypeLabel(record);
+    const lines = ['• ' + date + ' — ' + label];
+    if (notes && notes !== label) lines.push('  ' + notes);
+    return lines.join('\n');
+  }
+
+  const mode = String(record?.gihRoomStatus || '');
+  const items = Array.isArray(record?.gihItems) ? record.gihItems : [];
+  const modeOverridesStatus = mode === 'all_in_place' || mode === 'all_out';
+  const itemLines = items.slice(0, 3).map(item => {
+    let itemStatus = String(item?.itemStatus || 'pending');
+    if (mode === 'all_in_place') itemStatus = 'in_place';
+    if (mode === 'all_out') itemStatus = 'out';
+    const labels = {
+      replenished: 'Пополнено',
+      in_place: 'На месте',
+      out: 'Выложили',
+      not_replenished: 'Не пополнено',
+      pending: 'Не указано'
+    };
+    const name = cleanHistoryText(item?.productName || 'Продукт', 60);
+    return '    · ' + name + ': ' + (labels[itemStatus] || itemStatus);
+  });
+  if (items.length > 3) itemLines.push('    · Ещё позиций: ' + (items.length - 3));
+
+  const lines = ['• ' + date + ' — GIH: ' + gihHistorySummary(record)];
+  if (notes) lines.push('  ' + notes);
+  if (itemLines.length && !modeOverridesStatus) lines.push(...itemLines);
+  return lines.join('\n');
+}
+
+function formatPrivateRoomHistory(data, section) {
+  const title = section === 'gih' ? 'GIH номера ' : 'История номера ';
+  const items = Array.isArray(data?.items) ? data.items : [];
+  if (!items.length) return '📚 ' + title + String(data?.room || '—') + '\n\nЗаписей пока нет.';
+  const lines = ['📚 ' + title + String(data.room), ''];
+  items.forEach((item, index) => {
+    if (index) lines.push('');
+    lines.push(formatRoomHistoryRecord(item, section));
+  });
+  return lines.join('\n');
+}
+
+function buildRoomHistoryKeyboard(roomNumber, section, count, hasMore) {
+  const buttons = [];
+  if (hasMore && count < 100) {
+    buttons.push([roomCallbackButton(
+      'Показать ещё 5',
+      section === 'gih' ? 'room_gih_more' : 'room_history_more',
+      { roomNumber: Number(roomNumber), count: Math.min(100, count + 5) }
+    )]);
+  }
+  buttons.push([
+    roomCallbackButton('История', 'room_history', { roomNumber: Number(roomNumber) }, section === 'history' ? 'positive' : 'primary'),
+    roomCallbackButton('GIH', 'room_gih', { roomNumber: Number(roomNumber) }, section === 'gih' ? 'positive' : 'primary')
+  ]);
+  buttons.push([roomCallbackButton('↩ К номеру', 'room_info', { roomNumber: Number(roomNumber) }, 'secondary')]);
+  return { inline: true, buttons };
+}
+
+async function showPrivateRoomInfo(peerId, roomNumber) {
+  try {
+    const data = await requestPrivateRoomApi('room-info', { number: roomNumber });
+    await sendPrivateText(peerId, formatPrivateRoomInfo(data), buildRoomInfoKeyboard(roomNumber));
+  } catch (error) {
+    const message = error.statusCode === 404
+      ? '⚠️ ' + error.message
+      : '⚠️ Не удалось загрузить данные номера. Попробуй ещё раз.';
+    await sendPrivateText(peerId, message);
+  }
+}
+
+async function handleRoomInfoButton(event, payload) {
+  const userId = Number(event?.user_id);
+  const peerId = String(event?.peer_id || '').trim();
+  const cmid = Number(event?.conversation_message_id);
+  const roomNumber = Number(payload?.roomNumber);
+  if (!Number.isSafeInteger(userId) || userId <= 0 ||
+      peerId !== String(userId) ||
+      !Number.isSafeInteger(cmid) || cmid <= 0 ||
+      !Number.isInteger(roomNumber) || roomNumber < 100 || roomNumber > 9999) {
+    throw new Error('Информация о номере доступна только в личном диалоге с ботом');
+  }
+
+  const command = String(payload?.command || '');
+  if (command === 'room_info') {
+    const data = await requestPrivateRoomApi('room-info', { number: roomNumber });
+    await editPrivateMessage(peerId, cmid, formatPrivateRoomInfo(data), buildRoomInfoKeyboard(roomNumber));
+    return;
+  }
+
+  const section = command.includes('gih') ? 'gih' : 'history';
+  const isMore = command.endsWith('_more');
+  const requestedCount = isMore ? Number(payload?.count) : 3;
+  const count = Math.min(100, Math.max(3, Number.isSafeInteger(requestedCount) ? requestedCount : 3));
+  const data = await requestPrivateRoomApi('room-history', {
+    number: roomNumber,
+    section,
+    count
+  });
+  await editPrivateMessage(
+    peerId,
+    cmid,
+    formatPrivateRoomHistory(data, section),
+    buildRoomHistoryKeyboard(roomNumber, section, count, data.hasMore === true)
+  );
+}
+
 async function handlePrivateMessage(message, peerId, text) {
   const senderId = Number(message.from_id);
   const peerNumber = Number(peerId);
@@ -1741,6 +1979,11 @@ async function handlePrivateMessage(message, peerId, text) {
     } else {
       await sendPrivateText(peerId, confirmationText, buildPrivateSettingsKeyboard(updatedSettings));
     }
+    return true;
+  }
+
+  if (/^\d{3,4}$/u.test(text.trim())) {
+    await showPrivateRoomInfo(peerId, Number(text.trim()));
     return true;
   }
 
@@ -1850,7 +2093,8 @@ async function handleCallback(req, res) {
             event,
             payload?.command === 'deadlines_valid' ? 'Обновляю «Сроки»…' :
             payload?.command === 'clear_excises' ? 'Очищаю акцизы…' :
-            String(payload?.command || '').startsWith('settings_') ? 'Сохраняю настройки…' : 'Готово'
+            String(payload?.command || '').startsWith('settings_') ? 'Сохраняю настройки…' :
+            String(payload?.command || '').startsWith('room_') ? 'Загружаю данные номера…' : 'Готово'
           );
         } catch (answerError) {
           console.error('[VK] immediate message event acknowledgement failed:', answerError.message);
@@ -1862,6 +2106,8 @@ async function handleCallback(req, res) {
           await handleClearExcisesButton(event, payload);
         } else if (String(payload?.command || '').startsWith('settings_')) {
           await handlePrivateSettingsButton(event, payload);
+        } else if (String(payload?.command || '').startsWith('room_')) {
+          await handleRoomInfoButton(event, payload);
         } else {
           console.warn('[VK] unknown inline callback payload');
         }
@@ -1873,7 +2119,9 @@ async function handleCallback(req, res) {
             ? '⚠️ Не удалось очистить акцизы. Попробуй нажать кнопку ещё раз.'
             : command.startsWith('settings_')
               ? '⚠️ Не удалось сохранить настройки. Попробуй нажать кнопку ещё раз.'
-              : '⚠️ Не удалось обновить «Сроки». Проверь номер и попробуй нажать кнопку ещё раз.';
+              : command.startsWith('room_')
+                ? '⚠️ Не удалось загрузить историю номера. Попробуй нажать кнопку ещё раз.'
+                : '⚠️ Не удалось обновить «Сроки». Проверь номер и попробуй нажать кнопку ещё раз.';
           await sendPrivateText(String(event.peer_id || ''), errorText);
         } catch (notifyError) {
           console.error('[VK] failed to send inline button error notice:', notifyError.message);
