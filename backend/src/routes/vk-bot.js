@@ -73,7 +73,8 @@ router.get('/summary', async (req, res) => {
       badRooms,
       exciseRows,
       todayTarget,
-      departures
+      departures,
+      operationalChecks
     ] = await Promise.all([
       prisma.activeList.findFirst({
         where: { listType: 'arrivals' },
@@ -96,7 +97,16 @@ router.get('/summary', async (req, res) => {
       }),
       prisma.excise.findMany({ select: { markNumber: true } }),
       prisma.$transaction(tx => ensureTodayTarget(tx, offset)),
-      getMiniAppDepartureList(req)
+      getMiniAppDepartureList(req),
+      prisma.check.findMany({
+        where: {
+          type: { in: ['vk_room', 'vk_emptied'] },
+          status: 'done',
+          checkDate: { gte: range.start, lt: range.end },
+          roomId: { not: null }
+        },
+        select: { type: true, operationSnapshot: true }
+      })
     ]);
 
     const gihRoomIds = new Set(
@@ -113,6 +123,17 @@ router.get('/summary', async (req, res) => {
       const mark = String(row.markNumber || '').trim();
       return mark.length >= 20 && /^\d/.test(mark);
     }).length;
+
+    // Each Check row is one processed room operation written by the VK bot.
+    // The operation snapshot records whether a normal check refilled an empty room.
+    const checkedToday = operationalChecks.length;
+    const emptiedToday = operationalChecks.filter(check => check.type === 'vk_emptied').length;
+    const refilledEmptyToday = operationalChecks.filter(check =>
+      check.type === 'vk_room' &&
+      check.operationSnapshot &&
+      typeof check.operationSnapshot === 'object' &&
+      check.operationSnapshot.before?.roomStatus === 'empty'
+    ).length;
 
     res.set('Cache-Control', 'no-store');
     return res.json({
@@ -131,6 +152,11 @@ router.get('/summary', async (req, res) => {
         target,
         processed,
         remaining: Math.max(0, target - processed)
+      },
+      operationsToday: {
+        checked: checkedToday,
+        emptied: emptiedToday,
+        refilledEmpty: refilledEmptyToday
       },
       excises: {
         total: exciseCount,
