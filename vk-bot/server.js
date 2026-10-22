@@ -178,7 +178,7 @@ function normalizePrivateUserSettings(value = {}) {
     ...defaultPrivateUserSettings(),
     ...value,
     dailyMenuEnabled: value?.dailyMenuEnabled !== false,
-    dailyMenuTime: /^(?:[01]\\d|2[0-3]):[0-5]\\d$/u.test(String(value?.dailyMenuTime || ''))
+    dailyMenuTime: /^(?:[01]\d|2[0-3]):[0-5]\d$/u.test(String(value?.dailyMenuTime || ''))
       ? String(value.dailyMenuTime)
       : '09:00',
     notificationsEnabled: value?.notificationsEnabled !== false,
@@ -195,7 +195,7 @@ function normalizePrivateUserSettings(value = {}) {
       Number(value.settingsMessageCmid) > 0
       ? Number(value.settingsMessageCmid)
       : null,
-    lastDailyMenuDate: /^\\d{4}-\\d{2}-\\d{2}$/u.test(String(value?.lastDailyMenuDate || ''))
+    lastDailyMenuDate: /^\d{4}-\d{2}-\d{2}$/u.test(String(value?.lastDailyMenuDate || ''))
       ? String(value.lastDailyMenuDate)
       : null
   };
@@ -824,19 +824,24 @@ async function checkDailyPrivateMenus() {
     if (!recipientIds.length) return;
 
     const localNow = getBotLocalDateTime();
+    const dueRecipientIds = [];
+    for (const recipientId of recipientIds) {
+      const settings = await getPrivateUserSettings(recipientId);
+      if (settings.dailyMenuEnabled &&
+          localNow.timeKey === settings.dailyMenuTime &&
+          settings.lastDailyMenuDate !== localNow.dateKey) {
+        dueRecipientIds.push(recipientId);
+      }
+    }
+    if (!dueRecipientIds.length) return;
+
     const summary = await loadPrivateMenuSummary();
     const messageText = formatPrivateMenuText(summary);
     const keyboard = await buildPrivateMenuKeyboard(summary);
 
-    for (const recipientId of recipientIds) {
+    for (const recipientId of dueRecipientIds) {
       try {
         const settings = await getPrivateUserSettings(recipientId);
-        if (!settings.dailyMenuEnabled ||
-            localNow.timeKey < settings.dailyMenuTime ||
-            settings.lastDailyMenuDate === localNow.dateKey) {
-          continue;
-        }
-
         await sendPrivateMenu(
           recipientId,
           keyboard,
@@ -1121,7 +1126,7 @@ async function handleClearExcisesButton(event, payload) {
     }
   }
 
-  // The regular monitor refreshes the existing pinned menu in place. It must not
+  // The regular monitor refreshes the latest menu in place. It must not
   // send another menu after the excise count changes.
   void checkExciseMenuState();
 
@@ -1581,8 +1586,8 @@ async function handlePrivateMessage(message, peerId, text) {
   // Only a user's direct dialog registers them for personal settings and notices.
   await rememberPrivateDialog(senderId);
 
-  const normalized = text.toLocaleLowerCase('ru-RU').replace(/^\\/+/, '').trim();
-  const commandText = normalized.replace(/^[^\\p{L}\\p{N}]+/u, '').trim();
+  const normalized = text.toLocaleLowerCase('ru-RU').replace(/^\/+/, '').trim();
+  const commandText = normalized.replace(/^[^\p{L}\p{N}]+/u, '').trim();
 
   if (/^(?:начать|старт|start|меню|menu|начать работу)$/iu.test(commandText)) {
     await updatePrivateUserSettings(senderId, { awaitingMenuTime: false });
@@ -1598,13 +1603,13 @@ async function handlePrivateMessage(message, peerId, text) {
     return true;
   }
 
-  if (/^📄?\\s*получить акцизы$/iu.test(normalized)) {
+  if (/^📄?\s*получить акцизы$/iu.test(normalized)) {
     await sendExcisesFile(peerId);
     console.log('[VK] requested excise Excel from private dialog user=' + peerId);
     return true;
   }
 
-  if (/^🧊?\\s*опустошённые за сегодня$/iu.test(normalized)) {
+  if (/^🧊?\s*опустошённые за сегодня$/iu.test(normalized)) {
     const response = await fetch(API_BASE_URL + '/api/vk-bot/emptied-today', {
       method: 'GET',
       headers: {
@@ -1620,7 +1625,7 @@ async function handlePrivateMessage(message, peerId, text) {
 
     const rooms = Array.isArray(data.rooms) ? data.rooms : [];
     const messageText = rooms.length
-      ? '🧊 Опустошённые за сегодня: ' + rooms.length + '\\n\\n' +
+      ? '🧊 Опустошённые за сегодня: ' + rooms.length + '\n\n' +
         rooms.map(room => String(room.number)).join(', ')
       : '🧊 Сегодня опустошённых номеров пока нет.';
     await sendPrivateText(peerId, messageText);
@@ -1630,10 +1635,10 @@ async function handlePrivateMessage(message, peerId, text) {
 
   const settings = await getPrivateUserSettings(senderId);
   if (settings.awaitingMenuTime) {
-    const match = text.trim().match(/^(\\d{1,2}):([0-5]\\d)$/u);
+    const match = text.trim().match(/^(\d{1,2}):([0-5]\d)$/u);
     const hour = match ? Number(match[1]) : NaN;
     if (!match || hour < 0 || hour > 23) {
-      const prompt = '✍️ Отправь время в формате ЧЧ:ММ, например 09:30.\\n' +
+      const prompt = '✍️ Отправь время в формате ЧЧ:ММ, например 09:30.\n' +
         'Чтобы отменить изменение, нажми «Отмена» под этим сообщением.';
       if (settings.settingsMessageCmid) {
         await editPrivateMessage(
@@ -1653,7 +1658,7 @@ async function handlePrivateMessage(message, peerId, text) {
       dailyMenuTime: time,
       awaitingMenuTime: false
     });
-    const confirmationText = '✅ Время ежедневной отправки сохранено.\\n\\n' +
+    const confirmationText = '✅ Время ежедневной отправки сохранено.\n\n' +
       formatPrivateSettingsText(updatedSettings);
     if (updatedSettings.settingsMessageCmid) {
       await editPrivateMessage(
