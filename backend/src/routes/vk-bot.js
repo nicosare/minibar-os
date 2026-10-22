@@ -81,7 +81,7 @@ router.get('/room-info', async (req, res) => {
       return res.status(404).json({ error: 'Номер ' + rawNumber + ' не найден в базе' });
     }
 
-    const [lastCheck, lastAction] = await Promise.all([
+    const [lastCheck, lastAction, deadlineProducts, refillSetting] = await Promise.all([
       prisma.check.findFirst({
         where: {
           roomId: room.id,
@@ -99,8 +99,36 @@ router.get('/room-info', async (req, res) => {
         },
         orderBy: [{ checkDate: 'desc' }, { id: 'desc' }],
         select: { id: true, checkDate: true, type: true, notes: true }
+      }),
+      prisma.roomProductStatus.findMany({
+        where: { roomId: room.id, qtyToReplace: { gt: 0 } },
+        select: {
+          productId: true,
+          qtyToReplace: true,
+          product: { select: { name: true } }
+        },
+        orderBy: [{ product: { name: 'asc' } }]
+      }),
+      prisma.setting.findUnique({
+        where: { key: 'miniapp-refill-active:' + String(room.id) },
+        select: { value: true }
       })
     ]);
+
+    let refillProducts = [];
+    try {
+      const request = JSON.parse(String(refillSetting?.value || 'null'));
+      if (request && request.status === 'pending' && Array.isArray(request.items)) {
+        refillProducts = request.items
+          .map(item => ({
+            name: String(item?.name || 'Продукт'),
+            qty: Math.max(0, Number(item?.qty) || 0)
+          }))
+          .filter(item => item.qty > 0);
+      }
+    } catch (_) {
+      refillProducts = [];
+    }
 
     res.set('Cache-Control', 'no-store');
     return res.json({
@@ -111,7 +139,13 @@ router.get('/room-info', async (req, res) => {
         expiryStatus: room.expiryStatus
       },
       lastCheck,
-      lastAction
+      lastAction,
+      deadlineProducts: deadlineProducts.map(item => ({
+        productId: item.productId,
+        name: item.product?.name || ('Продукт #' + item.productId),
+        qtyToReplace: item.qtyToReplace
+      })),
+      refillProducts
     });
   } catch (error) {
     console.error('GET /api/vk-bot/room-info error:', error);
