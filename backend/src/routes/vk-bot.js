@@ -61,7 +61,7 @@ router.get('/room-info', async (req, res) => {
   }
 
   const rawNumber = String(req.query.number ?? '').trim();
-  if (!/^\\d{3,4}$/.test(rawNumber)) {
+  if (!/^\d{3,4}$/.test(rawNumber)) {
     return res.status(400).json({ error: 'Номер должен содержать 3–4 цифры' });
   }
 
@@ -127,7 +127,7 @@ router.get('/room-history', async (req, res) => {
   const rawNumber = String(req.query.number ?? '').trim();
   const section = String(req.query.section ?? 'history').trim().toLowerCase();
   const requestedCount = Number.parseInt(String(req.query.count ?? '3'), 10);
-  if (!/^\\d{3,4}$/.test(rawNumber)) {
+  if (!/^\d{3,4}$/.test(rawNumber)) {
     return res.status(400).json({ error: 'Номер должен содержать 3–4 цифры' });
   }
   if (!['history', 'gih'].includes(section)) {
