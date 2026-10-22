@@ -48,7 +48,7 @@ function localMidnightUtc(parts, offsetMinutes) {
   return new Date(guess);
 }
 
-function todayRange(req) {
+export function todayRange(req) {
   const now = new Date();
   const offset = clientOffset(req);
   const parts = getLocalParts(now, offset);
@@ -214,7 +214,7 @@ function assignedDepartureNumbers(session, worklist, roomByNumber) {
   return assigned;
 }
 
-async function getMiniAppDepartureList(req) {
+export async function getMiniAppDepartureList(req) {
   const range = todayRange(req);
   const [rooms, checks, session, worklist] = await Promise.all([
     prisma.room.findMany({
