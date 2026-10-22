@@ -1688,7 +1688,8 @@ function formatRoomDateTime(value) {
 
 function roomOperationalStatusLabel(data) {
   const lastAction = data?.lastAction || null;
-  if (lastAction && ['vk_emptied', 'emptied', 'empty'].includes(String(lastAction.type || ''))) {
+  if (data?.room?.expiryStatus === 'empty' ||
+      (lastAction && ['vk_emptied', 'emptied', 'empty'].includes(String(lastAction.type || '')))) {
     return 'Опустошён';
   }
   if (Array.isArray(data?.refillProducts) && data.refillProducts.length) {
