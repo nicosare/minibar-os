@@ -337,7 +337,7 @@ function vkSettingEnabled(value) {
 // the bot calls messages.sendMessageEventAnswer. Ensure the existing callback
 // server subscribes to that event, instead of leaving this as a manual setting.
 async function ensureMessageEventSubscription() {
-  if (!VK_ACCESS_TOKEN || !/^\\d+$/.test(groupId)) {
+  if (!VK_ACCESS_TOKEN || !/^\d+$/.test(groupId)) {
     console.warn('[VK] cannot verify message_event subscription: group ID or access token missing');
     return;
   }
