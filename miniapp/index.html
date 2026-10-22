@@ -2698,7 +2698,7 @@ const PINNED_ROOM_STORAGE_KEY = 'minibar-miniapp-pinned-room-v1';
 function readStoredPinnedRoomNumber() {
   try {
     const value = String(localStorage.getItem(PINNED_ROOM_STORAGE_KEY) || '').trim();
-    return /^\\d{3,4}$/.test(value) ? String(Number(value)) : '';
+    return /^[0-9]{3,4}$/.test(value) ? String(Number(value)) : '';
   } catch (_) {
     return '';
   }
@@ -2706,7 +2706,7 @@ function readStoredPinnedRoomNumber() {
 
 function persistPinnedRoomNumber() {
   try {
-    if (/^\\d{3,4}$/.test(String(pinnedRoomNumber || ''))) {
+    if (/^[0-9]{3,4}$/.test(String(pinnedRoomNumber || ''))) {
       localStorage.setItem(PINNED_ROOM_STORAGE_KEY, String(Number(pinnedRoomNumber)));
     }
   } catch (_) {}
