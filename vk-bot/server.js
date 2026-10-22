@@ -166,9 +166,10 @@ function defaultPrivateUserSettings() {
     ),
     awaitingMenuTime: false,
     settingsMessageCmid: null,
-    // A newly registered user who first opens the bot after 09:00 should not
-    // receive an immediate duplicate; the next scheduled message is tomorrow.
-    lastDailyMenuDate: localNow.timeKey >= '09:00' ? localNow.dateKey : null
+    lastDailyMenuDate: null,
+    // Avoid an unsolicited catch-up on the first interaction after the default time.
+    // If the user selects a future time for today, this suppression is cleared.
+    suppressDailyMenuDate: localNow.timeKey > '09:00' ? localNow.dateKey : null
   };
 }
 
@@ -200,7 +201,12 @@ function normalizePrivateUserSettings(value = {}) {
       : null,
     lastDailyMenuDate: /^\d{4}-\d{2}-\d{2}$/u.test(String(value?.lastDailyMenuDate || ''))
       ? String(value.lastDailyMenuDate)
-      : null
+      : null,
+    suppressDailyMenuDate: Object.prototype.hasOwnProperty.call(value, 'suppressDailyMenuDate')
+      ? (/^\d{4}-\d{2}-\d{2}$/u.test(String(value.suppressDailyMenuDate || ''))
+        ? String(value.suppressDailyMenuDate)
+        : null)
+      : defaultPrivateUserSettings().suppressDailyMenuDate
   };
 }
 
@@ -832,7 +838,8 @@ async function checkDailyPrivateMenus() {
       const settings = await getPrivateUserSettings(recipientId);
       if (settings.dailyMenuEnabled &&
           localNow.timeKey >= settings.dailyMenuTime &&
-          settings.lastDailyMenuDate !== localNow.dateKey) {
+          settings.lastDailyMenuDate !== localNow.dateKey &&
+          settings.suppressDailyMenuDate !== localNow.dateKey) {
         dueRecipientIds.push(recipientId);
       }
     }
@@ -1458,7 +1465,7 @@ async function handlePrivateSettingsButton(event, payload) {
       dailyMenuEnabled: enable,
       awaitingMenuTime: false,
       ...(enable && localNow.timeKey > settings.dailyMenuTime
-        ? { lastDailyMenuDate: localNow.dateKey }
+        ? { suppressDailyMenuDate: localNow.dateKey }
         : {})
     });
   } else if (command === 'settings_toggle_notifications') {
@@ -1666,7 +1673,7 @@ async function handlePrivateMessage(message, peerId, text) {
     const updatedSettings = await updatePrivateUserSettings(senderId, {
       dailyMenuTime: time,
       awaitingMenuTime: false,
-      ...(localNow.timeKey > time ? { lastDailyMenuDate: localNow.dateKey } : {})
+      suppressDailyMenuDate: localNow.timeKey > time ? localNow.dateKey : null
     });
     const confirmationText = '✅ Время ежедневной отправки сохранено.\n\n' +
       formatPrivateSettingsText(updatedSettings);
