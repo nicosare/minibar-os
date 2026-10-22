@@ -389,7 +389,7 @@ export async function processVkBotMessage({
             qtyToReplace: Number(item.qtyToReplace) || 0
           }))
         });
-      } else if (!parsed.emptied && room.expiryStatus === 'empty') {
+      } else if (!parsed.emptied && !parsed.residential && room.expiryStatus === 'empty') {
         notifications.push({
           type: 'refilled_empty',
           roomId: room.id,
