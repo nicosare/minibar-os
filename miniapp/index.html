@@ -2053,6 +2053,10 @@ function aggregateActiveRefills() {
     basketCounts[normalizedType] += count;
   }
 
+  // Every system-empty room in the active list contributes one basket,
+  // classified by the room's actual standard/suite category.
+  emptyRooms.forEach(room => addBasket(normalizeRoomType(room)));
+
   function addProduct(item) {
     const qty = Math.max(0, Number(item?.qty) || 0);
     if (!qty) return;
