@@ -41,11 +41,20 @@ const MINI_APP_ID = 54809268;
 const PRIVATE_DIALOGS_FILE = process.env.VK_BOT_PRIVATE_DIALOGS_FILE || '/data/private-dialogs.json';
 const PRIVATE_MENU_MESSAGES_FILE = process.env.VK_BOT_PRIVATE_MENU_MESSAGES_FILE || '/data/private-menu-messages.json';
 const EXCISE_MENU_STATE_FILE = process.env.VK_BOT_EXCISE_MENU_STATE_FILE || '/data/excise-menu-state.json';
+const PRIVATE_USER_SETTINGS_FILE = process.env.VK_BOT_PRIVATE_USER_SETTINGS_FILE || '/data/private-user-settings.json';
+const NOTIFICATION_CATEGORIES = [
+  { key: 'emptied', label: 'Опустошение минибара' },
+  { key: 'emptiedWithDeadlines', label: 'Опустошение со сроками' },
+  { key: 'refilledEmpty', label: 'Пополнение пустого' },
+  { key: 'refilledWithComment', label: 'Пополнение с комментарием' }
+];
 const privateDialogIds = new Set();
 const privateMenuMessageIds = new Map();
-const pinnedPrivateMenuMessageIds = new Set();
+const privateUserSettings = new Map();
 let privateDialogsLoaded = false;
 let privateMenuMessagesLoaded = false;
+let privateUserSettingsLoaded = false;
+let dailyMenuSchedulerRunning = false;
 let knownExcisePresence = null;
 let exciseMenuMonitorRunning = false;
 let knownPrivateMenuText = null;
@@ -144,6 +153,124 @@ async function forgetPrivateMenuMessage(userIdValue) {
   await loadPrivateMenuMessages();
   privateMenuMessageIds.delete(Number(userIdValue));
   await persistPrivateMenuMessages();
+}
+
+function defaultPrivateUserSettings() {
+  return {
+    dailyMenuEnabled: true,
+    dailyMenuTime: '09:00',
+    notificationsEnabled: true,
+    notificationSubscriptions: Object.fromEntries(
+      NOTIFICATION_CATEGORIES.map(category => [category.key, true])
+    ),
+    awaitingMenuTime: false,
+    settingsMessageCmid: null,
+    lastDailyMenuDate: null
+  };
+}
+
+function normalizePrivateUserSettings(value = {}) {
+  const rawSubscriptions = value?.notificationSubscriptions &&
+    typeof value.notificationSubscriptions === 'object'
+    ? value.notificationSubscriptions
+    : {};
+  return {
+    ...defaultPrivateUserSettings(),
+    ...value,
+    dailyMenuEnabled: value?.dailyMenuEnabled !== false,
+    dailyMenuTime: /^(?:[01]\\d|2[0-3]):[0-5]\\d$/u.test(String(value?.dailyMenuTime || ''))
+      ? String(value.dailyMenuTime)
+      : '09:00',
+    notificationsEnabled: value?.notificationsEnabled !== false,
+    notificationSubscriptions: Object.fromEntries(
+      NOTIFICATION_CATEGORIES.map(category => [
+        category.key,
+        typeof rawSubscriptions[category.key] === 'boolean'
+          ? rawSubscriptions[category.key]
+          : true
+      ])
+    ),
+    awaitingMenuTime: value?.awaitingMenuTime === true,
+    settingsMessageCmid: Number.isSafeInteger(Number(value?.settingsMessageCmid)) &&
+      Number(value.settingsMessageCmid) > 0
+      ? Number(value.settingsMessageCmid)
+      : null,
+    lastDailyMenuDate: /^\\d{4}-\\d{2}-\\d{2}$/u.test(String(value?.lastDailyMenuDate || ''))
+      ? String(value.lastDailyMenuDate)
+      : null
+  };
+}
+
+async function loadPrivateUserSettings() {
+  if (privateUserSettingsLoaded) return;
+  privateUserSettingsLoaded = true;
+  try {
+    const stored = JSON.parse(await fs.readFile(PRIVATE_USER_SETTINGS_FILE, 'utf8'));
+    if (stored && typeof stored === 'object' && !Array.isArray(stored)) {
+      for (const [userIdValue, value] of Object.entries(stored)) {
+        const userId = Number(userIdValue);
+        if (Number.isSafeInteger(userId) && userId > 0) {
+          privateUserSettings.set(userId, normalizePrivateUserSettings(value));
+        }
+      }
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      privateUserSettingsLoaded = false;
+      throw error;
+    }
+  }
+}
+
+async function persistPrivateUserSettings() {
+  await fs.mkdir(path.dirname(PRIVATE_USER_SETTINGS_FILE), { recursive: true });
+  const tempPath = PRIVATE_USER_SETTINGS_FILE + '.tmp';
+  const data = Object.fromEntries(
+    [...privateUserSettings.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([userId, value]) => [String(userId), value])
+  );
+  await fs.writeFile(tempPath, JSON.stringify(data, null, 2), 'utf8');
+  await fs.rename(tempPath, PRIVATE_USER_SETTINGS_FILE);
+}
+
+async function getPrivateUserSettings(userIdValue) {
+  const userId = Number(userIdValue);
+  if (!Number.isSafeInteger(userId) || userId <= 0) {
+    throw new Error('Не удалось определить пользователя для настроек');
+  }
+  await loadPrivateUserSettings();
+  if (!privateUserSettings.has(userId)) {
+    privateUserSettings.set(userId, defaultPrivateUserSettings());
+    await persistPrivateUserSettings();
+  }
+  return privateUserSettings.get(userId);
+}
+
+async function updatePrivateUserSettings(userIdValue, patch = {}) {
+  const current = await getPrivateUserSettings(userIdValue);
+  const next = normalizePrivateUserSettings({
+    ...current,
+    ...patch,
+    notificationSubscriptions: {
+      ...current.notificationSubscriptions,
+      ...(patch.notificationSubscriptions || {})
+    }
+  });
+  privateUserSettings.set(Number(userIdValue), next);
+  await persistPrivateUserSettings();
+  return next;
+}
+
+function getBotLocalDateTime(value = new Date()) {
+  const parsedOffset = Number.parseInt(VK_BOT_TIMEZONE_OFFSET, 10);
+  const offsetMinutes = Number.isFinite(parsedOffset) ? parsedOffset : -300;
+  const localDate = new Date(value.getTime() - offsetMinutes * 60 * 1000);
+  const pad = number => String(number).padStart(2, '0');
+  return {
+    dateKey: localDate.toISOString().slice(0, 10),
+    timeKey: pad(localDate.getUTCHours()) + ':' + pad(localDate.getUTCMinutes())
+  };
 }
 
 const httpPort = Number(
@@ -364,28 +491,28 @@ async function buildPrivateMenuKeyboard(summary = null) {
     }]);
   }
 
-  return { one_time: false, buttons };
-}
-
-async function pinPrivateMenu(peerId, messageId) {
-  const key = String(peerId) + ':' + String(messageId);
-  if (pinnedPrivateMenuMessageIds.has(key)) return;
-
-  try {
-    await callVkApi('messages.pin', {
-      peer_id: String(peerId),
-      message_id: String(messageId)
-    });
-    pinnedPrivateMenuMessageIds.add(key);
-    console.log('[VK] pinned private menu user=' + peerId + ' message=' + messageId);
-  } catch (error) {
-    // If VK reports that the same message is already pinned, treat that as success.
-    if (/already pinned|already.*pin|уже закреп/iu.test(String(error.message || ''))) {
-      pinnedPrivateMenuMessageIds.add(key);
-      return;
+  // These actions stay on the regular VK keyboard, independently of inline
+  // callback keyboards shown on settings or notification messages.
+  buttons.push([
+    {
+      action: {
+        type: 'text',
+        label: '📋 Меню',
+        payload: JSON.stringify({ command: 'show_menu' })
+      },
+      color: 'primary'
+    },
+    {
+      action: {
+        type: 'text',
+        label: '⚙️ Настройки',
+        payload: JSON.stringify({ command: 'settings' })
+      },
+      color: 'primary'
     }
-    throw error;
-  }
+  ]);
+
+  return { one_time: false, buttons };
 }
 
 async function isStoredPrivateMenuAvailable(peerId, messageId) {
@@ -399,7 +526,7 @@ async function isStoredPrivateMenuAvailable(peerId, messageId) {
   );
 }
 
-async function sendPrivateMenu(peerId, keyboard = null, messageText = null, summary = null) {
+async function sendPrivateMenu(peerId, keyboard = null, messageText = null, summary = null, options = {}) {
   if (!VK_ACCESS_TOKEN) {
     throw new Error('VK_BOT_ACCESS_TOKEN не настроен');
   }
@@ -417,14 +544,13 @@ async function sendPrivateMenu(peerId, keyboard = null, messageText = null, summ
     (currentSummary ? formatPrivateMenuText(currentSummary) :
       '📋 MINIBAR OS\nСводка временно недоступна. Попробуй открыть меню ещё раз.');
 
-  const existingMessageId = await getPrivateMenuMessageId(peerId);
+  const existingMessageId = options.forceNew ? null : await getPrivateMenuMessageId(peerId);
   if (existingMessageId) {
     // Recover only when VK confirms the stored message no longer exists. Temporary API
     // failures still throw, so they cannot accidentally create duplicate menus.
     const existingAvailable = await isStoredPrivateMenuAvailable(peerId, existingMessageId);
     if (existingAvailable) {
       await editPrivateMenu(peerId, existingMessageId, currentKeyboard, currentMessage);
-      await pinPrivateMenu(peerId, existingMessageId);
       return;
     }
     console.warn('[VK] stored menu is missing for user=' + peerId + '; creating one replacement');
@@ -463,7 +589,6 @@ async function sendPrivateMenu(peerId, keyboard = null, messageText = null, summ
       console.error('[VK] could not persist menu message id for user=' + peerId + ': ' + error.message);
       throw error;
     }
-    await pinPrivateMenu(peerId, messageId);
   } else {
     throw new Error('[VK] did not return a usable menu message id; refusing to send another menu');
   }
@@ -517,7 +642,6 @@ async function refreshAllPrivateMenus(reason, summary = null) {
             continue;
           }
           await editPrivateMenu(recipientId, menuMessageId, keyboard, messageText);
-          await pinPrivateMenu(recipientId, menuMessageId);
           updated += 1;
         } catch (error) {
           allUpdated = false;
@@ -615,6 +739,126 @@ async function sendPrivateText(peerId, message, keyboard = null) {
   }
 }
 
+
+function formatPrivateSettingsText(settings) {
+  const lines = [
+    '⚙️ Настройки MINIBAR OS',
+    '',
+    '📋 Ежедневная отправка меню: ' + (settings.dailyMenuEnabled ? 'включена' : 'отключена'),
+    'Время: ' + settings.dailyMenuTime,
+    '',
+    '🔔 Все уведомления: ' + (settings.notificationsEnabled ? 'включены' : 'отключены'),
+    ...NOTIFICATION_CATEGORIES.map(category =>
+      (settings.notificationSubscriptions[category.key] ? '✅ ' : '▫️ ') + category.label
+    )
+  ];
+  if (settings.awaitingMenuTime) {
+    lines.push('', '✍️ Отправь новое время в формате ЧЧ:ММ, например 09:30.');
+  }
+  return lines.join('\n');
+}
+
+function privateSettingsButton(label, command, extra = {}, color = 'primary') {
+  return {
+    action: {
+      type: 'callback',
+      label,
+      payload: JSON.stringify({ command, ...extra })
+    },
+    color
+  };
+}
+
+function buildPrivateSettingsKeyboard(settings) {
+  if (settings.awaitingMenuTime) {
+    return {
+      inline: true,
+      buttons: [[privateSettingsButton('Отмена', 'settings_cancel_menu_time', {}, 'secondary')]]
+    };
+  }
+
+  const buttons = [
+    [privateSettingsButton(
+      'Ежедневное меню: ' + (settings.dailyMenuEnabled ? 'Вкл.' : 'Выкл.'),
+      'settings_toggle_daily_menu',
+      {},
+      settings.dailyMenuEnabled ? 'positive' : 'secondary'
+    )],
+    [privateSettingsButton('Время отправки: ' + settings.dailyMenuTime, 'settings_set_menu_time')],
+    [privateSettingsButton(
+      'Все уведомления: ' + (settings.notificationsEnabled ? 'Вкл.' : 'Выкл.'),
+      'settings_toggle_notifications',
+      {},
+      settings.notificationsEnabled ? 'positive' : 'secondary'
+    )]
+  ];
+
+  for (const category of NOTIFICATION_CATEGORIES) {
+    const enabled = settings.notificationSubscriptions[category.key] === true;
+    buttons.push([privateSettingsButton(
+      (enabled ? '✅ ' : '▫️ ') + category.label,
+      'settings_toggle_notification',
+      { key: category.key },
+      enabled ? 'positive' : 'secondary'
+    )]);
+  }
+
+  buttons.push([privateSettingsButton('📋 Открыть меню', 'settings_show_menu', {}, 'primary')]);
+  return { inline: true, buttons };
+}
+
+async function showPrivateSettings(peerId) {
+  const settings = await getPrivateUserSettings(peerId);
+  await sendPrivateText(
+    peerId,
+    formatPrivateSettingsText(settings),
+    buildPrivateSettingsKeyboard(settings)
+  );
+}
+
+async function checkDailyPrivateMenus() {
+  if (dailyMenuSchedulerRunning) return;
+  dailyMenuSchedulerRunning = true;
+  try {
+    const recipientIds = await getPrivateDialogIds();
+    if (!recipientIds.length) return;
+
+    const localNow = getBotLocalDateTime();
+    const summary = await loadPrivateMenuSummary();
+    const messageText = formatPrivateMenuText(summary);
+    const keyboard = await buildPrivateMenuKeyboard(summary);
+
+    for (const recipientId of recipientIds) {
+      try {
+        const settings = await getPrivateUserSettings(recipientId);
+        if (!settings.dailyMenuEnabled ||
+            localNow.timeKey < settings.dailyMenuTime ||
+            settings.lastDailyMenuDate === localNow.dateKey) {
+          continue;
+        }
+
+        await sendPrivateMenu(
+          recipientId,
+          keyboard,
+          messageText,
+          summary,
+          { forceNew: true }
+        );
+        await updatePrivateUserSettings(recipientId, {
+          lastDailyMenuDate: localNow.dateKey
+        });
+        console.log('[VK] daily private menu sent user=' + recipientId +
+          ' time=' + localNow.timeKey + ' date=' + localNow.dateKey);
+      } catch (error) {
+        console.error('[VK] daily private menu failed for user=' + recipientId + ': ' + error.message);
+      }
+    }
+  } catch (error) {
+    console.error('[VK] daily private menu scheduler failed:', error.message);
+  } finally {
+    dailyMenuSchedulerRunning = false;
+  }
+}
 
 const EXCISE_XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
@@ -952,7 +1196,7 @@ async function editPrivateMessagePreservingAttachments(peerId, conversationMessa
   }
 }
 
-async function editPrivateMessage(peerId, conversationMessageId, message) {
+async function editPrivateMessage(peerId, conversationMessageId, message, keyboard = { inline: true, buttons: [] }) {
   const cmid = Number(conversationMessageId);
   if (!Number.isSafeInteger(cmid) || cmid <= 0) {
     throw new Error('Не удалось определить сообщение для редактирования');
@@ -962,7 +1206,7 @@ async function editPrivateMessage(peerId, conversationMessageId, message) {
     peer_id: String(peerId),
     conversation_message_id: String(cmid),
     message,
-    keyboard: JSON.stringify({ inline: true, buttons: [] }),
+    keyboard: JSON.stringify(keyboard),
     access_token: VK_ACCESS_TOKEN,
     v: VK_API_VERSION
   });
@@ -1187,6 +1431,78 @@ function deadlinesValidKeyboard(roomId, roomNumber, eventId) {
   };
 }
 
+async function handlePrivateSettingsButton(event, payload) {
+  const userId = Number(event?.user_id);
+  const peerId = String(event?.peer_id || '').trim();
+  const cmid = Number(event?.conversation_message_id);
+  if (!Number.isSafeInteger(userId) || userId <= 0 || peerId !== String(userId) ||
+      !Number.isSafeInteger(cmid) || cmid <= 0) {
+    throw new Error('Настройки доступны только в личном диалоге с ботом');
+  }
+
+  let settings = await getPrivateUserSettings(userId);
+  const command = String(payload?.command || '');
+
+  if (command === 'settings_toggle_daily_menu') {
+    settings = await updatePrivateUserSettings(userId, {
+      dailyMenuEnabled: !settings.dailyMenuEnabled,
+      awaitingMenuTime: false
+    });
+  } else if (command === 'settings_toggle_notifications') {
+    settings = await updatePrivateUserSettings(userId, {
+      notificationsEnabled: !settings.notificationsEnabled,
+      awaitingMenuTime: false
+    });
+  } else if (command === 'settings_toggle_notification') {
+    const key = String(payload?.key || '');
+    if (!NOTIFICATION_CATEGORIES.some(category => category.key === key)) {
+      throw new Error('Неизвестная категория уведомлений');
+    }
+    settings = await updatePrivateUserSettings(userId, {
+      notificationSubscriptions: {
+        [key]: !settings.notificationSubscriptions[key]
+      },
+      awaitingMenuTime: false
+    });
+  } else if (command === 'settings_set_menu_time') {
+    settings = await updatePrivateUserSettings(userId, {
+      awaitingMenuTime: true,
+      settingsMessageCmid: cmid
+    });
+    await editPrivateMessage(
+      peerId,
+      cmid,
+      formatPrivateSettingsText(settings),
+      buildPrivateSettingsKeyboard(settings)
+    );
+    return;
+  } else if (command === 'settings_cancel_menu_time') {
+    settings = await updatePrivateUserSettings(userId, {
+      awaitingMenuTime: false
+    });
+  } else if (command === 'settings_show_menu') {
+    await updatePrivateUserSettings(userId, { awaitingMenuTime: false });
+    await editPrivateMessage(
+      peerId,
+      cmid,
+      '📋 Открываю меню. Следующее сообщение — актуальное меню MINIBAR OS.',
+      { inline: true, buttons: [] }
+    );
+    await sendPrivateMenu(peerId, null, null, null, { forceNew: true });
+    return;
+  } else {
+    throw new Error('Неизвестная команда настроек');
+  }
+
+  settings = await getPrivateUserSettings(userId);
+  await editPrivateMessage(
+    peerId,
+    cmid,
+    formatPrivateSettingsText(settings),
+    buildPrivateSettingsKeyboard(settings)
+  );
+}
+
 async function sendDeadlineNotifications(notifications, eventId) {
   if (!Array.isArray(notifications)) return;
   const recipientIds = await getPrivateDialogIds();
@@ -1195,13 +1511,25 @@ async function sendDeadlineNotifications(notifications, eventId) {
     return;
   }
 
+  const subscriptionKeys = {
+    emptied: 'emptied',
+    emptied_with_deadlines: 'emptiedWithDeadlines',
+    refilled_empty: 'refilledEmpty',
+    refilled_with_comment: 'refilledWithComment'
+  };
+
   for (const notification of notifications) {
     const roomNumber = Number(notification?.roomNumber);
     if (!Number.isSafeInteger(roomNumber) || roomNumber < 100 || roomNumber > 9999) continue;
 
+    const subscriptionKey = subscriptionKeys[notification.type];
+    if (!subscriptionKey) continue;
+
     let messageText;
     let keyboard = null;
-    if (notification.type === 'emptied_with_deadlines') {
+    if (notification.type === 'emptied') {
+      messageText = '🧊 Номер ' + roomNumber + ' опустошён.';
+    } else if (notification.type === 'emptied_with_deadlines') {
       const products = Array.isArray(notification.products) ? notification.products : [];
       if (!products.length) continue;
       const productLines = products.map(item => {
@@ -1216,21 +1544,29 @@ async function sendDeadlineNotifications(notifications, eventId) {
       messageText = '✅ Номер ' + roomNumber + ' пополнен после опустошения.\n\n' +
         'Нажми кнопку ниже, чтобы отметить «Сроки» этого номера как «В порядке».';
       keyboard = deadlinesValidKeyboard(notification.roomId, roomNumber, eventId);
+    } else if (notification.type === 'refilled_with_comment') {
+      const note = String(notification.note || '').trim();
+      if (!note) continue;
+      messageText = '💬 Номер ' + roomNumber + ' пополнен с комментарием:\n' + note;
     } else {
       continue;
     }
 
     for (const recipientId of recipientIds) {
       try {
+        const settings = await getPrivateUserSettings(recipientId);
+        if (!settings.notificationsEnabled ||
+            settings.notificationSubscriptions[subscriptionKey] !== true) {
+          continue;
+        }
         await sendPrivateText(recipientId, messageText, keyboard);
       } catch (error) {
-        console.error('[VK] deadline notification failed for room=' + roomNumber +
-          ' user=' + recipientId + ': ' + error.message);
+        console.error('[VK] operational notification failed for room=' + roomNumber +
+          ' type=' + notification.type + ' user=' + recipientId + ': ' + error.message);
       }
     }
   }
 }
-
 async function handlePrivateMessage(message, peerId, text) {
   const senderId = Number(message.from_id);
   const peerNumber = Number(peerId);
@@ -1242,23 +1578,33 @@ async function handlePrivateMessage(message, peerId, text) {
     return false;
   }
 
-  // Every user who writes to the bot in a direct dialog becomes a persistent notification subscriber.
+  // Only a user's direct dialog registers them for personal settings and notices.
   await rememberPrivateDialog(senderId);
 
-  const normalized = text.toLocaleLowerCase('ru-RU').replace(/^\/+/, '').trim();
-  if (/^(?:начать|старт|start|меню|menu|начать работу)$/iu.test(normalized)) {
-    await sendPrivateMenu(peerId);
-    console.log('[VK] private menu sent to user=' + peerId);
+  const normalized = text.toLocaleLowerCase('ru-RU').replace(/^\\/+/, '').trim();
+  const commandText = normalized.replace(/^[^\\p{L}\\p{N}]+/u, '').trim();
+
+  if (/^(?:начать|старт|start|меню|menu|начать работу)$/iu.test(commandText)) {
+    await updatePrivateUserSettings(senderId, { awaitingMenuTime: false });
+    await sendPrivateMenu(peerId, null, null, null, { forceNew: true });
+    console.log('[VK] private menu opened for user=' + peerId);
     return true;
   }
 
-  if (/^📄?\s*получить акцизы$/iu.test(normalized)) {
+  if (/^(?:настройки|settings)$/iu.test(commandText)) {
+    await updatePrivateUserSettings(senderId, { awaitingMenuTime: false });
+    await showPrivateSettings(peerId);
+    console.log('[VK] private settings opened for user=' + peerId);
+    return true;
+  }
+
+  if (/^📄?\\s*получить акцизы$/iu.test(normalized)) {
     await sendExcisesFile(peerId);
     console.log('[VK] requested excise Excel from private dialog user=' + peerId);
     return true;
   }
 
-  if (/^🧊?\s*опустошённые за сегодня$/iu.test(normalized)) {
+  if (/^🧊?\\s*опустошённые за сегодня$/iu.test(normalized)) {
     const response = await fetch(API_BASE_URL + '/api/vk-bot/emptied-today', {
       method: 'GET',
       headers: {
@@ -1274,7 +1620,7 @@ async function handlePrivateMessage(message, peerId, text) {
 
     const rooms = Array.isArray(data.rooms) ? data.rooms : [];
     const messageText = rooms.length
-      ? '🧊 Опустошённые за сегодня: ' + rooms.length + '\n\n' +
+      ? '🧊 Опустошённые за сегодня: ' + rooms.length + '\\n\\n' +
         rooms.map(room => String(room.number)).join(', ')
       : '🧊 Сегодня опустошённых номеров пока нет.';
     await sendPrivateText(peerId, messageText);
@@ -1282,9 +1628,48 @@ async function handlePrivateMessage(message, peerId, text) {
     return true;
   }
 
+  const settings = await getPrivateUserSettings(senderId);
+  if (settings.awaitingMenuTime) {
+    const match = text.trim().match(/^(\\d{1,2}):([0-5]\\d)$/u);
+    const hour = match ? Number(match[1]) : NaN;
+    if (!match || hour < 0 || hour > 23) {
+      const prompt = '✍️ Отправь время в формате ЧЧ:ММ, например 09:30.\\n' +
+        'Чтобы отменить изменение, нажми «Отмена» под этим сообщением.';
+      if (settings.settingsMessageCmid) {
+        await editPrivateMessage(
+          peerId,
+          settings.settingsMessageCmid,
+          prompt,
+          buildPrivateSettingsKeyboard(settings)
+        );
+      } else {
+        await sendPrivateText(peerId, prompt);
+      }
+      return true;
+    }
+
+    const time = String(hour).padStart(2, '0') + ':' + match[2];
+    const updatedSettings = await updatePrivateUserSettings(senderId, {
+      dailyMenuTime: time,
+      awaitingMenuTime: false
+    });
+    const confirmationText = '✅ Время ежедневной отправки сохранено.\\n\\n' +
+      formatPrivateSettingsText(updatedSettings);
+    if (updatedSettings.settingsMessageCmid) {
+      await editPrivateMessage(
+        peerId,
+        updatedSettings.settingsMessageCmid,
+        confirmationText,
+        buildPrivateSettingsKeyboard(updatedSettings)
+      );
+    } else {
+      await sendPrivateText(peerId, confirmationText, buildPrivateSettingsKeyboard(updatedSettings));
+    }
+    return true;
+  }
+
   return false;
 }
-
 async function forwardToBackend(payload) {
   let lastError = null;
 
@@ -1388,7 +1773,8 @@ async function handleCallback(req, res) {
           await answerMessageEvent(
             event,
             payload?.command === 'deadlines_valid' ? 'Обновляю «Сроки»…' :
-            payload?.command === 'clear_excises' ? 'Очищаю акцизы…' : 'Готово'
+            payload?.command === 'clear_excises' ? 'Очищаю акцизы…' :
+            String(payload?.command || '').startsWith('settings_') ? 'Сохраняю настройки…' : 'Готово'
           );
         } catch (answerError) {
           console.error('[VK] immediate message event acknowledgement failed:', answerError.message);
@@ -1398,18 +1784,21 @@ async function handleCallback(req, res) {
           await handleDeadlinesValidButton(event, payload);
         } else if (payload?.command === 'clear_excises') {
           await handleClearExcisesButton(event, payload);
+        } else if (String(payload?.command || '').startsWith('settings_')) {
+          await handlePrivateSettingsButton(event, payload);
         } else {
           console.warn('[VK] unknown inline callback payload');
         }
       } catch (error) {
         console.error('[VK] inline button handling failed:', error.message);
         try {
-          await sendPrivateText(
-            String(event.peer_id || ''),
-            payload?.command === 'clear_excises'
-              ? '⚠️ Не удалось очистить акцизы. Попробуй нажать кнопку ещё раз.'
-              : '⚠️ Не удалось обновить «Сроки». Проверь номер и попробуй нажать кнопку ещё раз.'
-          );
+          const command = String(payload?.command || '');
+          const errorText = command === 'clear_excises'
+            ? '⚠️ Не удалось очистить акцизы. Попробуй нажать кнопку ещё раз.'
+            : command.startsWith('settings_')
+              ? '⚠️ Не удалось сохранить настройки. Попробуй нажать кнопку ещё раз.'
+              : '⚠️ Не удалось обновить «Сроки». Проверь номер и попробуй нажать кнопку ещё раз.';
+          await sendPrivateText(String(event.peer_id || ''), errorText);
         } catch (notifyError) {
           console.error('[VK] failed to send inline button error notice:', notifyError.message);
         }
@@ -1554,7 +1943,9 @@ function startServer() {
     );
     void ensureMessageEventSubscription();
     void checkExciseMenuState();
+    void checkDailyPrivateMenus();
     setInterval(() => { void checkExciseMenuState(); }, 10000);
+    setInterval(() => { void checkDailyPrivateMenus(); }, 15000);
   });
 }
 
