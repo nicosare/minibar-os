@@ -22,7 +22,7 @@ router.get('/emptied-today', async (req, res) => {
     const to = addLocalDays(from, 1);
     const items = await prisma.check.findMany({
       where: {
-        type: { in: ['vk_emptied', 'emptied'] },
+        type: 'vk_emptied',
         status: 'done',
         checkDate: { gte: from, lt: to },
         roomId: { not: null }
