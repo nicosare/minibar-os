@@ -223,7 +223,7 @@ async function handlePrivateMessage(message, peerId, text) {
 
     const rooms = Array.isArray(data.rooms) ? data.rooms : [];
     const messageText = rooms.length
-      ? '🧊 Опустошённые за сегодня: ' + rooms.length + '\\n\\n' +
+      ? '🧊 Опустошённые за сегодня: ' + rooms.length + '\n\n' +
         rooms.map(room => String(room.number)).join(', ')
       : '🧊 Сегодня опустошённых номеров пока нет.';
     await sendPrivateText(peerId, messageText);
