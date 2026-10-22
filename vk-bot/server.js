@@ -21,6 +21,16 @@ const groupId = String(
   process.env.VK_BOT_GROUP_ID || ''
 ).trim();
 
+const VK_ACCESS_TOKEN = String(
+  process.env.VK_BOT_ACCESS_TOKEN || process.env.VK_ACCESS_TOKEN || ''
+).trim();
+
+const VK_API_VERSION = String(
+  process.env.VK_API_VERSION || '5.199'
+).trim();
+
+const MINI_APP_ID = 54809268;
+
 const httpPort = Number(
   process.env.VK_BOT_HTTP_PORT || 3002
 );
@@ -109,6 +119,107 @@ function readBody(req, limit = 1024 * 1024) {
 
     req.on('error', reject);
   });
+}
+
+async function sendPrivateMenu(peerId) {
+  if (!VK_ACCESS_TOKEN) {
+    throw new Error('VK_BOT_ACCESS_TOKEN не настроен');
+  }
+
+  const keyboard = {
+    one_time: false,
+    buttons: [
+      [{
+        action: {
+          type: 'open_app',
+          label: '📱 Открыть Mini App',
+          app_id: MINI_APP_ID
+        }
+      }],
+      [{
+        action: {
+          type: 'text',
+          label: '🧊 Опустошённые за сегодня',
+          payload: JSON.stringify({ command: 'emptied_today' })
+        },
+        color: 'primary'
+      }]
+    ]
+  };
+
+  const params = new URLSearchParams({
+    peer_id: String(peerId),
+    message: 'Меню MINIBAR OS',
+    keyboard: JSON.stringify(keyboard),
+    random_id: String(Math.floor(Math.random() * 2147483647) + 1),
+    access_token: VK_ACCESS_TOKEN,
+    v: VK_API_VERSION
+  });
+
+  const response = await fetch('https://api.vk.com/method/messages.send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+    body: params
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok || data.error) {
+    throw new Error(data.error?.error_msg || 'VK messages.send failed');
+  }
+}
+
+async function sendPrivateText(peerId, message) {
+  if (!VK_ACCESS_TOKEN) {
+    throw new Error('VK_BOT_ACCESS_TOKEN не настроен');
+  }
+
+  const params = new URLSearchParams({
+    peer_id: String(peerId),
+    message,
+    random_id: String(Math.floor(Math.random() * 2147483647) + 1),
+    access_token: VK_ACCESS_TOKEN,
+    v: VK_API_VERSION
+  });
+
+  const response = await fetch('https://api.vk.com/method/messages.send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+    body: params
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok || data.error) {
+    throw new Error(data.error?.error_msg || 'VK messages.send failed');
+  }
+}
+
+async function handlePrivateMessage(message, peerId, text) {
+  const senderId = Number(message.from_id);
+  const peerNumber = Number(peerId);
+  const isDirectDialog = Number.isSafeInteger(senderId) &&
+    senderId > 0 &&
+    peerNumber === senderId;
+
+  if (!isDirectDialog || message.out === 1 || senderId === -Number(groupId)) {
+    return false;
+  }
+
+  const normalized = text.toLocaleLowerCase('ru-RU').replace(/^\\/+/, '').trim();
+  if (/^(?:начать|старт|start|меню|menu|начать работу)$/iu.test(normalized)) {
+    await sendPrivateMenu(peerId);
+    console.log('[VK] private menu sent to user=' + peerId);
+    return true;
+  }
+
+  if (/^🧊?\\s*опустошённые за сегодня$/iu.test(normalized)) {
+    await sendPrivateText(
+      peerId,
+      'Раздел «Опустошённые за сегодня» добавлен в меню; подключение списка будет следующим этапом.'
+    );
+    return true;
+  }
+
+  return false;
 }
 
 async function forwardToBackend(payload) {
@@ -205,7 +316,20 @@ async function handleCallback(req, res) {
   const peerId = String(message.peer_id ?? '').trim();
   const text = String(message.text || '').trim();
 
-  if (!peerId || !allowedPeerIds.has(peerId) || !text) {
+  if (!peerId || !text) {
+    return sendText(res, 200, 'ok');
+  }
+
+  try {
+    if (await handlePrivateMessage(message, peerId, text)) {
+      return sendText(res, 200, 'ok');
+    }
+  } catch (error) {
+    console.error('[VK] private menu handling failed for peer=' + peerId + ':', error.message);
+    return sendJson(res, 500, { error: 'VK private menu handling failed' });
+  }
+
+  if (!allowedPeerIds.has(peerId)) {
     return sendText(res, 200, 'ok');
   }
 
