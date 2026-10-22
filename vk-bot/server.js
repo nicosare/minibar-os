@@ -1686,39 +1686,56 @@ function formatRoomDateTime(value) {
     pad(localDate.getUTCHours()) + ':' + pad(localDate.getUTCMinutes());
 }
 
-function roomOperationalStatusLabel(lastAction, lastCheck) {
-  const latest = lastAction || lastCheck;
-  if (!latest) return 'Нет данных';
-  if (['vk_emptied', 'emptied', 'empty'].includes(String(latest.type || ''))) {
+function roomOperationalStatusLabel(data) {
+  const lastAction = data?.lastAction || null;
+  if (lastAction && ['vk_emptied', 'emptied', 'empty'].includes(String(lastAction.type || ''))) {
     return 'Опустошён';
   }
-  if (/жилой/iu.test(String(latest.notes || ''))) return 'Жилой';
-  if (['vk_room', 'replenished'].includes(String(latest.type || ''))) {
-    return 'Полный / пополнен';
+  if (Array.isArray(data?.refillProducts) && data.refillProducts.length) {
+    return 'Нужно пополнить';
   }
-  return 'Проверен';
+  return 'Полный';
 }
 
 function roomDeadlineStatusLabel(status) {
   const labels = {
     neutral: 'Не проверен',
-    empty: 'Пустой',
+    empty: 'Опустошён',
     valid: 'В порядке',
-    needs_replacement: 'Требует замены'
+    needs_replacement: 'Заменить'
   };
   return labels[String(status || '')] || (status ? String(status) : 'Неизвестен');
+}
+
+function formatProductQuantities(items, quantityKey) {
+  return (Array.isArray(items) ? items : [])
+    .filter(item => Math.max(0, Number(item?.[quantityKey]) || 0) > 0)
+    .map(item => cleanHistoryText(item?.name || 'Продукт', 70) +
+      (Number(item?.[quantityKey]) > 1 ? ' ×' + Number(item[quantityKey]) : ''))
+    .join(', ');
 }
 
 function formatPrivateRoomInfo(data) {
   const room = data?.room || {};
   const lastCheck = data?.lastCheck || null;
-  const lastAction = data?.lastAction || null;
-  return [
+  const status = roomOperationalStatusLabel(data);
+  const deadlineProducts = formatProductQuantities(data?.deadlineProducts, 'qtyToReplace');
+  const refillProducts = formatProductQuantities(data?.refillProducts, 'qty');
+  const note = cleanHistoryText(lastCheck?.notes, 220);
+  const lines = [
     '🏨 Номер ' + String(room.number || '—'),
     'Последняя проверка: ' + (lastCheck ? formatRoomDateTime(lastCheck.checkDate) : 'Нет данных'),
-    'Статус: ' + roomOperationalStatusLabel(lastAction, lastCheck),
-    'Статус сроков: ' + roomDeadlineStatusLabel(room.expiryStatus)
-  ].join('\n');
+    'Статус: ' + status
+  ];
+  if (status === 'Нужно пополнить' && refillProducts) {
+    lines.push('Продукты: ' + refillProducts);
+  }
+  lines.push('Статус сроков: ' + roomDeadlineStatusLabel(room.expiryStatus));
+  if (room.expiryStatus === 'needs_replacement' && deadlineProducts) {
+    lines.push('Продукты: ' + deadlineProducts);
+  }
+  if (note) lines.push('Комментарий: ' + note);
+  return lines.join('\n');
 }
 
 function roomCallbackButton(label, command, extra = {}, color = 'primary') {
@@ -1741,20 +1758,8 @@ function cleanHistoryText(value, maxLength = 140) {
 }
 
 function roomHistoryTypeLabel(record) {
-  const notes = String(record?.notes || '');
-  if (record?.type === 'vk_emptied' || record?.type === 'emptied') return 'Опустошён';
-  if (record?.type === 'vk_room') {
-    if (/жилой/iu.test(notes)) return 'Жилой';
-    return 'Полный / пополнен';
-  }
-  const labels = {
-    check: 'Проверка',
-    daily: 'Ежедневная проверка',
-    room: 'Проверка номера',
-    replenished: 'Пополнен',
-    empty: 'Опустошён'
-  };
-  return labels[String(record?.type || '')] || String(record?.type || 'Проверка');
+  if (record?.type === 'vk_emptied' || record?.type === 'emptied') return 'Опустошение';
+  return 'Проверка';
 }
 
 function gihHistorySummary(record) {
@@ -1766,49 +1771,55 @@ function gihHistorySummary(record) {
     empty: 'Опустошён',
     not_checked: 'Не проверен'
   };
-  if (modeLabels[mode]) return modeLabels[mode];
+  return modeLabels[mode] || '';
+}
 
-  const statuses = (Array.isArray(record?.gihItems) ? record.gihItems : [])
-    .map(item => String(item?.itemStatus || 'pending'));
-  const hasReplenished = statuses.includes('replenished');
-  const hasNotReplenished = statuses.includes('not_replenished');
-  if (!hasReplenished) return 'Проверен';
-  if (hasNotReplenished) return 'Частично пополнен';
-  return 'Пополнен';
+function formatGihStatusGroups(record) {
+  const mode = String(record?.gihRoomStatus || '');
+  if (['dnd', 'empty', 'not_checked'].includes(mode)) return [];
+
+  const modeStatus = mode === 'all_in_place' ? 'in_place'
+    : mode === 'all_out' ? 'out' : null;
+  const labels = {
+    replenished: 'Пополнено',
+    in_place: 'На месте',
+    out: 'Выложили',
+    not_replenished: 'Не пополнено',
+    pending: 'Не размечено'
+  };
+  const groups = new Map();
+  for (const item of Array.isArray(record?.gihItems) ? record.gihItems : []) {
+    const status = modeStatus || String(item?.itemStatus || 'pending');
+    const name = cleanHistoryText(item?.productName || 'Продукт', 70);
+    if (!groups.has(status)) groups.set(status, new Map());
+    const products = groups.get(status);
+    products.set(name, (products.get(name) || 0) + 1);
+  }
+  const order = ['replenished', 'in_place', 'out', 'not_replenished', 'pending'];
+  return order.filter(status => groups.has(status)).map(status => {
+    const products = [...groups.get(status)].map(([name, qty]) =>
+      name + (qty > 1 ? ' ×' + qty : '')
+    ).join(', ');
+    return labels[status] + ': ' + products;
+  });
 }
 
 function formatRoomHistoryRecord(record, section) {
   const date = formatRoomDateTime(record?.checkDate);
-  const notes = cleanHistoryText(record?.notes, 180);
+  const notes = cleanHistoryText(record?.notes, 220);
   if (section !== 'gih') {
-    const label = roomHistoryTypeLabel(record);
-    const lines = ['• ' + date + ' — ' + label];
-    if (notes && notes !== label) lines.push('  ' + notes);
+    const operation = roomHistoryTypeLabel(record);
+    const lines = ['• ' + date + ' — Операция: ' + operation];
+    if (notes && notes !== operation && notes !== 'Проверен, жилой') {
+      lines.push('  Комментарий: ' + notes);
+    }
     return lines.join('\n');
   }
 
-  const mode = String(record?.gihRoomStatus || '');
-  const items = Array.isArray(record?.gihItems) ? record.gihItems : [];
-  const modeOverridesStatus = mode === 'all_in_place' || mode === 'all_out';
-  const itemLines = items.slice(0, 3).map(item => {
-    let itemStatus = String(item?.itemStatus || 'pending');
-    if (mode === 'all_in_place') itemStatus = 'in_place';
-    if (mode === 'all_out') itemStatus = 'out';
-    const labels = {
-      replenished: 'Пополнено',
-      in_place: 'На месте',
-      out: 'Выложили',
-      not_replenished: 'Не пополнено',
-      pending: 'Не указано'
-    };
-    const name = cleanHistoryText(item?.productName || 'Продукт', 60);
-    return '    · ' + name + ': ' + (labels[itemStatus] || itemStatus);
-  });
-  if (items.length > 3) itemLines.push('    · Ещё позиций: ' + (items.length - 3));
-
-  const lines = ['• ' + date + ' — GIH: ' + gihHistorySummary(record)];
-  if (notes) lines.push('  ' + notes);
-  if (itemLines.length && !modeOverridesStatus) lines.push(...itemLines);
+  const mode = gihHistorySummary(record);
+  const lines = ['• ' + date + ' — GIH' + (mode ? ': ' + mode : '')];
+  lines.push(...formatGihStatusGroups(record));
+  if (notes && notes !== 'Проверен, жилой') lines.push('Комментарий: ' + notes);
   return lines.join('\n');
 }
 
@@ -1828,9 +1839,9 @@ function buildRoomHistoryKeyboard(roomNumber, section, count, hasMore) {
   const buttons = [];
   if (hasMore && count < 100) {
     buttons.push([roomCallbackButton(
-      'Показать ещё 5',
+      'Ещё',
       section === 'gih' ? 'room_gih_more' : 'room_history_more',
-      { roomNumber: Number(roomNumber), count: Math.min(100, count + 5) }
+      { roomNumber: Number(roomNumber), count: Math.min(100, count + 3) }
     )]);
   }
   buttons.push([
