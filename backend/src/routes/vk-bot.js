@@ -4,11 +4,9 @@ import { publishDataChanged } from '../lib/live-events.js';
 import { prisma } from '../lib/prisma.js';
 import {
   clientOffset,
-  startOfLocalDay,
-  endOfLocalMonth,
-  addLocalDays,
-  daysLeftInclusive
+  startOfLocalDay
 } from '../lib/timezone.js';
+import { ensureTodayTarget } from '../services/deadlines.js';
 import { buildEmptiedTodayRooms } from '../services/emptiedToday.js';
 import { todayRange, getMiniAppDepartureList } from './departures.js';
 
@@ -26,15 +24,16 @@ router.get('/emptied-today', async (req, res) => {
   }
 
   try {
-    const from = startOfLocalDay(new Date());
-    const to = addLocalDays(from, 1);
+    // Use the same explicit local-day boundaries as the operational list summary.
+    // Do not add a day to a UTC-midnight date-only value: that shifts the range.
+    const range = todayRange(req);
     // A room belongs in the list only if its latest operational event today
     // is an emptying. A later vk_room event means it was checked/refilled.
     const items = await prisma.check.findMany({
       where: {
         type: { in: ['vk_emptied', 'vk_room'] },
         status: 'done',
-        checkDate: { gte: from, lt: to },
+        checkDate: { gte: range.start, lt: range.end },
         roomId: { not: null }
       },
       select: {
@@ -49,7 +48,7 @@ router.get('/emptied-today', async (req, res) => {
     const rooms = buildEmptiedTodayRooms(items);
 
     res.set('Cache-Control', 'no-store');
-    return res.json({ date: from.toISOString().slice(0, 10), total: rooms.length, rooms });
+    return res.json({ date: range.dateKey, total: rooms.length, rooms });
   } catch (error) {
     console.error('GET /api/vk-bot/emptied-today error:', error);
     return res.status(500).json({ error: 'Не удалось загрузить опустошённые номера за сегодня' });
@@ -66,7 +65,6 @@ router.get('/summary', async (req, res) => {
     const offset = clientOffset(req);
     const range = todayRange(req);
     const today = startOfLocalDay(now, offset);
-    const monthEnd = endOfLocalMonth(now, offset);
 
     const [
       arrivalsList,
@@ -97,7 +95,7 @@ router.get('/summary', async (req, res) => {
         where: { expiryStatus: { in: ['neutral', 'needs_replacement'] } }
       }),
       prisma.excise.findMany({ select: { markNumber: true } }),
-      prisma.deadlineTarget.findUnique({ where: { date: today } }),
+      prisma.$transaction(tx => ensureTodayTarget(tx, offset)),
       getMiniAppDepartureList(req)
     ]);
 
@@ -108,13 +106,8 @@ router.get('/summary', async (req, res) => {
         .filter(id => Number.isSafeInteger(id) && id > 0)
     );
 
-    const daysLeft = daysLeftInclusive(today, monthEnd);
-    const target = todayTarget?.lockedAt
-      ? Number(todayTarget.targetCount) || 0
-      : Math.ceil(badRooms / daysLeft);
-    const processed = todayTarget?.lockedAt
-      ? Math.max(0, Number(todayTarget.startBadCount || 0) - badRooms)
-      : 0;
+    const target = Math.max(0, Number(todayTarget?.targetCount) || 0);
+    const processed = Math.max(0, Number(todayTarget?.startBadCount || 0) - badRooms);
     const exciseCount = exciseRows.length;
     const validExciseCount = exciseRows.filter(row => {
       const mark = String(row.markNumber || '').trim();
