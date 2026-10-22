@@ -168,19 +168,21 @@ async function sendPrivateMenu(peerId) {
   }
 }
 
-async function sendPrivateText(peerId, message) {
+async function sendPrivateText(peerId, message, keyboard = null) {
   if (!VK_ACCESS_TOKEN) {
     throw new Error('VK_BOT_ACCESS_TOKEN не настроен');
   }
 
-  const params = new URLSearchParams({
+  const values = {
     peer_id: String(peerId),
     message,
     random_id: String(Math.floor(Math.random() * 2147483647) + 1),
     access_token: VK_ACCESS_TOKEN,
     v: VK_API_VERSION
-  });
+  };
+  if (keyboard) values.keyboard = JSON.stringify(keyboard);
 
+  const params = new URLSearchParams(values);
   const response = await fetch('https://api.vk.com/method/messages.send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
@@ -193,6 +195,144 @@ async function sendPrivateText(peerId, message) {
   }
 }
 
+function parseMessagePayload(message) {
+  const raw = message?.payload;
+  if (raw && typeof raw === 'object') return raw;
+  if (typeof raw !== 'string') return null;
+
+  try {
+    const payload = JSON.parse(raw);
+    return payload && typeof payload === 'object' ? payload : null;
+  } catch {
+    return null;
+  }
+}
+
+async function handleDeadlinesValidButton(peerId, payload) {
+  const roomId = Number(payload?.roomId);
+  const roomNumber = Number(payload?.roomNumber);
+  if (!Number.isSafeInteger(roomId) || roomId <= 0 ||
+      !Number.isSafeInteger(roomNumber) || roomNumber < 100 || roomNumber > 9999) {
+    await sendPrivateText(peerId, 'Не удалось определить номер для изменения «Сроков».');
+    return;
+  }
+
+  const roomResponse = await fetch(API_BASE_URL + '/api/rooms/' + roomId);
+  const room = await roomResponse.json().catch(() => ({}));
+  if (!roomResponse.ok || room.error) {
+    throw new Error(room.error || 'Не удалось загрузить номер');
+  }
+  if (Number(room.number) !== roomNumber) {
+    await sendPrivateText(peerId, 'Номер в уведомлении уже не совпадает с данными системы. Ничего не изменено.');
+    return;
+  }
+
+  const statusesResponse = await fetch(
+    API_BASE_URL + '/api/rooms/' + roomId + '/product-statuses'
+  );
+  const statuses = await statusesResponse.json().catch(() => []);
+  if (!statusesResponse.ok || !Array.isArray(statuses)) {
+    throw new Error('Не удалось проверить продукты в «Сроках»');
+  }
+
+  if (room.expiryStatus === 'valid' && statuses.length === 0) {
+    await sendPrivateText(peerId, '✅ Номер ' + roomNumber + ': в «Сроках» уже отмечено «В порядке».');
+    return;
+  }
+
+  // The button is valid for the just-refilled room only while its status is still neutral.
+  // This also makes repeated taps idempotent and prevents stale buttons overwriting new work.
+  if ((room.expiryStatus || 'neutral') !== 'neutral' || statuses.length > 0) {
+    await sendPrivateText(
+      peerId,
+      'Статус номера ' + roomNumber + ' уже изменился. Ничего не менял.'
+    );
+    return;
+  }
+
+  // Use the exact endpoint used by the website's «В порядке» action.
+  const updateResponse = await fetch(
+    API_BASE_URL + '/api/rooms/' + roomId + '/product-statuses',
+    {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roomStatus: 'valid' })
+    }
+  );
+  const updateResult = await updateResponse.json().catch(() => ({}));
+  if (!updateResponse.ok || updateResult.error) {
+    throw new Error(updateResult.error || 'Не удалось обновить «Сроки»');
+  }
+
+  await sendPrivateText(
+    peerId,
+    '✅ Номер ' + roomNumber + ' отмечен в «Сроках» как «В порядке».'
+  );
+  console.log('[VK] deadlines marked valid for room=' + roomNumber + ' user=' + peerId);
+}
+
+function deadlinesValidKeyboard(roomId, roomNumber, eventId) {
+  return {
+    one_time: false,
+    buttons: [[{
+      action: {
+        type: 'text',
+        label: 'Сроки в порядке',
+        payload: JSON.stringify({
+          command: 'deadlines_valid',
+          roomId: Number(roomId),
+          roomNumber: Number(roomNumber),
+          eventId: String(eventId || '')
+        })
+      },
+      color: 'positive'
+    }]]
+  };
+}
+
+async function sendDeadlineNotifications(peerId, notifications, eventId) {
+  const recipientId = Number(peerId);
+  if (!Number.isSafeInteger(recipientId) || recipientId <= 0 || !Array.isArray(notifications)) {
+    return;
+  }
+
+  for (const notification of notifications) {
+    const roomNumber = Number(notification?.roomNumber);
+    if (!Number.isSafeInteger(roomNumber) || roomNumber < 100 || roomNumber > 9999) continue;
+
+    try {
+      if (notification.type === 'emptied_with_deadlines') {
+        const products = Array.isArray(notification.products) ? notification.products : [];
+        if (!products.length) continue;
+        const productLines = products.map(item => {
+          const name = String(item?.name || 'Без названия');
+          const qty = Number(item?.qtyToReplace) || 0;
+          return '• ' + name + (qty > 0 ? ' — ' + qty + ' шт.' : '');
+        });
+        await sendPrivateText(
+          recipientId,
+          '🧊 Номер ' + roomNumber + ' опустошён.\n\n' +
+          'В «Сроках» были отмечены продукты:\n' + productLines.join('\n') +
+          '\n\nОтметки продуктов для этого номера очищены.'
+        );
+      } else if (notification.type === 'refilled_empty') {
+        await sendPrivateText(
+          recipientId,
+          '✅ Номер ' + roomNumber + ' пополнен после опустошения.\n\n' +
+          'Нажми кнопку ниже, чтобы отметить «Сроки» этого номера как «В порядке».',
+          deadlinesValidKeyboard(notification.roomId, roomNumber, eventId)
+        );
+      }
+    } catch (error) {
+      // A private-message failure must never roll back or reprocess the room check.
+      console.error(
+        '[VK] deadline notification failed for room=' + roomNumber +
+        ' user=' + recipientId + ': ' + error.message
+      );
+    }
+  }
+}
+
 async function handlePrivateMessage(message, peerId, text) {
   const senderId = Number(message.from_id);
   const peerNumber = Number(peerId);
@@ -202,6 +342,12 @@ async function handlePrivateMessage(message, peerId, text) {
 
   if (!isDirectDialog || message.out === 1 || senderId === -Number(groupId)) {
     return false;
+  }
+
+  const payload = parseMessagePayload(message);
+  if (payload?.command === 'deadlines_valid') {
+    await handleDeadlinesValidButton(peerId, payload);
+    return true;
   }
 
   const normalized = text.toLocaleLowerCase('ru-RU').replace(/^\/+/, '').trim();
@@ -367,10 +513,12 @@ async function handleCallback(req, res) {
     ])
   );
 
+  const senderId = Number(message.from_id);
   const payload = {
     eventId,
     peerId,
     messageId,
+    senderId: Number.isSafeInteger(senderId) && senderId > 0 ? senderId : null,
     text,
     occurredAt: message.date
       ? new Date(Number(message.date) * 1000).toISOString()
@@ -388,6 +536,10 @@ async function handleCallback(req, res) {
       (result.unavailableRooms?.length ? ' unavailable=' + JSON.stringify(result.unavailableRooms) : '') +
       (result.missingRooms?.length ? ' missing=' + JSON.stringify(result.missingRooms) : '')
     );
+
+    if (result.status === 'processed' && result.notifications?.length) {
+      await sendDeadlineNotifications(senderId, result.notifications, result.eventId || eventId);
+    }
 
     return sendText(res, 200, 'ok');
   } catch (error) {
