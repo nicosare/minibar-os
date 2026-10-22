@@ -1426,9 +1426,21 @@
     max-width: 600px;
     margin: 0 auto 16px;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 10px;
     overflow: hidden;
+  }
+
+  .photo-room-caption {
+    flex: 0 0 auto;
+    max-width: 100%;
+    color: var(--yellow);
+    font-size: 16px;
+    line-height: 20px;
+    font-weight: 850;
+    text-align: center;
   }
 
   .photo-modal-actions {
@@ -1632,6 +1644,7 @@
 <!-- Still Photo Preview Modal -->
 <div class="photo-modal" id="photoModal" role="dialog" aria-modal="true" aria-label="Предпросмотр фотографии" aria-hidden="true">
   <div class="photo-preview-area">
+    <div class="photo-room-caption" id="photoRoomCaption">Номер —</div>
     <canvas id="photo" class="hidden" aria-label="Снимок"></canvas>
   </div>
   <div class="photo-modal-actions">
@@ -2515,6 +2528,7 @@ updateOrientationFromScreen();
 const video = document.getElementById('camera');
 const photo = document.getElementById('photo');
 const photoModal = document.getElementById('photoModal');
+const photoRoomCaption = document.getElementById('photoRoomCaption');
 const canvas = photo;
 const cameraLoader = document.getElementById('cameraLoader');
 const loaderSpinner = document.getElementById('loaderSpinner');
@@ -3617,6 +3631,7 @@ function showPreviewFromCanvas() {
   previewActions.classList.remove('hidden');
   carouselWrap.classList.add('disabled');
 
+  if (photoRoomCaption) photoRoomCaption.textContent = previewRoomNumber ? ('Номер ' + previewRoomNumber) : 'Номер —';
   photoModal.classList.add('open');
   photoModal.setAttribute('aria-hidden', 'false');
   isPreview = true;
@@ -4282,6 +4297,17 @@ carousel.addEventListener('click', event => {
   const item = event.target.closest('.num-item');
   if (!item) return;
   selectRoomByNumber(item.dataset.number);
+  // Tapping a room pins it even when it was already the active room.
+  triggerHaptic();
+});
+
+// Any action button in the camera workspace pins the currently active room.
+// This keeps follow-up actions (including buttons below the viewfinder) tied to that room.
+document.querySelector('.main-content')?.addEventListener('click', event => {
+  const button = event.target.closest('button');
+  if (!button || button.classList.contains('num-item') || !selectedRoom?.number) return;
+  pinnedRoomNumber = String(selectedRoom.number);
+  updatePinnedCarouselItem();
 });
 
 /* Bottom Sheet Drawer */
