@@ -786,14 +786,18 @@ function buildPrivateSettingsKeyboard(settings) {
     };
   }
 
+  // VK inline keyboards support at most 6 rows. Keep the daily menu toggle
+  // and time picker together; the persistent bottom keyboard already has Menu.
   const buttons = [
-    [privateSettingsButton(
-      'Ежедневное меню: ' + (settings.dailyMenuEnabled ? 'Вкл.' : 'Выкл.'),
-      'settings_toggle_daily_menu',
-      {},
-      settings.dailyMenuEnabled ? 'positive' : 'secondary'
-    )],
-    [privateSettingsButton('Время отправки: ' + settings.dailyMenuTime, 'settings_set_menu_time')],
+    [
+      privateSettingsButton(
+        'Ежедневное меню: ' + (settings.dailyMenuEnabled ? 'Вкл.' : 'Выкл.'),
+        'settings_toggle_daily_menu',
+        {},
+        settings.dailyMenuEnabled ? 'positive' : 'secondary'
+      ),
+      privateSettingsButton('Время: ' + settings.dailyMenuTime, 'settings_set_menu_time')
+    ],
     [privateSettingsButton(
       'Все уведомления: ' + (settings.notificationsEnabled ? 'Вкл.' : 'Выкл.'),
       'settings_toggle_notifications',
@@ -812,7 +816,6 @@ function buildPrivateSettingsKeyboard(settings) {
     )]);
   }
 
-  buttons.push([privateSettingsButton('📋 Открыть меню', 'settings_show_menu', {}, 'primary')]);
   return { inline: true, buttons };
 }
 
