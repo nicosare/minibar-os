@@ -204,14 +204,14 @@ async function handlePrivateMessage(message, peerId, text) {
     return false;
   }
 
-  const normalized = text.toLocaleLowerCase('ru-RU').replace(/^\\/+/, '').trim();
+  const normalized = text.toLocaleLowerCase('ru-RU').replace(/^\/+/, '').trim();
   if (/^(?:начать|старт|start|меню|menu|начать работу)$/iu.test(normalized)) {
     await sendPrivateMenu(peerId);
     console.log('[VK] private menu sent to user=' + peerId);
     return true;
   }
 
-  if (/^🧊?\\s*опустошённые за сегодня$/iu.test(normalized)) {
+  if (/^🧊?\s*опустошённые за сегодня$/iu.test(normalized)) {
     await sendPrivateText(
       peerId,
       'Раздел «Опустошённые за сегодня» добавлен в меню; подключение списка будет следующим этапом.'
