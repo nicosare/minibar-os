@@ -266,7 +266,7 @@ function formatMenuDate(dateKey) {
 
 function formatMenuListLine(label, list) {
   if (!list || list.formed !== true || !Number.isFinite(Number(list.count))) {
-    return label + ': ещё не сформирован';
+    return label + ': ещё неизвестно';
   }
   const count = Math.max(0, Math.trunc(Number(list.count)));
   return label + ': ' + count + ' ' + russianCount(count, ['номер', 'номера', 'номеров']);
