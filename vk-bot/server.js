@@ -838,12 +838,17 @@ async function handleClearExcisesButton(event, payload) {
   const confirmation = data.deleted > 0
     ? '✅ Акцизы очищены в базе данных. Удалено: ' + data.deleted + '.'
     : 'ℹ️ Акцизы из этого файла уже очищены. Новые марки сохранены.';
-  // Do not edit the message that contains the Excel attachment: editing it as a
-  // plain-text confirmation removes the file. Keep the original file/button intact.
+  // Keep the Excel document attached while updating the status and removing the inline button.
+  // If VK does not return the original attachment metadata, leave that message untouched.
   try {
-    await sendPrivateText(peerId, confirmation);
+    await editPrivateMessagePreservingAttachments(peerId, cmid, confirmation);
   } catch (error) {
-    console.error('[VK] could not send excise cleanup confirmation: ' + error.message);
+    console.warn('[VK] could not edit excise message while preserving its Excel file: ' + error.message);
+    try {
+      await sendPrivateText(peerId, confirmation);
+    } catch (notifyError) {
+      console.error('[VK] could not send excise cleanup confirmation: ' + notifyError.message);
+    }
   }
 
   // The regular monitor refreshes the existing pinned menu in place. It must not
@@ -865,6 +870,59 @@ function parseMessagePayload(message) {
     return payload && typeof payload === 'object' ? payload : null;
   } catch {
     return null;
+  }
+}
+
+async function editPrivateMessagePreservingAttachments(peerId, conversationMessageId, messageText) {
+  const cmid = Number(conversationMessageId);
+  if (!Number.isSafeInteger(cmid) || cmid <= 0) {
+    throw new Error('Не удалось определить сообщение с Excel-файлом');
+  }
+
+  const found = await callVkApi('messages.getByConversationMessageId', {
+    peer_id: String(peerId),
+    conversation_message_ids: String(cmid)
+  });
+  const original = Array.isArray(found?.items)
+    ? (found.items.find(item => Number(item.conversation_message_id) === cmid) || found.items[0])
+    : null;
+  if (!original) {
+    throw new Error('VK не вернул исходное сообщение с Excel-файлом');
+  }
+
+  const attachments = (Array.isArray(original.attachments) ? original.attachments : [])
+    .map(item => {
+      const type = String(item?.type || '').trim();
+      const media = type ? item[type] : null;
+      if (!type || !media || media.owner_id == null || media.id == null) {
+        throw new Error('Не удалось безопасно сохранить одно из вложений сообщения');
+      }
+      return type + String(media.owner_id) + '_' + String(media.id) +
+        (media.access_key ? '_' + String(media.access_key) : '');
+    });
+
+  // An empty attachment list would replace and remove the Excel document, so refuse to edit.
+  if (!attachments.length || !attachments.some(value => value.startsWith('doc'))) {
+    throw new Error('В исходном сообщении не найден документ для сохранения');
+  }
+
+  const params = new URLSearchParams({
+    peer_id: String(peerId),
+    conversation_message_id: String(cmid),
+    message: String(messageText || ''),
+    attachment: attachments.join(','),
+    keyboard: JSON.stringify({ inline: true, buttons: [] }),
+    access_token: VK_ACCESS_TOKEN,
+    v: VK_API_VERSION
+  });
+  const response = await fetch('https://api.vk.com/method/messages.edit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+    body: params
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.error || data.response !== 1) {
+    throw new Error(data.error?.error_msg || 'VK messages.edit failed');
   }
 }
 
