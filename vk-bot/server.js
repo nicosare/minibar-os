@@ -1,5 +1,7 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 const API_BASE_URL = String(
   process.env.MINIBAR_API_URL || 'http://backend:3000'
@@ -30,6 +32,51 @@ const VK_API_VERSION = String(
 ).trim();
 
 const MINI_APP_ID = 54809268;
+const PRIVATE_DIALOGS_FILE = process.env.VK_BOT_PRIVATE_DIALOGS_FILE || '/data/private-dialogs.json';
+const privateDialogIds = new Set();
+let privateDialogsLoaded = false;
+
+async function loadPrivateDialogs() {
+  if (privateDialogsLoaded) return;
+  privateDialogsLoaded = true;
+  try {
+    const stored = JSON.parse(await fs.readFile(PRIVATE_DIALOGS_FILE, 'utf8'));
+    if (Array.isArray(stored)) {
+      for (const value of stored) {
+        const id = Number(value);
+        if (Number.isSafeInteger(id) && id > 0) privateDialogIds.add(id);
+      }
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      privateDialogsLoaded = false;
+      throw error;
+    }
+  }
+}
+
+async function rememberPrivateDialog(userId) {
+  const id = Number(userId);
+  if (!Number.isSafeInteger(id) || id <= 0) return;
+  await loadPrivateDialogs();
+  if (privateDialogIds.has(id)) return;
+  privateDialogIds.add(id);
+  try {
+    await fs.mkdir(path.dirname(PRIVATE_DIALOGS_FILE), { recursive: true });
+    const tempPath = PRIVATE_DIALOGS_FILE + '.tmp';
+    await fs.writeFile(tempPath, JSON.stringify([...privateDialogIds].sort((a, b) => a - b)), 'utf8');
+    await fs.rename(tempPath, PRIVATE_DIALOGS_FILE);
+    console.log('[VK] registered private dialog user=' + id + ' total=' + privateDialogIds.size);
+  } catch (error) {
+    privateDialogIds.delete(id);
+    throw error;
+  }
+}
+
+async function getPrivateDialogIds() {
+  await loadPrivateDialogs();
+  return [...privateDialogIds];
+}
 
 const httpPort = Number(
   process.env.VK_BOT_HTTP_PORT || 3002
@@ -290,9 +337,11 @@ function deadlinesValidKeyboard(roomId, roomNumber, eventId) {
   };
 }
 
-async function sendDeadlineNotifications(peerId, notifications, eventId) {
-  const recipientId = Number(peerId);
-  if (!Number.isSafeInteger(recipientId) || recipientId <= 0 || !Array.isArray(notifications)) {
+async function sendDeadlineNotifications(notifications, eventId) {
+  if (!Array.isArray(notifications)) return;
+  const recipientIds = await getPrivateDialogIds();
+  if (!recipientIds.length) {
+    console.warn('[VK] no registered private dialogs; notifications were not sent');
     return;
   }
 
@@ -300,38 +349,35 @@ async function sendDeadlineNotifications(peerId, notifications, eventId) {
     const roomNumber = Number(notification?.roomNumber);
     if (!Number.isSafeInteger(roomNumber) || roomNumber < 100 || roomNumber > 9999) continue;
 
-    try {
-      if (notification.type === 'emptied_with_deadlines') {
-        const products = Array.isArray(notification.products) ? notification.products : [];
-        if (!products.length) continue;
-        const productLines = products.map(item => {
-          const name = String(item?.name || 'Без названия');
-          const qty = Number(item?.qtyToReplace) || 0;
-          return '• ' + name + (qty > 0 ? ' — ' + qty + ' шт.' : '');
-        });
-        await sendPrivateText(
-          recipientId,
-          '🧊 Номер ' + roomNumber + ' опустошён.\n\n' +
-          'В «Сроках» были отмечены продукты:\n' + productLines.join('\n') +
-          '\n\nОтметки продуктов для этого номера очищены.'
-        );
-      } else if (notification.type === 'refilled_empty') {
-        await sendPrivateText(
-          recipientId,
-          '✅ Номер ' + roomNumber + ' пополнен после опустошения.\n\n' +
-          'Нажми кнопку ниже, чтобы отметить «Сроки» этого номера как «В порядке».',
-          deadlinesValidKeyboard(notification.roomId, roomNumber, eventId)
-        );
-      }
-    } catch (error) {
-      // A private-message failure must never roll back or reprocess the room check.
-      console.error(
-        '[VK] deadline notification failed for room=' + roomNumber +
-        ' user=' + recipientId + ': ' + error.message
-      );
+    let messageText;
+    let keyboard = null;
+    if (notification.type === 'emptied_with_deadlines') {
+      const products = Array.isArray(notification.products) ? notification.products : [];
+      if (!products.length) continue;
+      const productLines = products.map(item => {
+        const name = String(item?.name || 'Без названия');
+        const qty = Number(item?.qtyToReplace) || 0;
+        return '• ' + name + (qty > 0 ? ' — ' + qty + ' шт.' : '');
+      });
+      messageText = '🧊 Номер ' + roomNumber + ' опустошён.\\n\\n' +
+        'В «Сроках» были отмечены продукты:\\n' + productLines.join('\\n') +
+        '\\n\\nОтметки продуктов для этого номера очищены.';
+    } else if (notification.type === 'refilled_empty') {
+      messageText = '✅ Номер ' + roomNumber + ' пополнен после опустошения.\\n\\n' +
+        'Нажми кнопку ниже, чтобы отметить «Сроки» этого номера как «В порядке».';
+      keyboard = deadlinesValidKeyboard(notification.roomId, roomNumber, eventId);
+    } else {
+      continue;
     }
-  }
-}
+
+    for (const recipientId of recipientIds) {
+      try {
+        await sendPrivateText(recipientId, messageText, keyboard);
+      } catch (error) {
+        console.error('[VK] deadline notification failed for room=' + roomNumber +
+          ' user=' + recipientId + ': ' + error.message);
+      }
+    }
 
 async function handlePrivateMessage(message, peerId, text) {
   const senderId = Number(message.from_id);
@@ -343,6 +389,9 @@ async function handlePrivateMessage(message, peerId, text) {
   if (!isDirectDialog || message.out === 1 || senderId === -Number(groupId)) {
     return false;
   }
+
+  // Every user who writes to the bot in a direct dialog becomes a persistent notification subscriber.
+  await rememberPrivateDialog(senderId);
 
   const payload = parseMessagePayload(message);
   if (payload?.command === 'deadlines_valid') {
@@ -538,7 +587,7 @@ async function handleCallback(req, res) {
     );
 
     if (result.status === 'processed' && result.notifications?.length) {
-      await sendDeadlineNotifications(senderId, result.notifications, result.eventId || eventId);
+      await sendDeadlineNotifications(result.notifications, result.eventId || eventId);
     }
 
     return sendText(res, 200, 'ok');
