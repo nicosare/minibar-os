@@ -41,6 +41,7 @@ let privateDialogsLoaded = false;
 let privateMenuMessagesLoaded = false;
 let knownExcisePresence = null;
 let exciseMenuMonitorRunning = false;
+let knownPrivateMenuText = null;
 
 async function loadPrivateDialogs() {
   if (privateDialogsLoaded) return;
@@ -228,7 +229,94 @@ function readBody(req, limit = 1024 * 1024) {
   });
 }
 
-async function buildPrivateMenuKeyboard() {
+async function loadPrivateMenuSummary() {
+  const response = await fetch(API_BASE_URL + '/api/vk-bot/summary', {
+    headers: { 'X-Minibar-Bot-Token': INTERNAL_TOKEN },
+    cache: 'no-store'
+  });
+  const summary = await response.json().catch(() => ({}));
+  if (!response.ok || !summary || !summary.dateKey || !summary.lists || !summary.excises) {
+    throw new Error(summary.error || 'Не удалось загрузить сводку MINIBAR OS');
+  }
+  return summary;
+}
+
+function russianCount(value, forms) {
+  const count = Math.abs(Number(value) || 0);
+  const lastTwo = count % 100;
+  const last = count % 10;
+  if (lastTwo >= 11 && lastTwo <= 14) return forms[2];
+  if (last === 1) return forms[0];
+  if (last >= 2 && last <= 4) return forms[1];
+  return forms[2];
+}
+
+function formatMenuDate(dateKey) {
+  const date = new Date(String(dateKey) + 'T12:00:00.000Z');
+  if (!Number.isFinite(date.getTime())) return String(dateKey);
+  const formatted = date.toLocaleDateString('ru-RU', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC'
+  });
+  return formatted.charAt(0).toLocaleUpperCase('ru-RU') + formatted.slice(1);
+}
+
+function formatMenuListLine(label, list) {
+  if (!list || list.formed !== true || !Number.isFinite(Number(list.count))) {
+    return label + ': ещё не сформирован';
+  }
+  const count = Math.max(0, Math.trunc(Number(list.count)));
+  return label + ': ' + count + ' ' + russianCount(count, ['номер', 'номера', 'номеров']);
+}
+
+function formatPrivateMenuText(summary) {
+  const lists = summary.lists || {};
+  const goal = summary.deadlinesToday || {};
+  const excises = summary.excises || {};
+  const target = Math.max(0, Math.trunc(Number(goal.target) || 0));
+  const processed = Math.max(0, Math.trunc(Number(goal.processed) || 0));
+  const remaining = Math.max(0, Math.trunc(Number(goal.remaining) || 0));
+  const totalExcises = Math.max(0, Math.trunc(Number(excises.total) || 0));
+  const validExcises = Math.max(0, Math.trunc(Number(excises.valid) || 0));
+
+  const lines = [
+    '📋 MINIBAR OS',
+    formatMenuDate(summary.dateKey),
+    '',
+    '📑 Списки',
+    formatMenuListLine('Заезды', lists.arrivals),
+    formatMenuListLine('Выезды', lists.departures),
+    'GIH: ' + Math.max(0, Math.trunc(Number(lists.gih?.count) || 0)) + ' ' +
+      russianCount(Math.max(0, Math.trunc(Number(lists.gih?.count) || 0)), ['номер', 'номера', 'номеров']) + ' сегодня',
+    formatMenuListLine('Сроки', lists.deadlines),
+    '',
+    '🎯 Цель по срокам на сегодня'
+  ];
+
+  if (target > 0) {
+    lines.push('Выполнено: ' + processed + ' из ' + target);
+    lines.push('Осталось: ' + remaining + ' ' + russianCount(remaining, ['номер', 'номера', 'номеров']));
+  } else {
+    lines.push('На сегодня цель не требуется: нет номеров к обработке');
+  }
+
+  lines.push('');
+  lines.push('🏷 Акцизы');
+  if (totalExcises > 0) {
+    lines.push('Есть в базе: ' + totalExcises + ' ' +
+      russianCount(totalExcises, ['марка', 'марки', 'марок']));
+    lines.push('Валидных для Excel: ' + validExcises);
+  } else {
+    lines.push('Акцизов в базе нет');
+  }
+
+  return lines.join('\n');
+}
+
+async function buildPrivateMenuKeyboard(summary = null) {
   const buttons = [
     [{
       action: {
@@ -247,34 +335,49 @@ async function buildPrivateMenuKeyboard() {
     }]
   ];
 
-  try {
-    const rows = await loadExcisesFromBackend();
-    if (rows.length > 0) {
-      buttons.push([{
-        action: {
-          type: 'text',
-          label: '📄 Получить акцизы',
-          payload: JSON.stringify({ command: 'get_excises' })
-        },
-        color: 'primary'
-      }]);
+  let hasExcises = Boolean(Number(summary?.excises?.total) > 0);
+  if (!summary) {
+    try {
+      hasExcises = (await loadExcisesFromBackend()).length > 0;
+    } catch (error) {
+      console.error('[VK] cannot check excises for the private menu:', error.message);
     }
-  } catch (error) {
-    console.error('[VK] cannot check excises for the private menu:', error.message);
+  }
+  if (hasExcises) {
+    buttons.push([{
+      action: {
+        type: 'text',
+        label: '📄 Получить акцизы',
+        payload: JSON.stringify({ command: 'get_excises' })
+      },
+      color: 'primary'
+    }]);
   }
 
   return { one_time: false, buttons };
 }
 
-async function sendPrivateMenu(peerId, keyboard = null) {
+async function sendPrivateMenu(peerId, keyboard = null, messageText = null, summary = null) {
   if (!VK_ACCESS_TOKEN) {
     throw new Error('VK_BOT_ACCESS_TOKEN не настроен');
   }
 
-  const currentKeyboard = keyboard || await buildPrivateMenuKeyboard();
+  let currentSummary = summary;
+  if (!keyboard || !messageText) {
+    try {
+      if (!currentSummary) currentSummary = await loadPrivateMenuSummary();
+    } catch (error) {
+      console.error('[VK] could not load summary for private menu:', error.message);
+    }
+  }
+  const currentKeyboard = keyboard || await buildPrivateMenuKeyboard(currentSummary);
+  const currentMessage = messageText ||
+    (currentSummary ? formatPrivateMenuText(currentSummary) :
+      '📋 MINIBAR OS\nСводка временно недоступна. Попробуй открыть меню ещё раз.');
+
   const params = new URLSearchParams({
     peer_id: String(peerId),
-    message: 'Меню MINIBAR OS',
+    message: currentMessage,
     keyboard: JSON.stringify(currentKeyboard),
     random_id: String(Math.floor(Math.random() * 2147483647) + 1),
     access_token: VK_ACCESS_TOKEN,
@@ -308,11 +411,11 @@ async function sendPrivateMenu(peerId, keyboard = null) {
   }
 }
 
-async function editPrivateMenu(peerId, messageId, keyboard) {
+async function editPrivateMenu(peerId, messageId, keyboard, messageText) {
   const params = new URLSearchParams({
     peer_id: String(peerId),
     message_id: String(messageId),
-    message: 'Меню MINIBAR OS',
+    message: String(messageText || '📋 MINIBAR OS'),
     keyboard: JSON.stringify(keyboard),
     access_token: VK_ACCESS_TOKEN,
     v: VK_API_VERSION
@@ -328,14 +431,16 @@ async function editPrivateMenu(peerId, messageId, keyboard) {
   }
 }
 
-async function refreshAllPrivateMenus(reason) {
+async function refreshAllPrivateMenus(reason, summary = null) {
   const recipientIds = await getPrivateDialogIds();
   if (!recipientIds.length) {
-    console.log('[VK] no registered private dialogs; excise menu refresh skipped');
+    console.log('[VK] no registered private dialogs; menu refresh skipped');
     return true;
   }
 
-  const keyboard = await buildPrivateMenuKeyboard();
+  const currentSummary = summary || await loadPrivateMenuSummary();
+  const messageText = formatPrivateMenuText(currentSummary);
+  const keyboard = await buildPrivateMenuKeyboard(currentSummary);
   let allUpdated = true;
   let updated = 0;
 
@@ -344,7 +449,7 @@ async function refreshAllPrivateMenus(reason) {
       const menuMessageId = await getPrivateMenuMessageId(recipientId);
       if (menuMessageId) {
         try {
-          await editPrivateMenu(recipientId, menuMessageId, keyboard);
+          await editPrivateMenu(recipientId, menuMessageId, keyboard, messageText);
           updated += 1;
           continue;
         } catch (error) {
@@ -354,7 +459,7 @@ async function refreshAllPrivateMenus(reason) {
         }
       }
 
-      await sendPrivateMenu(recipientId, keyboard);
+      await sendPrivateMenu(recipientId, keyboard, messageText, currentSummary);
       updated += 1;
     } catch (error) {
       allUpdated = false;
@@ -365,8 +470,7 @@ async function refreshAllPrivateMenus(reason) {
 
   console.log('[VK] private menus refreshed reason=' + reason +
     ' updated=' + updated + '/' + recipientIds.length +
-    ' exciseButton=' + keyboard.buttons.some(row => row.some(button => button.action?.payload &&
-      String(button.action.payload).includes('get_excises'))));
+    ' exciseButton=' + Boolean(currentSummary.excises?.hasExcises));
   return allUpdated;
 }
 
@@ -381,7 +485,9 @@ async function checkExciseMenuState() {
   if (exciseMenuMonitorRunning) return;
   exciseMenuMonitorRunning = true;
   try {
-    const hasExcises = (await loadExcisesFromBackend()).length > 0;
+    const summary = await loadPrivateMenuSummary();
+    const hasExcises = Boolean(summary.excises?.hasExcises || Number(summary.excises?.total) > 0);
+    const messageText = formatPrivateMenuText(summary);
     let previous = knownExcisePresence;
     if (previous === null) {
       try {
@@ -392,10 +498,13 @@ async function checkExciseMenuState() {
       }
     }
 
-    const changed = previous === null ? hasExcises : previous !== hasExcises;
-    if (changed) {
-      const reason = previous === null ? 'initial-state' : 'database-state-changed';
-      const refreshed = await refreshAllPrivateMenus(reason);
+    const exciseStateChanged = previous === null ? true : previous !== hasExcises;
+    const messageChanged = knownPrivateMenuText === null || knownPrivateMenuText !== messageText;
+    if (exciseStateChanged || messageChanged) {
+      const reason = exciseStateChanged
+        ? (previous === null ? 'initial-state' : 'excise-state-changed')
+        : 'summary-changed';
+      const refreshed = await refreshAllPrivateMenus(reason, summary);
       if (!refreshed) {
         console.warn('[VK] not all private menus refreshed; will retry on the next poll');
         return;
@@ -403,9 +512,10 @@ async function checkExciseMenuState() {
     }
 
     knownExcisePresence = hasExcises;
+    knownPrivateMenuText = messageText;
     await persistExciseMenuState(hasExcises);
   } catch (error) {
-    console.error('[VK] excise-menu monitor failed:', error.message);
+    console.error('[VK] private menu monitor failed:', error.message);
   } finally {
     exciseMenuMonitorRunning = false;
   }
