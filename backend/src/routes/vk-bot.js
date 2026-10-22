@@ -55,6 +55,136 @@ router.get('/emptied-today', async (req, res) => {
   }
 });
 
+router.get('/room-info', async (req, res) => {
+  if (!isAuthorized(req)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const rawNumber = String(req.query.number ?? '').trim();
+  if (!/^\\d{3,4}$/.test(rawNumber)) {
+    return res.status(400).json({ error: 'Номер должен содержать 3–4 цифры' });
+  }
+
+  try {
+    const number = Number(rawNumber);
+    const room = await prisma.room.findUnique({
+      where: { number },
+      select: {
+        id: true,
+        number: true,
+        floor: true,
+        category: true,
+        expiryStatus: true
+      }
+    });
+    if (!room) {
+      return res.status(404).json({ error: 'Номер ' + rawNumber + ' не найден в базе' });
+    }
+
+    const [lastCheck, lastAction] = await Promise.all([
+      prisma.check.findFirst({
+        where: {
+          roomId: room.id,
+          status: 'done',
+          type: { notIn: ['gih', 'deadline'] }
+        },
+        orderBy: [{ checkDate: 'desc' }, { id: 'desc' }],
+        select: { id: true, checkDate: true, type: true, notes: true }
+      }),
+      prisma.check.findFirst({
+        where: {
+          roomId: room.id,
+          status: 'done',
+          type: { in: ['vk_room', 'vk_emptied'] }
+        },
+        orderBy: [{ checkDate: 'desc' }, { id: 'desc' }],
+        select: { id: true, checkDate: true, type: true, notes: true }
+      })
+    ]);
+
+    res.set('Cache-Control', 'no-store');
+    return res.json({
+      room: {
+        number: room.number,
+        floor: room.floor,
+        category: room.category,
+        expiryStatus: room.expiryStatus
+      },
+      lastCheck,
+      lastAction
+    });
+  } catch (error) {
+    console.error('GET /api/vk-bot/room-info error:', error);
+    return res.status(500).json({ error: 'Не удалось загрузить данные номера' });
+  }
+});
+
+router.get('/room-history', async (req, res) => {
+  if (!isAuthorized(req)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const rawNumber = String(req.query.number ?? '').trim();
+  const section = String(req.query.section ?? 'history').trim().toLowerCase();
+  const requestedCount = Number.parseInt(String(req.query.count ?? '3'), 10);
+  if (!/^\\d{3,4}$/.test(rawNumber)) {
+    return res.status(400).json({ error: 'Номер должен содержать 3–4 цифры' });
+  }
+  if (!['history', 'gih'].includes(section)) {
+    return res.status(400).json({ error: 'Неизвестный раздел истории' });
+  }
+  if (!Number.isInteger(requestedCount) || requestedCount < 3) {
+    return res.status(400).json({ error: 'Некорректное количество записей' });
+  }
+
+  try {
+    const room = await prisma.room.findUnique({
+      where: { number: Number(rawNumber) },
+      select: { id: true, number: true }
+    });
+    if (!room) {
+      return res.status(404).json({ error: 'Номер ' + rawNumber + ' не найден в базе' });
+    }
+
+    const count = Math.min(100, requestedCount);
+    const where = section === 'gih'
+      ? { roomId: room.id, type: 'gih', status: 'done' }
+      : { roomId: room.id, type: { notIn: ['gih', 'deadline'] }, status: 'done' };
+    const records = await prisma.check.findMany({
+      where,
+      orderBy: [{ checkDate: 'desc' }, { id: 'desc' }],
+      take: count + 1,
+      select: {
+        id: true,
+        checkDate: true,
+        type: true,
+        notes: true,
+        gihRoomStatus: true,
+        gihItems: {
+          select: {
+            productName: true,
+            itemStatus: true,
+            notes: true
+          }
+        }
+      }
+    });
+    const hasMore = records.length > count;
+
+    res.set('Cache-Control', 'no-store');
+    return res.json({
+      room: room.number,
+      section,
+      count,
+      hasMore,
+      items: records.slice(0, count)
+    });
+  } catch (error) {
+    console.error('GET /api/vk-bot/room-history error:', error);
+    return res.status(500).json({ error: 'Не удалось загрузить историю номера' });
+  }
+});
+
 router.get('/summary', async (req, res) => {
   if (!isAuthorized(req)) {
     return res.status(401).json({ error: 'Unauthorized' });
