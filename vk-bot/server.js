@@ -548,8 +548,7 @@ function formatPrivateMenuText(summary) {
     formatMenuListLine('Выезды', lists.departures),
     'GIH: ' +
       Math.max(0, Math.trunc(Number(lists.gih?.saved) || 0)) + '/' +
-      Math.max(0, Math.trunc(Number(lists.gih?.total) || 0)) +
-      ' сохранено/всего сегодня',
+      Math.max(0, Math.trunc(Number(lists.gih?.total) || 0)),
     formatMenuListLine('Сроки', lists.deadlines),
     '',
     '🎯 Цель по срокам на сегодня'
@@ -1968,23 +1967,15 @@ async function showPrivateRoomInfo(peerId, roomNumber) {
     const data = await requestPrivateRoomApi('room-info', { number: roomNumber });
     const messageText = formatPrivateRoomInfo(data);
     const keyboard = buildRoomInfoKeyboard(roomNumber);
-    const tracked = await getPrivateRoomInfoMessage(peerId, roomNumber);
 
-    if (tracked && await isStoredPrivateMenuAvailable(peerId, tracked.messageId)) {
-      // Keep one room-info card per user and room; refreshing the same room edits it in place.
-      await editPrivateMenu(peerId, tracked.messageId, keyboard, messageText);
-      await savePrivateRoomInfoMessage(
-        peerId, roomNumber, tracked.messageId, 'info', messageText
-      );
+    // A repeated room number must open a fresh, visible card at the bottom of the chat.
+    // Track only this newest card so background data updates never edit older cards.
+    const messageId = await sendPrivateText(peerId, messageText, keyboard);
+    if (messageId) {
+      await savePrivateRoomInfoMessage(peerId, roomNumber, messageId, 'info', messageText);
     } else {
-      if (tracked) await forgetPrivateRoomInfoMessage(peerId, roomNumber);
-      const messageId = await sendPrivateText(peerId, messageText, keyboard);
-      if (messageId) {
-        await savePrivateRoomInfoMessage(peerId, roomNumber, messageId, 'info', messageText);
-      } else {
-        console.warn('[VK] VK did not return a message id for room info room=' + roomNumber +
-          ' peer=' + peerId + '; automatic updates are unavailable for this card');
-      }
+      console.warn('[VK] VK did not return a message id for room info room=' + roomNumber +
+        ' peer=' + peerId + '; automatic updates are unavailable for this card');
     }
   } catch (error) {
     console.error('[VK] private room info failed room=' + roomNumber + ':',
