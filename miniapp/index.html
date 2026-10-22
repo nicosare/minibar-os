@@ -2692,7 +2692,27 @@ let orientationPermissionAsked = false;
 let orientationPermissionPromise = null;
 const carouselItems = new Map();
 let activeCarouselItem = null;
-let pinnedRoomNumber = '';
+
+const PINNED_ROOM_STORAGE_KEY = 'minibar-miniapp-pinned-room-v1';
+
+function readStoredPinnedRoomNumber() {
+  try {
+    const value = String(localStorage.getItem(PINNED_ROOM_STORAGE_KEY) || '').trim();
+    return /^\\d{3,4}$/.test(value) ? String(Number(value)) : '';
+  } catch (_) {
+    return '';
+  }
+}
+
+function persistPinnedRoomNumber() {
+  try {
+    if (/^\\d{3,4}$/.test(String(pinnedRoomNumber || ''))) {
+      localStorage.setItem(PINNED_ROOM_STORAGE_KEY, String(Number(pinnedRoomNumber)));
+    }
+  } catch (_) {}
+}
+
+let pinnedRoomNumber = readStoredPinnedRoomNumber();
 let carouselReturnTimer = null;
 
 function escapeCameraHtml(value) {
@@ -4233,6 +4253,7 @@ function selectRoomByNumber(numStr, vibrate = true, behavior = 'smooth', pin = t
   if (el) {
     if (pin) {
       pinnedRoomNumber = String(room.number);
+      persistPinnedRoomNumber();
       updatePinnedCarouselItem();
     }
     clearTimeout(carouselReturnTimer);
@@ -5737,15 +5758,25 @@ void restorePhotoUploadQueue();
       ROOM_BY_NUMBER.has(pendingLaunchRoomNumber)
       ? pendingLaunchRoomNumber
       : '';
-    if (launchRoomNumber) {
-      // A direct room link takes priority over a previously selected departures list.
+    const storedPinnedRoomNumber = readStoredPinnedRoomNumber();
+    const restoredPinnedRoomNumber = storedPinnedRoomNumber &&
+      ROOM_BY_NUMBER.has(storedPinnedRoomNumber)
+      ? storedPinnedRoomNumber
+      : '';
+    const initialRoomNumber = launchRoomNumber || restoredPinnedRoomNumber;
+    const initialRoomIsInVisibleList = initialRoomNumber &&
+      visibleCarouselRooms().some(room => String(room.number) === initialRoomNumber);
+
+    if (launchRoomNumber || (restoredPinnedRoomNumber && !initialRoomIsInVisibleList)) {
+      // A direct room link wins; otherwise reopen the saved pinned room even if it
+      // is not part of the previously selected personal departures list.
       activeListKey = '';
       activeListDateKey = '';
       drawerMode = 'all';
       persistActiveListSelection();
     }
     updateQueueDisplay();
-    buildCarousel(launchRoomNumber || undefined);
+    buildCarousel(initialRoomNumber || undefined);
     renderDrawerRooms();
     startRoomLiveSync();
     miniAppRoomSelectionReady = true;
