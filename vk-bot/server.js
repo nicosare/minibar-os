@@ -1280,7 +1280,7 @@ async function editPrivateMessage(peerId, conversationMessageId, message, keyboa
   }
 }
 
-async function answerMessageEvent(event, text = 'Готово') {
+async function answerMessageEvent(event) {
   const eventId = String(event?.event_id || '').trim();
   const userId = Number(event?.user_id);
   const peerId = Number(event?.peer_id);
@@ -1289,11 +1289,12 @@ async function answerMessageEvent(event, text = 'Готово') {
     throw new Error('VK message_event lacks event_id, user_id or peer_id');
   }
 
+  // Acknowledge callback buttons without event_data: VK closes the loading
+  // indicator but does not display a snackbar notification to the user.
   const params = new URLSearchParams({
     event_id: eventId,
     user_id: String(userId),
     peer_id: String(peerId),
-    event_data: JSON.stringify({ type: 'show_snackbar', text }),
     access_token: VK_ACCESS_TOKEN,
     v: VK_API_VERSION
   });
@@ -2111,13 +2112,7 @@ async function handleCallback(req, res) {
     void (async () => {
       try {
         try {
-          await answerMessageEvent(
-            event,
-            payload?.command === 'deadlines_valid' ? 'Обновляю «Сроки»…' :
-            payload?.command === 'clear_excises' ? 'Очищаю акцизы…' :
-            String(payload?.command || '').startsWith('settings_') ? 'Сохраняю настройки…' :
-            String(payload?.command || '').startsWith('room_') ? 'Загружаю данные номера…' : 'Готово'
-          );
+          await answerMessageEvent(event);
         } catch (answerError) {
           console.error('[VK] immediate message event acknowledgement failed:', answerError.message);
         }
