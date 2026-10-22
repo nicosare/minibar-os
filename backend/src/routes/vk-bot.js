@@ -233,7 +233,6 @@ router.get('/summary', async (req, res) => {
     const [
       arrivalsList,
       gihRecords,
-      totalRooms,
       badRooms,
       exciseRows,
       todayTarget,
@@ -255,7 +254,6 @@ router.get('/summary', async (req, res) => {
         },
         select: { roomId: true, status: true, gihRoomStatus: true }
       }),
-      prisma.room.count(),
       prisma.room.count({
         where: { expiryStatus: { in: ['neutral', 'needs_replacement'] } }
       }),
@@ -273,12 +271,8 @@ router.get('/summary', async (req, res) => {
       })
     ]);
 
-    const gihRoomIds = new Set(
-      gihRecords
-        .filter(record => record.gihRoomStatus !== 'not_checked')
-        .map(record => Number(record.roomId))
-        .filter(id => Number.isSafeInteger(id) && id > 0)
-    );
+    const gihSavedCount = gihRecords.filter(record => record.status === 'done').length;
+    const gihTotalCount = gihRecords.length;
 
     const target = Math.max(0, Number(todayTarget?.targetCount) || 0);
     const processed = Math.max(0, Number(todayTarget?.startBadCount || 0) - badRooms);
@@ -309,8 +303,14 @@ router.get('/summary', async (req, res) => {
         departures: departures.sourceReady
           ? { formed: true, count: Number(departures.remainingCount) || 0 }
           : { formed: false, count: null },
-        gih: { formed: true, count: gihRoomIds.size },
-        deadlines: { formed: true, count: totalRooms }
+        gih: {
+          formed: true,
+          saved: gihSavedCount,
+          total: gihTotalCount
+        },
+        // The dedicated Сроки room list has not been implemented yet.
+        // Never substitute the full room-catalog count here.
+        deadlines: { formed: false, count: null }
       },
       deadlinesToday: {
         target,
