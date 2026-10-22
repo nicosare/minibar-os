@@ -438,7 +438,6 @@ function formatPrivateMenuText(summary) {
   const validExcises = Math.max(0, Math.trunc(Number(excises.valid) || 0));
 
   const lines = [
-    '📋 MINIBAR OS',
     formatMenuDate(summary.dateKey),
     '',
     '📊 Сегодня',
@@ -565,7 +564,7 @@ async function sendPrivateMenu(peerId, keyboard = null, messageText = null, summ
   const currentKeyboard = keyboard || await buildPrivateMenuKeyboard(currentSummary);
   const currentMessage = messageText ||
     (currentSummary ? formatPrivateMenuText(currentSummary) :
-      '📋 MINIBAR OS\nСводка временно недоступна. Попробуй открыть меню ещё раз.');
+      'Сводка временно недоступна. Попробуй открыть меню ещё раз.');
 
   const existingMessageId = options.forceNew ? null : await getPrivateMenuMessageId(peerId);
   if (existingMessageId) {
@@ -621,7 +620,7 @@ async function editPrivateMenu(peerId, messageId, keyboard, messageText) {
   const params = new URLSearchParams({
     peer_id: String(peerId),
     message_id: String(messageId),
-    message: String(messageText || '📋 MINIBAR OS'),
+    message: String(messageText || 'Меню'),
     keyboard: JSON.stringify(keyboard),
     access_token: VK_ACCESS_TOKEN,
     v: VK_API_VERSION
@@ -1755,11 +1754,11 @@ function buildRoomInfoKeyboard(roomNumber) {
       ],
       [{
         action: {
-          type: 'open_link',
+          type: 'open_app',
           label: 'Открыть в Mini App',
-          link: 'https://vk.com/app54809268#room=' + String(Number(roomNumber))
-        },
-        color: 'primary'
+          app_id: MINI_APP_ID,
+          hash: 'room=' + String(Number(roomNumber))
+        }
       }]
     ]
   };
@@ -1812,7 +1811,7 @@ function formatGihStatusGroups(record) {
     const products = [...groups.get(status)].map(([name, qty]) =>
       name + (qty > 1 ? ' ×' + qty : '')
     ).join(', ');
-    return labels[status] + ': ' + products;
+    return '• ' + labels[status] + ': ' + products;
   });
 }
 
@@ -1869,6 +1868,8 @@ async function showPrivateRoomInfo(peerId, roomNumber) {
     const data = await requestPrivateRoomApi('room-info', { number: roomNumber });
     await sendPrivateText(peerId, formatPrivateRoomInfo(data), buildRoomInfoKeyboard(roomNumber));
   } catch (error) {
+    console.error('[VK] private room info failed room=' + roomNumber + ':',
+      error?.stack || error?.message || error);
     const message = error.statusCode === 404
       ? '⚠️ ' + error.message
       : '⚠️ Не удалось загрузить данные номера. Попробуй ещё раз.';
