@@ -212,10 +212,22 @@ async function handlePrivateMessage(message, peerId, text) {
   }
 
   if (/^🧊?\s*опустошённые за сегодня$/iu.test(normalized)) {
-    await sendPrivateText(
-      peerId,
-      'Раздел «Опустошённые за сегодня» добавлен в меню; подключение списка будет следующим этапом.'
-    );
+    const response = await fetch(API_BASE_URL + '/api/vk-bot/emptied-today', {
+      method: 'GET',
+      headers: { 'X-Minibar-Bot-Token': INTERNAL_TOKEN }
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || 'Не удалось загрузить опустошённые номера');
+    }
+
+    const rooms = Array.isArray(data.rooms) ? data.rooms : [];
+    const messageText = rooms.length
+      ? '🧊 Опустошённые за сегодня: ' + rooms.length + '\\n\\n' +
+        rooms.map(room => String(room.number)).join(', ')
+      : '🧊 Сегодня опустошённых номеров пока нет.';
+    await sendPrivateText(peerId, messageText);
+    console.log('[VK] sent emptied-today list to user=' + peerId + ' count=' + rooms.length);
     return true;
   }
 
