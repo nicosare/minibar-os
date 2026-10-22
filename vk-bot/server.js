@@ -388,6 +388,17 @@ async function pinPrivateMenu(peerId, messageId) {
   }
 }
 
+async function isStoredPrivateMenuAvailable(peerId, messageId) {
+  const result = await callVkApi('messages.getById', {
+    message_ids: String(messageId)
+  });
+  const items = Array.isArray(result?.items) ? result.items : [];
+  return items.some(item =>
+    Number(item?.id) === Number(messageId) &&
+    Number(item?.deleted || 0) !== 1
+  );
+}
+
 async function sendPrivateMenu(peerId, keyboard = null, messageText = null, summary = null) {
   if (!VK_ACCESS_TOKEN) {
     throw new Error('VK_BOT_ACCESS_TOKEN не настроен');
@@ -408,10 +419,16 @@ async function sendPrivateMenu(peerId, keyboard = null, messageText = null, summ
 
   const existingMessageId = await getPrivateMenuMessageId(peerId);
   if (existingMessageId) {
-    // Never create a replacement automatically: keep one stable, pinned menu message.
-    await editPrivateMenu(peerId, existingMessageId, currentKeyboard, currentMessage);
-    await pinPrivateMenu(peerId, existingMessageId);
-    return;
+    // Recover only when VK confirms the stored message no longer exists. Temporary API
+    // failures still throw, so they cannot accidentally create duplicate menus.
+    const existingAvailable = await isStoredPrivateMenuAvailable(peerId, existingMessageId);
+    if (existingAvailable) {
+      await editPrivateMenu(peerId, existingMessageId, currentKeyboard, currentMessage);
+      await pinPrivateMenu(peerId, existingMessageId);
+      return;
+    }
+    console.warn('[VK] stored menu is missing for user=' + peerId + '; creating one replacement');
+    await forgetPrivateMenuMessage(peerId);
   }
 
   const params = new URLSearchParams({
@@ -490,12 +507,21 @@ async function refreshAllPrivateMenus(reason, summary = null) {
       const menuMessageId = await getPrivateMenuMessageId(recipientId);
       if (menuMessageId) {
         try {
+          const menuAvailable = await isStoredPrivateMenuAvailable(recipientId, menuMessageId);
+          if (!menuAvailable) {
+            console.warn('[VK] stored menu is missing for user=' + recipientId +
+              '; creating one replacement');
+            await forgetPrivateMenuMessage(recipientId);
+            await sendPrivateMenu(recipientId, keyboard, messageText, currentSummary);
+            updated += 1;
+            continue;
+          }
           await editPrivateMenu(recipientId, menuMessageId, keyboard, messageText);
           await pinPrivateMenu(recipientId, menuMessageId);
           updated += 1;
         } catch (error) {
           allUpdated = false;
-          console.warn('[VK] could not edit/pin stored menu for user=' + recipientId +
+          console.warn('[VK] could not verify/edit/pin stored menu for user=' + recipientId +
             '; not sending a duplicate menu and will retry: ' + error.message);
         }
         continue;
