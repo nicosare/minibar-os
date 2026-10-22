@@ -353,11 +353,14 @@ async function ensureMessageEventSubscription() {
     const configuredServerId = String(process.env.VK_CALLBACK_SERVER_ID || '').trim();
     const serverSettings = [];
     for (const server of servers) {
-      const settings = await callVkApi('groups.getCallbackSettings', {
+      const settingsResponse = await callVkApi('groups.getCallbackSettings', {
         group_id: groupId,
         server_id: server.id
       });
-      serverSettings.push({ server, settings: settings || {} });
+      // VK returns event subscriptions nested under "events" in the
+      // Callback API settings response.
+      const settings = settingsResponse?.events || settingsResponse || {};
+      serverSettings.push({ server, settings });
     }
 
     let target;
