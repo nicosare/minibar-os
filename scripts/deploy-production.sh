@@ -33,7 +33,6 @@ target_sha="$(git rev-parse "origin/$DEPLOY_BRANCH")"
 current_sha="$(git rev-parse HEAD)"
 [[ "$current_sha" == "$target_sha" || "$(git merge-base "$current_sha" "$target_sha")" == "$current_sha" ]] || fail "Server checkout is not a fast-forward ancestor of the deployment ref. Resolve repository state manually; no reset was performed."
 
-mkdir -p "$STATE_DIR"
 if [[ -s "$STATE_FILE" ]]; then
   base_sha="$(cat "$STATE_FILE")"
   git cat-file -e "$base_sha^{commit}" 2>/dev/null || fail "Recorded last-successful commit $base_sha is unavailable locally."
@@ -129,7 +128,8 @@ for service in "${selected_services[@]}"; do
     frontend) wait_http frontend "http://127.0.0.1:8080/" ;;
     backend) wait_http backend "http://127.0.0.1:3100/api/health" ;;
     miniapp) wait_http miniapp "http://127.0.0.1:8081/" ;;
-    vk-proxy|vk-bot) log "Container is running: $service (no HTTP health endpoint is assumed)." ;;
+    vk-proxy) wait_http vk-proxy "http://127.0.0.1:3001/health" ;;
+    vk-bot) wait_http vk-bot "http://127.0.0.1:3002/health" ;;
   esac
 done
 
