@@ -20,8 +20,13 @@ sync_installed_entrypoint() {
   local installed="/usr/local/sbin/minibar-deploy"
   [[ -f "$source" && -f "$installed" ]] || return 0
   if ! cmp -s "$source" "$installed"; then
-    install -m 0755 "$source" "$installed" ||
-      fail "Could not synchronize the installed deploy entrypoint."
+    local temp="${installed}.tmp.$"
+    install -m 0755 "$source" "$temp" ||
+      fail "Could not stage the updated deploy entrypoint."
+    if ! mv -f "$temp" "$installed"; then
+      rm -f "$temp"
+      fail "Could not activate the updated deploy entrypoint."
+    fi
     log "Installed deploy entrypoint synchronized with the tracked source."
   fi
 }
