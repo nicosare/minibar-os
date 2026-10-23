@@ -109,6 +109,9 @@ jobs:
       - name: Test the emptied-today room state
         run: node --test backend/src/services/emptiedToday.test.js
 
+      - name: Test deadline daily statistics
+        run: node --test backend/src/services/deadlines.test.js
+
       - name: Show frontend logs on failure
         if: failure()
         run: docker logs minibar-frontend-smoke || true
