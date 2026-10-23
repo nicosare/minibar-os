@@ -2452,6 +2452,15 @@ async function handleCallback(req, res) {
   const peerId = String(message.peer_id ?? '').trim();
   const text = String(message.text || '').trim();
   const actionPayload = parseVkMessagePayload(message.payload);
+  const settingsTextForLog = text.replace(/^⚙️\s*/u, '').trim();
+  const isSettingsButton = actionPayload?.command === 'settings' ||
+    /^(?:настройки|settings)$/iu.test(settingsTextForLog);
+  if (isSettingsButton) {
+    console.log('[VK] settings button message received peer=' + peerId +
+      ' from=' + String(message.from_id || '-') +
+      ' payloadCommand=' + String(actionPayload?.command || '-') +
+      ' text=' + JSON.stringify(text));
+  }
 
   if (!peerId || (!text && !actionPayload?.command)) {
     return sendText(res, 200, 'ok');
@@ -2463,9 +2472,7 @@ async function handleCallback(req, res) {
     }
   } catch (error) {
     console.error('[VK] private menu handling failed for peer=' + peerId + ':', error.stack || error.message || error);
-    const settingsText = text.replace(/^⚙️\s*/u, '').trim();
-    const isSettingsCommand = actionPayload?.command === 'settings' ||
-      /^(?:настройки|settings)$/iu.test(settingsText);
+    const isSettingsCommand = isSettingsButton;
     if (isSettingsCommand) {
       try {
         await sendPrivateText(
