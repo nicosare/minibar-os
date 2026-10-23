@@ -2027,7 +2027,18 @@ async function handleRoomInfoButton(event, payload) {
   await updatePrivateRoomInfoMessageView(peerId, roomNumber, section, messageText);
 }
 
-async function handlePrivateMessage(message, peerId, text) {
+function parseVkMessagePayload(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+  if (typeof value !== 'string' || !value.trim()) return null;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function handlePrivateMessage(message, peerId, text, actionPayload = null) {
   const senderId = Number(message.from_id);
   const peerNumber = Number(peerId);
   const isDirectDialog = Number.isSafeInteger(senderId) &&
@@ -2043,28 +2054,29 @@ async function handlePrivateMessage(message, peerId, text) {
 
   const normalized = text.toLocaleLowerCase('ru-RU').replace(/^\/+/, '').trim();
   const commandText = normalized.replace(/^[^\p{L}\p{N}]+/u, '').trim();
+  const payloadCommand = String(actionPayload?.command || '').trim();
 
-  if (/^(?:начать|старт|start|меню|menu|начать работу)$/iu.test(commandText)) {
+  if (payloadCommand === 'show_menu' || /^(?:начать|старт|start|меню|menu|начать работу)$/iu.test(commandText)) {
     await updatePrivateUserSettings(senderId, { awaitingMenuTime: false });
     await sendPrivateMenu(peerId, null, null, null, { forceNew: true });
     console.log('[VK] private menu opened for user=' + peerId);
     return true;
   }
 
-  if (/^(?:настройки|settings)$/iu.test(commandText)) {
+  if (payloadCommand === 'settings' || /^(?:настройки|settings)$/iu.test(commandText)) {
     await updatePrivateUserSettings(senderId, { awaitingMenuTime: false });
     await showPrivateSettings(peerId);
     console.log('[VK] private settings opened for user=' + peerId);
     return true;
   }
 
-  if (/^📄?\s*получить акцизы$/iu.test(normalized)) {
+  if (payloadCommand === 'get_excises' || /^📄?\s*получить акцизы$/iu.test(normalized)) {
     await sendExcisesFile(peerId);
     console.log('[VK] requested excise Excel from private dialog user=' + peerId);
     return true;
   }
 
-  if (/^🧊?\s*опустошённые за сегодня$/iu.test(normalized)) {
+  if (payloadCommand === 'emptied_today' || /^🧊?\s*опустошённые за сегодня$/iu.test(normalized)) {
     const response = await fetch(API_BASE_URL + '/api/vk-bot/emptied-today', {
       method: 'GET',
       headers: {
@@ -2411,18 +2423,23 @@ async function handleCallback(req, res) {
 
   const peerId = String(message.peer_id ?? '').trim();
   const text = String(message.text || '').trim();
+  const actionPayload = parseVkMessagePayload(message.payload);
 
-  if (!peerId || !text) {
+  if (!peerId || (!text && !actionPayload?.command)) {
     return sendText(res, 200, 'ok');
   }
 
   try {
-    if (await handlePrivateMessage(message, peerId, text)) {
+    if (await handlePrivateMessage(message, peerId, text, actionPayload)) {
       return sendText(res, 200, 'ok');
     }
   } catch (error) {
     console.error('[VK] private menu handling failed for peer=' + peerId + ':', error.message);
     return sendJson(res, 500, { error: 'VK private menu handling failed' });
+  }
+
+  if (!text) {
+    return sendText(res, 200, 'ok');
   }
 
   if (!allowedPeerIds.has(peerId)) {
