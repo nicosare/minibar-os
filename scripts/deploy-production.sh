@@ -86,7 +86,14 @@ done
 declare -A selected=()
 for file in "${changed_files[@]}"; do
   case "$file" in
-    frontend/*) selected[frontend]=1 ;;
+    frontend/*)
+      # Test-only assets and the preview-only Nginx config are not part of the
+      # production frontend image and must not trigger a production rebuild.
+      case "$file" in
+        frontend/tests/*|frontend/nginx-preview.conf) ;;
+        *) selected[frontend]=1 ;;
+      esac
+      ;;
     backend/*) selected[backend]=1 ;;
     miniapp/*) selected[miniapp]=1 ;;
     vk-proxy/*) selected[vk-proxy]=1 ;;
