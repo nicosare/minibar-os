@@ -2463,8 +2463,9 @@ async function handleCallback(req, res) {
     }
   } catch (error) {
     console.error('[VK] private menu handling failed for peer=' + peerId + ':', error.stack || error.message || error);
+    const settingsText = text.replace(/^⚙️\\s*/u, '').trim();
     const isSettingsCommand = actionPayload?.command === 'settings' ||
-      /^(?:⚙️\\s*)?(?:настройки|settings)$/iu.test(text);
+      /^(?:настройки|settings)$/iu.test(settingsText);
     if (isSettingsCommand) {
       try {
         await sendPrivateText(
