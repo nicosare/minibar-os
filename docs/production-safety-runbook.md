@@ -45,7 +45,7 @@ Do not share `.env`, `DATABASE_URL`, tokens, SSH keys, or complete container env
 - Verify service readiness, not only Docker's `running` state.
 - Record the target commit only after successful post-deploy checks.
 - Plan rollback together with schema compatibility. Do not automatically roll an older backend image over a database change until it is proven that the old version can run safely against that schema.
-- Since GitHub Actions can deploy on pushes to `design/desktop-unification`, merge only reviewed and CI-passing changes into that branch. Changes to the tracked deploy script do not automatically replace the installed entrypoint; synchronize it deliberately after reviewing the file and the production deployment state.
+- Since GitHub Actions can deploy on pushes to `design/desktop-unification`, merge only reviewed and CI-passing changes into that branch. The installed entrypoint predates the self-synchronization logic added to the tracked script, so it needs a one-time manual installation of the reviewed source after this PR is merged. After that bootstrap, successful deploy runs will synchronize the installed entrypoint from the tracked source; failed deployments will not update the installed script.
 
 ## Audit follow-up checklist
 
