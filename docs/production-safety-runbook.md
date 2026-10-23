@@ -10,7 +10,7 @@ This runbook records the production safeguards reviewed in October 2026. It is i
 - The installed entrypoint may differ from the tracked source. Inspect and compare them before syncing or replacing either file.
 - The tracked deploy script blocks schema, initializer and migration-file changes by default. The installed copy currently contains a narrow historical exception for commit `150f19424d8e38225b9dbff059f0971ae295f5d5`, limited to adding `checks.operation_snapshot` and checking that the column already exists.
 - Backend startup runs `prisma generate`, `prisma db push`, then a SQL backfill of GIH product snapshots. Therefore an ordinary backend restart can attempt schema synchronization.
-- A `backend/prisma/migrations` history was not present in the source-file inventory during this audit. Do **not** switch production to `prisma migrate deploy` until a baseline and a tested migration procedure have been created.
+- The tracked `backend/prisma` directory currently contains `schema.prisma` and `seed-data.sql`; it has no tracked `migrations` directory or migration history. Do **not** switch production to `prisma migrate deploy` until a baseline has been created, verified against the live schema, and marked as applied after a backup.
 
 ## Read-only schema preflight
 
