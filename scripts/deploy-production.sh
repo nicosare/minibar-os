@@ -12,6 +12,20 @@ SERVICES=(frontend backend miniapp vk-proxy vk-bot)
 log() { printf '[minibar-deploy] %s\n' "$*"; }
 fail() { log "ERROR: $*"; exit 1; }
 
+# Keep the installed SSH entrypoint aligned with the reviewed tracked source.
+# This script is already loaded by Bash, so replacing the file affects only
+# subsequent invocations. Sync only on successful deployment paths.
+sync_installed_entrypoint() {
+  local source="$REPO_DIR/scripts/deploy-production.sh"
+  local installed="/usr/local/sbin/minibar-deploy"
+  [[ -f "$source" && -f "$installed" ]] || return 0
+  if ! cmp -s "$source" "$installed"; then
+    install -m 0755 "$source" "$installed" ||
+      fail "Could not synchronize the installed deploy entrypoint."
+    log "Installed deploy entrypoint synchronized with the tracked source."
+  fi
+}
+
 [[ "$(id -u)" -eq 0 ]] || fail "Must run as root."
 [[ -d "$REPO_DIR/.git" ]] || fail "Git repository not found at $REPO_DIR."
 cd "$REPO_DIR"
@@ -45,6 +59,7 @@ git merge-base --is-ancestor "$base_sha" "$target_sha" || fail "Last successful 
 mapfile -t changed_files < <(git diff --name-only "$base_sha" "$target_sha")
 if (("${#changed_files[@]}" == 0)); then
   log "No file changes found between $base_sha and $target_sha."
+  sync_installed_entrypoint
   printf '%s\n' "$target_sha" > "$STATE_FILE"
   log "DEPLOY_RESULT=SUCCESS COMMIT=$target_sha SERVICES=none"
   exit 0
@@ -89,6 +104,7 @@ fi
 
 if (("${#selected_services[@]}" == 0)); then
   log "No runtime components changed (documentation/workflow-only commit)."
+  sync_installed_entrypoint
   printf '%s\n' "$target_sha" > "$STATE_FILE"
   log "DEPLOY_RESULT=SUCCESS COMMIT=$target_sha SERVICES=none"
   exit 0
@@ -133,6 +149,7 @@ for service in "${selected_services[@]}"; do
   esac
 done
 
+sync_installed_entrypoint
 printf '%s\n' "$target_sha" > "$STATE_FILE"
 log "DEPLOY_RESULT=SUCCESS COMMIT=$target_sha SERVICES=${selected_services[*]}"
 log "Production deploy completed."
