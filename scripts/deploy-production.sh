@@ -46,12 +46,42 @@ fi
 log "Changes since last successful deployment:"
 printf '  %s\n' "${changed_files[@]}"
 
-# The current backend startup runs Prisma db push and SQL backfill against production.
-# Schema/initializer changes require a reviewed migration plan; never apply them automatically.
+# Permit only the exact reviewed additive operationSnapshot field.
+# Initializer changes and all other schema/migration changes stay blocked.
 for file in "${changed_files[@]}"; do
   case "$file" in
-    backend/prisma/schema.prisma|backend/src/init-db.js|backend/prisma/migrations/*)
-      fail "Database schema/initializer change detected ($file). Deployment stopped before checkout/build. Review a safe production migration plan first."
+    backend/src/init-db.js|backend/prisma/migrations/*)
+      fail "Database initializer or unapproved migration detected ($file)."
+      ;;
+    backend/prisma/schema.prisma)
+      [[ "$target_sha" == "150f19424d8e38225b9dbff059f0971ae295f5d5" ]] ||
+        fail "Schema changes are blocked except for the specifically reviewed deployment."
+
+      added_schema_lines="$(git diff --unified=0 "$base_sha" "$target_sha" -- backend/prisma/schema.prisma | grep '^+' | grep -v '^+++' | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//' || true)"
+      removed_schema_lines="$(git diff --unified=0 "$base_sha" "$target_sha" -- backend/prisma/schema.prisma | grep '^-' | grep -v '^---' || true)"
+
+      [[ "$added_schema_lines" == '+ operationSnapshot Json? @map("operation_snapshot")' ]] ||
+        fail "Schema diff differs from the reviewed operationSnapshot addition."
+      [[ -z "$removed_schema_lines" ]] ||
+        fail "Schema diff contains removals; refusing deployment."
+
+      column_exists="$(
+        docker compose exec -T db \
+          sh -lc 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tA' <<'SQL'
+SELECT EXISTS (
+  SELECT 1
+  FROM information_schema.columns
+  WHERE table_schema = current_schema()
+    AND table_name = 'checks'
+    AND column_name = 'operation_snapshot'
+);
+SQL
+      )" || fail "Could not verify the production database column."
+
+      column_exists="${column_exists//[[:space:]]/}"
+      [[ "$column_exists" == "t" || "$column_exists" == "true" ]] ||
+        fail "The operation_snapshot database column does not exist."
+      log "Verified the exact approved schema addition and the existing database column."
       ;;
   esac
 done
