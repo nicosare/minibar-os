@@ -131,16 +131,18 @@ check_container() {
 }
 
 wait_http() {
-  local service="$1" url="$2" attempt
+  local service="$1" url="$2" expected="${3:-}" attempt response
   for attempt in $(seq 1 20); do
-    if curl -fsS --max-time 3 "$url" >/dev/null; then
-      log "Health check passed: $service ($url)"
-      return 0
+    if response="$(curl -fsS --max-time 3 "$url" 2>/dev/null)"; then
+      if [[ -z "$expected" || "$response" == *"$expected"* ]]; then
+        log "Health check passed: $service ($url)"
+        return 0
+      fi
     fi
     sleep 2
   done
   docker compose logs --tail=80 "$service" || true
-  fail "HTTP health check failed for '$service' ($url)."
+  fail "HTTP health check failed for '$service' ($url${expected:+; required health response fragment was not present})."
 }
 
 for service in "${selected_services[@]}"; do
@@ -149,8 +151,8 @@ for service in "${selected_services[@]}"; do
     frontend) wait_http frontend "http://127.0.0.1:8080/" ;;
     backend) wait_http backend "http://127.0.0.1:3100/api/health" ;;
     miniapp) wait_http miniapp "http://127.0.0.1:8081/" ;;
-    vk-proxy) wait_http vk-proxy "http://127.0.0.1:3001/health" ;;
-    vk-bot) wait_http vk-bot "http://127.0.0.1:3002/health" ;;
+    vk-proxy) wait_http vk-proxy "http://127.0.0.1:3001/health" '"token_configured":true' ;;
+    vk-bot) wait_http vk-bot "http://127.0.0.1:3002/health" '"service":"vk-callback"' ;;
   esac
 done
 
