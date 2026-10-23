@@ -939,23 +939,51 @@ async function showPrivateSettings(peerId) {
   const messageText = formatPrivateSettingsText(settings);
   const keyboard = buildPrivateSettingsKeyboard(settings);
 
-  // Reuse the existing settings panel rather than adding another settings
-  // message every time the persistent keyboard's Settings button is pressed.
+  // Reuse the existing settings panel when VK allows editing it. A message can
+  // still exist while messages.edit rejects it, so that failure must not block
+  // opening Settings: clear the stale reference and send a fresh panel instead.
   if (settings.settingsMessageId) {
-    const available = await isStoredPrivateMenuAvailable(peerId, settings.settingsMessageId);
-    if (available) {
-      await editPrivateMenu(peerId, settings.settingsMessageId, keyboard, messageText);
-      return;
+    let replaceExisting = false;
+    try {
+      const available = await isStoredPrivateMenuAvailable(peerId, settings.settingsMessageId);
+      if (available) {
+        try {
+          await editPrivateMenu(peerId, settings.settingsMessageId, keyboard, messageText);
+          console.log('[VK] reused settings panel user=' + peerId +
+            ' message_id=' + settings.settingsMessageId);
+          return;
+        } catch (error) {
+          replaceExisting = true;
+          console.warn('[VK] could not edit existing settings panel user=' + peerId +
+            ' message_id=' + settings.settingsMessageId + '; sending replacement: ' + error.message);
+        }
+      } else {
+        replaceExisting = true;
+        console.warn('[VK] saved settings panel no longer exists user=' + peerId +
+          ' message_id=' + settings.settingsMessageId + '; sending replacement');
+      }
+    } catch (error) {
+      // Opening settings takes priority over preserving one-message reuse when VK
+      // cannot verify the stored message. A new panel is safer than a silent no-op.
+      replaceExisting = true;
+      console.warn('[VK] could not verify existing settings panel user=' + peerId +
+        ' message_id=' + settings.settingsMessageId + '; sending replacement: ' + error.message);
     }
-    settings = await updatePrivateUserSettings(peerId, { settingsMessageId: null });
+
+    if (replaceExisting) {
+      settings = await updatePrivateUserSettings(peerId, {
+        settingsMessageId: null,
+        settingsMessageCmid: null
+      });
+    }
   }
 
   const messageId = await sendPrivateText(peerId, messageText, keyboard);
-  if (messageId) {
-    await updatePrivateUserSettings(peerId, { settingsMessageId: messageId });
-  } else {
-    console.warn('[VK] VK did not return a message id for settings panel user=' + peerId);
+  if (!messageId) {
+    throw new Error('VK did not return a usable message id for settings panel');
   }
+  await updatePrivateUserSettings(peerId, { settingsMessageId: messageId });
+  console.log('[VK] sent new settings panel user=' + peerId + ' message_id=' + messageId);
 }
 
 async function checkDailyPrivateMenus() {
@@ -2434,7 +2462,21 @@ async function handleCallback(req, res) {
       return sendText(res, 200, 'ok');
     }
   } catch (error) {
-    console.error('[VK] private menu handling failed for peer=' + peerId + ':', error.message);
+    console.error('[VK] private menu handling failed for peer=' + peerId + ':', error.stack || error.message || error);
+    const isSettingsCommand = actionPayload?.command === 'settings' ||
+      /^(?:⚙️\\s*)?(?:настройки|settings)$/iu.test(text);
+    if (isSettingsCommand) {
+      try {
+        await sendPrivateText(
+          peerId,
+          '⚠️ Не удалось открыть настройки. Попробуй нажать «⚙️ Настройки» ещё раз.'
+        );
+        return sendText(res, 200, 'ok');
+      } catch (notifyError) {
+        console.error('[VK] failed to report settings opening error for peer=' +
+          peerId + ': ' + (notifyError.stack || notifyError.message || notifyError));
+      }
+    }
     return sendJson(res, 500, { error: 'VK private menu handling failed' });
   }
 
