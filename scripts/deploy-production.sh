@@ -19,6 +19,14 @@ cd "$REPO_DIR"
 current_branch="$(git branch --show-current)"
 [[ "$current_branch" == "$DEPLOY_BRANCH" ]] || fail "Expected branch $DEPLOY_BRANCH, found '$current_branch'. Refusing to switch branches automatically."
 
+# Serialize all deploy entrypoint invocations, including manual SSH invocations
+# that do not go through GitHub Actions concurrency controls.
+mkdir -p "$STATE_DIR"
+command -v flock >/dev/null 2>&1 || fail "Required command 'flock' is unavailable."
+umask 077
+exec 9>"$STATE_DIR/deploy.lock"
+flock -n 9 || fail "Another production deployment is already in progress."
+
 log "Fetching origin/$DEPLOY_BRANCH"
 git fetch origin "$DEPLOY_BRANCH"
 target_sha="$(git rev-parse "origin/$DEPLOY_BRANCH")"
