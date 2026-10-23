@@ -67,18 +67,15 @@ jobs:
           docker logs minibar-frontend-smoke
           exit 1
 
+      # Run for every CI invocation. GitHub's head_commit.modified list omits
+      # added/removed/renamed files, so it is not a safe test-selection mechanism.
       - name: Run desktop browser smoke tests
-        if: >-
-          github.event_name != 'push' ||
-          contains(toJSON(github.event.head_commit.modified), 'frontend/') ||
-          contains(toJSON(github.event.head_commit.modified), 'miniapp/')
         run: node frontend/tests/desktop-smoke.cjs
 
       - name: Test VK Mini App photo destination
         run: |
           node --check vk-proxy/server.js
           node --check vk-proxy/peer-id.js
-          node --test vk-proxy/peer-id.test.cjs
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const html = fs.readFileSync('miniapp/index.html', 'utf8');
@@ -106,8 +103,15 @@ jobs:
             node --check "$file"
           done < <(find backend/src vk-proxy vk-bot -type f -name '*.js' -print0)
 
-      - name: Test the emptied-today room state
-        run: node --test backend/src/services/emptiedToday.test.js
+      - name: Check deployment script syntax
+        run: bash -n scripts/deploy-production.sh
+
+      - name: Run existing unit test suites
+        run: |
+          node --test \
+            backend/src/services/deadlines.test.js \
+            backend/src/services/emptiedToday.test.js \
+            vk-proxy/peer-id.test.cjs
 
       - name: Show frontend logs on failure
         if: failure()
@@ -131,6 +135,12 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Keep only one production deploy active. If a newer run replaces a pending
+    # run, the deploy script still compares the last-successful marker to the
+    # latest branch ref and deploys the cumulative change set.
+    concurrency:
+      group: minibar-os-production-deploy
+      cancel-in-progress: false
 
     steps:
       - name: Check out deployment commit

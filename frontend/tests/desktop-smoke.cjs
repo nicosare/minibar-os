@@ -339,8 +339,15 @@ let savedDeparturesPrint = null;
       nodes.map(icon => ({ name: icon.getAttribute('data-page-icon'), color: getComputedStyle(icon).color })));
     assert.ok(titleIconColors.length === expectedPageIcons.length && titleIconColors.every(icon => icon.color === 'rgb(15, 23, 42)'),
       'all page title icons should use the same neutral black color, diagnostics=' + JSON.stringify(titleIconColors));
+    // Wait for Lucide before rendering route icons. Optional chaining alone
+    // silently skips rendering if the external script has not loaded yet.
+    await page.waitForFunction(
+      () => typeof window.lucide?.createIcons === 'function',
+      null,
+      { timeout: 10000 }
+    );
     // Render all route icons once so hidden tabs are also covered by the smoke test.
-    await page.evaluate(() => window.lucide?.createIcons());
+    await page.evaluate(() => window.lucide.createIcons());
     // Wait for and capture computed styles in the same browser evaluation.
     // The separate evaluate used previously could observe an icon during an
     // asynchronous DOM replacement, producing empty computed values.
