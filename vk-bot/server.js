@@ -2463,7 +2463,7 @@ async function handleCallback(req, res) {
     }
   } catch (error) {
     console.error('[VK] private menu handling failed for peer=' + peerId + ':', error.stack || error.message || error);
-    const settingsText = text.replace(/^⚙️\\s*/u, '').trim();
+    const settingsText = text.replace(/^⚙️\s*/u, '').trim();
     const isSettingsCommand = actionPayload?.command === 'settings' ||
       /^(?:настройки|settings)$/iu.test(settingsText);
     if (isSettingsCommand) {
