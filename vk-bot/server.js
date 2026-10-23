@@ -935,55 +935,22 @@ function buildPrivateSettingsKeyboard(settings) {
 }
 
 async function showPrivateSettings(peerId) {
-  let settings = await getPrivateUserSettings(peerId);
+  // VK cannot move an edited message to the bottom of a conversation. Always
+  // send a fresh panel so pressing Settings visibly opens it near the latest
+  // messages, rather than silently changing a panel far above in chat history.
+  const settings = await updatePrivateUserSettings(peerId, {
+    awaitingMenuTime: false,
+    settingsMessageCmid: null
+  });
   const messageText = formatPrivateSettingsText(settings);
   const keyboard = buildPrivateSettingsKeyboard(settings);
-
-  // Reuse the existing settings panel when VK allows editing it. A message can
-  // still exist while messages.edit rejects it, so that failure must not block
-  // opening Settings: clear the stale reference and send a fresh panel instead.
-  if (settings.settingsMessageId) {
-    let replaceExisting = false;
-    try {
-      const available = await isStoredPrivateMenuAvailable(peerId, settings.settingsMessageId);
-      if (available) {
-        try {
-          await editPrivateMenu(peerId, settings.settingsMessageId, keyboard, messageText);
-          console.log('[VK] reused settings panel user=' + peerId +
-            ' message_id=' + settings.settingsMessageId);
-          return;
-        } catch (error) {
-          replaceExisting = true;
-          console.warn('[VK] could not edit existing settings panel user=' + peerId +
-            ' message_id=' + settings.settingsMessageId + '; sending replacement: ' + error.message);
-        }
-      } else {
-        replaceExisting = true;
-        console.warn('[VK] saved settings panel no longer exists user=' + peerId +
-          ' message_id=' + settings.settingsMessageId + '; sending replacement');
-      }
-    } catch (error) {
-      // Opening settings takes priority over preserving one-message reuse when VK
-      // cannot verify the stored message. A new panel is safer than a silent no-op.
-      replaceExisting = true;
-      console.warn('[VK] could not verify existing settings panel user=' + peerId +
-        ' message_id=' + settings.settingsMessageId + '; sending replacement: ' + error.message);
-    }
-
-    if (replaceExisting) {
-      settings = await updatePrivateUserSettings(peerId, {
-        settingsMessageId: null,
-        settingsMessageCmid: null
-      });
-    }
-  }
-
   const messageId = await sendPrivateText(peerId, messageText, keyboard);
   if (!messageId) {
     throw new Error('VK did not return a usable message id for settings panel');
   }
   await updatePrivateUserSettings(peerId, { settingsMessageId: messageId });
-  console.log('[VK] sent new settings panel user=' + peerId + ' message_id=' + messageId);
+  console.log('[VK] settings panel sent at latest chat position user=' + peerId +
+    ' message_id=' + messageId);
 }
 
 async function checkDailyPrivateMenus() {
