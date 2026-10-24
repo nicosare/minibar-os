@@ -520,23 +520,6 @@
   #gihSaveBtn { width:100%; min-height:44px; padding:8px 14px; border:1px solid rgba(255,204,0,.75); border-radius:12px; background:var(--yellow); color:#121212; font-size:14px; line-height:18px; font-weight:900; cursor:pointer; }
   #gihSaveBtn[hidden] { display:none!important; }
   #gihSaveBtn:disabled { opacity:.4; cursor:default; }
-  .main-content.is-gih-list-mode .camera-info-panel { display:flex; flex-direction:column; align-items:stretch; gap:8px; padding:10px; }
-  .main-content.is-gih-list-mode .camera-info-panel > .room-description-box { display:none; }
-  .main-content.is-gih-list-mode .camera-workspace { display:flex; flex:1 1 auto; flex-direction:column; min-height:0; width:100%; }
-  .main-content.is-gih-list-mode .camera-workspace-deadlines { display:none; }
-  .main-content.is-gih-list-mode .camera-workspace-gih { display:flex; flex:1 1 auto; width:100%; height:100%; min-height:0; grid-column:auto; grid-row:auto; }
-  .main-content.is-gih-list-mode .camera-info-panel .camera-history-section { display:block; flex:0 0 auto; width:100%; min-height:0; align-self:stretch; }
-  .main-content.is-gih-list-mode .camera-history-card { padding:6px 8px; }
-  .main-content.is-gih-list-mode .camera-history-list { max-height:34px; }
-  .main-content.is-gih-list-mode .room-action-row { display:none!important; }
-  .main-content.is-gih-list-mode .shutter-grid { grid-template-columns:1fr; padding:0; }
-  .main-content.is-gih-list-mode .grid-left,
-  .main-content.is-gih-list-mode .grid-right { display:none; }
-  .main-content.is-gih-list-mode .grid-center { width:100%; }
-  .main-content.is-gih-list-mode #captureBtn { display:none!important; }
-  .main-content.is-gih-list-mode .controls-section { width:min(88vw,440px,calc(58dvh * .75)); max-width:440px; }
-  .main-content.is-gih-list-mode .shutter-grid { width:100%; max-width:none; }
-  .main-content.is-gih-list-mode #gihSaveBtn { display:block; }
   .camera-gih-content .mini-gih-modes { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; }
   .camera-gih-content .mini-gih-mode { min-width:0; min-height:28px; padding:5px 3px; border-radius:7px; font-size:8px; line-height:10px; white-space:normal; }
   .camera-gih-content .mini-gih-note { min-height:42px; padding:6px; font-size:10px; line-height:13px; }
@@ -1658,11 +1641,8 @@
 @media(min-width:440px){.gih-list-toolbar{padding-left:15px;padding-right:15px}.gih-list-content{padding-left:15px;padding-right:15px}.mini-gih-products{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.mini-gih-product{height:100%;grid-template-columns:30px minmax(0,1fr)}.mini-gih-product-action{grid-column:2;justify-self:start}}
 
   .sheet-refill-section.is-gih-list .sheet-refill-product.is-basket .sheet-refill-product-icon svg { width:19px; height:19px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
-  .main-content.is-gih-list-mode { gap:4px; padding-top:8px; padding-bottom:calc(63px + 28px + env(safe-area-inset-bottom)); }
-  .main-content.is-gih-list-mode .camera-info-panel { gap:5px; padding:7px; }
   /* Stable workbench geometry: content changes must not move the room carousel. */
   .carousel-wrap { margin-top:auto; padding-top:4px; }
-  .main-content.is-gih-list-mode .carousel-wrap { margin-top:auto; }
   /* Normal room mode: GIH is a compact status card, not a full-height column. */
   .camera-info-panel {
     grid-template-rows: auto minmax(112px, auto) auto auto;
@@ -1680,8 +1660,6 @@
   .camera-workspace-gih .camera-gih-start { min-height:64px; }
   .camera-workspace-gih .camera-gih-start .mini-gih-action { width:100%; max-width:220px; }
   /* Active GIH keeps its dedicated layout, sharing the same carousel anchor. */
-  .main-content.is-gih-list-mode .camera-info-panel { grid-template-rows: minmax(0,1fr); }
-  .main-content.is-gih-list-mode .camera-workspace-gih { grid-row:auto; grid-column:auto; height:100%; min-height:0; max-height:none; }
   @media (max-height: 740px) {
     .camera-info-panel { gap:6px; padding:8px; }
     .camera-workspace-deadlines .camera-deadline-panel { min-height:86px; }
@@ -1689,22 +1667,8 @@
     .camera-history-section { min-height:0; }
   }
 
-  .main-content.is-gih-list-mode .camera-workspace-gih { gap:4px; padding:6px; }
-  .main-content.is-gih-list-mode .camera-gih-head { padding-bottom:3px; }
-  .main-content.is-gih-list-mode .camera-gih-content .mini-gih-products { display:grid; grid-template-columns:repeat(auto-fit,minmax(126px,1fr)); align-content:start; gap:4px; }
-  .main-content.is-gih-list-mode .camera-gih-content .mini-gih-product { width:100%; min-width:0; grid-template-columns:23px minmax(0,1fr); align-items:center; gap:5px; min-height:44px; padding:5px; text-align:left; transition:none; }
-  .main-content.is-gih-list-mode .camera-gih-content .mini-gih-product-emoji { width:23px; height:23px; font-size:12px; }
-  .main-content.is-gih-list-mode .camera-gih-content .mini-gih-product-copy { min-width:0; min-height:34px; justify-content:center; gap:1px; }
-  .main-content.is-gih-list-mode .camera-gih-content .mini-gih-product-name { display:-webkit-box; min-height:22px; overflow:hidden; overflow-wrap:anywhere; -webkit-box-orient:vertical; -webkit-line-clamp:2; font-size:9px; line-height:11px; }
-  .main-content.is-gih-list-mode .camera-gih-content .mini-gih-product-status { min-height:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:8px; line-height:10px; }
-  .main-content.is-gih-list-mode .camera-gih-controls { gap:3px; margin:3px 0; }
-  .main-content.is-gih-list-mode .camera-gih-modes { grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px; }
-  .main-content.is-gih-list-mode .camera-gih-modes .mini-gih-mode { min-width:0; min-height:36px; padding:5px 2px; font-size:9px; line-height:11px; white-space:normal; }
   .camera-gih-note-overlay { display:block; align-self:stretch; width:100%; min-height:34px; max-height:46px; margin:0; padding:6px 8px; resize:none; font-size:10px; line-height:13px; }
   .camera-gih-note-overlay[hidden] { display:none!important; }
-  .main-content.is-gih-list-mode .controls-section { flex:0 0 104px; min-height:104px; justify-content:center; padding:0 16px; }
-  .main-content.is-gih-list-mode .shutter-grid { min-height:76px; }
-  .main-content.is-gih-list-mode .carousel-wrap { margin-top:-6px; }
   .camera-gih-panel:active { filter:none!important; }
   .camera-gih-content .mini-gih-product { -webkit-tap-highlight-color:transparent; }
   .camera-gih-start { min-height:100%; display:flex; align-items:center; justify-content:center; padding:12px; }
@@ -3222,15 +3186,7 @@ function renderRoomHistory(roomId) {
     roomHistoryItems.innerHTML = '<div class="camera-history-empty">Операций пока нет</div>';
     return;
   }
-  const visibleHistory = activeListKey === 'gih'
-    ? state.items.filter(item => item.type === 'gih').slice(-1)
-    : state.items.slice(-3);
-  if (!visibleHistory.length) {
-    roomHistoryItems.innerHTML = '<div class="camera-history-empty">' +
-      (activeListKey === 'gih' ? 'Записей GIH пока нет' : 'Операций пока нет') + '</div>';
-    return;
-  }
-  roomHistoryItems.innerHTML = visibleHistory.map(cameraHistoryEntryHtml).join('');
+  roomHistoryItems.innerHTML = state.items.slice(-3).map(cameraHistoryEntryHtml).join('');
 }
 
 async function loadRoomHistory(room, force = false) {
@@ -3965,7 +3921,7 @@ function miniGihRenderDetail(preserveScroll = true) {
     footer + '</div>';
   if (preserveScroll) gihListContent.scrollTop = savedScroll;
 }
-function miniGihCameraRecordHtml(record, isDraft, compactGihList = activeListKey === 'gih') {
+function miniGihCameraRecordHtml(record, isDraft, compactGihList = false) {
   const busy = miniGihBusyChecks.has(record.id);
   const itemsBusy = record.gihItems.some(item => miniGihBusyItems.has(item.id));
   const productsHtml = record.gihItems.length
@@ -4020,52 +3976,17 @@ function miniGihCameraRecordHtml(record, isDraft, compactGihList = activeListKey
     '</div>';
 }
 
-function renderCameraGihControls(record) {
-  const gihListMode = activeListKey === 'gih';
-  const draft = record && miniGihDrafts.some(item => item.id === Number(record.id)) ? record : null;
-  const mainContent = document.querySelector('.main-content');
-  if (mainContent) mainContent.classList.toggle('is-gih-list-mode', gihListMode);
-  cameraGihControls.classList.toggle('hidden', !gihListMode || !draft);
-  captureBtn.hidden = gihListMode;
-  gihSaveBtn.hidden = !gihListMode || !draft;
-  cameraGihNote.hidden = !gihListMode || !draft;
-  if (!gihListMode || !draft) {
-    cameraGihModes.innerHTML = '';
-    cameraGihNote.disabled = true;
-    if (!draft) {
-      cameraGihNote.value = '';
-      cameraGihNote.dataset.miniGihNotes = '';
-      delete gihSaveBtn.dataset.miniGihSave;
-    }
-    gihSaveBtn.disabled = true;
-    gihSaveBtn.textContent = 'Сохранить';
-    return;
-  }
-  const busy = miniGihBusyChecks.has(draft.id);
-  const itemsBusy = draft.gihItems.some(item => miniGihBusyItems.has(item.id));
-  const modeButtons = [...cameraGihModes.querySelectorAll('[data-mini-gih-mode]')];
-  const modeButtonsMatch = modeButtons.length === MINI_GIH_MODES.length &&
-    modeButtons.every(button => Number(button.dataset.miniGihRecord) === draft.id);
-  if (!modeButtonsMatch) {
-    cameraGihModes.innerHTML = MINI_GIH_MODES.map(item =>
-      '<button type="button" class="mini-gih-mode' + (draft.gihRoomStatus === item.key ? ' active' : '') +
-      '" data-mini-gih-record="' + draft.id + '" data-mini-gih-mode="' + item.key + '" ' +
-      ((miniGihProductsDirty(draft) || busy) ? 'disabled' : '') + '>' + miniGihEscape(item.label) + '</button>'
-    ).join('');
-  } else {
-    modeButtons.forEach(button => {
-      button.classList.toggle('active', draft.gihRoomStatus === button.dataset.miniGihMode);
-      button.disabled = miniGihProductsDirty(draft) || busy;
-    });
-  }
-  if (cameraGihNote.dataset.miniGihNotes !== String(draft.id)) {
-    cameraGihNote.value = draft.notes || '';
-    cameraGihNote.dataset.miniGihNotes = String(draft.id);
-  }
-  cameraGihNote.disabled = busy;
-  gihSaveBtn.dataset.miniGihSave = String(draft.id);
-  gihSaveBtn.disabled = !miniGihCanSave(draft) || busy || itemsBusy;
-  gihSaveBtn.textContent = busy ? 'Сохранение…' : 'Сохранить';
+function renderCameraGihControls() {
+  // GIH stays embedded in the regular room screen, never replacing camera controls.
+  cameraGihControls.classList.add('hidden');
+  cameraGihModes.innerHTML = '';
+  cameraGihNote.hidden = true;
+  cameraGihNote.disabled = true;
+  gihSaveBtn.hidden = true;
+  gihSaveBtn.disabled = true;
+  gihSaveBtn.textContent = 'Сохранить';
+  delete gihSaveBtn.dataset.miniGihSave;
+  captureBtn.hidden = false;
 }
 
 function renderCameraGihCard() {
@@ -4077,10 +3998,6 @@ function renderCameraGihCard() {
     cameraGihContent.innerHTML = html;
     cameraGihContent.scrollTop = contentScroll;
   };
-  const gihListMode = activeListKey === 'gih';
-  const mainContent = document.querySelector('.main-content');
-  if (mainContent) mainContent.classList.toggle('is-gih-list-mode', gihListMode);
-
   if (!room || !room.id) {
     cameraGihRenderedRoomId = null;
     cameraGihRoom.textContent = 'Нет номера';
@@ -4097,7 +4014,7 @@ function renderCameraGihCard() {
   const draft = miniGihDrafts.find(record => String(record.number) === number);
   if (draft) {
     cameraGihStatus.textContent = 'Черновик';
-    renderContent(miniGihCameraRecordHtml(draft, true, gihListMode));
+    renderContent(miniGihCameraRecordHtml(draft, true, false));
     renderCameraGihControls(draft);
     return;
   }
@@ -4105,7 +4022,7 @@ function renderCameraGihCard() {
   const done = miniGihDones.find(record => String(record.number) === number);
   if (done) {
     cameraGihStatus.textContent = 'Сохранено';
-    renderContent(miniGihCameraRecordHtml(done, false, gihListMode));
+    renderContent(miniGihCameraRecordHtml(done, false, false));
     renderCameraGihControls(done);
     return;
   }
