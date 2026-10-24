@@ -297,42 +297,66 @@ async function extractRoomNumbers(file) {
   }
 
   function buildPrintDocument(numbers) {
+    // Match the legacy Departures print layout: A4 landscape, 1cm margins,
+    // two columns with 36 fixed-height rows each. Arrivals adds only Move/VIP.
     const dateString = new Date().toLocaleDateString('ru-RU');
     const pages = [];
-    for (let index = 0; index < numbers.length; index += 72) {
-      const slice = numbers.slice(index, index + 72);
-      const left = slice.slice(0, 36);
-      const right = slice.slice(36, 72);
+    const pageCount = Math.ceil(numbers.length / 72);
+
+    for (let pageNum = 0; pageNum < pageCount; pageNum += 1) {
+      const pageItems = numbers.slice(pageNum * 72, pageNum * 72 + 72);
+      const left = pageItems.slice(0, 36);
+      const right = pageItems.slice(36, 72);
       while (left.length < 36) left.push(null);
       while (right.length < 36) right.push(null);
       pages.push([left, right]);
     }
 
-    const renderColumn = items => {
-      const rows = items.map(number => {
-        if (!number) return '<tr><td></td><td></td><td></td></tr>';
+    let htmlContent = '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+      '<title>Заезды ' + escapeHtml(dateString) + '</title><style>' +
+      '@page { size: A4 landscape; margin: 1cm; }' +
+      'body { font-family: Times New Roman, serif; margin: 0; padding: 0; }' +
+      '.page-container { display:flex; justify-content:space-around; width:100%; height:95vh; page-break-after:always; }' +
+      '.page-column { flex:1; padding-top:1cm; padding-left:1cm; padding-right:1cm; box-sizing:border-box; }' +
+      '.print-table { width:100%; border-collapse:collapse; font-size:10px; }' +
+      '.print-table th, .print-table td { border:1px solid #000; padding:0px; height:16px; vertical-align:middle; }' +
+      '.print-table th { background:#f0f0f0; font-weight:bold; text-align:center; }' +
+      '.print-table .number-col { width:50px; text-align:center; }' +
+      '.print-table .move-vip-col { width:52px; text-align:center; }' +
+      '.print-table .details-col { width:auto; text-align:left; padding-left:6px; }' +
+      '</style></head><body>';
+
+    const renderColumn = column => {
+      let rows = '';
+      for (const rawNumber of column) {
+        if (!rawNumber) {
+          rows += '<tr><td class="number-col">&nbsp;</td><td class="move-vip-col">&nbsp;</td><td class="details-col">&nbsp;</td></tr>';
+          continue;
+        }
+        const number = String(rawNumber);
         const item = entryFor(number);
         const details = [];
         if (item.empty) details.push('Опустошить');
         if (item.time) details.push('Заезд ' + item.time);
         if (item.comment) details.push(item.comment);
-        return '<tr><td class="number">' + escapeHtml(number) + '</td><td class="move-vip">' +
-          (item.vip ? 'VIP' : '') + '</td><td class="details">' + escapeHtml(details.join(' · ')) + '</td></tr>';
-      }).join('');
-      return '<div class="page-column"><div class="print-title">Заезды от ' + escapeHtml(dateString) + '</div>' +
-        '<table><thead><tr><th>№</th><th>Move/VIP</th><th>Информация</th></tr></thead><tbody>' + rows +
+        rows += '<tr><td class="number-col"><strong><font size="2">' +
+          escapeHtml(number) + '</font></strong></td>' +
+          '<td class="move-vip-col"><strong>' + (item.vip ? 'VIP' : '&nbsp;') + '</strong></td>' +
+          '<td class="details-col">' + (details.length ? escapeHtml(details.join(' · ')) : '&nbsp;') + '</td></tr>';
+      }
+      return '<div class="page-column"><table class="print-table"><thead><tr>' +
+        '<th class="number-col"><font size="2">№</font></th>' +
+        '<th class="move-vip-col"><font size="2">Move/VIP</font></th>' +
+        '<th class="details-col" style="text-align:center;"><font size="2">Заезды от ' +
+        escapeHtml(dateString) + '</font></th></tr></thead><tbody>' + rows +
         '</tbody></table></div>';
     };
 
-    return '<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><title>Заезды ' + escapeHtml(dateString) +
-      '</title><style>@page{size:A4 landscape;margin:8mm}*{box-sizing:border-box}body{font-family:"Times New Roman",serif;margin:0;color:#000}' +
-      '.page-container{display:flex;gap:8mm;width:100%;min-height:190mm;page-break-after:always;break-after:page}' +
-      '.page-column{flex:1;min-width:0}.print-title{text-align:center;font-size:10pt;margin:0 0 2.5mm}' +
-      'table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #000;padding:.6mm .8mm;height:4.6mm;font-size:8.2pt;line-height:1;vertical-align:middle}' +
-      'th{font-size:8.5pt;font-weight:700;text-align:center}.number{width:14%;text-align:center;font-weight:700}.move-vip{width:14%;text-align:center;font-size:8.5pt;font-weight:700}.details{width:72%;overflow-wrap:anywhere}' +
-      'thead{display:table-header-group}tr{page-break-inside:avoid}.details{overflow-wrap:anywhere} @media print{.page-container{page-break-after:always;break-after:page}}</style></head><body>' +
-      pages.map(page => '<section class="page-container">' + renderColumn(page[0]) + renderColumn(page[1]) + '</section>').join('') +
-      '</body></html>';
+    pages.forEach(([left, right]) => {
+      htmlContent += '<div class="page-container">' + renderColumn(left) + renderColumn(right) + '</div>';
+    });
+    htmlContent += '</body></html>';
+    return htmlContent;
   }
 
   async function printArrivals() {
