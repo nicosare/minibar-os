@@ -6642,7 +6642,7 @@ sheetContent.addEventListener('click', event => {
   if (arrivalRemoveButton) {
     event.preventDefault();
     event.stopPropagation();
-    void updateArrivalListRoom(arrivalRemoveButton.dataset.arrivalRemove, 'remove');
+    void removeRoomFromActiveList(arrivalRemoveButton.dataset.arrivalRemove);
     return;
   }
   const removeButton = event.target.closest('[data-departure-remove]');
