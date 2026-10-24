@@ -763,6 +763,7 @@
   .bottom-nav-item:active,.bottom-nav-item:focus-visible{outline:none;border-color:rgba(255,204,0,.4);background:rgba(255,204,0,.1);color:var(--yellow)}
   .nav-placeholder-body{min-height:150px;display:flex;align-items:center;justify-content:center;padding:24px;color:rgba(255,255,255,.42);font-size:12px;text-align:center}
   .nav-placeholder-body.is-lists-screen{display:block;min-height:0;padding:12px;text-align:left;color:#fff}
+  .mini-list-cards{display:flex;flex-direction:column;gap:10px;width:100%}
   #navPlaceholderModal .deadline-modal-card{width:100%;max-width:560px}
 
   .tool-modal-card{width:100%;max-width:560px;display:flex;flex-direction:column;overflow:hidden}
@@ -2397,16 +2398,26 @@ function renderDepartureListCard() {
   const active=activeListKey==='departures';
   const total=Math.max(0,departureList.assignedCount),completed=Math.max(0,departureList.completedCount),remaining=Math.max(0,departureList.remainingCount);
   const progress=total>0?Math.max(0,Math.min(100,Math.round(completed/total*100))):0;
+  const gihTotal=miniGihDrafts.reduce((sum,record)=>sum+record.gihItems.length,0);
+  const gihMarked=miniGihDrafts.reduce((sum,record)=>sum+record.gihItems.filter(item=>record.gihRoomStatus||item.itemStatus!=='pending').length,0);
+  const gihProgress=gihTotal>0?Math.max(0,Math.min(100,Math.round(gihMarked/gihTotal*100))):0;
   navPlaceholderBody.innerHTML=
+    '<div class="mini-list-cards">'+
     '<button type="button" class="mini-departure-list-card'+(active?' is-active':'')+'" data-select-departures-list aria-label="Выбрать список Выезды">'+
     '<div class="mini-departure-card-top"><span>Выезды</span><span class="mini-departure-card-state">'+(active?'Активен':'Открыть')+'</span></div>'+
     '<div class="mini-departure-progress"><div class="mini-departure-progress-copy"><span>Проверено <strong>'+completed+'</strong> из <strong>'+total+
     '</strong></span><span>Осталось <strong>'+remaining+'</strong></span></div><div class="mini-departure-progress-track" role="progressbar" aria-label="Прогресс проверок" aria-valuemin="0" aria-valuemax="'+
     total+'" aria-valuenow="'+Math.min(completed,total)+'"><span style="width:'+progress+'%"></span></div></div></button>'+
-    (!departureList.sourceReady&&total===0?'<div class="mini-departure-empty-note">Загрузите PDF со списком на сайте.</div>':'');
+    (!departureList.sourceReady&&total===0?'<div class="mini-departure-empty-note">Загрузите PDF со списком на сайте.</div>':'')+
+    '<button type="button" class="mini-departure-list-card" data-open-gih-list aria-label="Открыть список GIH">'+
+    '<div class="mini-departure-card-top"><span>GIH</span><span class="mini-departure-card-state">Открыть</span></div>'+
+    '<div class="mini-departure-progress"><div class="mini-departure-progress-copy"><span>Черновики <strong>'+miniGihDrafts.length+'</strong></span><span>Сохранено сегодня <strong>'+miniGihDones.length+'</strong></span></div>'+
+    '<div class="mini-departure-progress-track" role="progressbar" aria-label="Заполнение черновиков GIH" aria-valuemin="0" aria-valuemax="'+gihTotal+'" aria-valuenow="'+Math.min(gihMarked,gihTotal)+'"><span style="width:'+gihProgress+'%"></span></div></div></button>'+
+    '</div>';
 }
 async function openListsScreen() {
   closeToolScreens();
+  closeGihListModal();
   closeSheet();
   activePlaceholderName = 'Списки';
   navPlaceholderBody.className = 'nav-placeholder-body is-lists-screen';
@@ -2419,13 +2430,16 @@ async function openListsScreen() {
   });
   navPlaceholderBody.innerHTML = '<div class="tool-empty-state">Загрузка списков…</div>';
   try {
-    await refreshDepartureList();
-    await refreshActiveRefills().catch(error => console.warn('[MINIBAR REFILLS] Не удалось обновить список:', error));
+    await Promise.all([
+      refreshDepartureList(),
+      refreshActiveRefills().catch(error => console.warn('[MINIBAR REFILLS] Не удалось обновить список:', error)),
+      loadMiniGihList()
+    ]);
     renderDepartureListCard();
   } catch (error) {
     navPlaceholderBody.innerHTML =
       '<div class="tool-empty-state">Не удалось загрузить список. Проверь соединение и попробуй ещё раз.</div>';
-    showMessage(error.message || 'Не удалось загрузить список Выезды', 3500);
+    showMessage(error.message || 'Не удалось загрузить списки', 3500);
   }
 }
 
@@ -3391,17 +3405,26 @@ function isGihListModalOpen() {
 function closeGihListModal() {
   gihListModal.classList.add('hidden');
   gihListModal.setAttribute('aria-hidden', 'true');
+  if (activePlaceholderName !== 'Списки' || navPlaceholderModal.classList.contains('hidden')) {
+    bottomNav.querySelectorAll('[data-nav-modal]').forEach(button => button.classList.remove('is-active'));
+  }
 }
 async function openGihListModal() {
   closeToolScreens();
   closeSheet();
-  closeNavPlaceholderModal();
+  const listsScreenVisible = activePlaceholderName === 'Списки' && !navPlaceholderModal.classList.contains('hidden');
+  if (!listsScreenVisible) closeNavPlaceholderModal();
   miniGihView = 'list';
   miniGihSelectedId = null;
   miniGihTab = 'drafts';
   miniGihShowFeedback('');
   gihListModal.classList.remove('hidden');
   gihListModal.setAttribute('aria-hidden', 'false');
+  if (listsScreenVisible) {
+    gihListModal.style.zIndex = '1300';
+  } else {
+    gihListModal.style.zIndex = '';
+  }
   await loadMiniGihList();
 }
 async function loadMiniGihList() {
@@ -3447,6 +3470,9 @@ async function loadMiniGihList() {
   } finally {
     miniGihLoading = false;
     gihListRefresh.disabled = false;
+    if (activePlaceholderName === 'Списки' && !navPlaceholderModal.classList.contains('hidden')) {
+      renderDepartureListCard();
+    }
   }
 }
 function miniGihRecordSummary(record) {
@@ -5613,6 +5639,11 @@ sheetSortOrder.addEventListener('click', () => {
 
 
 navPlaceholderBody.addEventListener('click', event => {
+  const gihListButton = event.target.closest('[data-open-gih-list]');
+  if (gihListButton) {
+    void openGihListModal();
+    return;
+  }
   const refillRoomButton = event.target.closest('[data-refill-room-number]');
   if (refillRoomButton) {
     const number = String(refillRoomButton.dataset.refillRoomNumber || '');
