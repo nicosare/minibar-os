@@ -1673,6 +1673,17 @@
   .main-content.is-gih-list-mode .camera-gih-modes .mini-gih-mode { min-width:0; min-height:36px; padding:5px 2px; font-size:9px; line-height:11px; white-space:normal; }
   .camera-gih-note-overlay { display:block; align-self:stretch; width:100%; min-height:34px; max-height:46px; margin:0; padding:6px 8px; resize:none; font-size:10px; line-height:13px; }
   .camera-gih-note-overlay[hidden] { display:none!important; }
+  .main-content.is-gih-list-mode .controls-section { flex:0 0 104px; min-height:104px; justify-content:center; padding:0 16px; }
+  .main-content.is-gih-list-mode .shutter-grid { min-height:76px; }
+  .main-content.is-gih-list-mode .carousel-wrap { margin-top:0; }
+  .camera-gih-panel:active { filter:none!important; }
+  .camera-gih-content .mini-gih-product { -webkit-tap-highlight-color:transparent; }
+  .camera-gih-start { min-height:100%; gap:7px; }
+  .camera-gih-start .mini-gih-action { width:min(100%,230px); }
+  .room-chip.gih-done:not(.selected) { color:#b8f7cc; border-color:rgba(74,222,128,.72); background:rgba(34,197,94,.15); }
+  .num-item.gih-done:not(.active):not(.pinned) { color:rgba(74,222,128,.62); }
+  .num-item.gih-done.active,.num-item.gih-done.pinned { color:#4ade80; }
+  .num-item.gih-done.pinned::after { border-color:rgba(74,222,128,.95); }
 </style>
 </head>
 <body>
@@ -2178,8 +2189,16 @@ function currentDepartureNumbers() {
   return new Set((departureList.roomNumbers || []).map(String));
 }
 
-function currentGihNumbers() {
+function currentGihRemainingNumbers() {
   return new Set((miniGihDrafts || []).map(record => String(record.number)).filter(number => ROOM_BY_NUMBER.has(number)));
+}
+
+function currentGihDoneNumbers() {
+  return new Set((miniGihDones || []).map(record => String(record.number)).filter(number => ROOM_BY_NUMBER.has(number)));
+}
+
+function currentGihNumbers() {
+  return new Set([...currentGihRemainingNumbers(), ...currentGihDoneNumbers()]);
 }
 
 function activeListNumbers() {
@@ -2564,7 +2583,7 @@ async function refreshActiveRefills(roomId = null) {
 }
 
 function renderGihListProductsSection() {
-  const roomNumbers = currentGihNumbers();
+  const roomNumbers = currentGihRemainingNumbers();
   const latestDraftByRoom = new Map();
   for (const record of miniGihDrafts) {
     const number = String(record.number);
@@ -2612,8 +2631,8 @@ function renderDepartureListCard() {
   const completed = Math.max(0, departureList.completedCount);
   const remaining = Math.max(0, departureList.remainingCount);
   const progress = total > 0 ? Math.max(0, Math.min(100, Math.round(completed / total * 100))) : 0;
-  const gihDraftNumbers = currentGihNumbers();
-  const gihDoneNumbers = new Set(miniGihDones.map(record => String(record.number)).filter(number => ROOM_BY_NUMBER.has(number)));
+  const gihDraftNumbers = currentGihRemainingNumbers();
+  const gihDoneNumbers = currentGihDoneNumbers();
   gihDraftNumbers.forEach(number => gihDoneNumbers.delete(number));
   const gihTotalNumbers = new Set([...gihDraftNumbers, ...gihDoneNumbers]);
   const gihTotal = gihTotalNumbers.size;
@@ -2961,8 +2980,8 @@ const cameraGihControls = document.getElementById('cameraGihControls');
 const cameraGihModes = document.getElementById('cameraGihModes');
 const cameraGihNote = document.getElementById('cameraGihNote');
 const gihSaveBtn = document.getElementById('gihSaveBtn');
-let cameraGihCreateCounts = {}, cameraGihCreateRoomId = null, cameraGihCreating = false;
-let cameraGihTemplateLoadingId = null, cameraGihStartNew = false, returnToGihListAfterCreate = false, returnToGihListRoomNumber = '';
+let cameraGihRenderedRoomId = null;
+let returnToGihListAfterCreate = false, returnToGihListRoomNumber = '';
 let previewRefillRequestId = null;
 let previewRoomNumber = null;
 const gihCreateModal = document.getElementById('gihCreateModal');
@@ -3562,15 +3581,58 @@ async function openGihCreateModal(){
  currentGihRoom=data.room||currentGihRoom;renderGihCreateProducts();
 }
 async function submitGihCreate(){
- if(!currentGihRoom||gihCreateBusy)return;const items=Object.entries(gihCreateCounts).filter(([,q])=>Number(q)>0).map(([productId,qty])=>({productId:Number.parseInt(productId,10),qty:Number.parseInt(qty,10)}));
- if(!items.length){gihCreateFeedback.textContent='Добавь хотя бы одну позицию.';gihCreateFeedback.classList.add('visible');return}
- gihCreateBusy=true;gihCreateSubmit.disabled=true;gihCreateClear.disabled=true;
- try{
-  await deadlineApiRequest('/checks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({roomId:Number(currentGihRoom.id),type:'gih',status:'draft',gihItems:items})});
-  gihCreateModal.classList.add('hidden');gihCreateModal.setAttribute('aria-hidden','true');currentGihRoom=null;gihCreateCounts={};miniGihTab='drafts';miniGihView='list';miniGihSelectedId=null;if(isGihListModalOpen())void loadMiniGihList();showMessage('Черновик GIH создан',2200);triggerHaptic();void loadRoomHistory(selectedRoom,true);
- }catch(error){gihCreateFeedback.textContent=error?.message||'Не удалось создать запись GIH.';gihCreateFeedback.classList.add('visible')}
- finally{gihCreateBusy=false;gihCreateSubmit.disabled=false;gihCreateClear.disabled=false;if(isGihListModalOpen()&&miniGihView==='list')renderMiniGih(false)}
+  if(!currentGihRoom||gihCreateBusy)return;
+  const room = currentGihRoom;
+  const items = Object.entries(gihCreateCounts)
+    .filter(([,qty])=>Number(qty)>0)
+    .map(([productId,qty])=>({productId:Number.parseInt(productId,10),qty:Number.parseInt(qty,10)}));
+  if(!items.length){
+    gihCreateFeedback.textContent='Добавь хотя бы одну позицию.';
+    gihCreateFeedback.classList.add('visible');
+    return;
+  }
+  gihCreateBusy=true;
+  gihCreateSubmit.disabled=true;
+  gihCreateClear.disabled=true;
+  try{
+    const created = await deadlineApiRequest('/checks',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({roomId:Number(room.id),type:'gih',status:'draft',gihItems:items})
+    });
+
+    const shouldReturnToGihList = returnToGihListAfterCreate &&
+      String(room.number) === String(returnToGihListRoomNumber);
+    returnToGihListAfterCreate = false;
+    returnToGihListRoomNumber = '';
+    if(shouldReturnToGihList){
+      activeListKey='gih';
+      activeListDateKey=miniGihLocalDayKey(new Date());
+      drawerMode='list';
+      persistActiveListSelection();
+    }
+
+    gihCreateModal.classList.add('hidden');
+    gihCreateModal.setAttribute('aria-hidden','true');
+    currentGihRoom=null;
+    gihCreateCounts={};
+    if(created && Number(created.id)) miniGihUpsertRecord(created);
+    else await loadMiniGihList();
+
+    showMessage('Черновик GIH создан',2200);
+    triggerHaptic();
+    void loadRoomHistory(room,true);
+  }catch(error){
+    gihCreateFeedback.textContent=error?.message||'Не удалось создать запись GIH.';
+    gihCreateFeedback.classList.add('visible');
+  }finally{
+    gihCreateBusy=false;
+    gihCreateSubmit.disabled=false;
+    gihCreateClear.disabled=false;
+    if(isGihListModalOpen()&&miniGihView==='list')renderMiniGih(false);
+  }
 }
+
 function miniGihLocalDayKey(value) {
   const date = value instanceof Date ? value : new Date(value || '');
   if (!Number.isFinite(date.getTime())) return '';
@@ -3632,7 +3694,7 @@ function miniGihFindRecord(id) {
 }
 function miniGihDeriveLists() {
   const wasGihListActive = activeListKey === 'gih';
-  const previousNumbers = (miniGihDrafts || []).map(record => String(record.number)).sort((a,b)=>Number(a)-Number(b)).join(',');
+  const previousNumbers = [...currentGihNumbers()].sort((a,b)=>Number(a)-Number(b)).join(',');
   miniGihRecords.sort((a,b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime() || b.id - a.id);
   miniGihDrafts = miniGihRecords.filter(record =>
     (record.status || 'draft') === 'draft' && miniGihIsToday(record.createdAt || record.checkDate));
@@ -3649,7 +3711,7 @@ function miniGihDeriveLists() {
       activeListDateKey = today; persistActiveListSelection();
     }
   }
-  const nextNumbers = miniGihDrafts.map(record => String(record.number)).sort((a,b)=>Number(a)-Number(b)).join(',');
+  const nextNumbers = [...currentGihNumbers()].sort((a,b)=>Number(a)-Number(b)).join(',');
   if (gihListExpired && wasGihListActive && miniAppRoomSelectionReady) {
     buildCarousel(nextCarouselNumber(selectedRoom?.number, ALL_ROOMS));
   } else if (activeListKey === 'gih' && previousNumbers !== nextNumbers && miniAppRoomSelectionReady) {
@@ -3975,7 +4037,7 @@ function renderCameraGihCard() {
   if (!cameraGihContent || !cameraGihRoom || !cameraGihStatus) return;
   const room = selectedRoom;
   const roomId = room && room.id ? Number(room.id) : null;
-  const contentScroll = roomId && cameraGihCreateRoomId === roomId ? cameraGihContent.scrollTop : 0;
+  const contentScroll = roomId && cameraGihRenderedRoomId === roomId ? cameraGihContent.scrollTop : 0;
   const renderContent = html => {
     cameraGihContent.innerHTML = html;
     cameraGihContent.scrollTop = contentScroll;
@@ -3985,6 +4047,7 @@ function renderCameraGihCard() {
   if (mainContent) mainContent.classList.toggle('is-gih-list-mode', gihListMode);
 
   if (!room || !room.id) {
+    cameraGihRenderedRoomId = null;
     cameraGihRoom.textContent = 'Нет номера';
     cameraGihStatus.textContent = 'Ожидание';
     renderContent('<div class="mini-gih-empty"><strong>Выбери номер</strong><span>Карточка GIH появится здесь.</span></div>');
@@ -3994,15 +4057,10 @@ function renderCameraGihCard() {
 
   const number = String(room.number);
   cameraGihRoom.textContent = '№ ' + number;
-  if (cameraGihCreateRoomId !== roomId) {
-    cameraGihCreateRoomId = roomId;
-    cameraGihCreateCounts = {};
-    cameraGihStartNew = false;
-  }
+  cameraGihRenderedRoomId = roomId;
 
   const draft = miniGihDrafts.find(record => String(record.number) === number);
   if (draft) {
-    cameraGihStartNew = false;
     cameraGihStatus.textContent = 'Черновик';
     renderContent(miniGihCameraRecordHtml(draft, true, gihListMode));
     renderCameraGihControls(draft);
@@ -4010,66 +4068,17 @@ function renderCameraGihCard() {
   }
 
   const done = miniGihDones.find(record => String(record.number) === number);
-  if (done && !cameraGihStartNew) {
+  if (done) {
     cameraGihStatus.textContent = 'Сохранено';
     renderContent(miniGihCameraRecordHtml(done, false, gihListMode));
     renderCameraGihControls(done);
     return;
   }
 
-  const state = deadlineRoomCache.get(roomId);
-  if (!state || (state.loading && !state.loadedAt)) {
-    cameraGihStatus.textContent = 'Загрузка';
-    renderContent('<div class="mini-gih-empty">Загрузка шаблона номера…</div>');
-    renderCameraGihControls(null);
-    if (cameraGihTemplateLoadingId !== roomId) {
-      cameraGihTemplateLoadingId = roomId;
-      void loadRoomDeadlineData(room).then(() => {
-        if (cameraGihTemplateLoadingId === roomId) cameraGihTemplateLoadingId = null;
-        if (Number(selectedRoom?.id) === roomId) renderCameraGihCard();
-      });
-    }
-    return;
-  }
-
-  if (state.error && !state.loadedAt) {
-    cameraGihStatus.textContent = 'Недоступно';
-    renderContent('<div class="mini-gih-empty"><strong>Не удалось загрузить шаблон</strong><span>Попробуй выбрать номер ещё раз.</span></div>');
-    renderCameraGihControls(null);
-    return;
-  }
-
-  const templateItems = state.room?.template?.items || [];
-  if (!templateItems.length) {
-    cameraGihStatus.textContent = 'Нет шаблона';
-    renderContent('<div class="mini-gih-empty"><strong>Нет шаблона наполнения</strong><span>Для этого номера нельзя создать GIH.</span></div>');
-    renderCameraGihControls(null);
-    return;
-  }
-
-  cameraGihStatus.textContent = cameraGihStartNew ? 'Новая проверка' : 'Создать проверку';
-  const picker = '<div class="deadline-modal-product-grid camera-gih-template-grid">' + templateItems.map(item => {
-    const product = item.product || {};
-    const id = Number(item.productId || product.id);
-    const max = Math.max(1, Number(item.qty) || 1);
-    const count = Number(cameraGihCreateCounts[id]) || 0;
-    const color = MINI_GIH_PRODUCT_COLORS[product.bgColor] || MINI_GIH_PRODUCT_COLORS.slate;
-    const emoji = product.emoji || String(product.name || '?').charAt(0).toUpperCase();
-    return '<button type="button" class="deadline-modal-product' + (count ? ' selected' : '') +
-      '" data-camera-gih-product-id="' + id + '" data-camera-gih-max="' + max + '" aria-pressed="' + String(count > 0) +
-      '" ' + (cameraGihCreating ? 'disabled' : '') + '>' +
-      (count ? '<span class="deadline-modal-counter">' + count + '</span>' : '') +
-      '<span class="deadline-modal-product-icon" style="background:' + color + ';color:#18202a">' + miniGihEscape(emoji) + '</span>' +
-      '<span class="deadline-modal-product-text"><span class="deadline-modal-product-name">' +
-      miniGihEscape(product.name || 'Продукт') + '</span></span></button>';
-  }).join('') + '</div>';
-  const selectedCount = Object.values(cameraGihCreateCounts).reduce((sum, count) => sum + Math.max(0, Number(count) || 0), 0);
-  renderContent('<div class="mini-gih-detail camera-gih-detail">' +
-    '<section class="mini-gih-section"><div class="mini-gih-section-title"><span>ПРОДУКТЫ</span><span>выбери позиции</span></div>' +
-    picker + '</section><div class="mini-gih-detail-footer"><button type="button" class="mini-gih-action" data-camera-gih-clear ' +
-    (cameraGihCreating || !selectedCount ? 'disabled' : '') + '>Очистить</button><button type="button" class="mini-gih-action primary" data-camera-gih-create ' +
-    (cameraGihCreating || !selectedCount ? 'disabled' : '') + '>' + (cameraGihCreating ? 'Создание…' : 'Создать черновик') +
-    '</button></div></div>');
+  cameraGihStatus.textContent = 'Создать проверку';
+  renderContent('<div class="mini-gih-empty camera-gih-start"><strong>Проверка GIH ещё не создана</strong>' +
+    '<span>Выбери продукты, чтобы начать.</span>' +
+    '<button type="button" class="mini-gih-action primary" data-camera-gih-new>Выбрать продукты</button></div>');
   renderCameraGihControls(null);
 }
 
@@ -4094,36 +4103,6 @@ function updateCameraGihRecordUI(recordId) {
   });
   renderCameraGihControls(record);
 }
-function updateCameraGihPicker() {
-  const buttons = cameraGihContent.querySelectorAll('[data-camera-gih-product-id]');
-  buttons.forEach(button => {
-    const productId = Number(button.dataset.cameraGihProductId);
-    const count = Math.max(0, Number(cameraGihCreateCounts[productId]) || 0);
-    button.classList.toggle('selected', count > 0);
-    button.setAttribute('aria-pressed', String(count > 0));
-    let counter = button.querySelector('.deadline-modal-counter');
-    if (count > 0) {
-      if (!counter) {
-        counter = document.createElement('span');
-        counter.className = 'deadline-modal-counter';
-        button.insertBefore(counter, button.firstChild);
-      }
-      counter.textContent = String(count);
-    } else if (counter) {
-      counter.remove();
-    }
-    button.disabled = cameraGihCreating;
-  });
-  const selectedCount = Object.values(cameraGihCreateCounts).reduce((sum,count)=>sum+Math.max(0,Number(count)||0),0);
-  const clear = cameraGihContent.querySelector('[data-camera-gih-clear]');
-  const create = cameraGihContent.querySelector('[data-camera-gih-create]');
-  if (clear) clear.disabled = cameraGihCreating || !selectedCount;
-  if (create) {
-    create.disabled = cameraGihCreating || !selectedCount;
-    create.textContent = cameraGihCreating ? 'Создание…' : 'Создать черновик';
-  }
-}
-
 async function saveCurrentCameraGihDraft() {
   const recordId = Number(gihSaveBtn.dataset.miniGihSave);
   if (!recordId || gihSaveBtn.disabled) return;
@@ -4141,45 +4120,6 @@ async function saveCurrentCameraGihDraft() {
   }
 }
 
-async function submitCameraGihDraft() {
-  const roomId = Number(cameraGihCreateRoomId);
-  const room = ALL_ROOMS.find(item => Number(item.id) === roomId);
-  const items = Object.entries(cameraGihCreateCounts).filter(([,qty]) => Number(qty) > 0)
-    .map(([productId,qty]) => ({productId:Number.parseInt(productId,10),qty:Number.parseInt(qty,10)}));
-  if (!room || cameraGihCreating) return;
-  if (!items.length) { showMessage('Выбери хотя бы один продукт для GIH', 2200); return; }
-  cameraGihCreating = true;
-  renderCameraGihCard();
-  try {
-    const created = await deadlineApiRequest('/checks', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({roomId:Number(room.id),type:'gih',status:'draft',gihItems:items})
-    });
-    const shouldReturnToGihList = returnToGihListAfterCreate &&
-      String(room.number) === String(returnToGihListRoomNumber);
-    returnToGihListAfterCreate = false;
-    returnToGihListRoomNumber = '';
-    if (shouldReturnToGihList) {
-      activeListKey = 'gih';
-      activeListDateKey = miniGihLocalDayKey(new Date());
-      drawerMode = 'list';
-      persistActiveListSelection();
-    }
-    if (created && Number(created.id)) miniGihUpsertRecord(created);
-    else await loadMiniGihList();
-    cameraGihStartNew = false;
-    cameraGihCreateCounts = {};
-    showMessage('Черновик GIH создан', 2200);
-    triggerHaptic();
-    void loadRoomHistory(room, true);
-  } catch (error) {
-    showMessage(error?.message || 'Не удалось создать запись GIH', 3200);
-  } finally {
-    cameraGihCreating = false;
-    renderCameraGihCard();
-  }
-}
-
 function renderMiniGih(preserveScroll = true) {
   if (miniGihView === 'detail' && miniGihSelectedId) miniGihRenderDetail(preserveScroll);
   else {
@@ -4194,6 +4134,7 @@ async function setMiniGihItemStatus(recordId, itemId) {
   if (!record || record.status === 'done' || record.gihRoomStatus || miniGihBusyItems.has(Number(itemId))) return;
   const item = record.gihItems.find(value => value.id === Number(itemId));
   if (!item) return;
+  triggerHaptic();
   const previous = item.itemStatus || 'pending';
   const index = MINI_GIH_CYCLE.indexOf(previous);
   const next = MINI_GIH_CYCLE[(index + 1 + MINI_GIH_CYCLE.length) % MINI_GIH_CYCLE.length];
@@ -4362,7 +4303,7 @@ function handleMiniGihClick(event) {
 
 function updateQueueDisplay() {
   if (activeListKey === 'departures') queueCount.textContent = 'Выезды · осталось ' + departureList.remainingCount;
-  else if (activeListKey === 'gih') queueCount.textContent = 'GIH · осталось ' + currentGihNumbers().size;
+  else if (activeListKey === 'gih') queueCount.textContent = 'GIH · осталось ' + currentGihRemainingNumbers().size;
   else queueCount.textContent = 'В очереди: ' + queueRemaining + ' номеров';
 }
 
@@ -5384,6 +5325,8 @@ function updateSelectedRoomState(room, vibrate = false) {
     if (carouselItem) {
       carouselItem.classList.toggle('empty-room', item.expiryStatus === 'empty');
       carouselItem.classList.toggle('today-checked', checkedNumbers.has(String(item.number)));
+      carouselItem.classList.toggle('gih-done', activeListKey === 'gih' &&
+        currentGihDoneNumbers().has(String(item.number)) && !currentGihRemainingNumbers().has(String(item.number)));
       carouselItem.classList.toggle('needs-refill', roomNeedsRefillMarker(item.number));
     }
   });
@@ -5391,6 +5334,8 @@ function updateSelectedRoomState(room, vibrate = false) {
   const currentItem = carouselItems.get(room.number);
   if (currentItem) {
     currentItem.classList.toggle('empty-room', room.expiryStatus === 'empty');
+    currentItem.classList.toggle('gih-done', activeListKey === 'gih' &&
+      currentGihDoneNumbers().has(String(room.number)) && !currentGihRemainingNumbers().has(String(room.number)));
     currentItem.classList.toggle('needs-refill', roomNeedsRefillMarker(room.number));
     currentItem.classList.add('active');
     activeCarouselItem = currentItem;
@@ -5546,8 +5491,10 @@ function renderDrawerRooms(filterQuery = '') {
       floorRooms.map(room => {
         const number = String(room.number);
         const checked = checkedNumbers.has(number);
+        const gihDone = activeListKey === 'gih' && currentGihDoneNumbers().has(number) && !currentGihRemainingNumbers().has(number);
         const classes = ['room-chip', room.expiryStatus === 'empty' ? 'empty-room' : '',
           roomNeedsRefillMarker(number) ? 'needs-refill' : '',
+          gihDone ? 'gih-done' : '',
           number === String(selectedRoom?.number || '') ? 'selected' : '', checked ? 'today-checked' : '']
           .filter(Boolean).join(' ');
         const safeNumber = escapeCameraHtml(number);
@@ -5582,6 +5529,8 @@ function updateDrawerSelectedChip(numStr) {
     chip.classList.toggle('selected', number === String(numStr));
     chip.classList.toggle('empty-room', room?.expiryStatus === 'empty');
     chip.classList.toggle('needs-refill', roomNeedsRefillMarker(number));
+    chip.classList.toggle('gih-done', activeListKey === 'gih' &&
+      currentGihDoneNumbers().has(number) && !currentGihRemainingNumbers().has(number));
     chip.classList.toggle('in-departure-list', Boolean(activeListKey) && listNumbers.has(number));
     chip.classList.toggle('today-checked', checkedNumbers.has(number));
   });
@@ -5865,20 +5814,9 @@ cameraGihNote.addEventListener('change', () => {
 });
 gihSaveBtn.addEventListener('click', () => { void saveCurrentCameraGihDraft(); });
 cameraGihContent.addEventListener('click', event => {
-  const product = event.target.closest('[data-camera-gih-product-id]');
-  if (product && !cameraGihCreating) {
-    const id = Number(product.dataset.cameraGihProductId), max = Number(product.dataset.cameraGihMax) || 1;
-    const current = Number(cameraGihCreateCounts[id]) || 0, next = current >= max ? 0 : current + 1;
-    if (next) cameraGihCreateCounts[id] = next; else delete cameraGihCreateCounts[id];
-    updateCameraGihPicker(); triggerHaptic(); return;
-  }
-  if (event.target.closest('[data-camera-gih-create]')) { void submitCameraGihDraft(); return; }
-  if (event.target.closest('[data-camera-gih-clear]')) {
-    if (cameraGihCreating) return;
-    cameraGihCreateCounts = {}; updateCameraGihPicker(); return;
-  }
   if (event.target.closest('[data-camera-gih-new]')) {
-    cameraGihStartNew = true; cameraGihCreateCounts = {}; renderCameraGihCard();
+    triggerHaptic();
+    void openGihCreateModal();
   }
 });
 function setRefillFeedback(text, visible = true) {
