@@ -2877,7 +2877,7 @@ const cameraGihRoom = document.getElementById('cameraGihRoom');
 const cameraGihStatus = document.getElementById('cameraGihStatus');
 const cameraGihHistory = document.getElementById('cameraGihHistory');
 let cameraGihCreateCounts = {}, cameraGihCreateRoomId = null, cameraGihCreating = false;
-let cameraGihTemplateLoadingId = null, cameraGihStartNew = false, returnToGihListAfterCreate = false;
+let cameraGihTemplateLoadingId = null, cameraGihStartNew = false, returnToGihListAfterCreate = false, returnToGihListRoomNumber = '';
 let previewRefillRequestId = null;
 let previewRoomNumber = null;
 const gihCreateModal = document.getElementById('gihCreateModal');
@@ -3928,12 +3928,15 @@ async function submitCameraGihDraft() {
       method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({roomId:Number(room.id),type:'gih',status:'draft',gihItems:items})
     });
-    if (returnToGihListAfterCreate) {
+    const shouldReturnToGihList = returnToGihListAfterCreate &&
+      String(room.number) === String(returnToGihListRoomNumber);
+    returnToGihListAfterCreate = false;
+    returnToGihListRoomNumber = '';
+    if (shouldReturnToGihList) {
       activeListKey = 'gih';
       activeListDateKey = miniGihLocalDayKey(new Date());
       drawerMode = 'list';
       persistActiveListSelection();
-      returnToGihListAfterCreate = false;
     }
     if (created && Number(created.id)) miniGihUpsertRecord(created);
     else await loadMiniGihList();
@@ -6071,6 +6074,7 @@ sheetContent.addEventListener('click', event => {
   }
   if (activeListKey === 'gih' && drawerMode === 'all' && !currentGihNumbers().has(number)) {
     returnToGihListAfterCreate = true;
+    returnToGihListRoomNumber = number;
     activeListKey = '';
     activeListDateKey = '';
     drawerMode = 'all';
