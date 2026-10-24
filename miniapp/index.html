@@ -4132,7 +4132,9 @@ async function setMiniGihMode(recordId, modeKey) {
     showMessage(error.message || 'Не удалось сохранить режим GIH.', 3200);
   } finally {
     miniGihBusyChecks.delete(Number(recordId));
-    updateCameraGihRecordUI(record.id);
+    // Re-render the embedded room card from the canonical record after the write
+    // finishes, so the selected mode is visible immediately without re-entering the room.
+    renderCameraGihCard();
     renderMiniGih();
   }
 }
@@ -5382,9 +5384,11 @@ carousel.addEventListener('scroll', () => {
 carousel.addEventListener('click', event => {
   const item = event.target.closest('.num-item');
   if (!item) return;
-  selectRoomByNumber(item.dataset.number);
-  // Tapping a room pins it even when it was already the active room.
-  triggerHaptic();
+  const wasSelected = String(selectedRoom?.number || '') === String(item.dataset.number);
+  // Selecting an adjacent room already emits one haptic when the carousel
+  // scroll settles. Only vibrate here when tapping the current room to pin it.
+  selectRoomByNumber(item.dataset.number, false);
+  if (wasSelected) triggerHaptic();
 });
 
 // Any action button in the camera workspace pins the currently active room.
