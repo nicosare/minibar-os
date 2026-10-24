@@ -1655,6 +1655,7 @@
     align-self:stretch;
   }
   .camera-workspace-refill { grid-row:3; grid-column:2 / span 2; }
+  .camera-workspace-info { grid-row:3; grid-column:1 / span 3; }
   .camera-history-section { grid-row:4; grid-column:1 / span 3; align-self:start; }
   .camera-workspace-gih .camera-gih-content { flex:1 1 auto; }
   .camera-workspace-gih .camera-gih-start { min-height:64px; }
@@ -1709,6 +1710,36 @@
     .arrival-mini-card { padding:8px; }
     .arrival-mini-ready,.arrival-mini-flags label { font-size:9px; }
     .arrival-mini-fields { grid-template-columns:1fr; }
+  }
+
+
+  .camera-arrival-info-panel {
+    min-width:0; min-height:0; align-self:stretch; overflow:hidden;
+    display:flex; flex-direction:column; gap:4px;
+    padding:7px 9px; border:1.5px solid rgba(255,255,255,.16);
+    border-radius:9px; background:rgba(255,255,255,.045); color:#fff;
+  }
+  .camera-arrival-info-head { display:flex; align-items:center; justify-content:space-between; gap:8px; flex:0 0 auto; }
+  .camera-arrival-info-head .camera-action-title { font-size:11px; line-height:14px; }
+  .camera-arrival-info-count { color:rgba(255,255,255,.42); font-size:8px; line-height:11px; font-weight:750; }
+  .camera-arrival-info-list {
+    display:flex; flex:1 1 auto; flex-direction:column; gap:2px; min-width:0; min-height:0;
+    max-height:72px; overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:none;
+  }
+  .camera-arrival-info-list::-webkit-scrollbar { display:none; }
+  .camera-arrival-info-row {
+    display:flex; align-items:baseline; gap:6px; flex:0 0 auto; min-width:0;
+    font-size:9px; line-height:12px; font-weight:750;
+  }
+  .camera-arrival-info-row.is-ready { color:var(--yellow); }
+  .camera-arrival-info-row.is-pending { color:rgba(255,255,255,.43); }
+  .camera-arrival-info-number { flex:0 0 30px; }
+  .camera-arrival-info-meta { min-width:0; overflow-wrap:anywhere; font-weight:600; }
+  .camera-arrival-info-empty { color:rgba(255,255,255,.4); font-size:9px; line-height:12px; padding:3px 0; }
+  @media(max-height:740px) {
+    .camera-arrival-info-panel { padding:6px 8px; gap:3px; }
+    .camera-arrival-info-list { max-height:60px; }
+    .camera-arrival-info-row { font-size:8px; line-height:10px; }
   }
 
 </style>
@@ -1780,6 +1811,10 @@
               </div>
             </section>
           </div>
+          <section class="camera-arrival-info-panel camera-workspace-info" aria-label="Информация о заездах">
+            <div class="camera-arrival-info-head"><span class="camera-action-title">Информация</span><span id="cameraArrivalInfoCount" class="camera-arrival-info-count">0 ном.</span></div>
+            <div class="camera-arrival-info-list" id="cameraArrivalInfoList" aria-live="polite"><div class="camera-arrival-info-empty">Загрузка списка…</div></div>
+          </section>
           <section class="camera-history-section" aria-label="Последние записи истории">
             <div class="camera-history-card" id="roomHistoryOpen" role="button" tabindex="0" aria-label="Открыть историю номера">
               <div class="camera-history-heading">
@@ -2083,6 +2118,7 @@ let arrivalList = {
   sourceCount: 0,
   assignedCount: 0,
   readyCount: 0,
+  completedCount: 0,
   remainingCount: 0,
   roomNumbers: [],
   readyNumbers: [],
@@ -2241,6 +2277,31 @@ function currentArrivalReadyNumbers() {
 function arrivalEntry(number) {
   const value = arrivalList.entries && arrivalList.entries[String(number)];
   return value && typeof value === 'object' ? value : { vip: false, empty: false, time: '', comment: '', ready: false };
+}
+
+function renderCameraArrivalInfo() {
+  const list = document.getElementById('cameraArrivalInfoList');
+  const count = document.getElementById('cameraArrivalInfoCount');
+  if (!list) return;
+  const numbers = [...new Set((arrivalList.roomNumbers || []).map(String))]
+    .sort((a, b) => Number(a) - Number(b));
+  if (count) count.textContent = numbers.length + ' ном.';
+  if (!numbers.length) {
+    list.innerHTML = '<div class="camera-arrival-info-empty">Нет списка Заездов</div>';
+    return;
+  }
+  list.innerHTML = numbers.map(number => {
+    const entry = arrivalEntry(number);
+    const details = [];
+    if (entry.vip) details.push('VIP');
+    if (entry.time) details.push(String(entry.time));
+    if (entry.empty) details.push('Опустошить');
+    if (String(entry.comment || '').trim()) details.push(String(entry.comment).trim());
+    return '<div class="camera-arrival-info-row ' + (entry.ready ? 'is-ready' : 'is-pending') + '">' +
+      '<span class="camera-arrival-info-number">' + escapeCameraHtml(number) + '</span>' +
+      '<span class="camera-arrival-info-meta">' + (details.length ? '• ' + details.map(escapeCameraHtml).join(' • ') : '—') + '</span>' +
+      '</div>';
+  }).join('');
 }
 
 function currentGihRemainingNumbers() {
@@ -2413,6 +2474,7 @@ function applyArrivalList(data, preferredNumber = null) {
     sourceCount: Number(data.sourceCount) || 0,
     assignedCount: Number(data.assignedCount) || 0,
     readyCount: Number(data.readyCount) || 0,
+    completedCount: Number(data.completedCount) || 0,
     remainingCount: Number(data.remainingCount) || 0,
     roomNumbers: [...new Set((Array.isArray(data.roomNumbers) ? data.roomNumbers : []).map(String))],
     readyNumbers: [...new Set((Array.isArray(data.readyNumbers) ? data.readyNumbers : []).map(String))],
@@ -2430,6 +2492,7 @@ function applyArrivalList(data, preferredNumber = null) {
     persistActiveListSelection();
   }
   renderDepartureListCard();
+  renderCameraArrivalInfo();
   const changed = previousDate !== arrivalList.dateKey ||
     previousRooms !== arrivalList.roomNumbers.join(',') ||
     previousReady !== arrivalList.readyNumbers.join(',') || expired;
@@ -2788,9 +2851,9 @@ function renderDepartureListCard() {
   const remaining = Math.max(0, departureList.remainingCount);
   const progress = total > 0 ? Math.max(0, Math.min(100, Math.round(completed / total * 100))) : 0;
   const arrivalsTotal = currentArrivalNumbers().size;
-  const arrivalsReady = currentArrivalReadyNumbers().size;
-  const arrivalsRemaining = Math.max(0, arrivalsTotal - arrivalsReady);
-  const arrivalsProgress = arrivalsTotal > 0 ? Math.max(0, Math.min(100, Math.round(arrivalsReady / arrivalsTotal * 100))) : 0;
+  const arrivalsCompleted = Math.min(arrivalsTotal, Math.max(0, arrivalList.completedCount));
+  const arrivalsRemaining = Math.max(0, arrivalList.remainingCount);
+  const arrivalsProgress = arrivalsTotal > 0 ? Math.max(0, Math.min(100, Math.round(arrivalsCompleted / arrivalsTotal * 100))) : 0;
   const gihDraftNumbers = currentGihRemainingNumbers();
   const gihDoneNumbers = currentGihDoneNumbers();
   gihDraftNumbers.forEach(number => gihDoneNumbers.delete(number));
@@ -2809,9 +2872,9 @@ function renderDepartureListCard() {
     (!departureList.sourceReady && total === 0 ? '<div class="mini-departure-empty-note">Загрузите PDF со списком на сайте.</div>' : '') +
     '<button type="button" class="mini-departure-list-card' + (arrivalsActive ? ' is-active' : '') + '" data-select-arrivals-list aria-label="Выбрать список Заезды">' +
     '<div class="mini-departure-card-top"><span>Заезды</span><span class="mini-departure-card-state">' + (arrivalsActive ? 'Активен' : 'Открыть') + '</span></div>' +
-    '<div class="mini-departure-progress"><div class="mini-departure-progress-copy"><span>Готово <strong>' + arrivalsReady + '</strong> из <strong>' + arrivalsTotal +
-    '</strong></span><span>Не готово <strong>' + arrivalsRemaining + '</strong></span></div><div class="mini-departure-progress-track" role="progressbar" aria-label="Готовность номеров к заезду" aria-valuemin="0" aria-valuemax="' +
-    arrivalsTotal + '" aria-valuenow="' + Math.min(arrivalsReady,arrivalsTotal) + '"><span style="width:' + arrivalsProgress + '%"></span></div></div></button>' +
+    '<div class="mini-departure-progress"><div class="mini-departure-progress-copy"><span>Проверено <strong>' + arrivalsCompleted + '</strong> из <strong>' + arrivalsTotal +
+    '</strong></span><span>Осталось <strong>' + arrivalsRemaining + '</strong></span></div><div class="mini-departure-progress-track" role="progressbar" aria-label="Прогресс проверок Заездов" aria-valuemin="0" aria-valuemax="' +
+    arrivalsTotal + '" aria-valuenow="' + Math.min(arrivalsCompleted,arrivalsTotal) + '"><span style="width:' + arrivalsProgress + '%"></span></div></div></button>' +
     (!arrivalList.sourceReady && arrivalsTotal === 0 ? '<div class="mini-departure-empty-note">Добавьте номера или загрузите PDF на сайте.</div>' : '') +
     '<button type="button" class="mini-departure-list-card' + (gihActive ? ' is-active' : '') + '" data-select-gih-list aria-label="Выбрать список GIH">' +
     '<div class="mini-departure-card-top"><span>GIH</span><span class="mini-departure-card-state">' + (gihActive ? 'Активен' : 'Открыть') + '</span></div>' +
@@ -5823,7 +5886,7 @@ function startRoomLiveSync() {
           domain === 'departures' || domain === 'settings')) {
         void refreshDepartureList();
       }
-      if (domains.some(domain => domain === 'arrivals')) {
+      if (domains.some(domain => domain === 'arrivals' || historyDomains.includes(domain))) {
         void refreshArrivalList();
       }
       if (!ownGihChange && domains.some(domain => historyDomains.includes(domain)) && selectedRoom) {
