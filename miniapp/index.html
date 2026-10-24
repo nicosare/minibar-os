@@ -5473,7 +5473,8 @@ function startRoomLiveSync() {
       }
       // Keep the GIH list aligned with website changes without rebuilding an open draft.
       if (domains.some(domain => ['all','checks','gih'].includes(domain)) &&
-          (activeListKey === 'gih' || Boolean(selectedRoom) || (isGihListModalOpen() && miniGihView === 'list'))) {
+          (activeListKey === 'gih' || Boolean(selectedRoom) || activePlaceholderName === 'Списки' ||
+           (isGihListModalOpen() && miniGihView === 'list'))) {
         void loadMiniGihList();
       }
     } catch (error) {
@@ -5488,7 +5489,7 @@ function startRoomLiveSync() {
   roomEventsSource.addEventListener('sync.required', () => {
     void syncRoomData();
     void refreshDepartureList();
-    if (activeListKey === 'gih') void loadMiniGihList();
+    void loadMiniGihList();
     void refreshActiveRefills().catch(error => console.warn('[MINIBAR REFILLS] Не удалось восстановить пополнения:', error));
   });
 
@@ -5501,7 +5502,7 @@ function startRoomLiveSync() {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
     void refreshDepartureList();
-    if (activeListKey === 'gih') void loadMiniGihList();
+    void loadMiniGihList();
     if (roomSyncPending) {
       roomSyncPending = false;
       void syncRoomData();
