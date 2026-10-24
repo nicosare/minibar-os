@@ -7,6 +7,7 @@ App.arrivalsModule = (() => {
     initialized: false,
     parsingPdf: false,
     pending: new Set(),
+    saveQueue: new Set(),
     feedbackTimer: null
   };
 
@@ -269,7 +270,8 @@ async function extractRoomNumbers(file) {
   async function saveRoomField(number, field, value, input) {
     if (!number || !field) return;
     state.pending.add(number);
-    if (input) input.disabled = true;
+    const row = input?.closest('[data-arrivals-row]');
+    row?.querySelectorAll('input, button').forEach(control => { control.disabled = true; });
     try {
       const result = await api().setArrivalRoomField(number, field, value);
       state.session = result.session;
@@ -343,6 +345,7 @@ async function extractRoomNumbers(file) {
       showFeedback('Браузер заблокировал окно печати. Разрешите всплывающие окна для сайта.', 'error');
       return;
     }
+    await Promise.all([...state.saveQueue]);
     await refresh();
     const numbers = sessionNumbers();
     if (!numbers.length) {
@@ -398,7 +401,12 @@ async function extractRoomNumbers(file) {
     const number = String(input.dataset.arrivalsNumber || '');
     const field = String(input.dataset.arrivalsField || '');
     const value = input.type === 'checkbox' ? input.checked : String(input.value || '').trim();
-    void saveRoomField(number, field, value, input);
+    const task = saveRoomField(number, field, value, input);
+    state.saveQueue.add(task);
+    void task.then(
+      () => state.saveQueue.delete(task),
+      () => state.saveQueue.delete(task)
+    );
   }
 
   function setupListeners() {
