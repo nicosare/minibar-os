@@ -196,7 +196,7 @@ async function getMiniAppArrivalList(req) {
     readyNumbers,
     entries
   };
-
+}
 
 router.get('/', async (req, res) => {
   try {
