@@ -217,43 +217,53 @@
 
       <!-- ARRIVALS -->
 <section id="view-arrivals" class="tab-content fade-in">
-  <div class="flex items-start justify-between mb-6">
+  <div class="arrivals-page-header">
     <div>
       <h1 class="page-title text-2xl font-bold text-slate-900"><i data-lucide="plane-landing" data-page-icon="plane-landing" class="page-title-icon" aria-hidden="true"></i>Заезды</h1>
-      </div>
-</div>
-
-  <div class="grid grid-cols-4 gap-4 mb-6">
-    <div class="bg-white rounded-xl p-5 border border-slate-100">
-      <div class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Всего заездов</div>
-      <div class="text-2xl font-bold" id="arrivals-stat-total">0</div>
     </div>
-    <div class="bg-white rounded-xl p-5 border border-slate-100">
-      <div class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">VIP (Люкс)</div>
-      <div class="text-2xl font-bold text-indigo-600" id="arrivals-stat-vip">0</div>
-    </div>
-    <div class="bg-white rounded-xl p-5 border border-slate-100">
-      <div class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Стандарт</div>
-      <div class="text-2xl font-bold" id="arrivals-stat-standard">0</div>
-    </div>
-    <div class="bg-white rounded-xl p-5 border border-slate-100">
-      <div class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Этаж 5-10</div>
-      <div class="text-2xl font-bold" id="arrivals-stat-low-floors">0</div>
+    <div class="arrivals-toolbar">
+      <input id="arrivals-pdf-input" type="file" accept="application/pdf,.pdf" hidden />
+      <button type="button" class="btn btn-primary arrivals-upload-btn" data-arrivals-action="upload"><i data-lucide="upload"></i>Загрузить PDF</button>
+      <button type="button" class="btn btn-outline" id="arrivals-reset-btn" disabled><i data-lucide="rotate-ccw"></i>Сбросить</button>
     </div>
   </div>
 
-  <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
-    <div class="p-5 border-b border-slate-100 flex items-center justify-between">
-      <h3 class="font-semibold text-slate-900">Список заездов</h3>
-      <input type="text" id="arrivals-search" placeholder="Поиск по номеру..." class="px-3 py-2 border border-slate-200 rounded-lg text-sm w-64" />
+  <div id="arrivals-feedback" class="arrivals-feedback" role="status" aria-live="polite" hidden></div>
+
+  <div class="arrivals-stats-grid" aria-label="Статистика заездов">
+    <article class="arrivals-stat-card"><span>Всего номеров</span><strong id="arrivals-stat-total">0</strong></article>
+    <article class="arrivals-stat-card" data-tone="vip"><span>VIP</span><strong id="arrivals-stat-vip">0</strong></article>
+    <article class="arrivals-stat-card" data-tone="empty"><span>Опустошить</span><strong id="arrivals-stat-empty">0</strong></article>
+    <article class="arrivals-stat-card" data-tone="ready"><span>Готово к работе</span><strong id="arrivals-stat-ready">0</strong></article>
+  </div>
+
+  <section class="arrivals-panel arrivals-add-panel">
+    <div class="arrivals-add-copy">
+      <strong>Добавить номера</strong>
+      <span>Можно указать один номер или несколько — через запятую, пробел, точку с запятой или другой разделитель.</span>
+    </div>
+    <div class="arrivals-add-controls">
+      <input id="arrivals-add-numbers" type="text" inputmode="text" autocomplete="off" placeholder="Например: 501, 502; 503 / 504" aria-label="Номера для добавления" />
+      <button type="button" class="btn btn-primary" id="arrivals-add-btn"><i data-lucide="plus"></i>Добавить</button>
+    </div>
+  </section>
+
+  <section class="arrivals-panel arrivals-work-panel">
+    <div class="arrivals-panel-header">
+      <div>
+        <h2><i data-lucide="list-check"></i>Рабочий список</h2>
+        <p id="arrivals-file-name">PDF не загружен · можно добавлять номера вручную</p>
+      </div>
+      <span class="arrivals-panel-count" id="arrivals-final-count">—</span>
     </div>
     <div id="arrivals-list-container">
-      <div class="p-8 text-center text-slate-400">
-        <i data-lucide="plane-landing" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
-        <p>Загрузка заездов...</p>
-      </div>
+      <div class="arrivals-empty-state"><i data-lucide="plane-landing"></i><strong>Загрузка Заездов…</strong></div>
     </div>
-  </div>
+    <div class="arrivals-work-footer">
+      <span>VIP попадёт в колонку Move/VIP. Остальные отметки — в колонку информации.</span>
+      <button type="button" class="btn btn-primary" id="arrivals-print-btn" disabled><i data-lucide="printer"></i>Печать списка</button>
+    </div>
+  </section>
 </section>
 
 <!-- DEPARTURES -->
@@ -789,6 +799,7 @@
 <script src="js/inventory-module.js??v=m76"></script>
 <script src="js/dashboard-module.js??v=m66"></script>
 <script src="js/lists-module.js??v=m70"></script>
+<script src="js/arrivals-module.js?v=a1"></script>
 <script src="js/departures-module.js?v=d3"></script>
 <script src="js/history-module.js?v=m83"></script>
 <script src="js/route-handlers.js?v=m71"></script>
