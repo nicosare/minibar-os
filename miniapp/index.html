@@ -497,7 +497,6 @@
   .camera-gih-room { color:rgba(255,255,255,.6); font-size:10px; font-weight:850; line-height:13px; }
   .camera-gih-head-actions { min-width:0; display:flex; align-items:flex-end; flex-direction:column; gap:4px; }
   .camera-gih-status { max-width:100%; color:var(--yellow); font-size:9px; font-weight:850; line-height:12px; text-align:right; }
-  .camera-gih-history { padding:3px 6px; border:1px solid rgba(255,255,255,.12); border-radius:6px; background:rgba(255,255,255,.04); color:rgba(255,255,255,.65); font-size:9px; font-weight:800; line-height:12px; }
   .camera-gih-content { min-width:0; min-height:0; flex:1 1 auto; overflow:auto; overscroll-behavior:contain; scrollbar-width:thin; padding-right:1px; }
   .camera-gih-content .mini-gih-detail { gap:7px; }
   .camera-gih-content .mini-gih-section { padding:7px; border-radius:8px; }
@@ -1658,6 +1657,22 @@
 .gih-list-product-status.status-not_replenished{background:rgba(255,90,95,.11);color:#ff9b9f}
 @media(min-width:440px){.gih-list-toolbar{padding-left:15px;padding-right:15px}.gih-list-content{padding-left:15px;padding-right:15px}.mini-gih-products{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.mini-gih-product{height:100%;grid-template-columns:30px minmax(0,1fr)}.mini-gih-product-action{grid-column:2;justify-self:start}}
 
+  .sheet-refill-section.is-gih-list .sheet-refill-product.is-basket .sheet-refill-product-icon svg { width:19px; height:19px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .main-content.is-gih-list-mode { gap:4px; padding-top:8px; padding-bottom:calc(63px + 28px + env(safe-area-inset-bottom)); }
+  .main-content.is-gih-list-mode .camera-info-panel { gap:5px; padding:7px; }
+  .main-content.is-gih-list-mode .camera-workspace-gih { gap:4px; padding:6px; }
+  .main-content.is-gih-list-mode .camera-gih-head { padding-bottom:3px; }
+  .main-content.is-gih-list-mode .camera-gih-content .mini-gih-products { display:grid; grid-template-columns:repeat(auto-fit,minmax(126px,1fr)); align-content:start; gap:4px; }
+  .main-content.is-gih-list-mode .camera-gih-content .mini-gih-product { width:100%; min-width:0; grid-template-columns:23px minmax(0,1fr); align-items:center; gap:5px; min-height:44px; padding:5px; text-align:left; transition:none; }
+  .main-content.is-gih-list-mode .camera-gih-content .mini-gih-product-emoji { width:23px; height:23px; font-size:12px; }
+  .main-content.is-gih-list-mode .camera-gih-content .mini-gih-product-copy { min-width:0; min-height:34px; justify-content:center; gap:1px; }
+  .main-content.is-gih-list-mode .camera-gih-content .mini-gih-product-name { display:-webkit-box; min-height:22px; overflow:hidden; overflow-wrap:anywhere; -webkit-box-orient:vertical; -webkit-line-clamp:2; font-size:9px; line-height:11px; }
+  .main-content.is-gih-list-mode .camera-gih-content .mini-gih-product-status { min-height:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:8px; line-height:10px; }
+  .main-content.is-gih-list-mode .camera-gih-controls { gap:3px; margin:3px 0; }
+  .main-content.is-gih-list-mode .camera-gih-modes { grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px; }
+  .main-content.is-gih-list-mode .camera-gih-modes .mini-gih-mode { min-width:0; min-height:36px; padding:5px 2px; font-size:9px; line-height:11px; white-space:normal; }
+  .camera-gih-note-overlay { display:block; align-self:stretch; width:100%; min-height:34px; max-height:46px; margin:0; padding:6px 8px; resize:none; font-size:10px; line-height:13px; }
+  .camera-gih-note-overlay[hidden] { display:none!important; }
 </style>
 </head>
 <body>
@@ -1720,7 +1735,6 @@
                 </div>
                 <div class="camera-gih-head-actions">
                   <span class="camera-gih-status" id="cameraGihStatus">Загрузка…</span>
-                  <button type="button" class="camera-gih-history" id="cameraGihHistory" aria-label="Открыть все записи GIH">История</button>
                 </div>
               </div>
               <div class="camera-gih-content" id="cameraGihContent" aria-live="polite">
@@ -1736,6 +1750,7 @@
               <div class="camera-history-list" id="roomHistoryItems" aria-live="polite"><div class="camera-history-empty">Загрузка истории…</div></div>
             </div>
           </section>
+          <textarea class="mini-gih-note camera-gih-note-overlay" id="cameraGihNote" rows="2" placeholder="Комментарий к проверке (необязательно)" hidden disabled></textarea>
         </section>
       </div>
     </div>
@@ -1746,9 +1761,8 @@
       <button type="button" class="room-action-button" id="btnResidential" aria-label="Отметить номер как проверенный, жилой">Жилой</button>
     </div>
 
-    <section class="camera-gih-controls hidden" id="cameraGihControls" aria-label="Управление проверкой GIH">
+    <section class="camera-gih-controls hidden" id="cameraGihControls" aria-label="Режим проверки GIH">
       <div class="camera-gih-modes" id="cameraGihModes"></div>
-      <textarea class="mini-gih-note" id="cameraGihNote" rows="2" placeholder="Комментарий к проверке (необязательно)" disabled></textarea>
     </section>
 
     <!-- Shutter Controls -->
@@ -1987,6 +2001,8 @@ let ALL_ROOMS = [];
 let ROOM_BY_NUMBER = new Map();
 let FLOORS = [];
 let queueRemaining = 0;
+let miniAppRoomTemplatesLoaded = false;
+let miniAppRoomTemplatesLoading = null;
 
 function readStoredListSelection() {
   try {
@@ -2075,6 +2091,31 @@ async function loadRooms() {
   queueRemaining = Number.isFinite(data.remaining) ? data.remaining : ALL_ROOMS.length;
 }
 
+
+async function loadMiniAppRoomTemplates() {
+  if (miniAppRoomTemplatesLoaded) return true;
+  if (miniAppRoomTemplatesLoading) return miniAppRoomTemplatesLoading;
+  miniAppRoomTemplatesLoading = (async () => {
+    try {
+      const data = await deadlineApiRequest('/rooms?_t=' + Date.now());
+      if (!Array.isArray(data)) throw new Error('API не вернул список шаблонов номеров');
+      data.forEach(details => {
+        const room = ROOM_BY_NUMBER.get(String(details.number));
+        if (!room) return;
+        room.template = details.template || null;
+        if (details.category) room.category = details.category;
+      });
+      miniAppRoomTemplatesLoaded = true;
+      return true;
+    } catch (error) {
+      console.warn('[MINIBAR GIH] Не удалось загрузить шаблоны номеров:', error);
+      return false;
+    } finally {
+      miniAppRoomTemplatesLoading = null;
+    }
+  })();
+  return miniAppRoomTemplatesLoading;
+}
 
 let revisitRoomNumbers = new Set();
 let revisitRoomDateKey = '';
@@ -2297,6 +2338,56 @@ function requestMatchesFullTemplate(request) {
   for (const [key, qty] of template) if (requested.get(key) !== qty) return false;
   return true;
 }
+function registerBasketTemplate(templateByType, type, items) {
+  if (!Array.isArray(items) || !items.length) return;
+  const recipe = new Map();
+  for (const item of items) {
+    const key = refillItemKey(item);
+    const qty = Math.max(0, Number(item.qty) || 0);
+    if (key === '0' || !qty) continue;
+    recipe.set(key, (recipe.get(key) || 0) + qty);
+  }
+  if (!recipe.size) return;
+  const signature = [...recipe.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([key, qty]) => key + '=' + qty).join('|');
+  const recipes = templateByType.get(type) || new Map();
+  if (!recipes.has(signature)) recipes.set(signature, recipe);
+  templateByType.set(type, recipes);
+}
+
+function finalizeBasketProductTotals(groupedProducts, templateByType, basketCounts) {
+  const counts = basketCounts || {standard:0,suite:0};
+  for (const type of ['standard', 'suite']) {
+    const recipes = templateByType.get(type);
+    if (!recipes?.size) continue;
+    const orderedRecipes = [...recipes.values()].sort((a, b) => b.size - a.size);
+    for (const recipe of orderedRecipes) {
+      const possible = Math.min(...[...recipe.entries()].map(([key, qty]) => {
+        const product = groupedProducts.get(key);
+        return product ? Math.floor(product.qty / qty) : 0;
+      }));
+      if (!Number.isFinite(possible) || possible <= 0) continue;
+      counts[type] = (counts[type] || 0) + possible;
+      for (const [key, qty] of recipe) {
+        const product = groupedProducts.get(key);
+        if (product) product.qty -= qty * possible;
+      }
+    }
+  }
+  const result = [];
+  for (const type of ['standard', 'suite']) {
+    const qty = counts[type] || 0;
+    if (qty > 0) result.push({
+      name: type === 'suite' ? 'Корзинка люкс' : 'Корзинка стандарт',
+      qty, basket:true, bgColor:'yellow'
+    });
+  }
+  [...groupedProducts.values()].filter(product => product.qty > 0)
+    .sort((a,b)=>(a.name||'').localeCompare(b.name||'ru'))
+    .forEach(product => result.push({...product,basket:false}));
+  return result;
+}
+
 function aggregateActiveRefills() {
   const listNumbers = currentDepartureNumbers();
   const displayRequests = activeRefillRequests()
@@ -2352,20 +2443,7 @@ function aggregateActiveRefills() {
   }
 
   function registerTemplate(type, items) {
-    if (!Array.isArray(items) || !items.length) return;
-    const recipe = new Map();
-    for (const item of items) {
-      const key = refillItemKey(item);
-      const qty = Math.max(0, Number(item.qty) || 0);
-      if (key === '0' || !qty) continue;
-      recipe.set(key, (recipe.get(key) || 0) + qty);
-    }
-    if (!recipe.size) return;
-    const signature = [...recipe.entries()].sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([key, qty]) => key + '=' + qty).join('|');
-    const recipes = templateByType.get(type) || new Map();
-    if (!recipes.has(signature)) recipes.set(signature, recipe);
-    templateByType.set(type, recipes);
+    registerBasketTemplate(templateByType, type, items);
   }
 
   // Learn the standard/suite recipe from the same room templates used by
@@ -2381,44 +2459,7 @@ function aggregateActiveRefills() {
     }
   }
 
-  // Convert complete sets in the aggregated product totals into basket cards.
-  // Leftover quantities remain individual products. The basket is added to
-  // already-counted empty/full baskets, never replacing those counts.
-  for (const type of ['standard', 'suite']) {
-    const recipes = templateByType.get(type);
-    if (!recipes?.size) continue;
-    const products = [...groupedProducts.values()];
-    const orderedRecipes = [...recipes.values()].sort((a, b) => b.size - a.size);
-    for (const recipe of orderedRecipes) {
-      const possible = Math.min(...[...recipe.entries()].map(([key, qty]) => {
-        const product = groupedProducts.get(key);
-        return product ? Math.floor(product.qty / qty) : 0;
-      }));
-      if (!Number.isFinite(possible) || possible <= 0) continue;
-      addBasket(type, possible);
-      for (const [key, qty] of recipe) {
-        const product = groupedProducts.get(key);
-        if (product) product.qty -= qty * possible;
-      }
-    }
-  }
-
-  const products = [];
-  for (const type of ['standard', 'suite']) {
-    const qty = basketCounts[type];
-    if (qty > 0) {
-      products.push({
-        name: type === 'suite' ? 'Корзинка люкс' : 'Корзинка стандарт',
-        qty,
-        basket: true
-      });
-    }
-  }
-
-  [...groupedProducts.values()]
-    .filter(product => product.qty > 0)
-    .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ru'))
-    .forEach(product => products.push({ ...product, basket: false }));
+  const products = finalizeBasketProductTotals(groupedProducts, templateByType, basketCounts);
 
   const roomLinesByNumber = new Map();
   displayRequests.forEach(request => {
@@ -2489,9 +2530,12 @@ function renderRefillSection() {
     summary.roomLines.length+' номеров</span></div>'+productsHtml+roomsHtml+'</section>';
 }
 
+function roomNeedsRefillMarker(number) {
+  return activeListKey !== 'gih' && activeRefillsByNumber.has(String(number));
+}
 function renderRefillCarouselStatuses() {
   carouselItems.forEach((item, number) => {
-    item.classList.toggle('needs-refill', activeRefillsByNumber.has(String(number)));
+    item.classList.toggle('needs-refill', roomNeedsRefillMarker(number));
   });
 }
 
@@ -2516,37 +2560,41 @@ async function refreshActiveRefills(roomId = null) {
 
 function renderGihListProductsSection() {
   const roomNumbers = currentGihNumbers();
-  const records = miniGihDrafts.filter(record => roomNumbers.has(String(record.number)));
-  const byProduct = new Map();
-  let totalQty = 0;
-  for (const record of records) {
+  const latestDraftByRoom = new Map();
+  for (const record of miniGihDrafts) {
+    const number = String(record.number);
+    if (roomNumbers.has(number) && !latestDraftByRoom.has(number)) latestDraftByRoom.set(number, record);
+  }
+  const groupedProducts = new Map();
+  const templateByType = new Map();
+  for (const record of latestDraftByRoom.values()) {
+    const room = ROOM_BY_NUMBER.get(String(record.number));
+    registerBasketTemplate(templateByType, normalizeRoomType(room), room?.template?.items || []);
     for (const item of record.gihItems || []) {
       const name = String(item.name || 'Продукт');
       const productId = Number(item.productId) || 0;
-      const key = productId + '|' + name;
-      if (!byProduct.has(key)) {
-        byProduct.set(key, {
-          productId, name,
-          emoji: item.emoji || name.charAt(0).toUpperCase(),
-          bgColor: item.bgColor || 'slate',
-          qty: 0
-        });
-      }
-      byProduct.get(key).qty += 1;
-      totalQty += 1;
+      const key = productId > 0 ? String(productId) : 'name:' + name.toLocaleLowerCase('ru');
+      if (!groupedProducts.has(key)) groupedProducts.set(key, {
+        productId:productId || null, name,
+        emoji:item.emoji || name.charAt(0).toUpperCase(),
+        bgColor:item.bgColor || 'slate', category:item.category || 'Напитки', qty:0
+      });
+      groupedProducts.get(key).qty += 1;
     }
   }
-  const products = [...byProduct.values()].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+  const products = finalizeBasketProductTotals(groupedProducts, templateByType, {standard:0,suite:0});
   const heading = '<div class="sheet-refill-head"><span class="sheet-refill-title">Продукты GIH</span>' +
-    '<span class="sheet-refill-count">' + totalQty + ' шт. · ' + products.length + ' поз.</span></div>';
-  if (!products.length) {
-    return '<section class="sheet-refill-section is-gih-list">' + heading +
-      '<div class="mini-gih-empty"><strong>Пока нет продуктов</strong><span>Создай черновики GIH для номеров, чтобы собрать общий список.</span></div></section>';
-  }
+    '<span class="sheet-refill-count">' + roomNumbers.size + ' номеров</span></div>';
+  if (!products.length) return '<section class="sheet-refill-section is-gih-list">' + heading +
+    '<div class="mini-gih-empty"><strong>Пока нет продуктов</strong><span>Создай черновики GIH для номеров, чтобы собрать общий список.</span></div></section>';
+  const basketIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 10 2 10h12l2-10H4Z"/><path d="m8 10 4-6 4 6M8 14v3M12 14v3M16 14v3"/></svg>';
   const productsHtml = '<div class="sheet-refill-products">' + products.map(product => {
-    const color = MINI_GIH_PRODUCT_COLORS[product.bgColor] || MINI_GIH_PRODUCT_COLORS.slate;
-    return '<div class="sheet-refill-product"><span class="sheet-refill-product-icon" style="background:' + color +
-      ';color:#18202a">' + miniGihEscape(product.emoji) + '</span><span class="sheet-refill-product-name">' +
+    const basket = Boolean(product.basket);
+    const icon = basket ? basketIcon : miniGihEscape(product.emoji || String(product.name || '?').charAt(0));
+    const color = basket ? 'rgba(255,204,0,.15)' : (MINI_GIH_PRODUCT_COLORS[product.bgColor] || MINI_GIH_PRODUCT_COLORS.slate);
+    const iconColor = basket ? '#ffcc00' : '#18202a';
+    return '<div class="sheet-refill-product' + (basket ? ' is-basket' : '') + '"><span class="sheet-refill-product-icon" style="background:' +
+      color + ';color:' + iconColor + '">' + icon + '</span><span class="sheet-refill-product-name">' +
       miniGihEscape(product.name) + '</span><span class="sheet-refill-product-qty">' + product.qty + ' шт.</span></div>';
   }).join('') + '</div>';
   return '<section class="sheet-refill-section is-gih-list">' + heading + productsHtml + '</section>';
@@ -2554,31 +2602,32 @@ function renderGihListProductsSection() {
 
 function renderDepartureListCard() {
   if (activePlaceholderName !== 'Списки' || !navPlaceholderBody) return;
-  const active = activeListKey === 'departures';
-  const gihActive = activeListKey === 'gih';
+  const active = activeListKey === 'departures', gihActive = activeListKey === 'gih';
   const total = Math.max(0, departureList.assignedCount);
   const completed = Math.max(0, departureList.completedCount);
   const remaining = Math.max(0, departureList.remainingCount);
   const progress = total > 0 ? Math.max(0, Math.min(100, Math.round(completed / total * 100))) : 0;
-  const gihTotal = miniGihDrafts.reduce((sum, record) => sum + record.gihItems.length, 0);
-  const gihMarked = miniGihDrafts.reduce((sum, record) => sum + record.gihItems.filter(item =>
-    record.gihRoomStatus || item.itemStatus !== 'pending').length, 0);
-  const gihProgress = gihTotal > 0 ? Math.max(0, Math.min(100, Math.round(gihMarked / gihTotal * 100))) : 0;
-  const gihRoomCount = currentGihNumbers().size;
+  const gihDraftNumbers = currentGihNumbers();
+  const gihDoneNumbers = new Set(miniGihDones.map(record => String(record.number)).filter(number => ROOM_BY_NUMBER.has(number)));
+  gihDraftNumbers.forEach(number => gihDoneNumbers.delete(number));
+  const gihTotalNumbers = new Set([...gihDraftNumbers, ...gihDoneNumbers]);
+  const gihTotal = gihTotalNumbers.size;
+  const gihCompleted = Math.max(0, gihTotal - gihDraftNumbers.size);
+  const gihRemaining = gihDraftNumbers.size;
+  const gihProgress = gihTotal > 0 ? Math.max(0, Math.min(100, Math.round(gihCompleted / gihTotal * 100))) : 0;
   navPlaceholderBody.innerHTML =
     '<div class="mini-list-cards">' +
     '<button type="button" class="mini-departure-list-card' + (active ? ' is-active' : '') + '" data-select-departures-list aria-label="Выбрать список Выезды">' +
     '<div class="mini-departure-card-top"><span>Выезды</span><span class="mini-departure-card-state">' + (active ? 'Активен' : 'Открыть') + '</span></div>' +
     '<div class="mini-departure-progress"><div class="mini-departure-progress-copy"><span>Проверено <strong>' + completed + '</strong> из <strong>' + total +
     '</strong></span><span>Осталось <strong>' + remaining + '</strong></span></div><div class="mini-departure-progress-track" role="progressbar" aria-label="Прогресс проверок" aria-valuemin="0" aria-valuemax="' +
-    total + '" aria-valuenow="' + Math.min(completed, total) + '"><span style="width:' + progress + '%"></span></div></div></button>' +
+    total + '" aria-valuenow="' + Math.min(completed,total) + '"><span style="width:' + progress + '%"></span></div></div></button>' +
     (!departureList.sourceReady && total === 0 ? '<div class="mini-departure-empty-note">Загрузите PDF со списком на сайте.</div>' : '') +
     '<button type="button" class="mini-departure-list-card' + (gihActive ? ' is-active' : '') + '" data-select-gih-list aria-label="Выбрать список GIH">' +
     '<div class="mini-departure-card-top"><span>GIH</span><span class="mini-departure-card-state">' + (gihActive ? 'Активен' : 'Открыть') + '</span></div>' +
-    '<div class="mini-departure-progress"><div class="mini-departure-progress-copy"><span>Черновики <strong>' + miniGihDrafts.length + '</strong></span><span>Сохранено сегодня <strong>' + miniGihDones.length +
-    '</strong></span></div><div class="mini-departure-progress-track" role="progressbar" aria-label="Прогресс черновиков GIH" aria-valuemin="0" aria-valuemax="' +
-    gihTotal + '" aria-valuenow="' + Math.min(gihMarked, gihTotal) + '"><span style="width:' + gihProgress + '%"></span></div></div>' +
-    '<div class="mini-departure-card-foot">' + gihRoomCount + ' номеров в рабочем списке</div></button>' +
+    '<div class="mini-departure-progress"><div class="mini-departure-progress-copy"><span>Проверено <strong>' + gihCompleted + '</strong> из <strong>' + gihTotal +
+    '</strong></span><span>Осталось <strong>' + gihRemaining + '</strong></span></div><div class="mini-departure-progress-track" role="progressbar" aria-label="Прогресс проверок GIH" aria-valuemin="0" aria-valuemax="' +
+    gihTotal + '" aria-valuenow="' + Math.min(gihCompleted,gihTotal) + '"><span style="width:' + gihProgress + '%"></span></div></div></button>' +
     '</div>';
 }
 
@@ -2902,7 +2951,6 @@ const activeRefillsByNumber = new Map();
 const cameraGihContent = document.getElementById('cameraGihContent');
 const cameraGihRoom = document.getElementById('cameraGihRoom');
 const cameraGihStatus = document.getElementById('cameraGihStatus');
-const cameraGihHistory = document.getElementById('cameraGihHistory');
 const cameraGihControls = document.getElementById('cameraGihControls');
 const cameraGihModes = document.getElementById('cameraGihModes');
 const cameraGihNote = document.getElementById('cameraGihNote');
@@ -3607,12 +3655,20 @@ function miniGihDeriveLists() {
   if (activePlaceholderName === 'Списки' && !navPlaceholderModal.classList.contains('hidden')) renderDepartureListCard();
   renderCameraGihCard();
 }
-function miniGihUpsertRecord(check) {
-  const normalized = miniGihNormalizeRecord(check);
+function miniGihUpsertRecord(check, options = {}) {
+  let normalized = miniGihNormalizeRecord(check);
   const index = miniGihRecords.findIndex(record => record.id === normalized.id);
-  if (index >= 0) miniGihRecords[index] = normalized;
-  else miniGihRecords.push(normalized);
-  miniGihDeriveLists();
+  if (index >= 0) {
+    if (options.preserveReferences) {
+      Object.assign(miniGihRecords[index], normalized);
+      normalized = miniGihRecords[index];
+    } else {
+      miniGihRecords[index] = normalized;
+    }
+  } else {
+    miniGihRecords.push(normalized);
+  }
+  if (!options.silent) miniGihDeriveLists();
   return normalized;
 }
 function miniGihShowFeedback(message) {
@@ -3869,33 +3925,36 @@ function renderCameraGihControls(record) {
   cameraGihControls.classList.toggle('hidden', !gihListMode || !draft);
   captureBtn.hidden = gihListMode;
   gihSaveBtn.hidden = !gihListMode || !draft;
-
-  if (!gihListMode) {
+  cameraGihNote.hidden = !gihListMode || !draft;
+  if (!gihListMode || !draft) {
     cameraGihModes.innerHTML = '';
     cameraGihNote.disabled = true;
+    if (!draft) {
+      cameraGihNote.value = '';
+      cameraGihNote.dataset.miniGihNotes = '';
+      delete gihSaveBtn.dataset.miniGihSave;
+    }
     gihSaveBtn.disabled = true;
     gihSaveBtn.textContent = 'Сохранить';
     return;
   }
-  if (!draft) {
-    cameraGihModes.innerHTML = '';
-    cameraGihNote.value = '';
-    cameraGihNote.dataset.miniGihNotes = '';
-    cameraGihNote.disabled = true;
-    gihSaveBtn.disabled = true;
-    gihSaveBtn.textContent = 'Сохранить';
-    delete gihSaveBtn.dataset.miniGihSave;
-    return;
-  }
-
   const busy = miniGihBusyChecks.has(draft.id);
   const itemsBusy = draft.gihItems.some(item => miniGihBusyItems.has(item.id));
-  cameraGihModes.innerHTML = MINI_GIH_MODES.map(item =>
-    '<button type="button" class="mini-gih-mode' + (draft.gihRoomStatus === item.key ? ' active' : '') +
-    '" data-mini-gih-record="' + draft.id + '" data-mini-gih-mode="' + item.key + '" ' +
-    ((miniGihProductsDirty(draft) || busy) ? 'disabled' : '') + '>' + miniGihEscape(item.label) + '</button>'
-  ).join('');
-
+  const modeButtons = [...cameraGihModes.querySelectorAll('[data-mini-gih-mode]')];
+  const modeButtonsMatch = modeButtons.length === MINI_GIH_MODES.length &&
+    modeButtons.every(button => Number(button.dataset.miniGihRecord) === draft.id);
+  if (!modeButtonsMatch) {
+    cameraGihModes.innerHTML = MINI_GIH_MODES.map(item =>
+      '<button type="button" class="mini-gih-mode' + (draft.gihRoomStatus === item.key ? ' active' : '') +
+      '" data-mini-gih-record="' + draft.id + '" data-mini-gih-mode="' + item.key + '" ' +
+      ((miniGihProductsDirty(draft) || busy) ? 'disabled' : '') + '>' + miniGihEscape(item.label) + '</button>'
+    ).join('');
+  } else {
+    modeButtons.forEach(button => {
+      button.classList.toggle('active', draft.gihRoomStatus === button.dataset.miniGihMode);
+      button.disabled = miniGihProductsDirty(draft) || busy;
+    });
+  }
   if (cameraGihNote.dataset.miniGihNotes !== String(draft.id)) {
     cameraGihNote.value = draft.notes || '';
     cameraGihNote.dataset.miniGihNotes = String(draft.id);
@@ -4008,6 +4067,57 @@ function renderCameraGihCard() {
   renderCameraGihControls(null);
 }
 
+function updateCameraGihRecordUI(recordId) {
+  const record = miniGihFindRecord(recordId);
+  if (!record || String(record.number) !== String(selectedRoom?.number || '')) return;
+  const isDraft = miniGihDrafts.some(item => item.id === record.id);
+  const buttons = cameraGihContent.querySelectorAll('[data-mini-gih-record="' + record.id + '"][data-mini-gih-item]');
+  buttons.forEach(button => {
+    const itemId = Number(button.dataset.miniGihItem);
+    const item = record.gihItems.find(value => value.id === itemId);
+    if (!item) return;
+    const status = miniGihEffectiveStatus(item, record.gihRoomStatus);
+    button.className = 'mini-gih-product mini-gih-status-' + status;
+    button.disabled = !isDraft || !!record.gihRoomStatus ||
+      miniGihBusyChecks.has(record.id) || miniGihBusyItems.has(itemId);
+    const statusElement = button.querySelector('.mini-gih-product-status');
+    if (statusElement) {
+      statusElement.className = 'mini-gih-product-status status-' + status;
+      statusElement.textContent = MINI_GIH_STATUS_LABELS[status] || status;
+    }
+  });
+  renderCameraGihControls(record);
+}
+function updateCameraGihPicker() {
+  const buttons = cameraGihContent.querySelectorAll('[data-camera-gih-product-id]');
+  buttons.forEach(button => {
+    const productId = Number(button.dataset.cameraGihProductId);
+    const count = Math.max(0, Number(cameraGihCreateCounts[productId]) || 0);
+    button.classList.toggle('selected', count > 0);
+    button.setAttribute('aria-pressed', String(count > 0));
+    let counter = button.querySelector('.deadline-modal-counter');
+    if (count > 0) {
+      if (!counter) {
+        counter = document.createElement('span');
+        counter.className = 'deadline-modal-counter';
+        button.insertBefore(counter, button.firstChild);
+      }
+      counter.textContent = String(count);
+    } else if (counter) {
+      counter.remove();
+    }
+    button.disabled = cameraGihCreating;
+  });
+  const selectedCount = Object.values(cameraGihCreateCounts).reduce((sum,count)=>sum+Math.max(0,Number(count)||0),0);
+  const clear = cameraGihContent.querySelector('[data-camera-gih-clear]');
+  const create = cameraGihContent.querySelector('[data-camera-gih-create]');
+  if (clear) clear.disabled = cameraGihCreating || !selectedCount;
+  if (create) {
+    create.disabled = cameraGihCreating || !selectedCount;
+    create.textContent = cameraGihCreating ? 'Создание…' : 'Создать черновик';
+  }
+}
+
 async function saveCurrentCameraGihDraft() {
   const recordId = Number(gihSaveBtn.dataset.miniGihSave);
   if (!recordId || gihSaveBtn.disabled) return;
@@ -4021,7 +4131,7 @@ async function saveCurrentCameraGihDraft() {
     }
     await saveMiniGihDraft(recordId);
   } finally {
-    renderCameraGihCard();
+    updateCameraGihRecordUI(recordId);
   }
 }
 
@@ -4065,7 +4175,6 @@ async function submitCameraGihDraft() {
 }
 
 function renderMiniGih(preserveScroll = true) {
-  miniGihDeriveLists();
   if (miniGihView === 'detail' && miniGihSelectedId) miniGihRenderDetail(preserveScroll);
   else {
     miniGihView = 'list';
@@ -4084,19 +4193,21 @@ async function setMiniGihItemStatus(recordId, itemId) {
   const next = MINI_GIH_CYCLE[(index + 1 + MINI_GIH_CYCLE.length) % MINI_GIH_CYCLE.length];
   item.itemStatus = next;
   miniGihBusyItems.add(item.id);
+  updateCameraGihRecordUI(record.id);
   renderMiniGih();
   try {
     const updated = await deadlineApiRequest('/checks/' + record.id, {
       method:'PUT', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({pills:[{id:item.id,itemStatus:next}]})
     });
-    miniGihUpsertRecord(updated);
+    miniGihUpsertRecord(updated, {silent:true,preserveReferences:true});
   } catch (error) {
     const current = miniGihFindRecord(recordId)?.gihItems.find(value => value.id === Number(itemId));
     if (current) current.itemStatus = previous;
     showMessage(error.message || 'Не удалось сохранить статус продукта.', 3200);
   } finally {
     miniGihBusyItems.delete(Number(itemId));
+    updateCameraGihRecordUI(record.id);
     renderMiniGih();
   }
 }
@@ -4107,19 +4218,21 @@ async function setMiniGihMode(recordId, modeKey) {
   const previous = record.gihRoomStatus;
   record.gihRoomStatus = nextMode;
   miniGihBusyChecks.add(record.id);
+  updateCameraGihRecordUI(record.id);
   renderMiniGih();
   try {
     const updated = await deadlineApiRequest('/checks/' + record.id, {
       method:'PUT', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({gihRoomStatus:nextMode})
     });
-    miniGihUpsertRecord(updated);
+    miniGihUpsertRecord(updated, {silent:true,preserveReferences:true});
   } catch (error) {
     const current = miniGihFindRecord(recordId);
     if (current) current.gihRoomStatus = previous;
     showMessage(error.message || 'Не удалось сохранить режим GIH.', 3200);
   } finally {
     miniGihBusyChecks.delete(Number(recordId));
+    updateCameraGihRecordUI(record.id);
     renderMiniGih();
   }
 }
@@ -4145,7 +4258,7 @@ function persistMiniGihNotes(recordId, value) {
         method:'PUT', headers:{'Content-Type':'application/json'},
         body:JSON.stringify({notes:notes || null})
       });
-      miniGihUpsertRecord(updated);
+      miniGihUpsertRecord(updated, {silent:true,preserveReferences:true});
       return true;
     } catch (error) {
       const current = miniGihFindRecord(recordId);
@@ -4186,6 +4299,8 @@ async function saveMiniGihDraft(recordId) {
       method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
     });
     miniGihUpsertRecord(updated);
+    const savedRoom = ROOM_BY_NUMBER.get(String(record.number));
+    if (savedRoom) void loadRoomHistory(savedRoom, true);
     miniGihView = 'list'; miniGihSelectedId = null; miniGihTab = 'dones';
     renderMiniGih(false);
     showMessage('GIH сохранён', 2200);
@@ -5263,14 +5378,14 @@ function updateSelectedRoomState(room, vibrate = false) {
     if (carouselItem) {
       carouselItem.classList.toggle('empty-room', item.expiryStatus === 'empty');
       carouselItem.classList.toggle('today-checked', checkedNumbers.has(String(item.number)));
-      carouselItem.classList.toggle('needs-refill', activeRefillsByNumber.has(String(item.number)));
+      carouselItem.classList.toggle('needs-refill', roomNeedsRefillMarker(item.number));
     }
   });
   if (activeCarouselItem) activeCarouselItem.classList.remove('active');
   const currentItem = carouselItems.get(room.number);
   if (currentItem) {
     currentItem.classList.toggle('empty-room', room.expiryStatus === 'empty');
-    currentItem.classList.toggle('needs-refill', activeRefillsByNumber.has(String(room.number)));
+    currentItem.classList.toggle('needs-refill', roomNeedsRefillMarker(room.number));
     currentItem.classList.add('active');
     activeCarouselItem = currentItem;
   }
@@ -5426,7 +5541,7 @@ function renderDrawerRooms(filterQuery = '') {
         const number = String(room.number);
         const checked = checkedNumbers.has(number);
         const classes = ['room-chip', room.expiryStatus === 'empty' ? 'empty-room' : '',
-          activeRefillsByNumber.has(number) ? 'needs-refill' : '',
+          roomNeedsRefillMarker(number) ? 'needs-refill' : '',
           number === String(selectedRoom?.number || '') ? 'selected' : '', checked ? 'today-checked' : '']
           .filter(Boolean).join(' ');
         const safeNumber = escapeCameraHtml(number);
@@ -5460,7 +5575,7 @@ function updateDrawerSelectedChip(numStr) {
     const room = ROOM_BY_NUMBER.get(number);
     chip.classList.toggle('selected', number === String(numStr));
     chip.classList.toggle('empty-room', room?.expiryStatus === 'empty');
-    chip.classList.toggle('needs-refill', activeRefillsByNumber.has(number));
+    chip.classList.toggle('needs-refill', roomNeedsRefillMarker(number));
     chip.classList.toggle('in-departure-list', Boolean(activeListKey) && listNumbers.has(number));
     chip.classList.toggle('today-checked', checkedNumbers.has(number));
   });
@@ -5567,6 +5682,7 @@ function startRoomLiveSync() {
       const roomDomains = ['all', 'miniapp', 'rooms', 'deadlines', 'products', 'templates'];
       const historyDomains = ['all', 'checks', 'history', 'gih'];
       const refillDomains = ['all', 'refills'];
+      const ownGihChange = change.originClientId === roomEventsClientId && domains.includes('gih') && !domains.includes('all');
       if (domains.some(domain => roomDomains.includes(domain))) {
         void syncRoomData();
         // Room product quantities and status are shared with the website.
@@ -5575,15 +5691,15 @@ function startRoomLiveSync() {
       if (domains.some(domain => refillDomains.includes(domain))) {
         void refreshActiveRefills().catch(error => console.warn('[MINIBAR REFILLS] Не удалось обновить пополнения:', error));
       }
-      if (domains.some(domain => historyDomains.includes(domain) ||
+      if (!ownGihChange && domains.some(domain => historyDomains.includes(domain) ||
           domain === 'departures' || domain === 'settings')) {
         void refreshDepartureList();
       }
-      if (domains.some(domain => historyDomains.includes(domain)) && selectedRoom) {
+      if (!ownGihChange && domains.some(domain => historyDomains.includes(domain)) && selectedRoom) {
         void loadRoomHistory(selectedRoom, true);
       }
-      // Keep the GIH list aligned with website changes without rebuilding an open draft.
-      if (domains.some(domain => ['all','checks','gih'].includes(domain)) &&
+      // External edits invalidate the list; local writes have already been applied in memory.
+      if (!ownGihChange && domains.some(domain => ['all','checks','gih'].includes(domain)) &&
           (activeListKey === 'gih' || Boolean(selectedRoom) || activePlaceholderName === 'Списки' ||
            (isGihListModalOpen() && miniGihView === 'list'))) {
         void loadMiniGihList();
@@ -5719,16 +5835,15 @@ btnCloseSheet.addEventListener('click', closeSheet);
 sheetOverlay.addEventListener('click', closeSheet);
 
 cameraDeadlinePanel.addEventListener('click', () => { void openCameraDeadlineModal(); });
-cameraGihHistory.addEventListener('click', () => { void openGihListModal(); });
 cameraGihContent.addEventListener('click', handleMiniGihClick);
 cameraGihContent.addEventListener('change', event => {
   const notes = event.target.closest('[data-mini-gih-notes]');
   if (notes) void persistMiniGihNotes(Number(notes.dataset.miniGihNotes), notes.value);
 });
 cameraGihControls.addEventListener('click', handleMiniGihClick);
-cameraGihControls.addEventListener('change', event => {
-  const notes = event.target.closest('[data-mini-gih-notes]');
-  if (notes) void persistMiniGihNotes(Number(notes.dataset.miniGihNotes), notes.value);
+cameraGihNote.addEventListener('change', () => {
+  const recordId = Number(cameraGihNote.dataset.miniGihNotes);
+  if (recordId) void persistMiniGihNotes(recordId, cameraGihNote.value);
 });
 gihSaveBtn.addEventListener('click', () => { void saveCurrentCameraGihDraft(); });
 cameraGihContent.addEventListener('click', event => {
@@ -5737,12 +5852,12 @@ cameraGihContent.addEventListener('click', event => {
     const id = Number(product.dataset.cameraGihProductId), max = Number(product.dataset.cameraGihMax) || 1;
     const current = Number(cameraGihCreateCounts[id]) || 0, next = current >= max ? 0 : current + 1;
     if (next) cameraGihCreateCounts[id] = next; else delete cameraGihCreateCounts[id];
-    renderCameraGihCard(); triggerHaptic(); return;
+    updateCameraGihPicker(); triggerHaptic(); return;
   }
   if (event.target.closest('[data-camera-gih-create]')) { void submitCameraGihDraft(); return; }
   if (event.target.closest('[data-camera-gih-clear]')) {
     if (cameraGihCreating) return;
-    cameraGihCreateCounts = {}; renderCameraGihCard(); return;
+    cameraGihCreateCounts = {}; updateCameraGihPicker(); return;
   }
   if (event.target.closest('[data-camera-gih-new]')) {
     cameraGihStartNew = true; cameraGihCreateCounts = {}; renderCameraGihCard();
@@ -6857,6 +6972,7 @@ void restorePhotoUploadQueue();
 (async function boot() {
   try {
     await loadRooms();
+    await loadMiniAppRoomTemplates();
     try {
       await loadMiniGihList();
     } catch (gihError) {
