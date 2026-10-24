@@ -2730,9 +2730,13 @@ function aggregateActiveRefills() {
   const listNumbers = activeListKey === 'arrivals' ? currentArrivalNumbers() : currentDepartureNumbers();
   const displayRequests = activeRefillRequests()
     .filter(request => listNumbers.has(String(request.roomNumber)));
-  const emptyRooms = ALL_ROOMS.filter(room =>
-    listNumbers.has(String(room.number)) && room.expiryStatus === 'empty'
-  );
+  const emptyRooms = ALL_ROOMS.filter(room => {
+    const number = String(room.number);
+    return listNumbers.has(number) && (
+      room.expiryStatus === 'empty' ||
+      (activeListKey === 'arrivals' && arrivalEntry(number).empty === true)
+    );
+  });
   const emptyNumbers = new Set(emptyRooms.map(room => String(room.number)));
   // A system-empty room counts as a basket on its own. Its pending request,
   // if any, must not count the same room a second time.
@@ -2869,7 +2873,13 @@ function renderRefillSection() {
 }
 
 function roomNeedsRefillMarker(number) {
-  return activeListKey !== 'gih' && activeRefillsByNumber.has(String(number));
+  const cleanNumber = String(number);
+  const room = ROOM_BY_NUMBER.get(cleanNumber);
+  return activeListKey !== 'gih' && (
+    activeRefillsByNumber.has(cleanNumber) ||
+    room?.expiryStatus === 'empty' ||
+    (activeListKey === 'arrivals' && arrivalEntry(cleanNumber).empty === true)
+  );
 }
 function renderRefillCarouselStatuses() {
   carouselItems.forEach((item, number) => {
