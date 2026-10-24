@@ -325,10 +325,10 @@ async function extractRoomNumbers(file) {
     return '<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><title>Заезды ' + escapeHtml(dateString) +
       '</title><style>@page{size:A4 landscape;margin:8mm}*{box-sizing:border-box}body{font-family:"Times New Roman",serif;margin:0;color:#000}' +
       '.page-container{display:flex;gap:8mm;width:100%;min-height:190mm;page-break-after:always;break-after:page}' +
-      '.page-column{width:50%;min-width:0}.print-title{text-align:center;font-size:10pt;margin:0 0 3mm}' +
-      'table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #000;padding:1.4mm 1.2mm;height:6.1mm;font-size:9pt;line-height:1.05;vertical-align:middle}' +
+      '.page-column{flex:1;min-width:0}.print-title{text-align:center;font-size:10pt;margin:0 0 2.5mm}' +
+      'table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #000;padding:.6mm .8mm;height:4.6mm;font-size:8.2pt;line-height:1;vertical-align:middle}' +
       'th{font-size:8.5pt;font-weight:700;text-align:center}.number{width:14%;text-align:center;font-weight:700}.move-vip{width:14%;text-align:center;font-size:8.5pt;font-weight:700}.details{width:72%;overflow-wrap:anywhere}' +
-      'thead{display:table-header-group}tr{page-break-inside:avoid} @media print{.page-container{page-break-after:always;break-after:page}}</style></head><body>' +
+      'thead{display:table-header-group}tr{page-break-inside:avoid}.details{overflow-wrap:anywhere} @media print{.page-container{page-break-after:always;break-after:page}}</style></head><body>' +
       pages.map(page => '<section class="page-container">' + renderColumn(page[0]) + renderColumn(page[1]) + '</section>').join('') +
       '</body></html>';
   }
