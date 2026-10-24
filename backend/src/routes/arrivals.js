@@ -107,7 +107,7 @@ async function updateSession(req, updater) {
   return prisma.$transaction(async tx => {
     // Keep website and Mini App updates to this shared JSON session serialized.
     // A read-only GET never rewrites the row, so it cannot race an update either.
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${SESSION_KEY})::bigint)`;
+    await tx.$queryRaw`SELECT CASE WHEN pg_advisory_xact_lock(hashtext(${SESSION_KEY})::bigint) IS NULL THEN 1 ELSE 1 END AS locked`;
     const current = await readSession(tx, dateKey);
     const next = updater(current);
     const normalized = parseSession(next, dateKey);
