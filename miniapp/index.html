@@ -3622,7 +3622,14 @@ function persistMiniGihNotes(recordId, value) {
   if (!record || record.status === 'done') return Promise.resolve(false);
   const notes = String(value || '').trim();
   const existing = miniGihNotePromises.get(Number(recordId));
-  if (existing) return existing;
+  if (existing) {
+    return existing.then(() => {
+      const latest = miniGihFindRecord(recordId);
+      if (!latest) return false;
+      if (String(latest.notes || '').trim() === notes) return true;
+      return persistMiniGihNotes(recordId, notes);
+    });
+  }
   if (notes === String(record.notes || '').trim()) return Promise.resolve(true);
   const previous = record.notes || '';
   record.notes = notes;
@@ -3728,7 +3735,10 @@ function handleMiniGihClick(event) {
   const remove = event.target.closest('[data-mini-gih-delete]');
   if (remove) { void deleteMiniGihRecord(Number(remove.dataset.miniGihDelete)); return; }
   if (event.target.closest('[data-mini-gih-back]')) {
-    miniGihView = 'list'; miniGihSelectedId = null; renderMiniGih(false);
+    miniGihView = 'list';
+    miniGihSelectedId = null;
+    renderMiniGih(false);
+    void loadMiniGihList();
   }
 }
 
@@ -5082,6 +5092,11 @@ function startRoomLiveSync() {
       if (domains.some(domain => historyDomains.includes(domain)) && selectedRoom) {
         void loadRoomHistory(selectedRoom, true);
       }
+      // Keep the GIH list aligned with website changes without rebuilding an open draft.
+      if (domains.some(domain => ['all','checks','gih'].includes(domain)) &&
+          isGihListModalOpen() && miniGihView === 'list') {
+        void loadMiniGihList();
+      }
     } catch (error) {
       console.warn('[MINIBAR LIVE SYNC] Некорректное событие:', error);
       void syncRoomData();
@@ -5436,7 +5451,12 @@ gihCreateSubmit.addEventListener('click',()=>{void submitGihCreate()});
 gihCreateClear.addEventListener('click',()=>{if(gihCreateBusy)return;gihCreateCounts={};renderGihCreateProducts()});
 gihListModal.addEventListener('click', event => { if (event.target === gihListModal) closeGihListModal(); });
 gihListClose.addEventListener('click', closeGihListModal);
-gihListBack.addEventListener('click', () => { miniGihView = 'list'; miniGihSelectedId = null; renderMiniGih(false); });
+gihListBack.addEventListener('click', () => {
+  miniGihView = 'list';
+  miniGihSelectedId = null;
+  renderMiniGih(false);
+  void loadMiniGihList();
+});
 gihListRefresh.addEventListener('click', () => { void loadMiniGihList(); });
 gihListCreate.addEventListener('click', () => { void openGihCreateModal(); });
 gihListToolbar.addEventListener('click', event => {
