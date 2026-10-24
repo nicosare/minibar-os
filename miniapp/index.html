@@ -3538,6 +3538,7 @@ function miniGihFindRecord(id) {
   return miniGihRecords.find(record => record.id === Number(id)) || null;
 }
 function miniGihDeriveLists() {
+  const wasGihListActive = activeListKey === 'gih';
   const previousNumbers = (miniGihDrafts || []).map(record => String(record.number)).sort((a,b)=>Number(a)-Number(b)).join(',');
   miniGihRecords.sort((a,b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime() || b.id - a.id);
   miniGihDrafts = miniGihRecords.filter(record =>
@@ -3546,15 +3547,19 @@ function miniGihDeriveLists() {
     (record.status || 'draft') === 'done' && record.gihRoomStatus !== 'not_checked' &&
     miniGihIsToday(record.checkDate || record.createdAt));
   const today = miniGihLocalDayKey(new Date());
+  let gihListExpired = false;
   if (activeListKey === 'gih') {
     if (activeListDateKey && activeListDateKey !== today) {
       activeListKey = ''; activeListDateKey = ''; drawerMode = 'all'; persistActiveListSelection();
+      gihListExpired = true;
     } else if (!activeListDateKey) {
       activeListDateKey = today; persistActiveListSelection();
     }
   }
   const nextNumbers = miniGihDrafts.map(record => String(record.number)).sort((a,b)=>Number(a)-Number(b)).join(',');
-  if (activeListKey === 'gih' && previousNumbers !== nextNumbers && miniAppRoomSelectionReady) {
+  if (gihListExpired && wasGihListActive && miniAppRoomSelectionReady) {
+    buildCarousel(nextCarouselNumber(selectedRoom?.number, ALL_ROOMS));
+  } else if (activeListKey === 'gih' && previousNumbers !== nextNumbers && miniAppRoomSelectionReady) {
     buildCarousel(nextCarouselNumber(selectedRoom?.number, visibleCarouselRooms()));
   } else if (isSheetOpen || activePlaceholderName === 'Списки') {
     renderDrawerRooms(sheetSearch.value);
@@ -5456,7 +5461,7 @@ function startRoomLiveSync() {
       }
       // Keep the GIH list aligned with website changes without rebuilding an open draft.
       if (domains.some(domain => ['all','checks','gih'].includes(domain)) &&
-          isGihListModalOpen() && miniGihView === 'list') {
+          (activeListKey === 'gih' || Boolean(selectedRoom) || (isGihListModalOpen() && miniGihView === 'list'))) {
         void loadMiniGihList();
       }
     } catch (error) {
@@ -5471,6 +5476,7 @@ function startRoomLiveSync() {
   roomEventsSource.addEventListener('sync.required', () => {
     void syncRoomData();
     void refreshDepartureList();
+    if (activeListKey === 'gih') void loadMiniGihList();
     void refreshActiveRefills().catch(error => console.warn('[MINIBAR REFILLS] Не удалось восстановить пополнения:', error));
   });
 
@@ -5483,6 +5489,7 @@ function startRoomLiveSync() {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
     void refreshDepartureList();
+    if (activeListKey === 'gih') void loadMiniGihList();
     if (roomSyncPending) {
       roomSyncPending = false;
       void syncRoomData();
