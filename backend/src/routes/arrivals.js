@@ -99,21 +99,15 @@ function parseSession(value, dateKey) {
 
 async function readSession(db, dateKey) {
   const row = await db.setting.findUnique({ where: { key: SESSION_KEY } });
-  const session = parseSession(row?.value, dateKey);
-  const storedValue = JSON.stringify(session);
-  if (!row || row.value !== storedValue) {
-    await db.setting.upsert({
-      where: { key: SESSION_KEY },
-      create: { key: SESSION_KEY, value: storedValue },
-      update: { value: storedValue }
-    });
-  }
-  return session;
+  return parseSession(row?.value, dateKey);
 }
 
 async function updateSession(req, updater) {
   const { dateKey } = todayRange(req);
   return prisma.$transaction(async tx => {
+    // Keep website and Mini App updates to this shared JSON session serialized.
+    // A read-only GET never rewrites the row, so it cannot race an update either.
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${SESSION_KEY})::bigint)`;
     const current = await readSession(tx, dateKey);
     const next = updater(current);
     const normalized = parseSession(next, dateKey);
