@@ -36,8 +36,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (initialRoute === 'dashboard' && App.dashboardModule) {
         App.dashboardModule.init();
       }
-      if (initialRoute === 'arrivals' && App.listsModule) {
-        App.listsModule.init();
+      if (initialRoute === 'arrivals' && App.arrivalsModule) {
+        App.arrivalsModule.init();
       }
       if (initialRoute === 'departures' && App.departuresModule) {
         App.departuresModule.init();
