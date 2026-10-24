@@ -5670,7 +5670,11 @@ function renderDrawerRooms(filterQuery = '') {
         ? 'Список Заезды пуст. Добавьте номера на сайте.'
         : 'В списке нет доступных номеров. Добавьте номер или загрузите PDF на сайте.')
       : 'Номера не найдены') + '</div>';
-  const footerHtml = listMode ? (activeListKey === 'gih' ? renderGihListProductsSection() : renderRefillSection()) : '';
+  const footerHtml = listMode
+    ? (activeListKey === 'gih' ? renderGihListProductsSection()
+      : activeListKey === 'arrivals' ? ''
+      : renderRefillSection())
+    : '';
   sheetContent.innerHTML = roomsHtml + footerHtml;
   sheetPeekTitle.textContent = hasActiveList
     ? (listMode ? 'Список «' + listLabel + '» · ' + listNumbers.size : 'Все номера · ' + ALL_ROOMS.length)
