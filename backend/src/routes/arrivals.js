@@ -141,29 +141,62 @@ function sanitizeTime(value) {
 }
 
 async function getMiniAppArrivalList(req) {
-  const { dateKey } = todayRange(req);
-  const [rooms, session] = await Promise.all([
-    prisma.room.findMany({ select: { number: true, floor: true, category: true }, orderBy: { number: 'asc' } }),
-    readSession(prisma, dateKey)
+  const range = todayRange(req);
+  const [rooms, checks, session] = await Promise.all([
+    prisma.room.findMany({
+      select: { number: true, floor: true, category: true },
+      orderBy: { number: 'asc' }
+    }),
+    prisma.check.findMany({
+      where: {
+        checkDate: { gte: range.start, lt: range.end },
+        type: { in: ['vk_room', 'vk_emptied'] },
+        status: 'done',
+        roomId: { not: null }
+      },
+      select: {
+        checkDate: true,
+        room: { select: { number: true } }
+      },
+      orderBy: [{ checkDate: 'desc' }, { id: 'desc' }]
+    }),
+    readSession(prisma, range.dateKey)
   ]);
+
   const known = knownNumbers(rooms);
-  const roomNumbers = session.pdfRooms.filter(number => known.has(number));
+  const roomNumbers = session.pdfRooms
+    .filter(number => known.has(number))
+    .sort((a, b) => Number(a) - Number(b));
   const readyNumbers = roomNumbers.filter(number => session.entries[number]?.ready === true);
   const entries = Object.fromEntries(roomNumbers.map(number => [number, normalizeEntry(session.entries[number])]));
+
+  // Use the same source of truth as Departures: completed VK room-check and
+  // emptied messages recorded as done today, de-duplicated per room.
+  const assigned = new Set(roomNumbers);
+  const checkedRoomNumbers = new Set();
+  for (const check of checks) {
+    if (!check.room) continue;
+    const number = String(check.room.number);
+    if (assigned.has(number)) checkedRoomNumbers.add(number);
+  }
+
+  const completedCount = checkedRoomNumbers.size;
   return {
-    dateKey,
+    dateKey: range.dateKey,
     name: 'Заезды',
     fileName: session.fileName,
     sourceReady: Boolean(session.fileName && roomNumbers.length),
     sourceCount: roomNumbers.length,
     assignedCount: roomNumbers.length,
     readyCount: readyNumbers.length,
-    remainingCount: Math.max(0, roomNumbers.length - readyNumbers.length),
+    completedCount,
+    remainingCount: Math.max(0, roomNumbers.length - completedCount),
+    checkedRoomNumbers: [...checkedRoomNumbers],
     roomNumbers,
     readyNumbers,
     entries
   };
-}
+
 
 router.get('/', async (req, res) => {
   try {
