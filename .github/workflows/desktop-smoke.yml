@@ -70,6 +70,7 @@ jobs:
       - name: Run desktop browser smoke tests
         if: >-
           github.event_name != 'push' ||
+          github.ref == 'refs/heads/design/desktop-unification' ||
           contains(toJSON(github.event.head_commit.modified), 'frontend/') ||
           contains(toJSON(github.event.head_commit.modified), 'miniapp/')
         run: node frontend/tests/desktop-smoke.cjs
