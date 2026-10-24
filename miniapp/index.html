@@ -1675,7 +1675,7 @@
   .camera-gih-note-overlay[hidden] { display:none!important; }
   .main-content.is-gih-list-mode .controls-section { flex:0 0 104px; min-height:104px; justify-content:center; padding:0 16px; }
   .main-content.is-gih-list-mode .shutter-grid { min-height:76px; }
-  .main-content.is-gih-list-mode .carousel-wrap { margin-top:0; }
+  .main-content.is-gih-list-mode .carousel-wrap { margin-top:-6px; }
   .camera-gih-panel:active { filter:none!important; }
   .camera-gih-content .mini-gih-product { -webkit-tap-highlight-color:transparent; }
   .camera-gih-start { min-height:100%; gap:7px; }
@@ -3712,6 +3712,12 @@ function miniGihDeriveLists() {
     }
   }
   const nextNumbers = [...currentGihNumbers()].sort((a,b)=>Number(a)-Number(b)).join(',');
+  const completedGihNumbers = currentGihDoneNumbers();
+  const remainingGihNumbers = currentGihRemainingNumbers();
+  carouselItems.forEach((item, number) => {
+    item.classList.toggle('gih-done', activeListKey === 'gih' &&
+      completedGihNumbers.has(String(number)) && !remainingGihNumbers.has(String(number)));
+  });
   if (gihListExpired && wasGihListActive && miniAppRoomSelectionReady) {
     buildCarousel(nextCarouselNumber(selectedRoom?.number, ALL_ROOMS));
   } else if (activeListKey === 'gih' && previousNumbers !== nextNumbers && miniAppRoomSelectionReady) {
@@ -4076,9 +4082,7 @@ function renderCameraGihCard() {
   }
 
   cameraGihStatus.textContent = 'Создать проверку';
-  renderContent('<div class="mini-gih-empty camera-gih-start"><strong>Проверка GIH ещё не создана</strong>' +
-    '<span>Выбери продукты, чтобы начать.</span>' +
-    '<button type="button" class="mini-gih-action primary" data-camera-gih-new>Выбрать продукты</button></div>');
+  renderContent('<div class="camera-gih-start"><button type="button" class="mini-gih-action primary" data-camera-gih-new>Выбрать продукты</button></div>');
   renderCameraGihControls(null);
 }
 
