@@ -2296,8 +2296,13 @@ function renderCameraArrivalInfo() {
   const list = document.getElementById('cameraArrivalInfoList');
   const count = document.getElementById('cameraArrivalInfoCount');
   if (!list) return;
+  const direction = departureSort === 'desc' ? -1 : 1;
   const numbers = [...new Set((arrivalList.roomNumbers || []).map(String))]
-    .sort((a, b) => Number(a) - Number(b));
+    .sort((a, b) => {
+      const roomA = ROOM_BY_NUMBER.get(a);
+      const roomB = ROOM_BY_NUMBER.get(b);
+      return direction * (Number(roomA?.floor) - Number(roomB?.floor) || Number(a) - Number(b));
+    });
   if (count) count.textContent = numbers.length + ' ном.';
   if (!numbers.length) {
     list.innerHTML = '<div class="camera-arrival-info-empty">Нет списка Заездов</div>';
@@ -2310,11 +2315,22 @@ function renderCameraArrivalInfo() {
     if (entry.time) details.push(String(entry.time));
     if (entry.empty) details.push('Опустошить');
     if (String(entry.comment || '').trim()) details.push(String(entry.comment).trim());
-    return '<div class="camera-arrival-info-row ' + (entry.ready ? 'is-ready' : 'is-pending') + '">' +
+    const pinned = number === String(pinnedRoomNumber || '');
+    return '<div class="camera-arrival-info-row ' + (entry.ready ? 'is-ready' : 'is-pending') +
+      (pinned ? ' is-pinned' : '') + '" data-arrival-info-number="' + escapeCameraHtml(number) + '">' +
       '<span class="camera-arrival-info-number">' + escapeCameraHtml(number) + '</span>' +
       '<span class="camera-arrival-info-meta">' + (details.length ? '• ' + details.map(escapeCameraHtml).join(' • ') : '—') + '</span>' +
       '</div>';
   }).join('');
+  requestAnimationFrame(() => {
+    const pinnedRow = [...list.querySelectorAll('[data-arrival-info-number]')]
+      .find(row => row.dataset.arrivalInfoNumber === String(pinnedRoomNumber || ''));
+    if (!pinnedRow) return;
+    const listRect = list.getBoundingClientRect();
+    const rowRect = pinnedRow.getBoundingClientRect();
+    if (rowRect.top < listRect.top) list.scrollTop -= listRect.top - rowRect.top;
+    else if (rowRect.bottom > listRect.bottom) list.scrollTop += rowRect.bottom - listRect.bottom;
+  });
 }
 
 function currentGihRemainingNumbers() {
@@ -4521,7 +4537,7 @@ function handleMiniGihClick(event) {
 
 function updateQueueDisplay() {
   if (activeListKey === 'departures') queueCount.textContent = 'Выезды · осталось ' + departureList.remainingCount;
-  else if (activeListKey === 'arrivals') queueCount.textContent = 'Заезды · готово ' + arrivalList.readyCount + ' из ' + arrivalList.assignedCount;
+  else if (activeListKey === 'arrivals') queueCount.textContent = 'Заезды · осталось ' + arrivalList.remainingCount;
   else queueCount.textContent = 'В очереди: ' + queueRemaining + ' номеров';
 }
 
@@ -5530,6 +5546,7 @@ function updatePinnedCarouselItem() {
   carouselItems.forEach((item, number) => {
     item.classList.toggle('pinned', String(number) === String(pinnedRoomNumber));
   });
+  renderCameraArrivalInfo();
 }
 
 function updateSelectedRoomState(room, vibrate = false) {
@@ -5680,13 +5697,29 @@ function renderDrawerRooms(filterQuery = '') {
   const listNumbers = activeListNumbers();
   const checkedNumbers = checkedTodayNumbers();
   const listMode = hasActiveList && drawerMode === 'list';
-  const roomsToShow = listMode ? ALL_ROOMS.filter(room => listNumbers.has(String(room.number))) : ALL_ROOMS;
+  const arrivalsHideUnready = listMode && activeListKey === 'arrivals' && hideUnreadyArrivalRooms;
+  const arrivalsReady = currentArrivalReadyNumbers();
+  const roomsToShow = listMode ? ALL_ROOMS.filter(room => {
+    const number = String(room.number);
+    if (!listNumbers.has(number)) return false;
+    if (arrivalsHideUnready && !arrivalsReady.has(number)) return false;
+    return true;
+  }) : ALL_ROOMS;
   const floorOrder = listMode && departureSort === 'desc' ? [...FLOORS].reverse() : FLOORS;
   const listLabel = activeListLabel();
 
   sheetListToolbar.classList.toggle('hidden', !hasActiveList);
   sheetSortOrder.hidden = !listMode;
   sheetSortOrder.dataset.order = departureSort;
+  sheetHideUnready.hidden = !(listMode && activeListKey === 'arrivals');
+  sheetHideUnready.classList.toggle('is-active', arrivalsHideUnready);
+  sheetHideUnready.setAttribute('aria-pressed', String(arrivalsHideUnready));
+  sheetHideUnready.setAttribute('aria-label', arrivalsHideUnready
+    ? 'Показать номера, которые ещё нельзя делать'
+    : 'Скрыть номера, которые ещё нельзя делать');
+  sheetHideUnready.title = arrivalsHideUnready
+    ? 'Показать номера, которые ещё нельзя делать'
+    : 'Скрыть номера, которые ещё нельзя делать';
   sheetSortOrder.setAttribute('aria-label',
     'Порядок списка: ' + (departureSort === 'desc' ? 'снизу вверх' : 'сверху вниз') + '. Нажмите, чтобы изменить');
   sheetListToolbar.querySelectorAll('[data-sheet-view]').forEach(button => {
@@ -5724,8 +5757,8 @@ function renderDrawerRooms(filterQuery = '') {
           return '<div class="arrival-mini-card' + (ready ? ' is-ready' : '') + (number === String(selectedRoom?.number || '') ? ' is-selected' : '') + '" data-arrivals-mini-row="' + safeNumber + '">' +
             '<div class="arrival-mini-card-head"><button type="button" class="room-chip arrival-mini-room-number' + (number === String(selectedRoom?.number || '') ? ' selected' : '') + '" data-arrival-room-select="' + safeNumber + '" aria-label="Открыть номер ' + safeNumber + '">' + safeNumber + '</button>' +
             '<label class="arrival-mini-ready"><input type="checkbox" data-arrival-field="ready" data-arrival-number="' + safeNumber + '"' + (ready ? ' checked' : '') + '><span>Можно делать</span></label></div>' +
-            '<div class="arrival-mini-flags"><label><input type="checkbox" data-arrival-field="vip" data-arrival-number="' + safeNumber + '"' + (entry.vip === true ? ' checked' : '') + '><span>VIP</span></label>' +
-            '<label><input type="checkbox" data-arrival-field="empty" data-arrival-number="' + safeNumber + '"' + (entry.empty === true ? ' checked' : '') + '><span>Опустошить</span></label>' +
+            '<div class="arrival-mini-flags"><label class="' + (entry.vip === true ? 'is-active' : '') + '"><input type="checkbox" data-arrival-field="vip" data-arrival-number="' + safeNumber + '"' + (entry.vip === true ? ' checked' : '') + '><span>VIP</span></label>' +
+            '<label class="' + (entry.empty === true ? 'is-active' : '') + '"><input type="checkbox" data-arrival-field="empty" data-arrival-number="' + safeNumber + '"' + (entry.empty === true ? ' checked' : '') + '><span>Опустошить</span></label>' +
             (entry.time ? '<span class="arrival-mini-badge">Заезд ' + escapeCameraHtml(entry.time) + '</span>' : '') + '</div>' +
             '<div class="arrival-mini-fields"><input type="time" aria-label="Время заезда ' + safeNumber + '" data-arrival-field="time" data-arrival-number="' + safeNumber + '" value="' + escapeCameraHtml(entry.time || '') + '">' +
             '<input type="text" maxlength="500" aria-label="Комментарий ' + safeNumber + '" data-arrival-field="comment" data-arrival-number="' + safeNumber + '" placeholder="Комментарий к номеру" value="' + escapeCameraHtml(entry.comment || '') + '"></div>' +
@@ -6445,6 +6478,13 @@ sheetContent.addEventListener('change', event => {
   const field = String(input.dataset.arrivalField || '');
   const value = input.type === 'checkbox' ? input.checked : String(input.value || '').trim();
   void updateArrivalListRoom(number, field, value);
+});
+
+sheetHideUnready.addEventListener('click', () => {
+  if (activeListKey !== 'arrivals' || drawerMode !== 'list') return;
+  hideUnreadyArrivalRooms = !hideUnreadyArrivalRooms;
+  try { localStorage.setItem('minibar-arrivals-hide-unready-v1', hideUnreadyArrivalRooms ? '1' : '0'); } catch (_) {}
+  renderDrawerRooms(sheetSearch.value);
 });
 
 sheetSortOrder.addEventListener('click', () => {
