@@ -84,6 +84,8 @@ App.arrivalsModule = (() => {
 
     const rooms = roomMap();
     const numbers = sessionNumbers();
+    const finalCount = document.getElementById('arrivals-final-count');
+    if (finalCount) finalCount.textContent = String(numbers.length);
     if (fileName) fileName.textContent = state.session.fileName || 'PDF не загружен · можно добавлять номера вручную';
     if (reset) reset.disabled = !numbers.length && !state.session.fileName;
     if (print) print.disabled = !numbers.length || state.parsingPdf;
