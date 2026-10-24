@@ -3951,6 +3951,15 @@ async function submitCameraGihDraft() {
 }
 
 function renderMiniGih(preserveScroll = true) {
+  miniGihDeriveLists();
+  if (miniGihView === 'detail' && miniGihSelectedId) miniGihRenderDetail(preserveScroll);
+  else {
+    miniGihView = 'list';
+    miniGihSelectedId = null;
+    miniGihShowFeedback('');
+    miniGihRenderList();
+  }
+}
 async function setMiniGihItemStatus(recordId, itemId) {
   const record = miniGihFindRecord(recordId);
   if (!record || record.status === 'done' || record.gihRoomStatus || miniGihBusyItems.has(Number(itemId))) return;
