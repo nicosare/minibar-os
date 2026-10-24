@@ -1501,6 +1501,74 @@
       border-right: 1px solid rgba(255,255,255,.05);
     }
   }
+
+/* Mini App GIH workflow */
+.gih-list-card{max-width:640px;max-height:min(91dvh,860px)}
+.gih-list-header-actions{display:flex;align-items:center;gap:6px}
+.gih-list-header-btn{width:32px;height:32px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:rgba(255,255,255,.055);color:#fff;font-size:18px;line-height:1}
+.gih-list-header-btn:disabled{opacity:.45}
+.gih-list-toolbar{flex:0 0 auto;padding:11px 13px 0}
+.gih-list-toolbar[hidden]{display:none!important}
+.mini-gih-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.mini-gih-tab{min-width:0;min-height:39px;padding:8px 10px;display:flex;align-items:center;justify-content:center;gap:7px;border:1px solid rgba(255,204,0,.23);border-radius:10px;background:rgba(255,204,0,.035);color:rgba(255,255,255,.68);font-size:11px;font-weight:800}
+.mini-gih-tab strong{min-width:20px;padding:2px 5px;border-radius:6px;background:rgba(255,255,255,.08);color:#fff;font-size:10px}
+.mini-gih-tab.active{border-color:var(--yellow);background:rgba(255,204,0,.13);color:var(--yellow)}
+.mini-gih-tab.active strong{background:var(--yellow);color:#111}
+.mini-gih-new{width:100%;min-height:41px;margin-top:8px;padding:9px 12px;border:1px solid var(--yellow);border-radius:10px;background:var(--yellow);color:#111;font-size:12px;font-weight:900}
+.mini-gih-new:disabled{opacity:.4}
+.gih-list-content{padding:10px 12px calc(18px + env(safe-area-inset-bottom))}
+.mini-gih-record-list{display:flex;flex-direction:column;gap:8px}
+.mini-gih-record{width:100%;min-width:0;display:flex;align-items:center;gap:11px;padding:12px;border:1px solid rgba(255,255,255,.09);border-radius:12px;background:rgba(255,255,255,.035);color:#fff;text-align:left}
+.mini-gih-record:active{border-color:rgba(255,204,0,.55);background:rgba(255,204,0,.055)}
+.mini-gih-record-number{flex:0 0 auto;min-width:55px;min-height:45px;display:flex;align-items:center;justify-content:center;padding:5px;border:1px solid rgba(255,204,0,.28);border-radius:10px;background:rgba(255,204,0,.07);color:var(--yellow);font-size:17px;font-weight:900;font-variant-numeric:tabular-nums}
+.mini-gih-record-main{min-width:0;flex:1 1 auto;display:flex;flex-direction:column;gap:4px}
+.mini-gih-record-title{overflow-wrap:anywhere;color:#fff;font-size:12px;font-weight:850;line-height:16px}
+.mini-gih-record-meta{color:rgba(255,255,255,.45);font-size:10px;line-height:14px}
+.mini-gih-record-summary{display:block;overflow:hidden;color:rgba(255,255,255,.66);font-size:10px;line-height:14px;text-overflow:ellipsis;white-space:nowrap}
+.mini-gih-record-arrow{flex:0 0 auto;color:rgba(255,255,255,.4);font-size:20px}
+.mini-gih-empty{min-height:140px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:22px;color:rgba(255,255,255,.45);font-size:12px;text-align:center}
+.mini-gih-empty strong{color:rgba(255,255,255,.82);font-size:13px}
+.mini-gih-detail{display:flex;flex-direction:column;gap:12px}
+.mini-gih-detail-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;border:1px solid rgba(255,255,255,.09);border-radius:12px;background:rgba(255,255,255,.035)}
+.mini-gih-detail-room{color:#fff;font-size:19px;font-weight:900;font-variant-numeric:tabular-nums}
+.mini-gih-detail-time{margin-top:3px;color:rgba(255,255,255,.47);font-size:10px}
+.mini-gih-mode-current{max-width:48%;padding:6px 8px;border-radius:8px;background:rgba(255,204,0,.1);color:var(--yellow);font-size:10px;font-weight:850;text-align:center}
+.mini-gih-section{padding:11px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(255,255,255,.025)}
+.mini-gih-section-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px;color:rgba(255,255,255,.79);font-size:11px;font-weight:850}
+.mini-gih-section-title span{color:rgba(255,255,255,.4);font-size:10px;font-weight:700}
+.mini-gih-products{display:flex;flex-direction:column;gap:6px}
+.mini-gih-product{width:100%;min-width:0;display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:center;gap:8px;padding:8px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.035);color:#fff;text-align:left}
+.mini-gih-product:disabled{opacity:.82}
+.mini-gih-product-emoji{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:8px;color:#151515;font-size:15px;font-weight:850}
+.mini-gih-product-copy{min-width:0;display:flex;flex-direction:column;gap:3px}
+.mini-gih-product-name{overflow-wrap:anywhere;color:rgba(255,255,255,.94);font-size:11px;font-weight:800;line-height:14px}
+.mini-gih-product-status{color:rgba(255,255,255,.5);font-size:9px;font-weight:800;line-height:12px}
+.mini-gih-product-status.status-replenished,.mini-gih-status-replenished .mini-gih-product-status{color:#8af0a7}
+.mini-gih-product-status.status-in_place,.mini-gih-status-in_place .mini-gih-product-status{color:#8bc6ff}
+.mini-gih-product-status.status-out,.mini-gih-status-out .mini-gih-product-status{color:#d8b4fe}
+.mini-gih-product-status.status-not_replenished,.mini-gih-status-not_replenished .mini-gih-product-status{color:#ff9b9f}
+.mini-gih-status-replenished{border-color:rgba(82,210,123,.36);background:rgba(52,199,89,.06)}
+.mini-gih-status-in_place{border-color:rgba(78,161,255,.37);background:rgba(38,136,235,.07)}
+.mini-gih-status-out{border-color:rgba(192,132,252,.35);background:rgba(168,85,247,.06)}
+.mini-gih-status-not_replenished{border-color:rgba(255,90,95,.38);background:rgba(255,90,95,.07)}
+.mini-gih-product-action{flex:0 0 auto;padding:5px 7px;border:1px solid rgba(255,255,255,.1);border-radius:7px;color:rgba(255,255,255,.55);font-size:9px;font-weight:850}
+.mini-gih-modes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.mini-gih-mode{min-height:38px;padding:8px;border:1px solid rgba(255,204,0,.25);border-radius:9px;background:rgba(255,204,0,.035);color:rgba(255,255,255,.72);font-size:10px;font-weight:850}
+.mini-gih-mode.active{border-color:var(--yellow);background:rgba(255,204,0,.14);color:var(--yellow)}
+.mini-gih-mode:disabled{opacity:.35}
+.mini-gih-note{width:100%;min-height:64px;resize:vertical;padding:10px;border:1px solid rgba(255,255,255,.11);border-radius:9px;outline:none;background:rgba(0,0,0,.2);color:#fff;font-size:12px;line-height:17px}
+.mini-gih-note:focus{border-color:rgba(255,204,0,.6)}
+.mini-gih-note-readonly{overflow-wrap:anywhere;color:rgba(255,255,255,.65);font-size:11px;line-height:16px}
+.mini-gih-detail-footer{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:8px;padding-top:2px}
+.mini-gih-action{min-height:42px;padding:9px 10px;border:1px solid rgba(255,255,255,.11);border-radius:10px;background:rgba(255,255,255,.055);color:#fff;font-size:11px;font-weight:850}
+.mini-gih-action.primary{border-color:var(--yellow);background:var(--yellow);color:#111}
+.mini-gih-action:disabled{opacity:.35}
+.mini-gih-save-hint{color:rgba(255,255,255,.4);font-size:10px;line-height:14px}
+.mini-gih-mode-label{display:inline-flex;align-items:center;gap:5px;padding:5px 7px;border:1px solid rgba(255,204,0,.24);border-radius:7px;color:var(--yellow);font-size:9px;font-weight:850}
+.mini-gih-feedback{margin:0 13px 10px;padding:8px 10px;border-radius:8px;background:rgba(255,90,95,.1);color:#ff9b9f;font-size:10px;line-height:14px}
+.mini-gih-feedback[hidden]{display:none!important}
+@media(min-width:440px){.gih-list-toolbar{padding-left:15px;padding-right:15px}.gih-list-content{padding-left:15px;padding-right:15px}.mini-gih-products{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.mini-gih-product{height:100%;grid-template-columns:30px minmax(0,1fr)}.mini-gih-product-action{grid-column:2;justify-self:start}}
+
 </style>
 </head>
 <body>
@@ -1682,6 +1750,31 @@
 </div>
 
 <!-- GIH creation modal -->
+
+<div class="deadline-modal hidden" id="gihListModal" role="dialog" aria-modal="true" aria-label="Список GIH" aria-hidden="true">
+  <div class="deadline-modal-card gih-list-card">
+    <div class="deadline-modal-header">
+      <div>
+        <div class="deadline-modal-room" id="gihListTitle">GIH</div>
+        <div class="deadline-modal-info" id="gihListSubtitle">Черновики и сохранённые проверки</div>
+      </div>
+      <div class="gih-list-header-actions">
+        <button class="gih-list-header-btn" type="button" id="gihListBack" aria-label="Назад к списку" hidden>‹</button>
+        <button class="gih-list-header-btn" type="button" id="gihListRefresh" aria-label="Обновить список GIH">↻</button>
+        <button class="deadline-modal-close" type="button" id="gihListClose" aria-label="Закрыть список GIH">×</button>
+      </div>
+    </div>
+    <div class="gih-list-toolbar" id="gihListToolbar">
+      <div class="mini-gih-tabs" role="group" aria-label="Записи GIH">
+        <button class="mini-gih-tab active" type="button" data-mini-gih-tab="drafts"><span>Черновики</span><strong id="miniGihDraftCount">0</strong></button>
+        <button class="mini-gih-tab" type="button" data-mini-gih-tab="dones"><span>Сохранённые</span><strong id="miniGihDoneCount">0</strong></button>
+      </div>
+      <button class="mini-gih-new" type="button" id="gihListCreate">Черновик для номера</button>
+    </div>
+    <div class="deadline-modal-products gih-list-content" id="gihListContent"><div class="mini-gih-empty">Загрузка GIH…</div></div>
+    <div class="mini-gih-feedback" id="gihListFeedback" role="status" hidden></div>
+  </div>
+</div>
 <div class="deadline-modal hidden" id="gihCreateModal" role="dialog" aria-modal="true" aria-label="Новая запись GIH" aria-hidden="true">
   <div class="deadline-modal-card">
     <div class="deadline-modal-header"><div><div class="deadline-modal-room">GIH · номер <span id="gihCreateRoomNumber"></span></div></div><button type="button" class="deadline-modal-close" id="gihCreateClose" aria-label="Закрыть GIH">×</button></div>
@@ -1823,6 +1916,14 @@ let departureList = {
 };
 
 const API_BASE = '/minibar-os/api';
+const MINI_GIH_CYCLE = ['pending','replenished','in_place','out','not_replenished'];
+const MINI_GIH_STATUS_LABELS = {pending:'Не размечено',replenished:'Пополнено',in_place:'На месте',out:'Выложили',not_replenished:'Не пополнено'};
+const MINI_GIH_MODE_LABELS = {dnd:'DND',all_in_place:'Всё на месте',all_out:'Всё выложили',empty:'Опустошён',not_checked:'Не проверен'};
+const MINI_GIH_MODES = [{key:'dnd',label:'DND'},{key:'all_in_place',label:'Всё на месте'},{key:'all_out',label:'Всё выложили'},{key:'empty',label:'Опустошён'}];
+const MINI_GIH_PRODUCT_COLORS = {amber:'#fffbeb',red:'#fef2f2',blue:'#eff6ff',yellow:'#fefce8',purple:'#faf5ff',emerald:'#ecfdf5',rose:'#fff1f2',orange:'#fff7ed',slate:'#f1f5f9'};
+let miniGihRecords = [], miniGihDrafts = [], miniGihDones = [];
+let miniGihTab = 'drafts', miniGihView = 'list', miniGihSelectedId = null, miniGihLoading = false;
+let miniGihBusyChecks = new Set(), miniGihBusyItems = new Set(), miniGihNotePromises = new Map();
 
 function normalizeRoomType(room) {
   const values = [
@@ -2615,6 +2716,18 @@ const gihCreateFeedback = document.getElementById('gihCreateFeedback');
 const gihCreateClose = document.getElementById('gihCreateClose');
 const gihCreateSubmit = document.getElementById('gihCreateSubmit');
 const gihCreateClear = document.getElementById('gihCreateClear');
+const gihListModal = document.getElementById('gihListModal');
+const gihListTitle = document.getElementById('gihListTitle');
+const gihListSubtitle = document.getElementById('gihListSubtitle');
+const gihListClose = document.getElementById('gihListClose');
+const gihListBack = document.getElementById('gihListBack');
+const gihListRefresh = document.getElementById('gihListRefresh');
+const gihListToolbar = document.getElementById('gihListToolbar');
+const gihListCreate = document.getElementById('gihListCreate');
+const gihListContent = document.getElementById('gihListContent');
+const gihListFeedback = document.getElementById('gihListFeedback');
+const miniGihDraftCount = document.getElementById('miniGihDraftCount');
+const miniGihDoneCount = document.getElementById('miniGihDoneCount');
 const roomHistoryOpen = document.getElementById('roomHistoryOpen');
 const roomHistoryModal = document.getElementById('roomHistoryModal');
 const bottomNav = document.getElementById('bottomNav');
@@ -3189,10 +3302,436 @@ async function submitGihCreate(){
  gihCreateBusy=true;gihCreateSubmit.disabled=true;gihCreateClear.disabled=true;
  try{
   await deadlineApiRequest('/checks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({roomId:Number(currentGihRoom.id),type:'gih',status:'draft',gihItems:items})});
-  gihCreateModal.classList.add('hidden');gihCreateModal.setAttribute('aria-hidden','true');currentGihRoom=null;gihCreateCounts={};showMessage('Черновик GIH создан',2200);triggerHaptic();void loadRoomHistory(selectedRoom,true);
+  gihCreateModal.classList.add('hidden');gihCreateModal.setAttribute('aria-hidden','true');currentGihRoom=null;gihCreateCounts={};miniGihTab='drafts';miniGihView='list';miniGihSelectedId=null;if(isGihListModalOpen())void loadMiniGihList();showMessage('Черновик GIH создан',2200);triggerHaptic();void loadRoomHistory(selectedRoom,true);
  }catch(error){gihCreateFeedback.textContent=error?.message||'Не удалось создать запись GIH.';gihCreateFeedback.classList.add('visible')}
  finally{gihCreateBusy=false;gihCreateSubmit.disabled=false;gihCreateClear.disabled=false}
 }
+function miniGihLocalDayKey(value) {
+  const date = value instanceof Date ? value : new Date(value || '');
+  if (!Number.isFinite(date.getTime())) return '';
+  const pad = number => String(number).padStart(2, '0');
+  return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate());
+}
+function miniGihIsToday(value) {
+  return miniGihLocalDayKey(value) === miniGihLocalDayKey(new Date());
+}
+function miniGihTime(value) {
+  const date = new Date(value || '');
+  return Number.isFinite(date.getTime()) ? date.toLocaleTimeString('ru-RU', {hour:'2-digit',minute:'2-digit'}) : '—';
+}
+function miniGihEscape(value) {
+  return escapeCameraHtml(value == null ? '' : String(value));
+}
+function miniGihModeItemStatus(mode) {
+  return mode === 'all_in_place' ? 'in_place' : mode === 'all_out' ? 'out' : null;
+}
+function miniGihEffectiveStatus(item, mode) {
+  return miniGihModeItemStatus(mode) || item.itemStatus || 'pending';
+}
+function miniGihCanSave(record) {
+  if (record.gihRoomStatus) return true;
+  return record.gihItems.length > 0 && record.gihItems.every(item => item.itemStatus !== 'pending');
+}
+function miniGihProductsDirty(record) {
+  return record.gihItems.some(item => item.itemStatus !== 'pending');
+}
+function miniGihNormalizeRecord(check) {
+  return {
+    id:Number(check.id),
+    roomId:Number(check.roomId),
+    number:check.room && check.room.number != null ? String(check.room.number) :
+      String(ALL_ROOMS.find(room => Number(room.id) === Number(check.roomId))?.number || '—'),
+    status:check.status || 'draft',
+    gihRoomStatus:check.gihRoomStatus || null,
+    notes:check.notes || '',
+    date:check.checkDate || check.createdAt || '',
+    createdAt:check.createdAt || check.checkDate || '',
+    checkDate:check.checkDate || check.createdAt || '',
+    gihItems:(Array.isArray(check.gihItems) ? check.gihItems : []).map(item => {
+      const hasSnapshot = item.productName !== null && item.productName !== undefined;
+      const product = item.product || {};
+      return {
+        id:Number(item.id),
+        productId:Number(item.productId),
+        name:hasSnapshot ? item.productName : (product.name || 'Продукт'),
+        emoji:hasSnapshot ? item.productEmoji : (product.emoji || null),
+        bgColor:hasSnapshot ? (item.productBgColor || 'slate') : (product.bgColor || 'slate'),
+        category:hasSnapshot ? (item.productCategory || 'Напитки') : (product.category || 'Напитки'),
+        itemStatus:item.itemStatus || 'pending'
+      };
+    })
+  };
+}
+function miniGihFindRecord(id) {
+  return miniGihRecords.find(record => record.id === Number(id)) || null;
+}
+function miniGihDeriveLists() {
+  miniGihRecords.sort((a,b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime() || b.id - a.id);
+  miniGihDrafts = miniGihRecords.filter(record =>
+    (record.status || 'draft') === 'draft' && miniGihIsToday(record.createdAt || record.checkDate));
+  miniGihDones = miniGihRecords.filter(record =>
+    (record.status || 'draft') === 'done' && record.gihRoomStatus !== 'not_checked' &&
+    miniGihIsToday(record.checkDate || record.createdAt));
+}
+function miniGihUpsertRecord(check) {
+  const normalized = miniGihNormalizeRecord(check);
+  const index = miniGihRecords.findIndex(record => record.id === normalized.id);
+  if (index >= 0) miniGihRecords[index] = normalized;
+  else miniGihRecords.push(normalized);
+  miniGihDeriveLists();
+  return normalized;
+}
+function miniGihShowFeedback(message) {
+  gihListFeedback.textContent = message || '';
+  gihListFeedback.hidden = !message;
+}
+function isGihListModalOpen() {
+  return !!gihListModal && !gihListModal.classList.contains('hidden');
+}
+function closeGihListModal() {
+  gihListModal.classList.add('hidden');
+  gihListModal.setAttribute('aria-hidden', 'true');
+}
+async function openGihListModal() {
+  closeToolScreens();
+  closeSheet();
+  closeNavPlaceholderModal();
+  miniGihView = 'list';
+  miniGihSelectedId = null;
+  miniGihTab = 'drafts';
+  miniGihShowFeedback('');
+  gihListModal.classList.remove('hidden');
+  gihListModal.setAttribute('aria-hidden', 'false');
+  await loadMiniGihList();
+}
+async function loadMiniGihList() {
+  if (miniGihLoading) return;
+  miniGihLoading = true;
+  gihListRefresh.disabled = true;
+  miniGihShowFeedback('');
+  if (miniGihView === 'list') gihListContent.innerHTML = '<div class="mini-gih-empty">Загрузка GIH…</div>';
+  try {
+    let checks = await deadlineApiRequest('/checks?type=gih&_t=' + Date.now());
+    checks = Array.isArray(checks) ? checks : [];
+    const today = miniGihLocalDayKey(new Date());
+    const expiredDrafts = checks.filter(check => {
+      const created = miniGihLocalDayKey(check.createdAt || check.checkDate);
+      return (check.status || 'draft') === 'draft' && !!created && created < today;
+    });
+    for (const check of expiredDrafts) {
+      try {
+        await deadlineApiRequest('/checks/' + Number(check.id), {
+          method:'PUT',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({status:'done',gihRoomStatus:'not_checked',notes:check.notes || null})
+        });
+      } catch (error) {
+        console.warn('[MINIBAR GIH] Не удалось перенести вчерашний черновик в историю:', check.id, error);
+      }
+    }
+    if (expiredDrafts.length) {
+      const refreshed = await deadlineApiRequest('/checks?type=gih&_t=' + Date.now());
+      checks = Array.isArray(refreshed) ? refreshed : checks;
+    }
+    miniGihRecords = checks.map(miniGihNormalizeRecord);
+    miniGihDeriveLists();
+    if (miniGihSelectedId && !miniGihFindRecord(miniGihSelectedId)) {
+      miniGihSelectedId = null;
+      miniGihView = 'list';
+    }
+    renderMiniGih(false);
+  } catch (error) {
+    console.error('[MINIBAR GIH] Не удалось загрузить GIH:', error);
+    gihListContent.innerHTML = '<div class="mini-gih-empty"><strong>Не удалось загрузить GIH</strong><span>Проверь соединение и попробуй ещё раз.</span></div>';
+    miniGihShowFeedback(error.message || 'Не удалось загрузить GIH.');
+  } finally {
+    miniGihLoading = false;
+    gihListRefresh.disabled = false;
+  }
+}
+function miniGihRecordSummary(record) {
+  if (record.gihRoomStatus && record.gihRoomStatus !== 'not_checked') return MINI_GIH_MODE_LABELS[record.gihRoomStatus] || record.gihRoomStatus;
+  if (!record.gihItems.length) return 'Нет позиций';
+  const grouped = {};
+  record.gihItems.forEach(item => {
+    const status = miniGihEffectiveStatus(item, record.gihRoomStatus);
+    grouped[status] = (grouped[status] || 0) + 1;
+  });
+  return Object.keys(grouped).map(status => MINI_GIH_STATUS_LABELS[status] + ': ' + grouped[status]).join(' · ');
+}
+function miniGihRecordHtml(record, isDraft) {
+  const count = record.gihItems.length;
+  const heading = isDraft ? 'Черновик' : (MINI_GIH_MODE_LABELS[record.gihRoomStatus] || 'Проверка продуктов');
+  const units = count === 1 ? 'позиция' : (count < 5 ? 'позиции' : 'позиций');
+  const subtitle = isDraft ? count + ' ' + units + ' · ' + miniGihTime(record.date) :
+    miniGihTime(record.date) + ' · ' + count + ' ' + units;
+  return '<button type="button" class="mini-gih-record" data-mini-gih-open="' + record.id + '">' +
+    '<span class="mini-gih-record-number">' + miniGihEscape(record.number) + '</span>' +
+    '<span class="mini-gih-record-main"><span class="mini-gih-record-title">' + miniGihEscape(heading) + '</span>' +
+    '<span class="mini-gih-record-meta">' + miniGihEscape(subtitle) + '</span>' +
+    '<span class="mini-gih-record-summary">' + miniGihEscape(miniGihRecordSummary(record)) + '</span></span>' +
+    '<span class="mini-gih-record-arrow" aria-hidden="true">›</span></button>';
+}
+function miniGihRenderList() {
+  miniGihDraftCount.textContent = String(miniGihDrafts.length);
+  miniGihDoneCount.textContent = String(miniGihDones.length);
+  gihListToolbar.hidden = false;
+  gihListBack.hidden = true;
+  gihListRefresh.hidden = false;
+  gihListTitle.textContent = 'GIH';
+  gihListSubtitle.textContent = miniGihDrafts.length + ' черновиков · ' + miniGihDones.length + ' сохранено сегодня';
+  gihListCreate.disabled = !selectedRoom || !selectedRoom.id || gihCreateBusy;
+  gihListCreate.textContent = selectedRoom ? 'Новый черновик · №' + String(selectedRoom.number) : 'Сначала выбери номер';
+  document.querySelectorAll('[data-mini-gih-tab]').forEach(button => {
+    const active = button.dataset.miniGihTab === miniGihTab;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+  const records = miniGihTab === 'drafts' ? miniGihDrafts : miniGihDones;
+  if (!records.length) {
+    gihListContent.innerHTML = '<div class="mini-gih-empty"><strong>' +
+      (miniGihTab === 'drafts' ? 'Нет черновиков GIH' : 'Нет сохранённых проверок') +
+      '</strong><span>' +
+      (miniGihTab === 'drafts' ? 'Создай черновик для выбранного номера или открой существующую запись.' :
+      'Завершённые проверки за сегодня появятся здесь.') + '</span></div>';
+    return;
+  }
+  gihListContent.innerHTML = '<div class="mini-gih-record-list">' +
+    records.map(record => miniGihRecordHtml(record, miniGihTab === 'drafts')).join('') + '</div>';
+}
+function miniGihRenderDetail(preserveScroll = true) {
+  const record = miniGihFindRecord(miniGihSelectedId);
+  if (!record) {
+    miniGihView = 'list'; miniGihSelectedId = null; miniGihRenderList(); return;
+  }
+  const isDraft = miniGihDrafts.some(item => item.id === record.id);
+  const busy = miniGihBusyChecks.has(record.id);
+  const savedScroll = preserveScroll ? gihListContent.scrollTop : 0;
+  gihListToolbar.hidden = true;
+  gihListBack.hidden = false;
+  gihListRefresh.hidden = true;
+  gihListTitle.textContent = 'GIH · №' + record.number;
+  gihListSubtitle.textContent = isDraft ? 'Черновик · статусы сохраняются сразу' : 'Сохранённая проверка · ' + miniGihTime(record.date);
+  const mode = record.gihRoomStatus;
+  const modesHtml = isDraft
+    ? '<div class="mini-gih-modes">' + MINI_GIH_MODES.map(item =>
+        '<button type="button" class="mini-gih-mode' + (mode === item.key ? ' active' : '') +
+        '" data-mini-gih-mode="' + item.key + '" ' +
+        ((miniGihProductsDirty(record) || busy) ? 'disabled' : '') + '>' + miniGihEscape(item.label) + '</button>'
+      ).join('') + '</div>'
+    : '<div class="mini-gih-mode-label">' + miniGihEscape(MINI_GIH_MODE_LABELS[mode] || 'Проверка продуктов') + '</div>';
+  const productsHtml = record.gihItems.length ? record.gihItems.map(item => {
+    const status = miniGihEffectiveStatus(item, mode);
+    const color = MINI_GIH_PRODUCT_COLORS[item.bgColor] || MINI_GIH_PRODUCT_COLORS.slate;
+    const emoji = item.emoji || String(item.name || '?').charAt(0).toUpperCase();
+    const itemBusy = miniGihBusyItems.has(item.id);
+    return '<button type="button" class="mini-gih-product mini-gih-status-' + status + '" data-mini-gih-item="' + item.id + '" ' +
+      ((!isDraft || !!mode || busy || itemBusy) ? 'disabled' : '') + '>' +
+      '<span class="mini-gih-product-emoji" style="background:' + color + '">' + miniGihEscape(emoji) + '</span>' +
+      '<span class="mini-gih-product-copy"><span class="mini-gih-product-name">' + miniGihEscape(item.name) + '</span>' +
+      '<span class="mini-gih-product-status status-' + status + '">' + miniGihEscape(MINI_GIH_STATUS_LABELS[status] || status) + '</span></span>' +
+      '<span class="mini-gih-product-action">' + (isDraft && !mode ? (itemBusy ? 'Сохранение…' : 'Изменить') : 'Статус') + '</span></button>';
+  }).join('') : '<div class="mini-gih-empty"><strong>Нет продуктов в записи</strong></div>';
+  let notesHtml = '';
+  if (isDraft) {
+    notesHtml = '<textarea class="mini-gih-note" data-mini-gih-notes="' + record.id + '" placeholder="Комментарий к проверке (необязательно)" ' +
+      (miniGihNotePromises.has(record.id) || busy ? 'disabled' : '') + '>' + miniGihEscape(record.notes) + '</textarea>';
+  } else if (String(record.notes || '').trim()) {
+    notesHtml = '<div class="mini-gih-note-readonly">' + miniGihEscape(record.notes) + '</div>';
+  }
+  const canSave = miniGihCanSave(record);
+  const itemBusy = record.gihItems.some(item => miniGihBusyItems.has(item.id));
+  const pendingWrites = busy || itemBusy || miniGihNotePromises.has(record.id);
+  const footer = isDraft
+    ? '<div class="mini-gih-detail-footer"><button type="button" class="mini-gih-action" data-mini-gih-delete="' + record.id + '" ' +
+      (pendingWrites ? 'disabled' : '') + '>Удалить</button><button type="button" class="mini-gih-action primary" data-mini-gih-save="' + record.id + '" ' +
+      ((!canSave || pendingWrites) ? 'disabled' : '') + '>' + (busy ? 'Сохранение…' : 'Сохранить GIH') + '</button></div>' +
+      (!canSave ? '<div class="mini-gih-save-hint">Отметь каждый продукт или выбери общий режим проверки.</div>' : '')
+    : '<div class="mini-gih-detail-footer"><button type="button" class="mini-gih-action" data-mini-gih-delete="' + record.id + '" ' +
+      (pendingWrites ? 'disabled' : '') + '>Удалить запись</button><button type="button" class="mini-gih-action primary" data-mini-gih-back>К списку GIH</button></div>';
+  gihListContent.innerHTML = '<div class="mini-gih-detail">' +
+    '<div class="mini-gih-detail-head"><div><div class="mini-gih-detail-room">Номер ' + miniGihEscape(record.number) + '</div>' +
+    '<div class="mini-gih-detail-time">' + miniGihEscape(miniGihTime(record.date)) + ' · ' + record.gihItems.length + ' поз.</div></div>' +
+    (mode ? '<span class="mini-gih-mode-current">' + miniGihEscape(MINI_GIH_MODE_LABELS[mode] || mode) + '</span>' : '') + '</div>' +
+    '<section class="mini-gih-section"><div class="mini-gih-section-title"><span>ПРОДУКТЫ</span><span>' + record.gihItems.length +
+    ' позиций</span></div><div class="mini-gih-products">' + productsHtml + '</div></section>' +
+    '<section class="mini-gih-section"><div class="mini-gih-section-title">РЕЖИМ ПРОВЕРКИ</div>' + modesHtml + '</section>' +
+    (notesHtml ? '<section class="mini-gih-section"><div class="mini-gih-section-title">КОММЕНТАРИЙ</div>' + notesHtml + '</section>' : '') +
+    footer + '</div>';
+  if (preserveScroll) gihListContent.scrollTop = savedScroll;
+}
+function renderMiniGih(preserveScroll = true) {
+  miniGihDeriveLists();
+  if (miniGihView === 'detail' && miniGihSelectedId) miniGihRenderDetail(preserveScroll);
+  else {
+    miniGihView = 'list'; miniGihSelectedId = null; miniGihShowFeedback('');
+    miniGihRenderList();
+  }
+}
+async function setMiniGihItemStatus(recordId, itemId) {
+  const record = miniGihFindRecord(recordId);
+  if (!record || record.status === 'done' || record.gihRoomStatus || miniGihBusyItems.has(Number(itemId))) return;
+  const item = record.gihItems.find(value => value.id === Number(itemId));
+  if (!item) return;
+  const previous = item.itemStatus || 'pending';
+  const index = MINI_GIH_CYCLE.indexOf(previous);
+  const next = MINI_GIH_CYCLE[(index + 1 + MINI_GIH_CYCLE.length) % MINI_GIH_CYCLE.length];
+  item.itemStatus = next;
+  miniGihBusyItems.add(item.id);
+  renderMiniGih();
+  try {
+    const updated = await deadlineApiRequest('/checks/' + record.id, {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({pills:[{id:item.id,itemStatus:next}]})
+    });
+    miniGihUpsertRecord(updated);
+  } catch (error) {
+    const current = miniGihFindRecord(recordId)?.gihItems.find(value => value.id === Number(itemId));
+    if (current) current.itemStatus = previous;
+    showMessage(error.message || 'Не удалось сохранить статус продукта.', 3200);
+  } finally {
+    miniGihBusyItems.delete(Number(itemId));
+    renderMiniGih();
+  }
+}
+async function setMiniGihMode(recordId, modeKey) {
+  const record = miniGihFindRecord(recordId);
+  if (!record || record.status === 'done' || miniGihProductsDirty(record) || miniGihBusyChecks.has(record.id)) return;
+  const nextMode = record.gihRoomStatus === modeKey ? null : modeKey;
+  const previous = record.gihRoomStatus;
+  record.gihRoomStatus = nextMode;
+  miniGihBusyChecks.add(record.id);
+  renderMiniGih();
+  try {
+    const updated = await deadlineApiRequest('/checks/' + record.id, {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({gihRoomStatus:nextMode})
+    });
+    miniGihUpsertRecord(updated);
+  } catch (error) {
+    const current = miniGihFindRecord(recordId);
+    if (current) current.gihRoomStatus = previous;
+    showMessage(error.message || 'Не удалось сохранить режим GIH.', 3200);
+  } finally {
+    miniGihBusyChecks.delete(Number(recordId));
+    renderMiniGih();
+  }
+}
+function persistMiniGihNotes(recordId, value) {
+  const record = miniGihFindRecord(recordId);
+  if (!record || record.status === 'done') return Promise.resolve(false);
+  const notes = String(value || '').trim();
+  const existing = miniGihNotePromises.get(Number(recordId));
+  if (existing) return existing;
+  if (notes === String(record.notes || '').trim()) return Promise.resolve(true);
+  const previous = record.notes || '';
+  record.notes = notes;
+  const promise = (async () => {
+    try {
+      const updated = await deadlineApiRequest('/checks/' + record.id, {
+        method:'PUT', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({notes:notes || null})
+      });
+      miniGihUpsertRecord(updated);
+      return true;
+    } catch (error) {
+      const current = miniGihFindRecord(recordId);
+      if (current) current.notes = previous;
+      showMessage(error.message || 'Не удалось сохранить комментарий.', 3200);
+      renderMiniGih();
+      return false;
+    } finally {
+      miniGihNotePromises.delete(Number(recordId));
+    }
+  })();
+  miniGihNotePromises.set(Number(recordId), promise);
+  return promise;
+}
+async function saveMiniGihDraft(recordId) {
+  let record = miniGihFindRecord(recordId);
+  if (!record || !miniGihDrafts.some(item => item.id === record.id) || miniGihBusyChecks.has(record.id)) return;
+  const notePromise = miniGihNotePromises.get(record.id);
+  if (notePromise) {
+    const saved = await notePromise;
+    if (!saved) return;
+    record = miniGihFindRecord(recordId);
+    if (!record) return;
+  }
+  if (!miniGihCanSave(record)) return;
+  const assignedStatus = miniGihModeItemStatus(record.gihRoomStatus);
+  const payload = {
+    status:'done', gihRoomStatus:record.gihRoomStatus || null,
+    notes:String(record.notes || '').trim() || null,
+    pills:assignedStatus ? record.gihItems.map(item => ({id:item.id,itemStatus:assignedStatus})) :
+      (record.gihRoomStatus ? [] : record.gihItems.map(item => ({id:item.id,itemStatus:item.itemStatus}))
+    )
+  };
+  miniGihBusyChecks.add(record.id);
+  renderMiniGih();
+  try {
+    const updated = await deadlineApiRequest('/checks/' + record.id, {
+      method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
+    });
+    miniGihUpsertRecord(updated);
+    miniGihView = 'list'; miniGihSelectedId = null; miniGihTab = 'dones';
+    renderMiniGih(false);
+    showMessage('GIH сохранён', 2200);
+    triggerHaptic();
+  } catch (error) {
+    showMessage(error.message || 'Не удалось сохранить GIH.', 3200);
+  } finally {
+    miniGihBusyChecks.delete(Number(recordId));
+    renderMiniGih();
+  }
+}
+async function deleteMiniGihRecord(recordId) {
+  const record = miniGihFindRecord(recordId);
+  if (!record || miniGihBusyChecks.has(record.id) || miniGihNotePromises.has(record.id)) return;
+  if (!confirm('Удалить запись GIH для номера ' + record.number + '?')) return;
+  miniGihBusyChecks.add(record.id);
+  renderMiniGih();
+  try {
+    await deadlineApiRequest('/checks/' + record.id, {method:'DELETE'});
+    miniGihRecords = miniGihRecords.filter(item => item.id !== Number(recordId));
+    miniGihDeriveLists();
+    miniGihView = 'list'; miniGihSelectedId = null;
+    renderMiniGih(false);
+    showMessage('Запись GIH удалена', 1800);
+  } catch (error) {
+    showMessage(error.message || 'Не удалось удалить запись GIH.', 3200);
+  } finally {
+    miniGihBusyChecks.delete(Number(recordId));
+    renderMiniGih();
+  }
+}
+function handleMiniGihClick(event) {
+  const open = event.target.closest('[data-mini-gih-open]');
+  if (open) {
+    miniGihSelectedId = Number(open.dataset.miniGihOpen);
+    miniGihView = 'detail';
+    renderMiniGih(false);
+    return;
+  }
+  const item = event.target.closest('[data-mini-gih-item]');
+  if (item) { void setMiniGihItemStatus(miniGihSelectedId, Number(item.dataset.miniGihItem)); return; }
+  const mode = event.target.closest('[data-mini-gih-mode]');
+  if (mode) { void setMiniGihMode(miniGihSelectedId, mode.dataset.miniGihMode); return; }
+  const save = event.target.closest('[data-mini-gih-save]');
+  if (save) {
+    const notes = gihListContent.querySelector('[data-mini-gih-notes]');
+    if (notes) void persistMiniGihNotes(Number(save.dataset.miniGihSave), notes.value).then(ok => {
+      if (ok) void saveMiniGihDraft(Number(save.dataset.miniGihSave));
+    });
+    else void saveMiniGihDraft(Number(save.dataset.miniGihSave));
+    return;
+  }
+  const remove = event.target.closest('[data-mini-gih-delete]');
+  if (remove) { void deleteMiniGihRecord(Number(remove.dataset.miniGihDelete)); return; }
+  if (event.target.closest('[data-mini-gih-back]')) {
+    miniGihView = 'list'; miniGihSelectedId = null; renderMiniGih(false);
+  }
+}
+
 function updateQueueDisplay() {
   queueCount.textContent = activeListKey === 'departures'
     ? ('Выезды · осталось ' + departureList.remainingCount)
@@ -4672,7 +5211,8 @@ btnCloseSheet.addEventListener('click', closeSheet);
 sheetOverlay.addEventListener('click', closeSheet);
 
 cameraDeadlinePanel.addEventListener('click', () => { void openCameraDeadlineModal(); });
-cameraGihPanel.addEventListener('click',()=>{void openGihCreateModal()});
+cameraGihPanel.setAttribute('aria-label','Открыть список GIH');
+cameraGihPanel.addEventListener('click',()=>{void openGihListModal()});
 function setRefillFeedback(text, visible = true) {
   refillModalFeedback.textContent = text || '';
   refillModalFeedback.classList.toggle('visible', Boolean(text) && visible);
@@ -4894,6 +5434,22 @@ gihCreateClose.addEventListener('click',closeGihCreateModal);
 gihCreateProducts.addEventListener('click',e=>{const b=e.target.closest('[data-gih-product-id]');if(!b||gihCreateBusy)return;const id=Number(b.dataset.gihProductId),max=Number(b.dataset.gihMax)||1,current=Number(gihCreateCounts[id])||0,next=current>=max?0:current+1;if(next)gihCreateCounts[id]=next;else delete gihCreateCounts[id];renderGihCreateProducts();triggerHaptic()});
 gihCreateSubmit.addEventListener('click',()=>{void submitGihCreate()});
 gihCreateClear.addEventListener('click',()=>{if(gihCreateBusy)return;gihCreateCounts={};renderGihCreateProducts()});
+gihListModal.addEventListener('click', event => { if (event.target === gihListModal) closeGihListModal(); });
+gihListClose.addEventListener('click', closeGihListModal);
+gihListBack.addEventListener('click', () => { miniGihView = 'list'; miniGihSelectedId = null; renderMiniGih(false); });
+gihListRefresh.addEventListener('click', () => { void loadMiniGihList(); });
+gihListCreate.addEventListener('click', () => { void openGihCreateModal(); });
+gihListToolbar.addEventListener('click', event => {
+  const tab = event.target.closest('[data-mini-gih-tab]');
+  if (!tab) return;
+  miniGihTab = tab.dataset.miniGihTab === 'dones' ? 'dones' : 'drafts';
+  renderMiniGih(false);
+});
+gihListContent.addEventListener('click', handleMiniGihClick);
+gihListContent.addEventListener('change', event => {
+  const notes = event.target.closest('[data-mini-gih-notes]');
+  if (notes) void persistMiniGihNotes(Number(notes.dataset.miniGihNotes), notes.value);
+});
 roomHistoryModal.addEventListener('click',e=>{if(e.target===roomHistoryModal){closeRoomHistoryModal();return}const tab=e.target.closest('[data-history-tab]');if(!tab)return;roomHistoryModalTab=tab.dataset.historyTab;roomHistoryModal.querySelectorAll('[data-history-tab]').forEach(b=>{const active=b.dataset.historyTab===roomHistoryModalTab;b.classList.toggle('active',active);b.setAttribute('aria-selected',String(active))});renderRoomHistoryModal()});
 roomHistoryModalClose.addEventListener('click',closeRoomHistoryModal);
 exciseScreen.addEventListener('click',event=>{if(event.target===exciseScreen)closeToolScreens()});
