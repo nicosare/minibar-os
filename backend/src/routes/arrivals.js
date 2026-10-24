@@ -80,7 +80,7 @@ function parseSession(value, dateKey) {
 
   const pdfRooms = Array.isArray(parsed.pdfRooms)
     ? [...new Set(parsed.pdfRooms.map(value => String(value).trim())
-      .filter(value => NUMBER_PATTERN.test(value)).map(value => String(Number(value)))]
+      .filter(value => NUMBER_PATTERN.test(value)).map(value => String(Number(value))))]
     : [];
   const entries = {};
   if (parsed.entries && typeof parsed.entries === 'object' && !Array.isArray(parsed.entries)) {
