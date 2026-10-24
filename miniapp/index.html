@@ -2298,7 +2298,7 @@ function nextCarouselNumber(previousNumber, rooms = visibleCarouselRooms()) {
   const previous = String(previousNumber ?? '');
   if (previous && rooms.some(room => String(room.number) === previous)) return previous;
   const previousValue = Number(previous);
-  const descending = (activeListKey === 'departures' || activeListKey === 'gih') && departureSort === 'desc';
+  const descending = (activeListKey === 'departures' || activeListKey === 'gih' || activeListKey === 'arrivals') && departureSort === 'desc';
   const next = previous && Number.isFinite(previousValue)
     ? rooms.find(room => descending
       ? Number(room.number) < previousValue
@@ -2374,7 +2374,7 @@ function applyDepartureList(data, preferredNumber = null) {
     buildCarousel(nextCarouselNumber(preferredNumber || selectedRoom?.number, visibleCarouselRooms()));
   } else {
     updateQueueDisplay();
-    if (checkedChanged || activeListKey === 'departures' || activeListKey === 'gih') renderDrawerRooms(sheetSearch.value);
+    if (checkedChanged || activeListKey === 'departures' || activeListKey === 'gih' || activeListKey === 'arrivals') renderDrawerRooms(sheetSearch.value);
   }
 
   if (selectedRoom && ROOM_BY_NUMBER.has(String(selectedRoom.number)) &&
@@ -2433,7 +2433,9 @@ function applyArrivalList(data, preferredNumber = null) {
   const changed = previousDate !== arrivalList.dateKey ||
     previousRooms !== arrivalList.roomNumbers.join(',') ||
     previousReady !== arrivalList.readyNumbers.join(',') || expired;
-  if (activeListKey === 'arrivals' && changed) {
+  if (expired) {
+    buildCarousel(nextCarouselNumber(preferredNumber || selectedRoom?.number, ALL_ROOMS));
+  } else if (activeListKey === 'arrivals' && changed) {
     buildCarousel(nextCarouselNumber(preferredNumber || selectedRoom?.number, visibleCarouselRooms()));
   } else {
     updateQueueDisplay();
@@ -5664,7 +5666,9 @@ function renderDrawerRooms(filterQuery = '') {
     '<div style="text-align:center;color:var(--text-dim);padding:40px 8px;">' +
     (listMode ? (activeListKey === 'gih'
       ? 'В списке GIH пока нет черновиков. Переключи шторку на «Все» и выбери номер.'
-      : 'В списке нет доступных номеров. Добавьте номер или загрузите PDF на сайте.')
+      : activeListKey === 'arrivals'
+        ? 'Список Заезды пуст. Добавьте номера на сайте.'
+        : 'В списке нет доступных номеров. Добавьте номер или загрузите PDF на сайте.')
       : 'Номера не найдены') + '</div>';
   const footerHtml = listMode ? (activeListKey === 'gih' ? renderGihListProductsSection() : renderRefillSection()) : '';
   sheetContent.innerHTML = roomsHtml + footerHtml;
@@ -6349,7 +6353,7 @@ window.addEventListener('keydown',event=>{if(event.key!=='Escape')return;if(acti
 sheetSearch.addEventListener('input', e => renderDrawerRooms(e.target.value));
 sheetListToolbar.addEventListener('click', event => {
   const button = event.target.closest('[data-sheet-view]');
-  if (!button || (activeListKey !== 'departures' && activeListKey !== 'gih')) return;
+  if (!button || (activeListKey !== 'departures' && activeListKey !== 'gih' && activeListKey !== 'arrivals')) return;
   drawerMode = button.dataset.sheetView === 'list' ? 'list' : 'all';
   renderDrawerRooms(sheetSearch.value);
 });
