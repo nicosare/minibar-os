@@ -357,7 +357,7 @@
     z-index: 8;
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-template-rows: auto auto auto auto minmax(0, 1fr);
+    grid-template-rows: auto repeat(4, minmax(0, 1fr));
     align-content: stretch;
     align-items: start;
     gap: 10px;
@@ -386,8 +386,8 @@
   }
 
   .camera-workspace-gih {
-    grid-column: 2;
-    grid-row: 2;
+    grid-column: 2 / span 2;
+    grid-row: 2 / span 3;
     width: 100%;
     height: 100%;
     min-height: 0;
@@ -486,6 +486,41 @@
   .camera-gih-panel .camera-action-title { font-size: 14px; line-height: 18px; }
   .camera-gih-panel .camera-action-icon { width: 25px; height: 25px; }
   .camera-gih-panel .camera-action-subtitle { display: none; }
+
+  .camera-workspace-gih.camera-gih-panel {
+    display:flex; min-height:0; align-items:stretch; justify-content:flex-start; flex-direction:column;
+    gap:6px; overflow:hidden; padding:8px; text-align:left;
+  }
+  .camera-gih-head { display:flex; flex:0 0 auto; align-items:flex-start; justify-content:space-between; gap:6px; padding-bottom:5px; border-bottom:1px solid rgba(255,204,0,.18); }
+  .camera-gih-heading { min-width:0; display:flex; flex-direction:column; gap:2px; }
+  .camera-gih-heading .camera-action-title { font-size:13px; font-weight:900; line-height:16px; }
+  .camera-gih-room { color:rgba(255,255,255,.6); font-size:10px; font-weight:850; line-height:13px; }
+  .camera-gih-head-actions { min-width:0; display:flex; align-items:flex-end; flex-direction:column; gap:4px; }
+  .camera-gih-status { max-width:100%; color:var(--yellow); font-size:9px; font-weight:850; line-height:12px; text-align:right; }
+  .camera-gih-history { padding:3px 6px; border:1px solid rgba(255,255,255,.12); border-radius:6px; background:rgba(255,255,255,.04); color:rgba(255,255,255,.65); font-size:9px; font-weight:800; line-height:12px; }
+  .camera-gih-content { min-width:0; min-height:0; flex:1 1 auto; overflow:auto; overscroll-behavior:contain; scrollbar-width:thin; padding-right:1px; }
+  .camera-gih-content .mini-gih-detail { gap:7px; }
+  .camera-gih-content .mini-gih-section { padding:7px; border-radius:8px; }
+  .camera-gih-content .mini-gih-section-title { margin-bottom:5px; font-size:9px; line-height:12px; }
+  .camera-gih-content .mini-gih-products { display:flex; flex-direction:column; gap:4px; }
+  .camera-gih-content .mini-gih-product { grid-template-columns:24px minmax(0,1fr); gap:6px; padding:5px; border-radius:7px; }
+  .camera-gih-content .mini-gih-product-emoji { width:24px; height:24px; border-radius:6px; font-size:12px; }
+  .camera-gih-content .mini-gih-product-name { font-size:9px; line-height:12px; }
+  .camera-gih-content .mini-gih-product-status { font-size:8px; line-height:10px; }
+  .camera-gih-content .mini-gih-product-action { display:none; }
+  .camera-gih-content .mini-gih-modes { gap:4px; }
+  .camera-gih-content .mini-gih-mode { min-height:28px; padding:5px 3px; border-radius:7px; font-size:8px; line-height:10px; }
+  .camera-gih-content .mini-gih-note { min-height:42px; padding:6px; font-size:10px; line-height:13px; }
+  .camera-gih-content .mini-gih-detail-footer { display:flex; flex-direction:column; gap:5px; padding-top:0; }
+  .camera-gih-content .mini-gih-action { min-height:30px; padding:6px; border-radius:7px; font-size:9px; line-height:12px; }
+  .camera-gih-content .mini-gih-save-hint { font-size:8px; line-height:11px; }
+  .camera-gih-content .deadline-modal-category { margin-bottom:7px; }
+  .camera-gih-content .deadline-modal-category-title { margin-bottom:4px; font-size:9px; }
+  .camera-gih-content .deadline-modal-product-grid { grid-template-columns:minmax(0,1fr); gap:4px; }
+  .camera-gih-content .deadline-modal-product { min-height:31px; padding:5px; border-radius:7px; }
+  .camera-gih-content .deadline-modal-product-icon { width:22px; height:22px; }
+  .camera-gih-content .deadline-modal-product-name { font-size:9px; line-height:12px; }
+  .camera-gih-content .mini-gih-empty { min-height:45px; gap:4px; padding:8px 4px; font-size:9px; }
 
   .camera-refill-panel {
     width: 100%;
@@ -1567,7 +1602,25 @@
 .mini-gih-save-hint{color:rgba(255,255,255,.4);font-size:10px;line-height:14px}
 .mini-gih-mode-label{display:inline-flex;align-items:center;gap:5px;padding:5px 7px;border:1px solid rgba(255,204,0,.24);border-radius:7px;color:var(--yellow);font-size:9px;font-weight:850}
 .mini-gih-feedback{margin:0 13px 10px;padding:8px 10px;border-radius:8px;background:rgba(255,90,95,.1);color:#ff9b9f;font-size:10px;line-height:14px}
-.mini-gih-feedback[hidden]{display:none!important}
+ .mini-gih-feedback[hidden]{display:none!important}
+.gih-list-products-section{margin-top:14px;padding:12px;border:1px solid rgba(255,204,0,.2);border-radius:12px;background:rgba(255,204,0,.035)}
+.gih-list-products-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;color:rgba(255,255,255,.9);font-size:12px;font-weight:900}
+.gih-list-products-heading span{color:rgba(255,255,255,.45);font-size:10px;font-weight:750}
+.gih-list-product-category{margin-top:10px}
+.gih-list-product-category:first-of-type{margin-top:0}
+.gih-list-product-category-title{margin-bottom:6px;color:var(--yellow);font-size:10px;font-weight:900;letter-spacing:.04em;text-transform:uppercase}
+.gih-list-product-lines{display:flex;flex-direction:column;gap:6px}
+.gih-list-product-line{display:grid;grid-template-columns:30px minmax(0,1fr);align-items:start;gap:8px;padding:8px;border:1px solid rgba(255,255,255,.08);border-radius:9px;background:rgba(255,255,255,.025)}
+.gih-list-product-emoji{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:8px;color:#171717;font-size:14px;font-weight:900}
+.gih-list-product-copy{min-width:0;display:flex;flex-direction:column;gap:4px}
+.gih-list-product-name{overflow-wrap:anywhere;color:rgba(255,255,255,.92);font-size:11px;font-weight:850;line-height:14px}
+.gih-list-product-meta{color:rgba(255,255,255,.42);font-size:9px;line-height:12px}
+.gih-list-product-statuses{display:flex;flex-wrap:wrap;gap:4px}
+.gih-list-product-status{display:inline-flex;align-items:center;padding:3px 5px;border-radius:5px;background:rgba(255,255,255,.055);color:rgba(255,255,255,.55);font-size:8px;font-weight:850;line-height:10px}
+.gih-list-product-status.status-replenished{background:rgba(52,199,89,.1);color:#8af0a7}
+.gih-list-product-status.status-in_place{background:rgba(38,136,235,.11);color:#8bc6ff}
+.gih-list-product-status.status-out{background:rgba(168,85,247,.1);color:#d8b4fe}
+.gih-list-product-status.status-not_replenished{background:rgba(255,90,95,.11);color:#ff9b9f}
 @media(min-width:440px){.gih-list-toolbar{padding-left:15px;padding-right:15px}.gih-list-content{padding-left:15px;padding-right:15px}.mini-gih-products{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.mini-gih-product{height:100%;grid-template-columns:30px minmax(0,1fr)}.mini-gih-product-action{grid-column:2;justify-self:start}}
 
 </style>
@@ -1624,9 +1677,21 @@
                 </div>
               </button>
             </div>
-            <button type="button" class="camera-gih-panel camera-workspace-gih" id="cameraGihPanel" aria-label="Создать запись GIH для номера">
-              <span class="camera-action-title">GIH</span>
-            </button>
+            <section class="camera-gih-panel camera-workspace-gih" id="cameraGihPanel" aria-label="GIH для выбранного номера">
+              <div class="camera-gih-head">
+                <div class="camera-gih-heading">
+                  <span class="camera-action-title">GIH</span>
+                  <span class="camera-gih-room" id="cameraGihRoom">№ 500</span>
+                </div>
+                <div class="camera-gih-head-actions">
+                  <span class="camera-gih-status" id="cameraGihStatus">Загрузка…</span>
+                  <button type="button" class="camera-gih-history" id="cameraGihHistory" aria-label="Открыть все записи GIH">История</button>
+                </div>
+              </div>
+              <div class="camera-gih-content" id="cameraGihContent" aria-live="polite">
+                <div class="mini-gih-empty">Загрузка GIH…</div>
+              </div>
+            </section>
           </div>
           <section class="camera-history-section" aria-label="Последние записи истории">
             <div class="camera-history-card" id="roomHistoryOpen" role="button" tabindex="0" aria-label="Открыть историю номера">
@@ -2807,6 +2872,12 @@ let refillAllProducts = false;
 let refillCurrentRequestId = null;
 let refillModalBusy = false;
 const activeRefillsByNumber = new Map();
+const cameraGihContent = document.getElementById('cameraGihContent');
+const cameraGihRoom = document.getElementById('cameraGihRoom');
+const cameraGihStatus = document.getElementById('cameraGihStatus');
+const cameraGihHistory = document.getElementById('cameraGihHistory');
+let cameraGihCreateCounts = {}, cameraGihCreateRoomId = null, cameraGihCreating = false;
+let cameraGihTemplateLoadingId = null, cameraGihStartNew = false, returnToGihListAfterCreate = false;
 let previewRefillRequestId = null;
 let previewRoomNumber = null;
 const gihCreateModal = document.getElementById('gihCreateModal');
