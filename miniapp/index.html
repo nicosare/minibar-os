@@ -2383,7 +2383,7 @@ function finalizeBasketProductTotals(groupedProducts, templateByType, basketCoun
     });
   }
   [...groupedProducts.values()].filter(product => product.qty > 0)
-    .sort((a,b)=>(a.name||'').localeCompare(b.name||'ru'))
+    .sort((a,b)=>(a.name||'').localeCompare(b.name||'', 'ru'))
     .forEach(product => result.push({...product,basket:false}));
   return result;
 }
