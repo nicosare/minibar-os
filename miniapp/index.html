@@ -4010,13 +4010,19 @@ function renderCameraGihCard() {
 
 async function saveCurrentCameraGihDraft() {
   const recordId = Number(gihSaveBtn.dataset.miniGihSave);
-  if (!recordId) return;
-  const noteRecordId = Number(cameraGihNote.dataset.miniGihNotes);
-  if (noteRecordId === recordId) {
-    const notesSaved = await persistMiniGihNotes(recordId, cameraGihNote.value);
-    if (!notesSaved) return;
+  if (!recordId || gihSaveBtn.disabled) return;
+  gihSaveBtn.disabled = true;
+  gihSaveBtn.textContent = 'Сохранение…';
+  try {
+    const noteRecordId = Number(cameraGihNote.dataset.miniGihNotes);
+    if (noteRecordId === recordId) {
+      const notesSaved = await persistMiniGihNotes(recordId, cameraGihNote.value);
+      if (!notesSaved) return;
+    }
+    await saveMiniGihDraft(recordId);
+  } finally {
+    renderCameraGihCard();
   }
-  await saveMiniGihDraft(recordId);
 }
 
 async function submitCameraGihDraft() {
