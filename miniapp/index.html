@@ -1894,9 +1894,9 @@ function readStoredListSelection() {
 }
 
 const storedListSelection = readStoredListSelection();
-let activeListKey = storedListSelection.key === 'departures' ? 'departures' : '';
+let activeListKey = ['departures', 'gih'].includes(storedListSelection.key) ? storedListSelection.key : '';
 let activeListDateKey = storedListSelection.dateKey;
-let drawerMode = activeListKey === 'departures' ? 'list' : 'all';
+let drawerMode = activeListKey ? 'list' : 'all';
 function readDepartureSort() { try { return localStorage.getItem('minibar-departure-sort-v1') === 'desc' ? 'desc' : 'asc'; } catch (_) { return 'asc'; } }
 let departureSort = readDepartureSort();
 let activePlaceholderName = '';
@@ -2026,6 +2026,18 @@ function currentDepartureNumbers() {
   return new Set((departureList.roomNumbers || []).map(String));
 }
 
+function currentGihNumbers() {
+  return new Set((miniGihDrafts || []).map(record => String(record.number)).filter(number => ROOM_BY_NUMBER.has(number)));
+}
+
+function activeListNumbers() {
+  return activeListKey === 'gih' ? currentGihNumbers() : currentDepartureNumbers();
+}
+
+function activeListLabel() {
+  return activeListKey === 'gih' ? 'GIH' : 'Выезды';
+}
+
 function checkedTodayNumbers() {
   return new Set((departureList.checkedToday || []).map(item => String(item.number)));
 }
@@ -2035,13 +2047,16 @@ function arrivalMarked(number) {
 }
 
 function visibleCarouselRooms() {
-  if (activeListKey !== 'departures') return ALL_ROOMS;
-  const members = currentDepartureNumbers();
+  if (activeListKey !== 'departures' && activeListKey !== 'gih') return ALL_ROOMS;
+  const members = activeListNumbers();
   const checked = checkedTodayNumbers();
-  return ALL_ROOMS
-    .filter(room => members.has(String(room.number)) ||
-      (revisitRoomNumbers.has(String(room.number)) && checked.has(String(room.number))))
-    .sort((a, b) => { const d = departureSort === 'desc' ? -1 : 1; return d * (Number(a.floor) - Number(b.floor) || Number(a.number) - Number(b.number)); });
+  const rooms = ALL_ROOMS.filter(room => activeListKey === 'departures'
+    ? (members.has(String(room.number)) || (revisitRoomNumbers.has(String(room.number)) && checked.has(String(room.number))))
+    : members.has(String(room.number)));
+  return rooms.sort((a, b) => {
+    const direction = departureSort === 'desc' ? -1 : 1;
+    return direction * (Number(a.floor) - Number(b.floor) || Number(a.number) - Number(b.number));
+  });
 }
 
 function nextCarouselNumber(previousNumber, rooms = visibleCarouselRooms()) {
@@ -2049,7 +2064,7 @@ function nextCarouselNumber(previousNumber, rooms = visibleCarouselRooms()) {
   const previous = String(previousNumber ?? '');
   if (previous && rooms.some(room => String(room.number) === previous)) return previous;
   const previousValue = Number(previous);
-  const descending = activeListKey === 'departures' && departureSort === 'desc';
+  const descending = (activeListKey === 'departures' || activeListKey === 'gih') && departureSort === 'desc';
   const next = previous && Number.isFinite(previousValue)
     ? rooms.find(room => descending
       ? Number(room.number) < previousValue
@@ -2125,7 +2140,7 @@ function applyDepartureList(data, preferredNumber = null) {
     buildCarousel(nextCarouselNumber(preferredNumber || selectedRoom?.number, visibleCarouselRooms()));
   } else {
     updateQueueDisplay();
-    if (checkedChanged || activeListKey === 'departures') renderDrawerRooms(sheetSearch.value);
+    if (checkedChanged || activeListKey === 'departures' || activeListKey === 'gih') renderDrawerRooms(sheetSearch.value);
   }
 
   if (selectedRoom && ROOM_BY_NUMBER.has(String(selectedRoom.number)) &&
@@ -2393,28 +2408,88 @@ async function refreshActiveRefills(roomId = null) {
   return requests;
 }
 
+function renderGihListProductsSection() {
+  const roomNumbers = currentGihNumbers();
+  const records = miniGihDrafts.filter(record => roomNumbers.has(String(record.number)));
+  const byCategory = new Map();
+  for (const record of records) {
+    for (const item of record.gihItems || []) {
+      const category = String(item.category || 'Напитки');
+      const key = String(item.productId || item.name || 'product') + '|' + String(item.name || '');
+      if (!byCategory.has(category)) byCategory.set(category, new Map());
+      const products = byCategory.get(category);
+      if (!products.has(key)) products.set(key, {
+        name: String(item.name || 'Продукт'),
+        emoji: item.emoji || String(item.name || '?').charAt(0),
+        bgColor: item.bgColor || 'slate',
+        rooms: new Set(),
+        statuses: {}
+      });
+      const product = products.get(key);
+      product.rooms.add(String(record.number));
+      const status = miniGihEffectiveStatus(item, record.gihRoomStatus);
+      product.statuses[status] = (product.statuses[status] || 0) + 1;
+    }
+  }
+  const order = ['Дверца', 'Напитки', 'Алкоголь', 'Соки'];
+  const categories = order.filter(category => byCategory.get(category) && byCategory.get(category).size)
+    .concat([...byCategory.keys()].filter(category => !order.includes(category)).sort((a,b) => a.localeCompare(b,'ru')));
+  const totalEntries = [...byCategory.values()].reduce((sum, products) => sum +
+    [...products.values()].reduce((n, product) => n +
+      Object.values(product.statuses).reduce((a,count) => a + count, 0), 0), 0);
+  const labels = {replenished:'Пополнено',in_place:'На месте',out:'Выложили',not_replenished:'Не пополнено',pending:'Не размечено'};
+  if (!categories.length) {
+    return '<section class="gih-list-products-section"><div class="gih-list-products-heading">Продукты GIH <span>0 позиций</span></div>' +
+      '<div class="mini-gih-empty"><strong>Пока нет продуктов</strong><span>Создай черновики GIH для номеров, чтобы собрать общий список.</span></div></section>';
+  }
+  return '<section class="gih-list-products-section"><div class="gih-list-products-heading">Продукты GIH <span>' + totalEntries + ' поз.</span></div>' +
+    categories.map(category => {
+      const products = [...byCategory.get(category).values()].sort((a,b) => a.name.localeCompare(b.name,'ru'));
+      return '<div class="gih-list-product-category"><div class="gih-list-product-category-title">' + miniGihEscape(category) +
+        '</div><div class="gih-list-product-lines">' + products.map(product => {
+          const statuses = ['replenished','in_place','out','not_replenished','pending'].filter(status => product.statuses[status])
+            .map(status => '<span class="gih-list-product-status status-' + status + '">' +
+              miniGihEscape(labels[status]) + ' · ' + product.statuses[status] + '</span>').join('');
+          const color = MINI_GIH_PRODUCT_COLORS[product.bgColor] || MINI_GIH_PRODUCT_COLORS.slate;
+          return '<div class="gih-list-product-line"><span class="gih-list-product-emoji" style="background:' + color + '">' +
+            miniGihEscape(product.emoji) + '</span><span class="gih-list-product-copy"><span class="gih-list-product-name">' +
+            miniGihEscape(product.name) + '</span><span class="gih-list-product-meta">' + product.rooms.size + ' ' +
+            (product.rooms.size === 1 ? 'номер' : product.rooms.size < 5 ? 'номера' : 'номеров') +
+            '</span><span class="gih-list-product-statuses">' + statuses + '</span></span></div>';
+        }).join('') + '</div></div>';
+    }).join('') + '</section>';
+}
+
 function renderDepartureListCard() {
   if (activePlaceholderName !== 'Списки' || !navPlaceholderBody) return;
-  const active=activeListKey==='departures';
-  const total=Math.max(0,departureList.assignedCount),completed=Math.max(0,departureList.completedCount),remaining=Math.max(0,departureList.remainingCount);
-  const progress=total>0?Math.max(0,Math.min(100,Math.round(completed/total*100))):0;
-  const gihTotal=miniGihDrafts.reduce((sum,record)=>sum+record.gihItems.length,0);
-  const gihMarked=miniGihDrafts.reduce((sum,record)=>sum+record.gihItems.filter(item=>record.gihRoomStatus||item.itemStatus!=='pending').length,0);
-  const gihProgress=gihTotal>0?Math.max(0,Math.min(100,Math.round(gihMarked/gihTotal*100))):0;
-  navPlaceholderBody.innerHTML=
-    '<div class="mini-list-cards">'+
-    '<button type="button" class="mini-departure-list-card'+(active?' is-active':'')+'" data-select-departures-list aria-label="Выбрать список Выезды">'+
-    '<div class="mini-departure-card-top"><span>Выезды</span><span class="mini-departure-card-state">'+(active?'Активен':'Открыть')+'</span></div>'+
-    '<div class="mini-departure-progress"><div class="mini-departure-progress-copy"><span>Проверено <strong>'+completed+'</strong> из <strong>'+total+
-    '</strong></span><span>Осталось <strong>'+remaining+'</strong></span></div><div class="mini-departure-progress-track" role="progressbar" aria-label="Прогресс проверок" aria-valuemin="0" aria-valuemax="'+
-    total+'" aria-valuenow="'+Math.min(completed,total)+'"><span style="width:'+progress+'%"></span></div></div></button>'+
-    (!departureList.sourceReady&&total===0?'<div class="mini-departure-empty-note">Загрузите PDF со списком на сайте.</div>':'')+
-    '<button type="button" class="mini-departure-list-card" data-open-gih-list aria-label="Открыть список GIH">'+
-    '<div class="mini-departure-card-top"><span>GIH</span><span class="mini-departure-card-state">Открыть</span></div>'+
-    '<div class="mini-departure-progress"><div class="mini-departure-progress-copy"><span>Черновики <strong>'+miniGihDrafts.length+'</strong></span><span>Сохранено сегодня <strong>'+miniGihDones.length+'</strong></span></div>'+
-    '<div class="mini-departure-progress-track" role="progressbar" aria-label="Заполнение черновиков GIH" aria-valuemin="0" aria-valuemax="'+gihTotal+'" aria-valuenow="'+Math.min(gihMarked,gihTotal)+'"><span style="width:'+gihProgress+'%"></span></div></div></button>'+
+  const active = activeListKey === 'departures';
+  const gihActive = activeListKey === 'gih';
+  const total = Math.max(0, departureList.assignedCount);
+  const completed = Math.max(0, departureList.completedCount);
+  const remaining = Math.max(0, departureList.remainingCount);
+  const progress = total > 0 ? Math.max(0, Math.min(100, Math.round(completed / total * 100))) : 0;
+  const gihTotal = miniGihDrafts.reduce((sum, record) => sum + record.gihItems.length, 0);
+  const gihMarked = miniGihDrafts.reduce((sum, record) => sum + record.gihItems.filter(item =>
+    record.gihRoomStatus || item.itemStatus !== 'pending').length, 0);
+  const gihProgress = gihTotal > 0 ? Math.max(0, Math.min(100, Math.round(gihMarked / gihTotal * 100))) : 0;
+  const gihRoomCount = currentGihNumbers().size;
+  navPlaceholderBody.innerHTML =
+    '<div class="mini-list-cards">' +
+    '<button type="button" class="mini-departure-list-card' + (active ? ' is-active' : '') + '" data-select-departures-list aria-label="Выбрать список Выезды">' +
+    '<div class="mini-departure-card-top"><span>Выезды</span><span class="mini-departure-card-state">' + (active ? 'Активен' : 'Открыть') + '</span></div>' +
+    '<div class="mini-departure-progress"><div class="mini-departure-progress-copy"><span>Проверено <strong>' + completed + '</strong> из <strong>' + total +
+    '</strong></span><span>Осталось <strong>' + remaining + '</strong></span></div><div class="mini-departure-progress-track" role="progressbar" aria-label="Прогресс проверок" aria-valuemin="0" aria-valuemax="' +
+    total + '" aria-valuenow="' + Math.min(completed, total) + '"><span style="width:' + progress + '%"></span></div></div></button>' +
+    (!departureList.sourceReady && total === 0 ? '<div class="mini-departure-empty-note">Загрузите PDF со списком на сайте.</div>' : '') +
+    '<button type="button" class="mini-departure-list-card' + (gihActive ? ' is-active' : '') + '" data-select-gih-list aria-label="Выбрать список GIH">' +
+    '<div class="mini-departure-card-top"><span>GIH</span><span class="mini-departure-card-state">' + (gihActive ? 'Активен' : 'Открыть') + '</span></div>' +
+    '<div class="mini-departure-progress"><div class="mini-departure-progress-copy"><span>Черновики <strong>' + miniGihDrafts.length + '</strong></span><span>Сохранено сегодня <strong>' + miniGihDones.length +
+    '</strong></span></div><div class="mini-departure-progress-track" role="progressbar" aria-label="Прогресс черновиков GIH" aria-valuemin="0" aria-valuemax="' +
+    gihTotal + '" aria-valuenow="' + Math.min(gihMarked, gihTotal) + '"><span style="width:' + gihProgress + '%"></span></div></div>' +
+    '<div class="mini-departure-card-foot">' + gihRoomCount + ' номеров в рабочем списке</div></button>' +
     '</div>';
 }
+
 async function openListsScreen() {
   closeToolScreens();
   closeGihListModal();
@@ -2454,6 +2529,17 @@ function activateDepartureList() {
   showMessage(rooms.length
     ? 'Активен список «Выезды»'
     : 'Список пуст. Добавьте номер или загрузите PDF на сайте', 2300);
+}
+
+function activateGihList() {
+  activeListKey = 'gih';
+  activeListDateKey = miniGihLocalDayKey(new Date());
+  drawerMode = 'list';
+  persistActiveListSelection();
+  const rooms = visibleCarouselRooms();
+  buildCarousel(nextCarouselNumber(selectedRoom?.number, rooms));
+  closeNavPlaceholderModal();
+  showMessage(rooms.length ? 'Активен список «GIH»' : 'Список GIH пуст. Переключи шторку на «Все» и создай черновик для номера', 2600);
 }
 
 function deactivateActiveList() {
@@ -3769,9 +3855,9 @@ function handleMiniGihClick(event) {
 }
 
 function updateQueueDisplay() {
-  queueCount.textContent = activeListKey === 'departures'
-    ? ('Выезды · осталось ' + departureList.remainingCount)
-    : ('В очереди: ' + queueRemaining + ' номеров');
+  if (activeListKey === 'departures') queueCount.textContent = 'Выезды · осталось ' + departureList.remainingCount;
+  else if (activeListKey === 'gih') queueCount.textContent = 'GIH · осталось ' + currentGihNumbers().size;
+  else queueCount.textContent = 'В очереди: ' + queueRemaining + ' номеров';
 }
 
 function showMessage(text, duration = 1800) {
@@ -4739,11 +4825,11 @@ function buildCarousel(preferredNumber = visibleCarouselRooms()[0]?.number) {
   });
 
   carousel.appendChild(fragment);
-  sheetPeekTitle.textContent = activeListKey === 'departures'
-    ? ('Список «Выезды» · ' + rooms.length)
+  sheetPeekTitle.textContent = activeListKey
+    ? ('Список «' + activeListLabel() + '» · ' + rooms.length)
     : ('Показать все номера (' + ALL_ROOMS.length + ')');
-  sheetSubtitle.textContent = activeListKey === 'departures'
-    ? (rooms.length + ' номеров осталось в списке')
+  sheetSubtitle.textContent = activeListKey
+    ? (rooms.length + ' номеров в активном списке')
     : (ALL_ROOMS.length + ' номеров из базы данных');
 
   const noRooms = rooms.length === 0;
@@ -4917,14 +5003,13 @@ function renderDrawerRooms(filterQuery = '') {
   const q = String(filterQuery || '').trim().toLowerCase();
   const parts = [];
   let hasAny = false;
-  const hasActiveList = activeListKey === 'departures';
-  const listNumbers = currentDepartureNumbers();
+  const hasActiveList = activeListKey === 'departures' || activeListKey === 'gih';
+  const listNumbers = activeListNumbers();
   const checkedNumbers = checkedTodayNumbers();
   const listMode = hasActiveList && drawerMode === 'list';
-  const roomsToShow = listMode
-    ? ALL_ROOMS.filter(room => listNumbers.has(String(room.number)))
-    : ALL_ROOMS;
+  const roomsToShow = listMode ? ALL_ROOMS.filter(room => listNumbers.has(String(room.number))) : ALL_ROOMS;
   const floorOrder = listMode && departureSort === 'desc' ? [...FLOORS].reverse() : FLOORS;
+  const listLabel = activeListLabel();
 
   sheetListToolbar.classList.toggle('hidden', !hasActiveList);
   sheetSortOrder.hidden = !listMode;
@@ -4935,9 +5020,9 @@ function renderDrawerRooms(filterQuery = '') {
     button.classList.toggle('active', button.dataset.sheetView === drawerMode);
     button.setAttribute('aria-pressed', String(button.dataset.sheetView === drawerMode));
   });
-  sheetTitle.textContent = listMode ? 'Список · Выезды' : 'Все номера отеля';
+  sheetTitle.textContent = listMode ? 'Список · ' + listLabel : 'Все номера отеля';
   sheetSubtitle.textContent = listMode
-    ? roomsToShow.length + ' номеров осталось'
+    ? roomsToShow.length + ' номеров в списке'
     : (hasActiveList ? listNumbers.size + ' номеров в списке · все номера отеля' : ALL_ROOMS.length + ' номеров из базы данных');
 
   for (const floorNum of floorOrder) {
@@ -4948,48 +5033,41 @@ function renderDrawerRooms(filterQuery = '') {
       : Number(a.number) - Number(b.number));
     if (!floorRooms.length) continue;
     hasAny = true;
-    parts.push(`<div class="floor-section">
-      <div class="floor-header">
-        <span>${floorNum} этаж</span>
-        <span class="floor-stats">${floorRooms.length} номеров</span>
-      </div>
-      <div class="room-grid">${floorRooms.map(room => {
+    parts.push('<div class="floor-section"><div class="floor-header"><span>' + floorNum +
+      ' этаж</span><span class="floor-stats">' + floorRooms.length + ' номеров</span></div><div class="room-grid">' +
+      floorRooms.map(room => {
         const number = String(room.number);
         const checked = checkedNumbers.has(number);
-        const classes = [
-          'room-chip',
-          room.expiryStatus === 'empty' ? 'empty-room' : '',
+        const classes = ['room-chip', room.expiryStatus === 'empty' ? 'empty-room' : '',
           activeRefillsByNumber.has(number) ? 'needs-refill' : '',
-          number === String(selectedRoom?.number || '') ? 'selected' : '',
-          checked ? 'today-checked' : ''
-        ].filter(Boolean).join(' ');
+          number === String(selectedRoom?.number || '') ? 'selected' : '', checked ? 'today-checked' : '']
+          .filter(Boolean).join(' ');
         const safeNumber = escapeCameraHtml(number);
-        const removeControl = listMode
+        const removeControl = listMode && activeListKey === 'departures'
           ? '<button type="button" class="room-chip-remove" data-departure-remove="' + safeNumber +
-            '" aria-label="Убрать номер ' + safeNumber + ' из списка">×</button>'
-          : '';
-        return '<div class="' + classes + '" data-room-number="' + safeNumber + '">' +
-          '<span>' + safeNumber + '</span>' + removeControl + '</div>';
-      }).join('')}
-      </div>
-    </div>`);
+            '" aria-label="Убрать номер ' + safeNumber + ' из списка">×</button>' : '';
+        return '<div class="' + classes + '" data-room-number="' + safeNumber + '"><span>' + safeNumber +
+          '</span>' + removeControl + '</div>';
+      }).join('') + '</div></div>');
   }
 
-  const roomsHtml = hasAny
-    ? parts.join('')
-    : `<div style="text-align: center; color: var(--text-dim); padding: 40px 8px;">${listMode
-      ? 'В списке нет доступных номеров. Добавьте номер или загрузите PDF на сайте.'
-      : 'Номера не найдены'}</div>`;
-  sheetContent.innerHTML = roomsHtml + (listMode ? renderRefillSection() : '');
-
+  const roomsHtml = hasAny ? parts.join('') :
+    '<div style="text-align:center;color:var(--text-dim);padding:40px 8px;">' +
+    (listMode ? (activeListKey === 'gih'
+      ? 'В списке GIH пока нет черновиков. Переключи шторку на «Все» и выбери номер.'
+      : 'В списке нет доступных номеров. Добавьте номер или загрузите PDF на сайте.')
+      : 'Номера не найдены') + '</div>';
+  const footerHtml = listMode ? (activeListKey === 'gih' ? renderGihListProductsSection() : renderRefillSection()) : '';
+  sheetContent.innerHTML = roomsHtml + footerHtml;
   sheetPeekTitle.textContent = hasActiveList
-    ? (listMode ? 'Список «Выезды» · ' + listNumbers.size : 'Все номера · ' + ALL_ROOMS.length)
+    ? (listMode ? 'Список «' + listLabel + '» · ' + listNumbers.size : 'Все номера · ' + ALL_ROOMS.length)
     : 'Показать все номера (' + ALL_ROOMS.length + ')';
 }
 
+function updateDrawerSelectedChip
 function updateDrawerSelectedChip(numStr) {
   const chips = sheetContent.querySelectorAll('.room-chip');
-  const listNumbers = currentDepartureNumbers();
+  const listNumbers = activeListNumbers();
   const checkedNumbers = checkedTodayNumbers();
   chips.forEach(chip => {
     const number = String(chip.dataset.roomNumber);
@@ -4997,7 +5075,7 @@ function updateDrawerSelectedChip(numStr) {
     chip.classList.toggle('selected', number === String(numStr));
     chip.classList.toggle('empty-room', room?.expiryStatus === 'empty');
     chip.classList.toggle('needs-refill', activeRefillsByNumber.has(number));
-    chip.classList.toggle('in-departure-list', activeListKey === 'departures' && listNumbers.has(number));
+    chip.classList.toggle('in-departure-list', Boolean(activeListKey) && listNumbers.has(number));
     chip.classList.toggle('today-checked', checkedNumbers.has(number));
   });
 }
@@ -5625,12 +5703,12 @@ window.addEventListener('keydown',event=>{if(event.key!=='Escape')return;if(acti
 sheetSearch.addEventListener('input', e => renderDrawerRooms(e.target.value));
 sheetListToolbar.addEventListener('click', event => {
   const button = event.target.closest('[data-sheet-view]');
-  if (!button || activeListKey !== 'departures') return;
+  if (!button || (activeListKey !== 'departures' && activeListKey !== 'gih')) return;
   drawerMode = button.dataset.sheetView === 'list' ? 'list' : 'all';
   renderDrawerRooms(sheetSearch.value);
 });
 sheetSortOrder.addEventListener('click', () => {
-  if (activeListKey !== 'departures' || drawerMode !== 'list') return;
+  if ((activeListKey !== 'departures' && activeListKey !== 'gih') || drawerMode !== 'list') return;
   departureSort = departureSort === 'asc' ? 'desc' : 'asc';
   try { localStorage.setItem('minibar-departure-sort-v1', departureSort); } catch (_) {}
   renderDrawerRooms(sheetSearch.value);
@@ -5639,9 +5717,9 @@ sheetSortOrder.addEventListener('click', () => {
 
 
 navPlaceholderBody.addEventListener('click', event => {
-  const gihListButton = event.target.closest('[data-open-gih-list]');
+  const gihListButton = event.target.closest('[data-select-gih-list]');
   if (gihListButton) {
-    void openGihListModal();
+    activateGihList();
     return;
   }
   const refillRoomButton = event.target.closest('[data-refill-room-number]');
@@ -5695,6 +5773,16 @@ sheetContent.addEventListener('click', event => {
     } else {
       void updateDepartureListRoom(number, 'add', undefined, { closeSheet: true });
     }
+    return;
+  }
+  if (activeListKey === 'gih' && drawerMode === 'all' && !currentGihNumbers().has(number)) {
+    returnToGihListAfterCreate = true;
+    activeListKey = '';
+    activeListDateKey = '';
+    drawerMode = 'all';
+    persistActiveListSelection();
+    buildCarousel(number);
+    closeSheet();
     return;
   }
   selectRoomByNumber(number, true);
@@ -6352,6 +6440,10 @@ void restorePhotoUploadQueue();
 (async function boot() {
   try {
     await loadRooms();
+    if (activeListKey === 'gih') {
+      try { await loadMiniGihList(); }
+      catch (gihError) { console.warn('[MINIBAR LISTS] Не удалось восстановить список GIH:', gihError); }
+    }
     try {
       await refreshDepartureList();
     } catch (listError) {
@@ -6375,7 +6467,7 @@ void restorePhotoUploadQueue();
     const initialRoomIsInVisibleList = initialRoomNumber &&
       visibleCarouselRooms().some(room => String(room.number) === initialRoomNumber);
 
-    if (launchRoomNumber || (restoredPinnedRoomNumber && !initialRoomIsInVisibleList)) {
+    if (launchRoomNumber || (restoredPinnedRoomNumber && !initialRoomIsInVisibleList && activeListKey === 'departures')) {
       // A direct room link wins; otherwise reopen the saved pinned room even if it
       // is not part of the previously selected personal departures list.
       activeListKey = '';
