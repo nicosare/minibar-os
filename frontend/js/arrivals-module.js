@@ -322,7 +322,7 @@ async function extractRoomNumbers(file) {
       '.print-table th, .print-table td { border:1px solid #000; padding:0px; height:16px; vertical-align:middle; }' +
       '.print-table th { background:#f0f0f0; font-weight:bold; text-align:center; }' +
       '.print-table .number-col { width:50px; text-align:center; }' +
-      '.print-table .move-vip-col { width:52px; text-align:center; }' +
+      '.print-table .move-vip-col { width:50px; text-align:center; }' +
       '.print-table .details-col { width:auto; text-align:left; padding-left:6px; }' +
       '</style></head><body>';
 
