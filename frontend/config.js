@@ -149,6 +149,47 @@ const api = {
       body: JSON.stringify({ count })
     });
   },
+  async getArrivalsData() {
+    return apiRequest('/arrivals?_t=' + Date.now(), { cache: 'no-store' });
+  },
+  async saveArrivalsPdf(fileName, rooms) {
+    return apiRequest('/arrivals/session/pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileName, rooms })
+    });
+  },
+  async addArrivalRooms(text) {
+    return apiRequest('/arrivals/session/rooms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+  },
+  async setArrivalRoomField(number, field, value) {
+    return apiRequest('/arrivals/session/room', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ number, field, value })
+    });
+  },
+  async removeArrivalRoom(number) {
+    return apiRequest('/arrivals/session/room', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ number })
+    });
+  },
+  async resetArrivals() {
+    return apiRequest('/arrivals/session/reset-pdf', { method: 'POST' });
+  },
+  async logArrivalsPrint(count) {
+    return apiRequest('/arrivals/print', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ count })
+    });
+  },
   async getMonthProducts() {
     return apiRequest(`/deadlines/month-products?_t=${Date.now()}`, {
       cache: 'no-store'
