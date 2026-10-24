@@ -2275,6 +2275,59 @@ function removeRoomFromPersonalList(number) {
   void updateDepartureListRoom(cleanNumber, 'remove');
 }
 
+async function removeRoomFromActiveList(number) {
+  const cleanNumber = String(Number(number));
+  if (!/^\d{1,4}$/.test(cleanNumber)) return;
+
+  if (activeListKey === 'arrivals' && currentArrivalNumbers().has(cleanNumber)) {
+    if (!confirm('Убрать номер ' + cleanNumber + ' из списка Заездов?')) return;
+    try {
+      const response = await fetch(API_BASE + '/arrivals/session/room', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          'X-Timezone-Offset': String(new Date().getTimezoneOffset())
+        },
+        body: JSON.stringify({ number: cleanNumber })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error || 'Не удалось убрать номер из списка Заезды');
+      await refreshArrivalList(cleanNumber);
+      showMessage('Номер ' + cleanNumber + ' убран из списка Заезды', 1900);
+    } catch (error) {
+      showMessage(error.message || 'Не удалось убрать номер из списка Заезды', 3200);
+    }
+    return;
+  }
+
+  if (activeListKey === 'gih' && currentGihNumbers().has(cleanNumber)) {
+    const records = [...new Map([...miniGihDrafts, ...miniGihDones]
+      .filter(record => String(record.number) === cleanNumber)
+      .map(record => [Number(record.id), record])).values()];
+    if (!records.length) {
+      await loadMiniGihList();
+      showMessage('Запись GIH для номера ' + cleanNumber + ' больше не найдена', 2300);
+      return;
+    }
+    if (!confirm('Убрать номер ' + cleanNumber + ' из списка GIH за сегодня? Его сегодняшние записи GIH также будут удалены из истории.')) return;
+    try {
+      await Promise.all(records.map(record => deadlineApiRequest('/checks/' + record.id, { method: 'DELETE' })));
+      const removedIds = new Set(records.map(record => Number(record.id)));
+      miniGihRecords = miniGihRecords.filter(record => !removedIds.has(Number(record.id)));
+      miniGihDeriveLists();
+      renderMiniGih(false);
+      showMessage('Номер ' + cleanNumber + ' убран из списка GIH', 1900);
+    } catch (error) {
+      await loadMiniGihList();
+      showMessage(error.message || 'Не удалось убрать номер из списка GIH', 3500);
+    }
+    return;
+  }
+
+  if (activeListKey === 'departures') removeRoomFromPersonalList(cleanNumber);
+}
+
 function currentDepartureNumbers() {
   return new Set((departureList.roomNumbers || []).map(String));
 }
@@ -5523,6 +5576,7 @@ function buildCarousel(preferredNumber = visibleCarouselRooms()[0]?.number) {
     descRoomTitle.textContent = 'Нет номеров в списке';
     descRoomTag.textContent = 'Добавьте номер через шторку или выберите «Все»';
     descRoomTag.className = 'desc-tag';
+    descRoomRemove.hidden = true;
     renderCameraGihCard();
     renderDrawerRooms(sheetSearch.value);
     updateQueueDisplay();
@@ -5576,8 +5630,16 @@ function updateSelectedRoomState(room, vibrate = false) {
     activeCarouselItem = currentItem;
   }
   updatePinnedCarouselItem();
-  descRoomRemove.hidden = activeListKey !== 'departures' ||
-    (!currentDepartureNumbers().has(String(room.number)) && !revisitRoomNumbers.has(String(room.number)));
+  const currentNumber = String(room.number);
+  const isListedDeparture = activeListKey === 'departures' &&
+    (currentDepartureNumbers().has(currentNumber) || revisitRoomNumbers.has(currentNumber));
+  const isListedArrival = activeListKey === 'arrivals' && currentArrivalNumbers().has(currentNumber);
+  const isListedGih = activeListKey === 'gih' && currentGihNumbers().has(currentNumber);
+  descRoomRemove.hidden = !(isListedDeparture || isListedArrival || isListedGih);
+  const removeLabel = isListedArrival ? 'Убрать номер из списка Заезды'
+    : isListedGih ? 'Убрать номер из списка GIH' : 'Убрать номер из списка Выезды';
+  descRoomRemove.setAttribute('aria-label', removeLabel);
+  descRoomRemove.title = removeLabel;
 
   descRoomTitle.textContent = 'Номер ' + room.number;
   const categoryLabel = normalizeRoomType(room) === 'suite' ? 'Люкс' : 'Стандарт';
@@ -6523,7 +6585,7 @@ navPlaceholderBody.addEventListener('click', event => {
 descRoomRemove.addEventListener('click', event => {
   event.preventDefault();
   event.stopPropagation();
-  if (selectedRoom?.number) removeRoomFromPersonalList(selectedRoom.number);
+  if (selectedRoom?.number) void removeRoomFromActiveList(selectedRoom.number);
 });
 
 sheetContent.addEventListener('click', event => {
