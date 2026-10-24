@@ -2020,8 +2020,8 @@ function readStoredListSelection() {
 }
 
 const storedListSelection = readStoredListSelection();
-let activeListKey = ['departures', 'gih'].includes(storedListSelection.key) ? storedListSelection.key : '';
-let activeListDateKey = storedListSelection.dateKey;
+let activeListKey = storedListSelection.key === 'departures' ? 'departures' : '';
+let activeListDateKey = activeListKey ? storedListSelection.dateKey : '';
 let drawerMode = activeListKey ? 'list' : 'all';
 function readDepartureSort() { try { return localStorage.getItem('minibar-departure-sort-v1') === 'desc' ? 'desc' : 'asc'; } catch (_) { return 'asc'; } }
 let departureSort = readDepartureSort();
@@ -2619,7 +2619,7 @@ function renderGihListProductsSection() {
 
 function renderDepartureListCard() {
   if (activePlaceholderName !== 'Списки' || !navPlaceholderBody) return;
-  const active = activeListKey === 'departures', gihActive = activeListKey === 'gih';
+  const active = activeListKey === 'departures';
   const total = Math.max(0, departureList.assignedCount);
   const completed = Math.max(0, departureList.completedCount);
   const remaining = Math.max(0, departureList.remainingCount);
@@ -2640,11 +2640,6 @@ function renderDepartureListCard() {
     '</strong></span><span>Осталось <strong>' + remaining + '</strong></span></div><div class="mini-departure-progress-track" role="progressbar" aria-label="Прогресс проверок" aria-valuemin="0" aria-valuemax="' +
     total + '" aria-valuenow="' + Math.min(completed,total) + '"><span style="width:' + progress + '%"></span></div></div></button>' +
     (!departureList.sourceReady && total === 0 ? '<div class="mini-departure-empty-note">Загрузите PDF со списком на сайте.</div>' : '') +
-    '<button type="button" class="mini-departure-list-card' + (gihActive ? ' is-active' : '') + '" data-select-gih-list aria-label="Выбрать список GIH">' +
-    '<div class="mini-departure-card-top"><span>GIH</span><span class="mini-departure-card-state">' + (gihActive ? 'Активен' : 'Открыть') + '</span></div>' +
-    '<div class="mini-departure-progress"><div class="mini-departure-progress-copy"><span>Проверено <strong>' + gihCompleted + '</strong> из <strong>' + gihTotal +
-    '</strong></span><span>Осталось <strong>' + gihRemaining + '</strong></span></div><div class="mini-departure-progress-track" role="progressbar" aria-label="Прогресс проверок GIH" aria-valuemin="0" aria-valuemax="' +
-    gihTotal + '" aria-valuenow="' + Math.min(gihCompleted,gihTotal) + '"><span style="width:' + gihProgress + '%"></span></div></div></button>' +
     '</div>';
 }
 
@@ -2688,17 +2683,6 @@ function activateDepartureList() {
   showMessage(rooms.length
     ? 'Активен список «Выезды»'
     : 'Список пуст. Добавьте номер или загрузите PDF на сайте', 2300);
-}
-
-function activateGihList() {
-  activeListKey = 'gih';
-  activeListDateKey = miniGihLocalDayKey(new Date());
-  drawerMode = 'list';
-  persistActiveListSelection();
-  const rooms = visibleCarouselRooms();
-  buildCarousel(nextCarouselNumber(selectedRoom?.number, rooms));
-  closeNavPlaceholderModal();
-  showMessage(rooms.length ? 'Активен список «GIH»' : 'Список GIH пуст. Переключи шторку на «Все» и создай черновик для номера', 2600);
 }
 
 function deactivateActiveList() {
@@ -4253,7 +4237,6 @@ function handleMiniGihClick(event) {
 
 function updateQueueDisplay() {
   if (activeListKey === 'departures') queueCount.textContent = 'Выезды · осталось ' + departureList.remainingCount;
-  else if (activeListKey === 'gih') queueCount.textContent = 'GIH · осталось ' + currentGihRemainingNumbers().size;
   else queueCount.textContent = 'В очереди: ' + queueRemaining + ' номеров';
 }
 
@@ -6154,11 +6137,6 @@ sheetSortOrder.addEventListener('click', () => {
 
 
 navPlaceholderBody.addEventListener('click', event => {
-  const gihListButton = event.target.closest('[data-select-gih-list]');
-  if (gihListButton) {
-    activateGihList();
-    return;
-  }
   const refillRoomButton = event.target.closest('[data-refill-room-number]');
   if (refillRoomButton) {
     const number = String(refillRoomButton.dataset.refillRoomNumber || '');
