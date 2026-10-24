@@ -8,7 +8,7 @@
     history: ['all', 'history', 'gih'],
     deadlines: ['all', 'deadlines', 'rooms', 'products', 'templates'],
     excise: ['all', 'excises'],
-    arrivals: ['all', 'lists', 'rooms', 'products'],
+    arrivals: ['all', 'arrivals', 'settings', 'lists', 'rooms', 'products'],
     departures: ['all', 'departures', 'history', 'rooms', 'products'],
     gih: ['all', 'gih', 'history', 'rooms', 'products', 'templates'],
     empty: ['all', 'rooms', 'deadlines'],
@@ -65,6 +65,8 @@
       if (active && view && view.contains(active) &&
           /^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName)) return true;
     }
+    if (route === 'arrivals' && active && /^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName) &&
+        active.closest('#view-arrivals')) return true;
     if (route === 'history' && active && /^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName) &&
         active.closest('#view-history')) return true;
     if (route === 'inventory' && active && active.classList &&
@@ -86,7 +88,7 @@
       history: App.historyModule,
       deadlines: App.deadlinesModule,
       excise: App.exciseModule,
-      arrivals: App.listsModule,
+      arrivals: App.arrivalsModule,
       departures: App.departuresModule,
       gih: App.gihModule,
       empty: App.listsModule,
