@@ -41,7 +41,8 @@ App.arrivalsModule = (() => {
   function sessionNumbers() {
     const known = roomMap();
     return [...new Set((state.session.pdfRooms || []).map(value => String(Number(value))))]
-      .filter(number => numberPattern.test(number) && known.has(number));
+      .filter(number => numberPattern.test(number) && known.has(number))
+      .sort((a, b) => Number(a) - Number(b));
   }
 
   function entryFor(number) {
