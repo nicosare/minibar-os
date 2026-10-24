@@ -6735,9 +6735,10 @@ void restorePhotoUploadQueue();
 (async function boot() {
   try {
     await loadRooms();
-    if (activeListKey === 'gih') {
-      try { await loadMiniGihList(); }
-      catch (gihError) { console.warn('[MINIBAR LISTS] Не удалось восстановить список GIH:', gihError); }
+    try {
+      await loadMiniGihList();
+    } catch (gihError) {
+      console.warn('[MINIBAR GIH] Не удалось загрузить текущие записи:', gihError);
     }
     try {
       await refreshDepartureList();
