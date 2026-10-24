@@ -10,6 +10,7 @@ import checksRouter from './routes/checks.js';
 import excisesRouter from './routes/excises.js';
 import listsRouter from './routes/lists.js';
 import departuresRouter from './routes/departures.js';
+import arrivalsRouter from './routes/arrivals.js';
 import miniappRouter from './routes/miniapp.js';
 import refillsRouter from './routes/refills.js';
 import vkBotRouter from './routes/vk-bot.js';
@@ -40,6 +41,7 @@ export function createApp() {
   app.use('/api/excises', excisesRouter);
   app.use('/api/lists', listsRouter);
   app.use('/api/departures', departuresRouter);
+  app.use('/api/arrivals', arrivalsRouter);
   app.use('/api/miniapp', miniappRouter);
   app.use('/api/refills', refillsRouter);
   app.use('/api/vk-bot', vkBotRouter);
