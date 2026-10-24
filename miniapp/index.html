@@ -3304,7 +3304,7 @@ async function submitGihCreate(){
   await deadlineApiRequest('/checks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({roomId:Number(currentGihRoom.id),type:'gih',status:'draft',gihItems:items})});
   gihCreateModal.classList.add('hidden');gihCreateModal.setAttribute('aria-hidden','true');currentGihRoom=null;gihCreateCounts={};miniGihTab='drafts';miniGihView='list';miniGihSelectedId=null;if(isGihListModalOpen())void loadMiniGihList();showMessage('Черновик GIH создан',2200);triggerHaptic();void loadRoomHistory(selectedRoom,true);
  }catch(error){gihCreateFeedback.textContent=error?.message||'Не удалось создать запись GIH.';gihCreateFeedback.classList.add('visible')}
- finally{gihCreateBusy=false;gihCreateSubmit.disabled=false;gihCreateClear.disabled=false}
+ finally{gihCreateBusy=false;gihCreateSubmit.disabled=false;gihCreateClear.disabled=false;if(isGihListModalOpen()&&miniGihView==='list')renderMiniGih(false)}
 }
 function miniGihLocalDayKey(value) {
   const date = value instanceof Date ? value : new Date(value || '');
