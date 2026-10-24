@@ -2092,9 +2092,10 @@ async function loadRooms() {
 }
 
 
-async function loadMiniAppRoomTemplates() {
-  if (miniAppRoomTemplatesLoaded) return true;
+async function loadMiniAppRoomTemplates(force = false) {
+  if (miniAppRoomTemplatesLoaded && !force) return true;
   if (miniAppRoomTemplatesLoading) return miniAppRoomTemplatesLoading;
+  miniAppRoomTemplatesLoaded = false;
   miniAppRoomTemplatesLoading = (async () => {
     try {
       const data = await deadlineApiRequest('/rooms?_t=' + Date.now());
@@ -2106,8 +2107,12 @@ async function loadMiniAppRoomTemplates() {
         if (details.category) room.category = details.category;
       });
       miniAppRoomTemplatesLoaded = true;
+      if (isSheetOpen && activeListKey === 'gih' && drawerMode === 'list') {
+        renderDrawerRooms(sheetSearch.value);
+      }
       return true;
     } catch (error) {
+      miniAppRoomTemplatesLoaded = false;
       console.warn('[MINIBAR GIH] Не удалось загрузить шаблоны номеров:', error);
       return false;
     } finally {
@@ -2647,6 +2652,7 @@ async function openListsScreen() {
   navPlaceholderBody.innerHTML = '<div class="tool-empty-state">Загрузка списков…</div>';
   try {
     await Promise.all([
+      loadMiniAppRoomTemplates(),
       refreshDepartureList(),
       refreshActiveRefills().catch(error => console.warn('[MINIBAR REFILLS] Не удалось обновить список:', error)),
       loadMiniGihList()
@@ -5633,9 +5639,17 @@ async function syncRoomData() {
 
     const selectedNumber = String(selectedRoom?.number || freshRooms[0].number);
     if (structureChanged) {
+      const cachedTemplates = new Map(ALL_ROOMS
+        .filter(room => room.template)
+        .map(room => [String(room.number), room.template]));
+      freshRooms.forEach(room => {
+        const template = cachedTemplates.get(String(room.number));
+        if (template) room.template = template;
+      });
       ALL_ROOMS = freshRooms;
       ROOM_BY_NUMBER = new Map(ALL_ROOMS.map(room => [room.number, room]));
       FLOORS = [...new Set(ALL_ROOMS.map(room => room.floor))].sort((a, b) => a - b);
+      void loadMiniAppRoomTemplates(true);
       buildCarousel(selectedNumber);
     } else {
       // Preserve object identity so the selected room and camera controls remain intact.
@@ -5683,6 +5697,9 @@ function startRoomLiveSync() {
       const historyDomains = ['all', 'checks', 'history', 'gih'];
       const refillDomains = ['all', 'refills'];
       const ownGihChange = change.originClientId === roomEventsClientId && domains.includes('gih') && !domains.includes('all');
+      if (domains.some(domain => ['all','products','templates'].includes(domain))) {
+        void loadMiniAppRoomTemplates(true);
+      }
       if (domains.some(domain => roomDomains.includes(domain))) {
         void syncRoomData();
         // Room product quantities and status are shared with the website.
@@ -5715,6 +5732,7 @@ function startRoomLiveSync() {
   // Initial sync and replay-gap recovery are sent by the server's live stream.
   roomEventsSource.addEventListener('sync.required', () => {
     void syncRoomData();
+    void loadMiniAppRoomTemplates(true);
     void refreshDepartureList();
     void loadMiniGihList();
     void refreshActiveRefills().catch(error => console.warn('[MINIBAR REFILLS] Не удалось восстановить пополнения:', error));
