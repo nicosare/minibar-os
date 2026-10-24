@@ -3513,6 +3513,7 @@ function miniGihRenderDetail(preserveScroll = true) {
   gihListTitle.textContent = 'GIH · №' + record.number;
   gihListSubtitle.textContent = isDraft ? 'Черновик · статусы сохраняются сразу' : 'Сохранённая проверка · ' + miniGihTime(record.date);
   const mode = record.gihRoomStatus;
+  const recordItemsBusy = record.gihItems.some(item => miniGihBusyItems.has(item.id));
   const modesHtml = isDraft
     ? '<div class="mini-gih-modes">' + MINI_GIH_MODES.map(item =>
         '<button type="button" class="mini-gih-mode' + (mode === item.key ? ' active' : '') +
@@ -3526,7 +3527,7 @@ function miniGihRenderDetail(preserveScroll = true) {
     const emoji = item.emoji || String(item.name || '?').charAt(0).toUpperCase();
     const itemBusy = miniGihBusyItems.has(item.id);
     return '<button type="button" class="mini-gih-product mini-gih-status-' + status + '" data-mini-gih-item="' + item.id + '" ' +
-      ((!isDraft || !!mode || busy || itemBusy) ? 'disabled' : '') + '>' +
+      ((!isDraft || !!mode || busy || recordItemsBusy) ? 'disabled' : '') + '>' +
       '<span class="mini-gih-product-emoji" style="background:' + color + '">' + miniGihEscape(emoji) + '</span>' +
       '<span class="mini-gih-product-copy"><span class="mini-gih-product-name">' + miniGihEscape(item.name) + '</span>' +
       '<span class="mini-gih-product-status status-' + status + '">' + miniGihEscape(MINI_GIH_STATUS_LABELS[status] || status) + '</span></span>' +
@@ -3540,8 +3541,7 @@ function miniGihRenderDetail(preserveScroll = true) {
     notesHtml = '<div class="mini-gih-note-readonly">' + miniGihEscape(record.notes) + '</div>';
   }
   const canSave = miniGihCanSave(record);
-  const itemBusy = record.gihItems.some(item => miniGihBusyItems.has(item.id));
-  const pendingWrites = busy || itemBusy || miniGihNotePromises.has(record.id);
+  const pendingWrites = busy || recordItemsBusy || miniGihNotePromises.has(record.id);
   const footer = isDraft
     ? '<div class="mini-gih-detail-footer"><button type="button" class="mini-gih-action" data-mini-gih-delete="' + record.id + '" ' +
       (pendingWrites ? 'disabled' : '') + '>Удалить</button><button type="button" class="mini-gih-action primary" data-mini-gih-save="' + record.id + '" ' +
