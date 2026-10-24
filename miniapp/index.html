@@ -508,11 +508,11 @@
   .camera-gih-content .mini-gih-product-name { font-size:9px; line-height:12px; }
   .camera-gih-content .mini-gih-product-status { font-size:8px; line-height:10px; }
   .camera-gih-content .mini-gih-product-action { display:none; }
-  .camera-gih-content .mini-gih-modes { gap:4px; }
-  .camera-gih-content .mini-gih-mode { min-height:28px; padding:5px 3px; border-radius:7px; font-size:8px; line-height:10px; }
+  .camera-gih-content .mini-gih-modes { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; }
+  .camera-gih-content .mini-gih-mode { min-width:0; min-height:28px; padding:5px 3px; border-radius:7px; font-size:8px; line-height:10px; white-space:normal; }
   .camera-gih-content .mini-gih-note { min-height:42px; padding:6px; font-size:10px; line-height:13px; }
-  .camera-gih-content .mini-gih-detail-footer { display:flex; flex-direction:column; gap:5px; padding-top:0; }
-  .camera-gih-content .mini-gih-action { min-height:30px; padding:6px; border-radius:7px; font-size:9px; line-height:12px; }
+  .camera-gih-content .mini-gih-detail-footer { display:flex; flex-direction:row; gap:5px; padding-top:0; }
+  .camera-gih-content .mini-gih-action { flex:1 1 0; min-width:0; min-height:30px; padding:6px 4px; border-radius:7px; font-size:9px; line-height:12px; white-space:normal; }
   .camera-gih-content .mini-gih-save-hint { font-size:8px; line-height:11px; }
   .camera-gih-content .deadline-modal-category { margin-bottom:7px; }
   .camera-gih-content .deadline-modal-category-title { margin-bottom:4px; font-size:9px; }
