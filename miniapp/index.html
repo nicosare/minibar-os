@@ -695,6 +695,7 @@
   }
 
   .desc-room-remove {
+    z-index:4;
     position: absolute;
     right: 0;
     top: 50%;
@@ -1281,6 +1282,10 @@
   .sheet-sort-order svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .sheet-sort-order[data-order="desc"] { color: var(--yellow); border-color: rgba(255,204,0,.3); }
   .sheet-sort-order.is-active { color:var(--yellow); background:rgba(255,204,0,.12); border-color:rgba(255,204,0,.62); }
+  .sheet-sort-order.sheet-hide-unready,
+  .sheet-sort-order.sheet-hide-unready.is-active { background:transparent !important; border-color:transparent !important; }
+  .sheet-sort-order.sheet-hide-unready.is-active { color:var(--yellow); }
+  .sheet-sort-order.sheet-hide-unready:focus-visible { outline:1px solid rgba(255,204,0,.55); outline-offset:1px; }
 
   .sheet-view-switch {
     display: inline-flex;
@@ -1645,22 +1650,106 @@
   .sheet-refill-section.is-gih-list .sheet-refill-product.is-basket .sheet-refill-product-icon svg { width:19px; height:19px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
   /* Stable workbench geometry: content changes must not move the room carousel. */
   .carousel-wrap { margin-top:auto; padding-top:4px; }
-  /* Normal room mode: GIH is a compact status card, not a full-height column. */
+  /* Fixed camera workspace geometry: room header, deadlines + GIH,
+     full-height information list, and a pinned history footer. */
   .camera-info-panel {
-    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.6fr) auto;
-    align-content:stretch; min-height:0; height:100%; overflow:hidden;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    grid-template-rows:auto 92px minmax(0,1fr) 72px;
+    align-content:stretch;
+    align-items:stretch;
+    gap:8px;
+    padding:10px;
+    min-height:0;
+    height:100%;
+    overflow:hidden;
   }
-  .camera-workspace-deadlines { grid-row:1; grid-column:1; min-height:0; height:100%; }
+  .camera-info-panel > .room-description-box {
+    grid-row:1;
+    grid-column:1 / span 3;
+    width:100%;
+    min-width:0;
+    min-height:0;
+    padding:8px 36px 8px 10px;
+    align-self:stretch;
+    overflow:hidden;
+  }
+  .camera-workspace-deadlines {
+    grid-row:2;
+    grid-column:1;
+    width:100%;
+    min-width:0;
+    min-height:0;
+    height:100%;
+    display:flex;
+    overflow:hidden;
+  }
+  .camera-workspace-deadlines .camera-deadline-panel {
+    width:100%;
+    height:100%;
+    min-height:0 !important;
+    max-height:100%;
+    padding:8px;
+    overflow:hidden;
+  }
   .camera-workspace-gih {
-    grid-row:2; grid-column:1; width:100%; height:100%; min-height:0; max-height:100%;
-    align-self:stretch; overflow:hidden;
+    grid-row:2;
+    grid-column:2 / span 2;
+    width:100%;
+    height:100%;
+    min-height:0;
+    max-height:100%;
+    display:flex;
+    flex-direction:column;
+    align-self:stretch;
+    overflow:hidden;
   }
-  .camera-workspace-gih .camera-gih-content { flex:1 1 auto; min-height:0; max-height:100%; overflow-y:auto; }
-  .camera-workspace-refill { grid-row:2; grid-column:2 / span 2; min-height:0; height:100%; }
-  .camera-workspace-info { grid-row:1 / span 3; grid-column:2 / span 2; min-height:0; height:100%; overflow:hidden; }
-  .camera-history-section { grid-row:4; grid-column:1 / span 3; align-self:end; height:72px; min-height:72px; max-height:72px; overflow:hidden; }
-  .camera-history-card { height:100%; min-height:0; overflow:hidden; display:flex; flex-direction:column; }
-  .camera-history-list { flex:1 1 auto; min-height:0; max-height:none; overflow-y:auto; overscroll-behavior:contain; }
+  .camera-workspace-gih .camera-gih-content {
+    flex:1 1 auto;
+    min-height:0;
+    max-height:100%;
+    overflow-x:hidden;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+  }
+  .camera-workspace-info {
+    grid-row:3;
+    grid-column:1 / span 3;
+    width:100%;
+    height:100%;
+    min-height:0;
+    align-self:stretch;
+    overflow:hidden;
+  }
+  .camera-history-section {
+    grid-row:4;
+    grid-column:1 / span 3;
+    align-self:stretch;
+    width:100%;
+    height:72px;
+    min-height:72px;
+    max-height:72px;
+    margin:0;
+    overflow:hidden;
+  }
+  .camera-info-panel .camera-history-card {
+    width:100%;
+    height:100%;
+    min-height:0;
+    flex:1 1 auto;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+  }
+  .camera-history-heading { flex:0 0 auto; }
+  .camera-info-panel .camera-history-list {
+    flex:1 1 auto;
+    min-height:0;
+    max-height:none;
+    overflow-x:hidden;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+  }
   .camera-workspace-gih .camera-gih-start { min-height:64px; }
   .camera-workspace-gih .camera-gih-start .mini-gih-action { width:100%; max-width:220px; }
   /* Active GIH keeps its dedicated layout, sharing the same carousel anchor. */
@@ -1699,13 +1788,14 @@
   .arrival-mini-card.is-selected { box-shadow: inset 0 0 0 1px rgba(255,204,0,.2); }
   .arrival-mini-card-head { display:flex;align-items:center;justify-content:space-between;gap:10px; }
   .arrival-mini-room-number { flex:none;min-width:58px;padding:6px 10px!important;height:auto!important;border-radius:8px!important;font-size:16px!important;line-height:20px!important;font-weight:850!important; }
-  .arrival-mini-ready,.arrival-mini-flags label { display:inline-flex;align-items:center;gap:6px;color:rgba(255,255,255,.8);font-size:10px;font-weight:750;white-space:nowrap; }
-  .arrival-mini-ready input,.arrival-mini-flags input { width:15px;height:15px;margin:0;accent-color:var(--yellow); }
-  .arrival-mini-ready { padding:6px 8px;border:1px solid rgba(255,204,0,.2);border-radius:8px;background:rgba(255,204,0,.055); }
+  .arrival-mini-ready,.arrival-mini-flags label { display:inline-flex;align-items:center;justify-content:flex-start;gap:4px;padding:4px 6px;color:rgba(255,255,255,.8);font-size:10px;font-weight:750;white-space:nowrap; }
+  .arrival-mini-ready input,.arrival-mini-flags input { display:block;flex:0 0 15px;width:15px;height:15px;margin:0;padding:0;accent-color:var(--yellow); }
+  .arrival-mini-ready { padding:4px 6px;border:1px solid rgba(255,204,0,.2);border-radius:8px;background:rgba(255,204,0,.055); }
   .arrival-mini-card.is-ready .arrival-mini-ready { color:var(--yellow);border-color:rgba(255,204,0,.46);background:rgba(255,204,0,.1); }
   .arrival-mini-flags { display:flex;align-items:center;flex-wrap:wrap;gap:6px; }
   .arrival-mini-flags label { padding:5px 7px;border:1px solid rgba(255,255,255,.1);border-radius:7px;background:rgba(255,255,255,.025); }
-  .arrival-mini-flags label.is-active { color:var(--yellow);border-color:rgba(255,204,0,.58);background:rgba(255,204,0,.12); }
+  .arrival-mini-flags label.is-active { color:var(--yellow);border-color:rgba(255,204,0,.65);background:rgba(255,204,0,.14); }
+  .arrival-mini-flags label.is-active input { accent-color:var(--yellow); }
   .arrival-mini-badge { color:var(--yellow);font-size:10px;font-weight:800; }
   .arrival-mini-fields { display:grid;grid-template-columns:minmax(92px,.55fr) minmax(0,1.45fr);gap:7px; }
   .arrival-mini-fields input { width:100%;min-width:0;height:34px;padding:0 9px;border:1px solid rgba(255,255,255,.1);border-radius:8px;outline:none;background:#202023;color:#fff;font-size:11px; }
@@ -1737,15 +1827,20 @@
     padding:3px 5px; border:1px solid rgba(255,255,255,.1); border-radius:6px;
     background:rgba(255,255,255,.025); font-size:9px; line-height:12px; font-weight:750;
   }
-  .camera-arrival-info-row.is-ready { color:var(--yellow); border-color:rgba(255,204,0,.28); background:rgba(255,204,0,.035); }
-  .camera-arrival-info-row.is-pending { color:rgba(255,255,255,.43); border-color:rgba(255,255,255,.1); }
-  .camera-arrival-info-row.is-pinned { border-color:rgba(255,204,0,.92); background:rgba(255,204,0,.09); box-shadow:inset 0 0 0 1px rgba(255,204,0,.12); }
+  .camera-arrival-info-row.is-ready { color:var(--yellow); border-color:rgba(255,255,255,.1); background:rgba(255,255,255,.025); }
+  .camera-arrival-info-row.is-pending { color:rgba(255,255,255,.48); border-color:rgba(255,255,255,.1); background:rgba(255,255,255,.025); }
+  .camera-arrival-info-row.is-pinned { border-color:rgba(255,204,0,.95); background:rgba(255,204,0,.09); box-shadow:inset 0 0 0 1px rgba(255,204,0,.12); }
+  .camera-arrival-info-meta.is-refill { color:#fb923c; }
   .camera-arrival-info-number { flex:0 0 30px; }
   .camera-arrival-info-meta { min-width:0; overflow-wrap:anywhere; font-weight:600; }
   .camera-arrival-info-empty { color:rgba(255,255,255,.4); font-size:9px; line-height:12px; padding:3px 0; }
   @media(max-height:740px) {
+    .camera-info-panel { grid-template-rows:auto 82px minmax(0,1fr) 62px; gap:6px; padding:7px; }
+    .camera-workspace-deadlines .camera-deadline-panel { min-height:0 !important; padding:6px; }
+    .camera-workspace-gih { min-height:0; }
+    .camera-history-section { height:62px; min-height:62px; max-height:62px; }
     .camera-arrival-info-panel { padding:6px 8px; gap:3px; }
-    .camera-arrival-info-list { max-height:60px; }
+    .camera-arrival-info-list { max-height:none; }
     .camera-arrival-info-row { font-size:8px; line-height:10px; }
   }
 
@@ -2318,6 +2413,13 @@ async function removeRoomFromActiveList(number) {
       miniGihRecords = miniGihRecords.filter(record => !removedIds.has(Number(record.id)));
       miniGihDeriveLists();
       renderMiniGih(false);
+      renderDepartureListCard();
+      if (activeListKey === 'gih') {
+        const remainingRooms = visibleCarouselRooms();
+        buildCarousel(remainingRooms.length ? nextCarouselNumber(cleanNumber, remainingRooms) : null);
+      }
+      if (isSheetOpen) renderDrawerRooms(sheetSearch.value);
+      updateQueueDisplay();
       showMessage('Номер ' + cleanNumber + ' убран из списка GIH', 1900);
     } catch (error) {
       await loadMiniGihList();
@@ -2364,30 +2466,35 @@ function renderCameraArrivalInfo() {
   }
   list.innerHTML = numbers.map(number => {
     const entry = arrivalEntry(number);
+    const room = ROOM_BY_NUMBER.get(number);
+    const refillRequest = activeRefillsByNumber.get(number);
+    const isEmpty = room?.expiryStatus === 'empty';
     const details = [];
     if (entry.vip) details.push('VIP');
     if (entry.time) details.push(String(entry.time));
-    const room = ROOM_BY_NUMBER.get(number);
-    const refillRequest = activeRefillsByNumber.get(number);
-    const isEmpty = entry.empty === true || room?.expiryStatus === 'empty';
-    if (isEmpty) details.push('Пустой');
-    else if (refillRequest) {
-      const type = refillRoomType(refillRequest);
-      const productsText = refillRequest.allProducts || requestMatchesFullTemplate(refillRequest)
-        ? (type === 'suite' ? 'Корзинка люкс' : 'Корзинка стандарт')
-        : (refillRequest.items || []).filter(item => Number(item.qty) > 0).map(item => {
-            const qty = Math.max(0, Number(item.qty) || 0);
-            const name = String(item.name || 'Продукт');
-            return qty > 1 ? name + ' × ' + qty : name;
-          }).join(', ') || 'Продукты не указаны';
-      details.push(productsText);
+    if (isEmpty) {
+      details.push('Пустой');
+    } else {
+      if (entry.empty) details.push('Опустошить');
+      if (refillRequest) {
+        const type = refillRoomType(refillRequest);
+        const productsText = refillRequest.allProducts || requestMatchesFullTemplate(refillRequest)
+          ? (type === 'suite' ? 'Корзинка люкс' : 'Корзинка стандарт')
+          : (refillRequest.items || []).filter(item => Number(item.qty) > 0).map(item => {
+              const qty = Math.max(0, Number(item.qty) || 0);
+              const name = String(item.name || 'Продукт');
+              return qty > 1 ? name + ' × ' + qty : name;
+            }).join(', ') || 'Продукты не указаны';
+        details.push(productsText);
+      }
     }
     if (String(entry.comment || '').trim()) details.push(String(entry.comment).trim());
     const pinned = number === String(pinnedRoomNumber || '');
+    const metaClass = 'camera-arrival-info-meta' + (refillRequest && !isEmpty ? ' is-refill' : '');
     return '<div class="camera-arrival-info-row ' + (entry.ready ? 'is-ready' : 'is-pending') +
       (pinned ? ' is-pinned' : '') + '" data-arrival-info-number="' + escapeCameraHtml(number) + '">' +
       '<span class="camera-arrival-info-number">' + escapeCameraHtml(number) + '</span>' +
-      '<span class="camera-arrival-info-meta">' + (details.length ? '• ' + details.map(escapeCameraHtml).join(' • ') : '—') + '</span>' +
+      '<span class="' + metaClass + '">' + (details.length ? '• ' + details.map(escapeCameraHtml).join(' • ') : '—') + '</span>' +
       '</div>';
   }).join('');
   requestAnimationFrame(() => {
@@ -2733,8 +2840,7 @@ function aggregateActiveRefills() {
   const emptyRooms = ALL_ROOMS.filter(room => {
     const number = String(room.number);
     return listNumbers.has(number) && (
-      room.expiryStatus === 'empty' ||
-      (activeListKey === 'arrivals' && arrivalEntry(number).empty === true)
+      room.expiryStatus === 'empty'
     );
   });
   const emptyNumbers = new Set(emptyRooms.map(room => String(room.number)));
@@ -2878,7 +2984,6 @@ function roomNeedsRefillMarker(number) {
   return activeListKey !== 'gih' && (
     activeRefillsByNumber.has(cleanNumber) ||
     room?.expiryStatus === 'empty' ||
-    (activeListKey === 'arrivals' && arrivalEntry(cleanNumber).empty === true)
   );
 }
 function renderRefillCarouselStatuses() {
@@ -4614,8 +4719,9 @@ function handleMiniGihClick(event) {
 }
 
 function updateQueueDisplay() {
-  if (activeListKey === 'departures') queueCount.textContent = 'Выезды · осталось ' + departureList.remainingCount;
-  else if (activeListKey === 'arrivals') queueCount.textContent = 'Заезды · осталось ' + arrivalList.remainingCount;
+  if (activeListKey === 'departures') queueCount.textContent = 'Выезды · осталось сделать ' + departureList.remainingCount;
+  else if (activeListKey === 'arrivals') queueCount.textContent = 'Заезды · осталось сделать ' + arrivalList.remainingCount;
+  else if (activeListKey === 'gih') queueCount.textContent = 'GIH · осталось сделать ' + currentGihRemainingNumbers().size;
   else queueCount.textContent = 'В очереди: ' + queueRemaining + ' номеров';
 }
 
