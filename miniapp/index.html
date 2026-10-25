@@ -2623,6 +2623,7 @@ function renderCameraListInfo() {
       stateClass = isEmpty ? 'is-empty' : refillRequest ? 'is-refill' : done ? 'is-ready' : 'is-pending';
     } else {
       if (isEmpty) details.push('Пустой');
+      if (activeListKey === 'departures' && arrivalMarked(number)) details.push('На заезд');
       if (activeListKey === 'departures' && revisitRoomNumbers.has(number)) details.push('Повторная проверка');
       if (refillRequest && !isEmpty) details.push(refillRequestSummary(refillRequest));
       stateClass = isEmpty ? 'is-empty' : refillRequest ? 'is-refill' : 'is-pending';
@@ -2663,7 +2664,15 @@ function currentGihNumbers() {
 function activeListNumbers() {
   if (activeListKey === 'gih') return currentGihNumbers();
   if (activeListKey === 'arrivals') return currentArrivalWorkingNumbers();
-  return currentDepartureNumbers();
+  if (activeListKey === 'departures') {
+    const numbers = currentDepartureNumbers();
+    const checked = checkedTodayNumbers();
+    revisitRoomNumbers.forEach(number => {
+      if (checked.has(String(number))) numbers.add(String(number));
+    });
+    return numbers;
+  }
+  return new Set(ALL_ROOMS.map(room => String(room.number)));
 }
 
 function activeListLabel() {
@@ -4879,7 +4888,10 @@ function handleMiniGihClick(event) {
 }
 
 function updateQueueDisplay() {
-  if (activeListKey === 'departures') queueCount.textContent = 'Выезды · осталось сделать ' + departureList.remainingCount;
+  if (activeListKey === 'departures') {
+    const revisitCount = [...revisitRoomNumbers].filter(number => checkedTodayNumbers().has(String(number))).length;
+    queueCount.textContent = 'Выезды · осталось сделать ' + (departureList.remainingCount + revisitCount);
+  }
   else if (activeListKey === 'arrivals') queueCount.textContent = 'Заезды · осталось сделать ' + arrivalList.remainingCount;
   else if (activeListKey === 'gih') queueCount.textContent = 'GIH · осталось сделать ' + currentGihRemainingNumbers().size;
   else queueCount.textContent = 'В очереди: ' + queueRemaining + ' номеров';
