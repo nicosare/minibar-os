@@ -692,11 +692,14 @@
     justify-content: flex-start;
     gap: 8px;
     min-height: 26px;
+    padding-left: 30px;
   }
 
   .desc-room-remove {
     z-index:4;
-    position: static;
+    position: absolute;
+    left: 0;
+    top: 2px;
     transform: none;
     flex: 0 0 22px;
     width: 22px;
@@ -2165,6 +2168,7 @@
       <div class="sheet-view-switch" role="group" aria-label="Режим отображения номеров">
         <button type="button" data-sheet-view="all">Все</button>
         <button type="button" data-sheet-view="list" class="active">Список</button>
+        <button type="button" data-sheet-view="refills">Пополнить</button>
       </div>
       <div class="sheet-toolbar-actions">
         <button class="sheet-sort-order sheet-hide-unready" type="button" id="sheetHideUnready" aria-label="Скрыть номера, которые ещё нельзя делать" title="Скрыть номера, которые ещё нельзя делать" aria-pressed="false" hidden>
@@ -6038,6 +6042,7 @@ function renderDrawerRooms(filterQuery = '') {
   const listNumbers = activeListNumbers();
   const checkedNumbers = checkedTodayNumbers();
   const listMode = hasActiveList && drawerMode === 'list';
+  const refillMode = hasActiveList && drawerMode === 'refills';
   const arrivalsHideUnready = listMode && activeListKey === 'arrivals' && hideUnreadyArrivalRooms;
   const arrivalsReady = currentArrivalReadyNumbers();
   const roomsToShow = listMode ? ALL_ROOMS.filter(room => {
@@ -6067,10 +6072,17 @@ function renderDrawerRooms(filterQuery = '') {
     button.classList.toggle('active', button.dataset.sheetView === drawerMode);
     button.setAttribute('aria-pressed', String(button.dataset.sheetView === drawerMode));
   });
-  sheetTitle.textContent = listMode ? 'Список · ' + listLabel : 'Все номера отеля';
-  sheetSubtitle.textContent = listMode
-    ? roomsToShow.length + ' номеров в списке'
-    : (hasActiveList ? listNumbers.size + ' номеров в списке · все номера отеля' : ALL_ROOMS.length + ' номеров из базы данных');
+  sheetTitle.textContent = refillMode ? 'Пополнение' : listMode ? 'Список · ' + listLabel : 'Все номера отеля';
+  sheetSubtitle.textContent = refillMode
+    ? activeRefillRequests().length + ' номеров ожидают пополнения'
+    : listMode
+      ? roomsToShow.length + ' номеров в списке'
+      : (hasActiveList ? listNumbers.size + ' номеров в списке · все номера отеля' : ALL_ROOMS.length + ' номеров из базы данных');
+  if (refillMode) {
+    sheetContent.innerHTML = renderRefillSection();
+    sheetPeekTitle.textContent = 'Пополнение · ' + activeRefillRequests().length;
+    return;
+  }
 
   for (const floorNum of floorOrder) {
     const floorRooms = roomsToShow.filter(room =>
@@ -6814,7 +6826,7 @@ sheetSearch.addEventListener('input', e => renderDrawerRooms(e.target.value));
 sheetListToolbar.addEventListener('click', event => {
   const button = event.target.closest('[data-sheet-view]');
   if (!button || (activeListKey !== 'departures' && activeListKey !== 'gih' && activeListKey !== 'arrivals')) return;
-  drawerMode = button.dataset.sheetView === 'list' ? 'list' : 'all';
+  drawerMode = button.dataset.sheetView === 'refills' ? 'refills' : button.dataset.sheetView === 'list' ? 'list' : 'all';
   renderDrawerRooms(sheetSearch.value);
 });
 sheetContent.addEventListener('change', event => {
@@ -7489,11 +7501,14 @@ btnSend.addEventListener('click', () => {
     roomNumber, requestId, blobPromise,
     refillRequestId: previewRefillRequestId
   });
-  if (activeListKey === 'departures') {
+  if (activeListKey === 'departures' || activeListKey === 'arrivals') {
     const rooms = visibleCarouselRooms();
     const i = rooms.findIndex(room => String(room.number) === roomNumber);
     if (i >= 0 && rooms[i + 1]) selectRoomByNumber(rooms[i + 1].number, false, 'auto');
-    else void refreshDepartureList().then(() => { const n = nextCarouselNumber(roomNumber, visibleCarouselRooms()); if (n) selectRoomByNumber(n, false, 'auto'); });
+    else {
+      const refresh = activeListKey === 'arrivals' ? refreshArrivalList : refreshDepartureList;
+      void refresh().then(() => { const n = nextCarouselNumber(roomNumber, visibleCarouselRooms()); if (n) selectRoomByNumber(n, false, 'auto'); });
+    }
   }
   triggerHaptic();
   showMessage('Фото №' + roomNumber + ' принято — можно снимать следующее', 2200);
