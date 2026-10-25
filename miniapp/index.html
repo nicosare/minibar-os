@@ -1842,9 +1842,18 @@
     .camera-arrival-info-row { font-size:8px; line-height:10px; }
   }
 
-  /* Preserve original Sроки/GIH row height; keep the collapsible info panel. */
+  /* Keep history pinned to the bottom; prioritize the list information area. */
   .camera-info-panel {
-    grid-template-rows:42px clamp(168px, 25dvh, 198px) minmax(0,1fr) 72px;
+    grid-template-rows:42px clamp(100px, 16dvh, 124px) minmax(0,1fr) 72px;
+  }
+  .camera-history-section {
+    grid-row:4; align-self:stretch; min-height:0; height:72px; max-height:72px;
+  }
+  .camera-info-panel .camera-history-card {
+    height:100%; min-height:0; display:flex; flex-direction:column;
+  }
+  .camera-info-panel .camera-history-list {
+    flex:1 1 auto; min-height:0; max-height:none; overflow:hidden;
   }
   .camera-arrival-info-toggle {
     flex:0 0 28px; width:28px; height:25px; display:inline-flex; align-items:center; justify-content:center;
@@ -1856,13 +1865,13 @@
     padding-top:4px; padding-bottom:4px; overflow:hidden;
   }
   .camera-info-panel:has(.camera-arrival-info-panel.is-collapsed) {
-    grid-template-rows:42px clamp(168px, 25dvh, 198px) 34px 72px;
+    grid-template-rows:42px minmax(0,1fr) 34px 72px;
   }
   .camera-arrival-info-panel.is-collapsed .camera-arrival-info-list { display:none; }
   @media(max-height:740px) {
-    .camera-info-panel { grid-template-rows:42px clamp(168px, 25dvh, 198px) minmax(0,1fr) 72px; }
+    .camera-info-panel { grid-template-rows:42px clamp(92px, 14dvh, 112px) minmax(0,1fr) 72px; }
     .camera-info-panel:has(.camera-arrival-info-panel.is-collapsed) {
-      grid-template-rows:42px clamp(168px, 25dvh, 198px) 34px 72px;
+      grid-template-rows:42px minmax(0,1fr) 34px 72px;
     }
   }
 </style>
