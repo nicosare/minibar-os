@@ -1842,6 +1842,29 @@
     .camera-arrival-info-row { font-size:8px; line-height:10px; }
   }
 
+  /* Give the Sроки/GIH row roughly 1.5x more vertical space without changing camera geometry. */
+  .camera-info-panel {
+    grid-template-rows:42px clamp(252px, 37.5dvh, 297px) minmax(0,1fr) 72px;
+  }
+  .camera-arrival-info-toggle {
+    flex:0 0 28px; width:28px; height:25px; display:inline-flex; align-items:center; justify-content:center;
+    padding:0; border:1px solid rgba(255,204,0,.28); border-radius:7px;
+    background:rgba(255,204,0,.07); color:var(--yellow); font-size:17px; font-weight:900; line-height:1;
+  }
+  .camera-arrival-info-panel.is-collapsed {
+    align-self:start; height:34px; min-height:34px; max-height:34px;
+    padding-top:4px; padding-bottom:4px; overflow:hidden;
+  }
+  .camera-info-panel:has(.camera-arrival-info-panel.is-collapsed) {
+    grid-template-rows:42px clamp(252px, 37.5dvh, 297px) 34px 72px;
+  }
+  .camera-arrival-info-panel.is-collapsed .camera-arrival-info-list { display:none; }
+  @media(max-height:740px) {
+    .camera-info-panel { grid-template-rows:42px clamp(252px, 37.5dvh, 297px) minmax(0,1fr) 72px; }
+    .camera-info-panel:has(.camera-arrival-info-panel.is-collapsed) {
+      grid-template-rows:42px clamp(252px, 37.5dvh, 297px) 34px 72px;
+    }
+  }
 </style>
 </head>
 <body>
@@ -1916,6 +1939,8 @@
               <span class="camera-action-title" id="cameraListInfoTitle">Информация · Все номера</span>
               <div class="camera-arrival-info-head-actions">
                 <span id="cameraArrivalInfoCount" class="camera-arrival-info-count">0 ном.</span>
+                <button type="button" class="camera-arrival-info-toggle" id="cameraArrivalInfoToggle"
+                  aria-expanded="true" aria-controls="cameraArrivalInfoList" aria-label="Свернуть информацию" title="Свернуть информацию">⌄</button>
               </div>
             </div>
             <div class="camera-arrival-info-list" id="cameraArrivalInfoList" aria-live="polite"><div class="camera-arrival-info-empty">Загрузка списка…</div></div>
@@ -2548,6 +2573,7 @@ function renderCameraListInfo() {
       const entry = arrivalEntry(number);
       if (entry.vip) details.push('VIP');
       if (entry.time) details.push(String(entry.time));
+      details.push(entry.ready ? 'Можно делать' : 'Не готов');
       if (isEmpty) details.push('Пустой');
       else if (entry.empty) details.push('Опустошить');
       if (refillRequest && !isEmpty) details.push(refillRequestSummary(refillRequest));
@@ -3490,6 +3516,21 @@ const cameraListInfoPanel = document.getElementById('cameraListInfoPanel');
 const cameraListInfoTitle = document.getElementById('cameraListInfoTitle');
 const cameraArrivalInfoCount = document.getElementById('cameraArrivalInfoCount');
 const cameraArrivalInfoList = document.getElementById('cameraArrivalInfoList');
+const cameraArrivalInfoToggle = document.getElementById('cameraArrivalInfoToggle');
+const CAMERA_INFO_COLLAPSED_KEY = 'minibar-camera-info-collapsed-v1';
+let cameraInfoCollapsed = false;
+try { cameraInfoCollapsed = localStorage.getItem(CAMERA_INFO_COLLAPSED_KEY) === '1'; } catch (_) {}
+function setCameraInfoCollapsed(collapsed) {
+  cameraInfoCollapsed = Boolean(collapsed);
+  cameraListInfoPanel?.classList.toggle('is-collapsed', cameraInfoCollapsed);
+  if (cameraArrivalInfoToggle) {
+    cameraArrivalInfoToggle.setAttribute('aria-expanded', String(!cameraInfoCollapsed));
+    cameraArrivalInfoToggle.setAttribute('aria-label', cameraInfoCollapsed ? 'Развернуть информацию' : 'Свернуть информацию');
+    cameraArrivalInfoToggle.title = cameraInfoCollapsed ? 'Развернуть информацию' : 'Свернуть информацию';
+    cameraArrivalInfoToggle.textContent = cameraInfoCollapsed ? '⌃' : '⌄';
+  }
+  try { localStorage.setItem(CAMERA_INFO_COLLAPSED_KEY, cameraInfoCollapsed ? '1' : '0'); } catch (_) {}
+}
 const roomHistoryItems = document.getElementById('roomHistoryItems');
 const descRoomTitle = document.getElementById('descRoomTitle');
 const descRoomRemove = document.getElementById('descRoomRemove');
@@ -6787,6 +6828,13 @@ cameraArrivalInfoList?.addEventListener('click', event => {
     return;
   }
   if (carouselItems.has(number)) selectRoomByNumber(number, true, 'smooth', true);
+});
+
+setCameraInfoCollapsed(cameraInfoCollapsed);
+cameraArrivalInfoToggle?.addEventListener('click', event => {
+  event.preventDefault();
+  event.stopPropagation();
+  setCameraInfoCollapsed(!cameraInfoCollapsed);
 });
 
 sheetHideUnready.addEventListener('click', () => {
