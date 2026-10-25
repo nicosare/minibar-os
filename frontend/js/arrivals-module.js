@@ -337,7 +337,8 @@ async function extractRoomNumbers(file) {
         const item = entryFor(number);
         const roomIsEmpty = roomMap().get(number)?.expiryStatus === 'empty';
         const details = [];
-        if (item.empty || roomIsEmpty) details.push('Пустой');
+        if (roomIsEmpty) details.push('Пустой');
+        else if (item.empty) details.push('Опустошить');
         if (item.time) details.push('Заезд ' + item.time);
         if (item.comment) details.push(item.comment);
         rows += '<tr><td class="number-col"><strong><font size="2">' +
