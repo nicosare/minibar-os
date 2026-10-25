@@ -2516,7 +2516,7 @@ function renderCameraListInfo() {
   const numbers = ALL_ROOMS
     .filter(room => listNumbers.has(String(room.number)))
     .sort((a, b) => {
-      const direction = departureSort === 'desc' ? -1 : 1;
+      const direction = activeListKey && departureSort === 'desc' ? -1 : 1;
       return direction * (Number(a.floor) - Number(b.floor) || Number(a.number) - Number(b.number));
     })
     .map(room => String(room.number));
@@ -2562,7 +2562,8 @@ function renderCameraListInfo() {
       if (draft) details.push('GIH · Черновик');
       else if (done) details.push('GIH · ' + (MINI_GIH_MODE_LABELS[done.gihRoomStatus] || 'Готово'));
       if (isEmpty) details.push('Пустой');
-      stateClass = isEmpty ? 'is-empty' : done ? 'is-ready' : 'is-pending';
+      if (refillRequest && !isEmpty) details.push(refillRequestSummary(refillRequest));
+      stateClass = isEmpty ? 'is-empty' : refillRequest ? 'is-refill' : done ? 'is-ready' : 'is-pending';
     } else {
       if (isEmpty) details.push('Пустой');
       if (activeListKey === 'departures' && revisitRoomNumbers.has(number)) details.push('Повторная проверка');
@@ -3071,8 +3072,7 @@ function renderRefillSection() {
 function roomNeedsRefillMarker(number) {
   const cleanNumber = String(number);
   const room = ROOM_BY_NUMBER.get(cleanNumber);
-  return activeListKey !== 'gih' &&
-    room?.expiryStatus !== 'empty' &&
+  return room?.expiryStatus !== 'empty' &&
     activeRefillsByNumber.has(cleanNumber);
 }
 function renderRefillCarouselStatuses() {
