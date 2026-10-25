@@ -203,7 +203,7 @@ router.get('/', async (req, res) => {
     const { dateKey } = todayRange(req);
     const [rooms, session] = await Promise.all([
       prisma.room.findMany({
-        select: { id: true, number: true, floor: true, category: true },
+        select: { id: true, number: true, floor: true, category: true, expiryStatus: true },
         orderBy: { number: 'asc' }
       }),
       readSession(prisma, dateKey)
