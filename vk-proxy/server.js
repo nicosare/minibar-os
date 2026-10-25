@@ -116,6 +116,25 @@ async function forwardMessageToBackend(payload) {
   throw lastError || new Error('Не удалось синхронизировать сообщение с сайтом');
 }
 
+async function forwardNotificationsToBot(notifications, eventId) {
+  if (!Array.isArray(notifications) || !notifications.length) return {sent: true, skipped: true};
+  if (!INTERNAL_TOKEN) throw new Error('VK_BOT_INTERNAL_TOKEN не настроен в vk-proxy');
+
+  const response = await fetch('http://vk-bot:3002/internal/notifications', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Minibar-Bot-Token': INTERNAL_TOKEN
+    },
+    body: JSON.stringify({eventId, notifications})
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.ok !== true) {
+    throw new Error(data.error || 'VK bot notification HTTP ' + response.status);
+  }
+  return {sent: true, duplicate: data.duplicate === true};
+}
+
 async function syncSentMessage(peerId, rawMessageId, text) {
   const occurredAt = new Date().toISOString();
   const numericMessageId = Number(rawMessageId);
@@ -130,11 +149,29 @@ async function syncSentMessage(peerId, rawMessageId, text) {
       text: String(text || '').trim(), occurredAt
     });
     const synced = ['processed', 'duplicate', 'ignored'].includes(result.status);
+    let notificationResult = null;
+
+    // Only the first successful backend processing owns notification delivery.
+    // A duplicate VK callback must not trigger a second private notification.
+    if (result.status === 'processed' && result.notifications?.length) {
+      try {
+        notificationResult = await forwardNotificationsToBot(result.notifications, result.eventId || eventId);
+      } catch (error) {
+        notificationResult = {sent: false, error: error.message};
+        console.error('[VK proxy] private notification delivery failed for event=' + eventId + ': ' + error.message);
+      }
+    }
+
     console.log('[VK proxy] site sync peer=' + peerId +
       ' message=' + String(messageId ?? '-') +
       ' status=' + String(result.status || 'unknown') +
-      ' rooms=' + JSON.stringify(result.rooms || []));
-    return {site_synced: synced, site_sync_status: result.status || 'unknown'};
+      ' rooms=' + JSON.stringify(result.rooms || []) +
+      (notificationResult ? ' notifications=' + JSON.stringify(notificationResult) : ''));
+    return {
+      site_synced: synced,
+      site_sync_status: result.status || 'unknown',
+      ...(notificationResult ? {notifications_sent: notificationResult.sent, notification_error: notificationResult.error} : {})
+    };
   } catch (error) {
     console.error('[VK proxy] VK message was sent but site sync failed for peer=' + peerId + ': ' + error.message);
     return {site_synced: false, site_sync_error: error.message || 'Ошибка синхронизации с сайтом'};
