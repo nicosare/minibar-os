@@ -324,7 +324,7 @@
   .num-item.pinned.empty-room::after { border-color: rgba(76, 199, 244, .95); }
   .num-item.pinned { text-shadow: 0 0 12px rgba(255, 204, 0, .26); }
 
-  .num-item.empty-room { color: rgba(76, 199, 244, .52); }
+  .num-item.empty-room { color: #4cc7f4; }
   .num-item.active.empty-room {
     color: #4cc7f4;
     text-shadow: 0 0 12px rgba(76, 199, 244, 0.3);
@@ -1185,28 +1185,10 @@
     font-weight: 750;
   }
 
-  .room-chip.empty-room {
-    color: #7ddcff;
-    border-color: rgba(70, 195, 245, 0.62);
-    background: rgba(70, 195, 245, 0.13);
-  }
-
   .room-chip.selected {
     background: var(--yellow);
     color: #000;
     border-color: var(--yellow);
-  }
-
-  .room-chip.empty-room:not(.selected) {
-    color: #7ddcff;
-    border-color: rgba(70, 195, 245, 0.62);
-    background: rgba(70, 195, 245, 0.13);
-  }
-
-  .room-chip.empty-room.selected {
-    color: #06202b;
-    border-color: #4cc7f4;
-    background: #4cc7f4;
   }
 
   /* Refill status takes precedence over empty/checked status, including selection. */
@@ -1792,8 +1774,6 @@
     color: #fff;
   }
   .arrival-mini-card.is-ready { border-color: rgba(255,204,0,.36); }
-  .arrival-mini-card.is-empty { border-color:rgba(76,199,244,.46); }
-  .arrival-mini-card.is-empty .arrival-mini-room-number { color:#4cc7f4; }
   .arrival-mini-card.is-selected { box-shadow: inset 0 0 0 1px rgba(255,204,0,.2); }
   .arrival-mini-card-head { display:flex;align-items:center;justify-content:space-between;gap:10px; }
   .arrival-mini-room-number { flex:none;min-width:58px;padding:6px 10px!important;height:auto!important;border-radius:8px!important;font-size:16px!important;line-height:20px!important;font-weight:850!important; }
@@ -1823,9 +1803,18 @@
     padding:7px 9px; border:1.5px solid rgba(255,255,255,.16);
     border-radius:9px; background:rgba(255,255,255,.045); color:#fff;
   }
-  .camera-arrival-info-head { display:flex; align-items:center; justify-content:space-between; gap:8px; flex:0 0 auto; }
-  .camera-arrival-info-head .camera-action-title { font-size:11px; line-height:14px; font-weight:900; }
-  .camera-arrival-info-count { color:rgba(255,255,255,.42); font-size:8px; line-height:11px; font-weight:750; }
+  .camera-arrival-info-head { display:flex; align-items:center; justify-content:space-between; gap:8px; flex:0 0 auto; min-height:24px; }
+  .camera-arrival-info-head .camera-action-title { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; line-height:14px; font-weight:900; }
+  .camera-arrival-info-head-actions { flex:0 0 auto; display:flex; align-items:center; gap:6px; }
+  .camera-arrival-info-count { color:rgba(255,255,255,.42); font-size:8px; line-height:11px; font-weight:750; white-space:nowrap; }
+  .camera-list-info-toggle { width:24px; height:24px; flex:0 0 24px; display:flex; align-items:center; justify-content:center; padding:0; border:1px solid rgba(255,255,255,.14); border-radius:7px; background:rgba(255,255,255,.045); color:rgba(255,255,255,.78); cursor:pointer; }
+  .camera-list-info-toggle:active { background:rgba(255,255,255,.12); }
+  .camera-list-info-toggle svg { width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; transition:transform .16s ease; }
+  .camera-arrival-info-panel.is-collapsed .camera-list-info-toggle svg { transform:rotate(180deg); }
+  .camera-arrival-info-panel.is-collapsed .camera-arrival-info-list { display:none; }
+  .camera-arrival-info-panel.is-collapsed { height:auto; }
+  .camera-info-panel.list-info-collapsed { grid-template-rows:auto minmax(0,1fr) auto 72px; }
+  .camera-info-panel.list-info-collapsed .camera-workspace-info { height:auto; min-height:0; align-self:start; }
   .camera-arrival-info-list {
     display:flex; flex:1 1 auto; flex-direction:column; gap:3px; min-width:0; min-height:0;
     max-height:none; overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:none;
@@ -1839,11 +1828,11 @@
   }
   .camera-arrival-info-row.is-ready { color:var(--yellow); border-color:rgba(255,255,255,.1); background:rgba(255,255,255,.025); }
   .camera-arrival-info-row.is-pending { color:rgba(255,255,255,.48); border-color:rgba(255,255,255,.1); background:rgba(255,255,255,.025); }
-  .camera-arrival-info-row.is-empty { color:#4cc7f4; border-color:rgba(76,199,244,.3); background:rgba(76,199,244,.075); }
+  .camera-arrival-info-row.is-empty { color:rgba(255,255,255,.72); border-color:rgba(255,255,255,.1); background:rgba(255,255,255,.025); }
   .camera-arrival-info-row.is-refill:not(.is-empty) { color:#fb923c; border-color:rgba(251,146,60,.34); background:rgba(251,146,60,.075); }
   .camera-arrival-info-row.is-refill:not(.is-empty) .camera-arrival-info-meta { color:#fb923c; }
   .camera-arrival-info-row.is-pinned { border-color:rgba(255,204,0,.95); background:rgba(255,204,0,.09); box-shadow:inset 0 0 0 1px rgba(255,204,0,.12); }
-  .sheet-refill-room-line.is-empty { color:#4cc7f4; border-color:rgba(76,199,244,.3); background:rgba(76,199,244,.055); }
+  .sheet-refill-room-line.is-empty { color:rgba(255,255,255,.7); border-color:rgba(255,255,255,.08); background:transparent; }
   .camera-arrival-info-meta.is-refill { color:#fb923c; }
   .camera-arrival-info-number { flex:0 0 30px; }
   .camera-arrival-info-meta { min-width:0; overflow-wrap:anywhere; font-weight:600; }
@@ -1927,8 +1916,16 @@
               </div>
             </section>
           </div>
-          <section class="camera-arrival-info-panel camera-workspace-info" aria-label="Информация о заездах">
-            <div class="camera-arrival-info-head"><span class="camera-action-title">Информация</span><span id="cameraArrivalInfoCount" class="camera-arrival-info-count">0 ном.</span></div>
+          <section class="camera-arrival-info-panel camera-workspace-info" id="cameraListInfoPanel" aria-label="Информация о текущем списке">
+            <div class="camera-arrival-info-head">
+              <span class="camera-action-title" id="cameraListInfoTitle">Информация · Все номера</span>
+              <div class="camera-arrival-info-head-actions">
+                <span id="cameraArrivalInfoCount" class="camera-arrival-info-count">0 ном.</span>
+                <button type="button" class="camera-list-info-toggle" id="cameraListInfoToggle" aria-expanded="true" aria-label="Свернуть блок информации" title="Свернуть блок информации">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+              </div>
+            </div>
             <div class="camera-arrival-info-list" id="cameraArrivalInfoList" aria-live="polite"><div class="camera-arrival-info-empty">Загрузка списка…</div></div>
           </section>
           <section class="camera-history-section" aria-label="Последние записи истории">
@@ -2210,7 +2207,7 @@ function readStoredListSelection() {
 }
 
 const storedListSelection = readStoredListSelection();
-let activeListKey = (storedListSelection.key === 'departures' || storedListSelection.key === 'arrivals') ? storedListSelection.key : '';
+let activeListKey = ['departures', 'arrivals', 'gih'].includes(storedListSelection.key) ? storedListSelection.key : '';
 let activeListDateKey = activeListKey ? storedListSelection.dateKey : '';
 let drawerMode = activeListKey ? 'list' : 'all';
 function readDepartureSort() { try { return localStorage.getItem('minibar-departure-sort-v1') === 'desc' ? 'desc' : 'asc'; } catch (_) { return 'asc'; } }
@@ -2259,6 +2256,37 @@ const MINI_GIH_PRODUCT_COLORS = {amber:'#fffbeb',red:'#fef2f2',blue:'#eff6ff',ye
 let miniGihRecords = [], miniGihDrafts = [], miniGihDones = [];
 let miniGihTab = 'drafts', miniGihView = 'list', miniGihSelectedId = null, miniGihLoading = false;
 let miniGihBusyChecks = new Set(), miniGihBusyItems = new Set(), miniGihNotePromises = new Map();
+
+function normalizeMiniAppListData(data, fallbackName) {
+  const source = data && typeof data === 'object' ? data : {};
+  return {
+    dateKey: String(source.dateKey || ''),
+    name: String(source.name || fallbackName),
+    fileName: String(source.fileName || ''),
+    sourceReady: Boolean(source.sourceReady),
+    sourceCount: Number(source.sourceCount) || 0,
+    assignedCount: Number(source.assignedCount) || 0,
+    completedCount: Number(source.completedCount) || 0,
+    remainingCount: Number(source.remainingCount) || 0,
+    roomNumbers: [...new Set((Array.isArray(source.roomNumbers) ? source.roomNumbers : []).map(String))]
+  };
+}
+
+function reconcileActiveListDate(listKey, dateKey) {
+  if (activeListKey !== listKey) return false;
+  if (activeListDateKey && dateKey && activeListDateKey !== dateKey) {
+    activeListKey = '';
+    activeListDateKey = '';
+    drawerMode = 'all';
+    persistActiveListSelection();
+    return true;
+  }
+  if (!activeListDateKey && dateKey) {
+    activeListDateKey = dateKey;
+    persistActiveListSelection();
+  }
+  return false;
+}
 
 function normalizeRoomType(room) {
   const values = [
@@ -2429,6 +2457,7 @@ async function removeRoomFromActiveList(number) {
       miniGihDeriveLists();
       renderMiniGih(false);
       renderDepartureListCard();
+  renderCameraListInfo();
       if (activeListKey === 'gih') {
         const remainingRooms = visibleCarouselRooms();
         buildCarousel(remainingRooms.length ? nextCarouselNumber(cleanNumber, remainingRooms) : null);
@@ -2472,71 +2501,89 @@ function arrivalEntry(number) {
   return value && typeof value === 'object' ? value : { vip: false, empty: false, time: '', comment: '', ready: false };
 }
 
-function renderCameraArrivalInfo() {
-  const list = document.getElementById('cameraArrivalInfoList');
-  const count = document.getElementById('cameraArrivalInfoCount');
-  if (!list) return;
-  const direction = departureSort === 'desc' ? -1 : 1;
-  const numbers = [...currentArrivalWorkingNumbers()]
-    .sort((a, b) => {
-      const roomA = ROOM_BY_NUMBER.get(a);
-      const roomB = ROOM_BY_NUMBER.get(b);
-      return direction * (Number(roomA?.floor) - Number(roomB?.floor) || Number(a) - Number(b));
-    });
-  if (count) count.textContent = numbers.length + ' ост.';
+function refillRequestSummary(refillRequest) {
+  if (!refillRequest) return '';
+  const type = refillRoomType(refillRequest);
+  const requestItems = (refillRequest.items || []).filter(item => Number(item.qty) > 0);
+  if (requestItems.length) {
+    return requestItems.map(item => {
+      const qty = Math.max(0, Number(item.qty) || 0);
+      const name = String(item.name || 'Продукт');
+      return qty > 1 ? name + ' × ' + qty : name;
+    }).join(', ');
+  }
+  return refillRequest.allProducts || requestMatchesFullTemplate(refillRequest)
+    ? (type === 'suite' ? 'Корзинка люкс' : 'Корзинка стандарт')
+    : 'Продукты не указаны';
+}
+
+function renderCameraListInfo() {
+  if (!cameraArrivalInfoList) return;
+  const numbers = visibleCarouselRooms().map(room => String(room.number));
+  cameraListInfoTitle.textContent = 'Информация · ' + activeListLabel();
+  cameraArrivalInfoCount.textContent = numbers.length + ' ном.';
+
   if (!numbers.length) {
-    list.innerHTML = arrivalList.roomNumbers.length
-      ? '<div class="camera-arrival-info-empty">Все номера уже проверены</div>'
-      : '<div class="camera-arrival-info-empty">Нет списка Заездов</div>';
+    const emptyText = activeListKey === 'arrivals'
+      ? (arrivalList.roomNumbers.length ? 'Все номера уже проверены' : 'Нет списка Заездов')
+      : activeListKey === 'gih'
+        ? 'Нет номеров в списке GIH'
+        : activeListKey === 'departures'
+          ? 'Нет номеров в списке Выезды'
+          : 'Нет номеров';
+    cameraArrivalInfoList.innerHTML = '<div class="camera-arrival-info-empty">' + emptyText + '</div>';
     return;
   }
-  list.innerHTML = numbers.map(number => {
-    const entry = arrivalEntry(number);
+
+  cameraArrivalInfoList.innerHTML = numbers.map(number => {
     const room = ROOM_BY_NUMBER.get(number);
-    const refillRequest = activeRefillsByNumber.get(number);
-    const isEmpty = room?.expiryStatus === 'empty';
+    if (!room) return '';
+    const isEmpty = room.expiryStatus === 'empty';
+    const refillRequest = activeListKey === 'gih' ? null : activeRefillsByNumber.get(number);
     const details = [];
-    if (entry.vip) details.push('VIP');
-    if (entry.time) details.push(String(entry.time));
-    if (isEmpty) {
-      details.push('Пустой');
+    let stateClass = 'is-pending';
+
+    if (activeListKey === 'arrivals') {
+      const entry = arrivalEntry(number);
+      if (entry.vip) details.push('VIP');
+      if (entry.time) details.push(String(entry.time));
+      details.push(entry.ready ? 'Можно делать' : 'Не готов');
+      if (isEmpty) details.push('Пустой');
+      else if (entry.empty) details.push('Опустошить');
+      if (refillRequest && !isEmpty) details.push(refillRequestSummary(refillRequest));
+      if (String(entry.comment || '').trim()) details.push(String(entry.comment).trim());
+      stateClass = isEmpty ? 'is-empty' : refillRequest ? 'is-refill' : entry.ready ? 'is-ready' : 'is-pending';
+    } else if (activeListKey === 'gih') {
+      const draft = miniGihDrafts.find(record => String(record.number) === number);
+      const done = miniGihDones.find(record => String(record.number) === number);
+      if (draft) details.push('GIH · Черновик');
+      else if (done) details.push('GIH · ' + (MINI_GIH_MODE_LABELS[done.gihRoomStatus] || 'Готово'));
+      if (isEmpty) details.push('Пустой');
+      stateClass = done ? 'is-ready' : draft ? 'is-pending' : isEmpty ? 'is-empty' : 'is-pending';
     } else {
-      if (entry.empty) details.push('Опустошить');
-      if (refillRequest) {
-        const type = refillRoomType(refillRequest);
-        const requestItems = (refillRequest.items || []).filter(item => Number(item.qty) > 0);
-        const productsText = requestItems.length
-          ? requestItems.map(item => {
-              const qty = Math.max(0, Number(item.qty) || 0);
-              const name = String(item.name || 'Продукт');
-              return qty > 1 ? name + ' × ' + qty : name;
-            }).join(', ')
-          : refillRequest.allProducts || requestMatchesFullTemplate(refillRequest)
-            ? (type === 'suite' ? 'Корзинка люкс' : 'Корзинка стандарт')
-            : 'Продукты не указаны';
-        details.push(productsText);
-      }
+      if (isEmpty) details.push('Пустой');
+      if (activeListKey === 'departures' && revisitRoomNumbers.has(number)) details.push('Повторная проверка');
+      if (refillRequest && !isEmpty) details.push(refillRequestSummary(refillRequest));
+      stateClass = isEmpty ? 'is-empty' : refillRequest ? 'is-refill' : 'is-pending';
     }
-    if (String(entry.comment || '').trim()) details.push(String(entry.comment).trim());
+
     const pinned = number === String(pinnedRoomNumber || '');
-    const rowClass = 'camera-arrival-info-row ' +
-      (isEmpty ? 'is-empty' : (refillRequest ? 'is-refill' : (entry.ready ? 'is-ready' : 'is-pending'))) +
-      (pinned ? ' is-pinned' : '');
-    const metaClass = 'camera-arrival-info-meta' + (refillRequest && !isEmpty ? ' is-refill' : '');
-    return '<button type="button" class="' + rowClass + '" data-arrival-info-number="' +
-      escapeCameraHtml(number) + '" aria-label="Открыть номер ' + escapeCameraHtml(number) + '">' +
+    return '<button type="button" class="camera-arrival-info-row ' + stateClass +
+      (pinned ? ' is-pinned' : '') + '" data-list-info-number="' + escapeCameraHtml(number) +
+      '" aria-label="Открыть номер ' + escapeCameraHtml(number) + '">' +
       '<span class="camera-arrival-info-number">' + escapeCameraHtml(number) + '</span>' +
-      '<span class="' + metaClass + '">' + (details.length ? '• ' + details.map(escapeCameraHtml).join(' • ') : '—') + '</span>' +
+      '<span class="camera-arrival-info-meta">' + (details.length ? '• ' + details.map(escapeCameraHtml).join(' • ') : '—') + '</span>' +
       '</button>';
   }).join('');
+
   requestAnimationFrame(() => {
-    const pinnedRow = [...list.querySelectorAll('[data-arrival-info-number]')]
-      .find(row => row.dataset.arrivalInfoNumber === String(pinnedRoomNumber || ''));
+    const pinnedRow = [...cameraArrivalInfoList.querySelectorAll('[data-list-info-number]')]
+      .find(row => row.dataset.listInfoNumber === String(pinnedRoomNumber || ''));
     if (!pinnedRow) return;
-    const listRect = list.getBoundingClientRect();
+    const listRect = cameraArrivalInfoList.getBoundingClientRect();
     const rowRect = pinnedRow.getBoundingClientRect();
-    if (rowRect.top < listRect.top) list.scrollTop -= listRect.top - rowRect.top;
-    else if (rowRect.bottom > listRect.bottom) list.scrollTop += rowRect.bottom - listRect.bottom;
+    if (rowRect.top < listRect.top) cameraArrivalInfoList.scrollTop -= listRect.top - rowRect.top;
+    else if (rowRect.bottom > listRect.bottom) cameraArrivalInfoList.scrollTop += rowRect.bottom - listRect.bottom;
   });
 }
 
@@ -2560,7 +2607,9 @@ function activeListNumbers() {
 
 function activeListLabel() {
   if (activeListKey === 'gih') return 'GIH';
-  return activeListKey === 'arrivals' ? 'Заезды' : 'Выезды';
+  if (activeListKey === 'arrivals') return 'Заезды';
+  if (activeListKey === 'departures') return 'Выезды';
+  return 'Все номера';
 }
 
 function checkedTodayNumbers() {
@@ -2575,13 +2624,12 @@ function visibleCarouselRooms() {
   if (activeListKey !== 'departures' && activeListKey !== 'gih' && activeListKey !== 'arrivals') return ALL_ROOMS;
   const members = activeListNumbers();
   const checked = checkedTodayNumbers();
-  const readyArrivals = currentArrivalReadyNumbers();
   const rooms = ALL_ROOMS.filter(room => {
     const number = String(room.number);
     if (activeListKey === 'departures') {
       return members.has(number) || (revisitRoomNumbers.has(number) && checked.has(number));
     }
-    if (activeListKey === 'arrivals') return members.has(number) && readyArrivals.has(number);
+    if (activeListKey === 'arrivals') return members.has(number);
     return members.has(number);
   });
   return rooms.sort((a, b) => {
@@ -2607,8 +2655,11 @@ function nextCarouselNumber(previousNumber, rooms = visibleCarouselRooms()) {
 function persistActiveListSelection() {
   try {
     if (activeListKey) {
+      const listDateKey = activeListKey === 'arrivals' ? arrivalList.dateKey
+        : activeListKey === 'gih' ? miniGihLocalDayKey(new Date())
+          : departureList.dateKey;
       localStorage.setItem('minibar-active-list-v1', activeListKey);
-      localStorage.setItem('minibar-active-list-date-v1', activeListDateKey || departureList.dateKey || '');
+      localStorage.setItem('minibar-active-list-date-v1', activeListDateKey || listDateKey || '');
     } else {
       localStorage.removeItem('minibar-active-list-v1');
       localStorage.removeItem('minibar-active-list-date-v1');
@@ -2624,15 +2675,7 @@ function applyDepartureList(data, preferredNumber = null) {
   const previousChecked = checkedTodayNumbers();
 
   departureList = {
-    dateKey: String(data.dateKey || ''),
-    name: String(data.name || 'Выезды'),
-    fileName: String(data.fileName || ''),
-    sourceReady: Boolean(data.sourceReady),
-    sourceCount: Number(data.sourceCount) || 0,
-    assignedCount: Number(data.assignedCount) || 0,
-    completedCount: Number(data.completedCount) || 0,
-    remainingCount: Number(data.remainingCount) || 0,
-    roomNumbers: [...new Set((Array.isArray(data.roomNumbers) ? data.roomNumbers : []).map(String))],
+    ...normalizeMiniAppListData(data, 'Выезды'),
     checkedToday: Array.isArray(data.checkedToday)
       ? data.checkedToday.map(item => ({ ...item, number: String(item.number) }))
       : [],
@@ -2647,18 +2690,7 @@ function applyDepartureList(data, preferredNumber = null) {
   ));
   persistRevisitRoomNumbers();
 
-  let expiredSelection = false;
-  if (activeListKey === 'departures' && activeListDateKey &&
-      departureList.dateKey && activeListDateKey !== departureList.dateKey) {
-    activeListKey = '';
-    activeListDateKey = '';
-    drawerMode = 'all';
-    expiredSelection = true;
-    persistActiveListSelection();
-  } else if (activeListKey === 'departures' && !activeListDateKey && departureList.dateKey) {
-    activeListDateKey = departureList.dateKey;
-    persistActiveListSelection();
-  }
+  const expiredSelection = reconcileActiveListDate('departures', departureList.dateKey);
 
   const listChanged = previousNumbers !== departureList.roomNumbers.join(',') ||
     previousDateKey !== departureList.dateKey || expiredSelection;
@@ -2667,7 +2699,10 @@ function applyDepartureList(data, preferredNumber = null) {
 
   renderDepartureListCard();
 
-  if (activeListKey === 'departures' && listChanged) {
+  renderCameraListInfo();
+  if (expiredSelection) {
+    buildCarousel(nextCarouselNumber(preferredNumber || selectedRoom?.number, ALL_ROOMS));
+  } else if (activeListKey === 'departures' && listChanged) {
     buildCarousel(nextCarouselNumber(preferredNumber || selectedRoom?.number, visibleCarouselRooms()));
   } else {
     updateQueueDisplay();
@@ -2704,33 +2739,15 @@ function applyArrivalList(data, preferredNumber = null) {
   const previousReady = arrivalList.readyNumbers.join(',');
   const previousChecked = arrivalList.checkedRoomNumbers.join(',');
   arrivalList = {
-    dateKey: String(data.dateKey || ''),
-    name: String(data.name || 'Заезды'),
-    fileName: String(data.fileName || ''),
-    sourceReady: Boolean(data.sourceReady),
-    sourceCount: Number(data.sourceCount) || 0,
-    assignedCount: Number(data.assignedCount) || 0,
+    ...normalizeMiniAppListData(data, 'Заезды'),
     readyCount: Number(data.readyCount) || 0,
-    completedCount: Number(data.completedCount) || 0,
-    remainingCount: Number(data.remainingCount) || 0,
-    roomNumbers: [...new Set((Array.isArray(data.roomNumbers) ? data.roomNumbers : []).map(String))],
     readyNumbers: [...new Set((Array.isArray(data.readyNumbers) ? data.readyNumbers : []).map(String))],
     checkedRoomNumbers: [...new Set((Array.isArray(data.checkedRoomNumbers) ? data.checkedRoomNumbers : []).map(String))],
     entries: data.entries && typeof data.entries === 'object' ? data.entries : {}
   };
-  let expired = false;
-  if (activeListKey === 'arrivals' && activeListDateKey && arrivalList.dateKey && activeListDateKey !== arrivalList.dateKey) {
-    activeListKey = '';
-    activeListDateKey = '';
-    drawerMode = 'all';
-    persistActiveListSelection();
-    expired = true;
-  } else if (activeListKey === 'arrivals' && !activeListDateKey && arrivalList.dateKey) {
-    activeListDateKey = arrivalList.dateKey;
-    persistActiveListSelection();
-  }
+  const expired = reconcileActiveListDate('arrivals', arrivalList.dateKey);
   renderDepartureListCard();
-  renderCameraArrivalInfo();
+  renderCameraListInfo()
   const changed = previousDate !== arrivalList.dateKey ||
     previousRooms !== arrivalList.roomNumbers.join(',') ||
     previousReady !== arrivalList.readyNumbers.join(',') ||
@@ -3078,6 +3095,7 @@ async function refreshActiveRefills(roomId = null) {
   if (selectedRoom) updateSelectedRoomState(selectedRoom, false);
   if (isSheetOpen) renderDrawerRooms(sheetSearch.value);
   renderDepartureListCard();
+  renderCameraListInfo();
   return requests;
 }
 
@@ -3123,19 +3141,32 @@ function renderGihListProductsSection() {
   return '<section class="sheet-refill-section is-gih-list">' + heading + productsHtml + '</section>';
 }
 
+function renderMiniAppListCard({ key, label, total, completed, remaining, emptyNote = '' }) {
+  const active = activeListKey === key;
+  const safeTotal = Math.max(0, Number(total) || 0);
+  const safeCompleted = Math.max(0, Number(completed) || 0);
+  const safeRemaining = Math.max(0, Number(remaining) || 0);
+  const progress = safeTotal > 0 ? Math.max(0, Math.min(100, Math.round(safeCompleted / safeTotal * 100))) : 0;
+  const card = '<button type="button" class="mini-departure-list-card' + (active ? ' is-active' : '') +
+    '" data-select-' + key + '-list aria-label="Выбрать список ' + label + '">' +
+    '<div class="mini-departure-card-top"><span>' + label + '</span><span class="mini-departure-card-state">' +
+    (active ? 'Активен' : 'Открыть') + '</span></div>' +
+    '<div class="mini-departure-progress"><div class="mini-departure-progress-copy"><span>Проверено <strong>' +
+    Math.min(safeCompleted, safeTotal) + '</strong> из <strong>' + safeTotal + '</strong></span><span>Осталось <strong>' +
+    safeRemaining + '</strong></span></div><div class="mini-departure-progress-track" role="progressbar" aria-label="Прогресс проверок ' +
+    label + '" aria-valuemin="0" aria-valuemax="' + safeTotal + '" aria-valuenow="' + Math.min(safeCompleted, safeTotal) +
+    '"><span style="width:' + progress + '%"></span></div></div></button>';
+  return card + (emptyNote ? '<div class="mini-departure-empty-note">' + escapeCameraHtml(emptyNote) + '</div>' : '');
+}
+
 function renderDepartureListCard() {
   if (activePlaceholderName !== 'Списки' || !navPlaceholderBody) return;
-  const active = activeListKey === 'departures';
-  const arrivalsActive = activeListKey === 'arrivals';
-  const gihActive = activeListKey === 'gih';
-  const total = Math.max(0, departureList.assignedCount);
-  const completed = Math.max(0, departureList.completedCount);
-  const remaining = Math.max(0, departureList.remainingCount);
-  const progress = total > 0 ? Math.max(0, Math.min(100, Math.round(completed / total * 100))) : 0;
+  const departuresTotal = Math.max(0, departureList.assignedCount);
+  const departuresCompleted = Math.max(0, departureList.completedCount);
+  const departuresRemaining = Math.max(0, departureList.remainingCount);
   const arrivalsTotal = currentArrivalNumbers().size;
   const arrivalsCompleted = Math.min(arrivalsTotal, Math.max(0, arrivalList.completedCount));
   const arrivalsRemaining = Math.max(0, arrivalList.remainingCount);
-  const arrivalsProgress = arrivalsTotal > 0 ? Math.max(0, Math.min(100, Math.round(arrivalsCompleted / arrivalsTotal * 100))) : 0;
   const gihDraftNumbers = currentGihRemainingNumbers();
   const gihDoneNumbers = currentGihDoneNumbers();
   gihDraftNumbers.forEach(number => gihDoneNumbers.delete(number));
@@ -3143,26 +3174,22 @@ function renderDepartureListCard() {
   const gihTotal = gihTotalNumbers.size;
   const gihCompleted = Math.max(0, gihTotal - gihDraftNumbers.size);
   const gihRemaining = gihDraftNumbers.size;
-  const gihProgress = gihTotal > 0 ? Math.max(0, Math.min(100, Math.round(gihCompleted / gihTotal * 100))) : 0;
-  navPlaceholderBody.innerHTML =
-    '<div class="mini-list-cards">' +
-    '<button type="button" class="mini-departure-list-card' + (active ? ' is-active' : '') + '" data-select-departures-list aria-label="Выбрать список Выезды">' +
-    '<div class="mini-departure-card-top"><span>Выезды</span><span class="mini-departure-card-state">' + (active ? 'Активен' : 'Открыть') + '</span></div>' +
-    '<div class="mini-departure-progress"><div class="mini-departure-progress-copy"><span>Проверено <strong>' + completed + '</strong> из <strong>' + total +
-    '</strong></span><span>Осталось <strong>' + remaining + '</strong></span></div><div class="mini-departure-progress-track" role="progressbar" aria-label="Прогресс проверок" aria-valuemin="0" aria-valuemax="' +
-    total + '" aria-valuenow="' + Math.min(completed,total) + '"><span style="width:' + progress + '%"></span></div></div></button>' +
-    (!departureList.sourceReady && total === 0 ? '<div class="mini-departure-empty-note">Загрузите PDF со списком на сайте.</div>' : '') +
-    '<button type="button" class="mini-departure-list-card' + (arrivalsActive ? ' is-active' : '') + '" data-select-arrivals-list aria-label="Выбрать список Заезды">' +
-    '<div class="mini-departure-card-top"><span>Заезды</span><span class="mini-departure-card-state">' + (arrivalsActive ? 'Активен' : 'Открыть') + '</span></div>' +
-    '<div class="mini-departure-progress"><div class="mini-departure-progress-copy"><span>Проверено <strong>' + arrivalsCompleted + '</strong> из <strong>' + arrivalsTotal +
-    '</strong></span><span>Осталось <strong>' + arrivalsRemaining + '</strong></span></div><div class="mini-departure-progress-track" role="progressbar" aria-label="Прогресс проверок Заездов" aria-valuemin="0" aria-valuemax="' +
-    arrivalsTotal + '" aria-valuenow="' + Math.min(arrivalsCompleted,arrivalsTotal) + '"><span style="width:' + arrivalsProgress + '%"></span></div></div></button>' +
-    (!arrivalList.sourceReady && arrivalsTotal === 0 ? '<div class="mini-departure-empty-note">Добавьте номера или загрузите PDF на сайте.</div>' : '') +
-    '<button type="button" class="mini-departure-list-card' + (gihActive ? ' is-active' : '') + '" data-select-gih-list aria-label="Выбрать список GIH">' +
-    '<div class="mini-departure-card-top"><span>GIH</span><span class="mini-departure-card-state">' + (gihActive ? 'Активен' : 'Открыть') + '</span></div>' +
-    '<div class="mini-departure-progress"><div class="mini-departure-progress-copy"><span>Проверено <strong>' + gihCompleted + '</strong> из <strong>' + gihTotal +
-    '</strong></span><span>Осталось <strong>' + gihRemaining + '</strong></span></div><div class="mini-departure-progress-track" role="progressbar" aria-label="Прогресс проверок GIH" aria-valuemin="0" aria-valuemax="' +
-    gihTotal + '" aria-valuenow="' + Math.min(gihCompleted,gihTotal) + '"><span style="width:' + gihProgress + '%"></span></div></div></button>' +
+
+  navPlaceholderBody.innerHTML = '<div class="mini-list-cards">' +
+    renderMiniAppListCard({
+      key: 'departures', label: 'Выезды', total: departuresTotal,
+      completed: departuresCompleted, remaining: departuresRemaining,
+      emptyNote: !departureList.sourceReady && departuresTotal === 0 ? 'Загрузите PDF со списком на сайте.' : ''
+    }) +
+    renderMiniAppListCard({
+      key: 'arrivals', label: 'Заезды', total: arrivalsTotal,
+      completed: arrivalsCompleted, remaining: arrivalsRemaining,
+      emptyNote: !arrivalList.sourceReady && arrivalsTotal === 0 ? 'Добавьте номера или загрузите PDF на сайте.' : ''
+    }) +
+    renderMiniAppListCard({
+      key: 'gih', label: 'GIH', total: gihTotal,
+      completed: gihCompleted, remaining: gihRemaining
+    }) +
     '</div>';
 }
 
@@ -3189,6 +3216,7 @@ async function openListsScreen() {
       loadMiniGihList()
     ]);
     renderDepartureListCard();
+  renderCameraListInfo();
   } catch (error) {
     navPlaceholderBody.innerHTML =
       '<div class="tool-empty-state">Не удалось загрузить список. Проверь соединение и попробуй ещё раз.</div>';
@@ -3196,44 +3224,27 @@ async function openListsScreen() {
   }
 }
 
-function activateDepartureList() {
-  activeListKey = 'departures';
-  activeListDateKey = departureList.dateKey || '';
+function activateMiniAppList(key) {
+  const config = {
+    departures: { label: 'Выезды', dateKey: departureList.dateKey, emptyMessage: 'Список пуст. Добавьте номер или загрузите PDF на сайте' },
+    arrivals: { label: 'Заезды', dateKey: arrivalList.dateKey, emptyMessage: 'Список пуст. Добавьте номера на сайте' },
+    gih: { label: 'GIH', dateKey: miniGihLocalDayKey(new Date()), emptyMessage: 'Список GIH пуст. Переключи шторку на «Все» и выбери номер' }
+  }[key];
+  if (!config) return;
+  activeListKey = key;
+  activeListDateKey = config.dateKey || '';
   drawerMode = 'list';
   persistActiveListSelection();
   const rooms = visibleCarouselRooms();
   buildCarousel(nextCarouselNumber(selectedRoom?.number, rooms));
+  renderCameraListInfo();
   closeNavPlaceholderModal();
-  showMessage(rooms.length
-    ? 'Активен список «Выезды»'
-    : 'Список пуст. Добавьте номер или загрузите PDF на сайте', 2300);
+  showMessage(rooms.length ? 'Активен список «' + config.label + '»' : config.emptyMessage, 2300);
 }
 
-function activateArrivalList() {
-  activeListKey = 'arrivals';
-  activeListDateKey = arrivalList.dateKey || '';
-  drawerMode = 'list';
-  persistActiveListSelection();
-  const rooms = visibleCarouselRooms();
-  buildCarousel(nextCarouselNumber(selectedRoom?.number, rooms));
-  closeNavPlaceholderModal();
-  showMessage(rooms.length
-    ? 'Активен список «Заезды»'
-    : 'Нет готовых номеров. В шторке отметьте «Можно делать»', 2400);
-}
-
-function activateGihList() {
-  activeListKey = 'gih';
-  activeListDateKey = miniGihLocalDayKey(new Date());
-  drawerMode = 'list';
-  persistActiveListSelection();
-  const rooms = visibleCarouselRooms();
-  buildCarousel(nextCarouselNumber(selectedRoom?.number, rooms));
-  closeNavPlaceholderModal();
-  showMessage(rooms.length
-    ? 'Активен список «GIH»'
-    : 'Список GIH пуст. Переключи шторку на «Все» и выбери номер', 2400);
-}
+function activateDepartureList() { activateMiniAppList('departures'); }
+function activateArrivalList() { activateMiniAppList('arrivals'); }
+function activateGihList() { activateMiniAppList('gih'); }
 
 function deactivateActiveList() {
   activeListKey = '';
@@ -3472,6 +3483,28 @@ const message = document.getElementById('message');
 const uploadStatus = document.getElementById('uploadStatus');
 
 const cameraInfoPanel = document.getElementById('cameraInfoPanel');
+const cameraListInfoPanel = document.getElementById('cameraListInfoPanel');
+const cameraListInfoTitle = document.getElementById('cameraListInfoTitle');
+const cameraArrivalInfoCount = document.getElementById('cameraArrivalInfoCount');
+const cameraArrivalInfoList = document.getElementById('cameraArrivalInfoList');
+const cameraListInfoToggle = document.getElementById('cameraListInfoToggle');
+let cameraListInfoCollapsed = false;
+try { cameraListInfoCollapsed = localStorage.getItem('minibar-miniapp-info-collapsed-v1') === '1'; } catch (_) {}
+function setCameraListInfoCollapsed(collapsed, persist = true) {
+  cameraListInfoCollapsed = Boolean(collapsed);
+  cameraListInfoPanel?.classList.toggle('is-collapsed', cameraListInfoCollapsed);
+  cameraInfoPanel?.classList.toggle('list-info-collapsed', cameraListInfoCollapsed);
+  if (cameraListInfoToggle) {
+    cameraListInfoToggle.setAttribute('aria-expanded', String(!cameraListInfoCollapsed));
+    cameraListInfoToggle.setAttribute('aria-label', cameraListInfoCollapsed ? 'Развернуть блок информации' : 'Свернуть блок информации');
+    cameraListInfoToggle.title = cameraListInfoCollapsed ? 'Развернуть блок информации' : 'Свернуть блок информации';
+  }
+  if (persist) {
+    try { localStorage.setItem('minibar-miniapp-info-collapsed-v1', cameraListInfoCollapsed ? '1' : '0'); } catch (_) {}
+  }
+}
+function toggleCameraListInfo() { setCameraListInfoCollapsed(!cameraListInfoCollapsed); }
+setCameraListInfoCollapsed(cameraListInfoCollapsed, false);
 const roomHistoryItems = document.getElementById('roomHistoryItems');
 const descRoomTitle = document.getElementById('descRoomTitle');
 const descRoomRemove = document.getElementById('descRoomRemove');
@@ -4247,6 +4280,7 @@ function miniGihDeriveLists() {
   }
   updateQueueDisplay();
   if (activePlaceholderName === 'Списки' && !navPlaceholderModal.classList.contains('hidden')) renderDepartureListCard();
+  renderCameraListInfo();
   renderCameraGihCard();
 }
 function miniGihUpsertRecord(check, options = {}) {
@@ -4342,6 +4376,7 @@ async function loadMiniGihList() {
     gihListRefresh.disabled = false;
     if (activePlaceholderName === 'Списки' && !navPlaceholderModal.classList.contains('hidden')) {
       renderDepartureListCard();
+  renderCameraListInfo();
     }
   }
 }
@@ -5760,6 +5795,7 @@ function buildCarousel(preferredNumber = visibleCarouselRooms()[0]?.number) {
   });
 
   carousel.appendChild(fragment);
+  renderCameraListInfo();
   sheetPeekTitle.textContent = activeListKey
     ? ('Список «' + activeListLabel() + '» · ' + rooms.length)
     : ('Показать все номера (' + ALL_ROOMS.length + ')');
@@ -5801,7 +5837,7 @@ function updatePinnedCarouselItem() {
   carouselItems.forEach((item, number) => {
     item.classList.toggle('pinned', String(number) === String(pinnedRoomNumber));
   });
-  renderCameraArrivalInfo();
+  renderCameraListInfo();
 }
 
 function updateSelectedRoomState(room, vibrate = false) {
@@ -5841,6 +5877,13 @@ function updateSelectedRoomState(room, vibrate = false) {
     : isListedGih ? 'Убрать номер из списка GIH' : 'Убрать номер из списка Выезды';
   descRoomRemove.setAttribute('aria-label', removeLabel);
   descRoomRemove.title = removeLabel;
+
+  const arrivalNotReady = activeListKey === 'arrivals' && currentArrivalNumbers().has(currentNumber) &&
+    !currentArrivalReadyNumbers().has(currentNumber);
+  captureBtn.disabled = arrivalNotReady;
+  btnEmpty.disabled = arrivalNotReady;
+  btnResidential.disabled = arrivalNotReady;
+  cameraRefillPanel.disabled = arrivalNotReady;
 
   descRoomTitle.textContent = 'Номер ' + room.number;
   const categoryLabel = normalizeRoomType(room) === 'suite' ? 'Люкс' : 'Стандарт';
@@ -6493,6 +6536,7 @@ async function saveRefillRequest() {
       await loadRoomDeadlineData(selectedRoom, true);
       renderRefillCarouselStatuses();
       renderDepartureListCard();
+  renderCameraListInfo();
       renderDrawerRooms(sheetSearch.value);
       refillModal.classList.add('hidden');
       refillModal.setAttribute('aria-hidden', 'true');
@@ -6513,6 +6557,7 @@ async function saveRefillRequest() {
       else activeRefillsByNumber.set(String(selectedRoom.number), result.request);
       renderRefillCarouselStatuses();
       renderDepartureListCard();
+  renderCameraListInfo();
       refillModal.classList.add('hidden');
       refillModal.setAttribute('aria-hidden', 'true');
       showMessage(result.request?.status === 'cancelled'
@@ -6746,16 +6791,18 @@ sheetContent.addEventListener('change', event => {
   void updateArrivalListRoom(number, field, value);
 });
 
-document.getElementById('cameraArrivalInfoList')?.addEventListener('click', event => {
-  const row = event.target.closest('[data-arrival-info-number]');
+cameraListInfoToggle?.addEventListener('click', event => {
+  event.preventDefault();
+  event.stopPropagation();
+  toggleCameraListInfo();
+});
+
+cameraArrivalInfoList?.addEventListener('click', event => {
+  const row = event.target.closest('[data-list-info-number]');
   if (!row) return;
   event.stopPropagation();
-  const number = String(row.dataset.arrivalInfoNumber || '');
-  if (carouselItems.has(number)) {
-    selectRoomByNumber(number, true, 'smooth', true);
-  } else {
-    showMessage('Сначала отметьте «Можно делать» для номера ' + number, 2300);
-  }
+  const number = String(row.dataset.listInfoNumber || '');
+  if (carouselItems.has(number)) selectRoomByNumber(number, true, 'smooth', true);
 });
 
 sheetHideUnready.addEventListener('click', () => {
@@ -6808,11 +6855,11 @@ sheetContent.addEventListener('click', event => {
   const arrivalRoomButton = event.target.closest('[data-arrival-room-select]');
   if (arrivalRoomButton) {
     const number = String(arrivalRoomButton.dataset.arrivalRoomSelect || '');
-    if (currentArrivalReadyNumbers().has(number)) {
+    if (carouselItems.has(number)) {
       selectRoomByNumber(number, true);
       closeSheet();
     } else {
-      showMessage('Сначала отметьте «Можно делать» для этого номера', 2200);
+      showMessage('Номер больше не входит в рабочий список Заезды', 2200);
     }
     return;
   }
@@ -6858,10 +6905,6 @@ sheetContent.addEventListener('click', event => {
     showMessage('Номер уже проверен сегодня и убран из рабочего списка', 2300);
     return;
   }
-  if (activeListKey === 'arrivals' && !currentArrivalReadyNumbers().has(number)) {
-    showMessage('Номер не отмечен как готовый к работе', 2000);
-    return;
-  }
   if (activeListKey === 'departures' && drawerMode === 'all' &&
       !currentDepartureNumbers().has(number)) {
     if (checkedTodayNumbers().has(number)) {
@@ -6890,6 +6933,10 @@ sheetContent.addEventListener('click', event => {
 async function takePhoto() {
   if (isCapturing || isPreview) return;
   const roomNumberAtCapture = String(selectedRoom?.number || '').trim();
+  if (activeListKey === 'arrivals' && !currentArrivalReadyNumbers().has(roomNumberAtCapture)) {
+    showMessage('Сначала отметьте «Можно делать» для номера ' + roomNumberAtCapture, 2300);
+    return;
+  }
   const refillRequestAtCapture = activeRefillsByNumber.get(roomNumberAtCapture)?.id || null;
 
   isCapturing = true;
