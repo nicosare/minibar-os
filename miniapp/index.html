@@ -2796,7 +2796,7 @@ async function updateArrivalListRoom(number, field, value) {
 
 async function addArrivalRoomToList(number) {
   const cleanNumber = String(Number(number));
-  if (!/^\\d{1,4}$/.test(cleanNumber) || !ROOM_BY_NUMBER.has(cleanNumber)) {
+  if (!/^\d{1,4}$/.test(cleanNumber) || !ROOM_BY_NUMBER.has(cleanNumber)) {
     showMessage('Такого номера нет в системе', 2400);
     return;
   }
@@ -6749,6 +6749,7 @@ sheetContent.addEventListener('change', event => {
 document.getElementById('cameraArrivalInfoList')?.addEventListener('click', event => {
   const row = event.target.closest('[data-arrival-info-number]');
   if (!row) return;
+  event.stopPropagation();
   const number = String(row.dataset.arrivalInfoNumber || '');
   if (carouselItems.has(number)) {
     selectRoomByNumber(number, true, 'smooth', true);
