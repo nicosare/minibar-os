@@ -1832,7 +1832,7 @@
   .camera-arrival-info-meta { min-width:0; overflow-wrap:anywhere; font-weight:600; }
   .camera-arrival-info-empty { color:rgba(255,255,255,.4); font-size:9px; line-height:12px; padding:3px 0; }
   @media(max-height:740px) {
-    .camera-info-panel { grid-template-rows:38px clamp(168px, 26dvh, 190px) minmax(0,1fr) 72px; gap:6px; padding:7px; }
+    .camera-info-panel { grid-template-rows:42px clamp(168px, 26dvh, 190px) minmax(0,1fr) 72px; gap:6px; padding:7px; }
     .camera-workspace-deadlines .camera-deadline-panel { min-height:0 !important; padding:6px; }
     .camera-workspace-gih { min-height:0; }
     .camera-history-section { height:72px; min-height:72px; max-height:72px; }
@@ -6838,7 +6838,9 @@ sheetContent.addEventListener('click', event => {
   const arrivalRoomButton = event.target.closest('[data-arrival-room-select]');
   if (arrivalRoomButton) {
     const number = String(arrivalRoomButton.dataset.arrivalRoomSelect || '');
-    if (carouselItems.has(number)) {
+    if (currentArrivalWorkingNumbers().has(number) && !currentArrivalReadyNumbers().has(number)) {
+      showMessage('Номер ' + number + ' ещё не отмечен как готовый к работе', 2200);
+    } else if (carouselItems.has(number)) {
       selectRoomByNumber(number, true);
       closeSheet();
     } else {
@@ -6886,6 +6888,11 @@ sheetContent.addEventListener('click', event => {
   }
   if (activeListKey === 'arrivals' && currentArrivalCheckedNumbers().has(number)) {
     showMessage('Номер уже проверен сегодня и убран из рабочего списка', 2300);
+    return;
+  }
+  if (activeListKey === 'arrivals' && currentArrivalWorkingNumbers().has(number) &&
+      !currentArrivalReadyNumbers().has(number)) {
+    showMessage('Номер ' + number + ' ещё не отмечен как готовый к работе', 2200);
     return;
   }
   if (activeListKey === 'departures' && drawerMode === 'all' &&
