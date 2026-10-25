@@ -2531,6 +2531,8 @@ function looksOperationalText(value) {
   return /^\s*\d{3,4}(?:[\s,;:/|+_-]*\d{3,4})*(?:\s+(?:опустош\p{L}*|проверен\p{L}*\s*,?\s*жилой))?(?:\s*\([^)]*\))?\s*$/iu.test(text);
 }
 
+const deliveredInternalNotificationEvents = new Map();
+
 function startServer() {
   requireConfig();
 
@@ -2541,6 +2543,44 @@ function startServer() {
           status: 'ok',
           service: 'vk-callback'
         });
+      }
+
+      if (req.method === 'POST' && req.url === '/internal/notifications') {
+        const suppliedToken = String(req.headers['x-minibar-bot-token'] || '');
+        if (!sameSecret(suppliedToken, INTERNAL_TOKEN)) {
+          return sendJson(res, 401, {ok: false, error: 'Unauthorized'});
+        }
+
+        let payload;
+        try {
+          payload = JSON.parse(await readBody(req, 256 * 1024) || '{}');
+        } catch {
+          return sendJson(res, 400, {ok: false, error: 'Invalid JSON payload'});
+        }
+
+        const eventId = String(payload.eventId || '').trim();
+        const notifications = payload.notifications;
+        if (!eventId || eventId.length > 200 || !Array.isArray(notifications) || notifications.length > 100) {
+          return sendJson(res, 400, {ok: false, error: 'Invalid notification payload'});
+        }
+
+        // Keep a short-lived idempotency cache so retries cannot send the same notice twice.
+        const now = Date.now();
+        for (const [key, timestamp] of deliveredInternalNotificationEvents) {
+          if (now - timestamp > 24 * 60 * 60 * 1000) deliveredInternalNotificationEvents.delete(key);
+        }
+        if (deliveredInternalNotificationEvents.has(eventId)) {
+          return sendJson(res, 200, {ok: true, duplicate: true});
+        }
+
+        deliveredInternalNotificationEvents.set(eventId, now);
+        try {
+          await sendDeadlineNotifications(notifications, eventId);
+          return sendJson(res, 200, {ok: true, duplicate: false});
+        } catch (error) {
+          deliveredInternalNotificationEvents.delete(eventId);
+          throw error;
+        }
       }
 
       if (req.url === '/callback') {
