@@ -1669,10 +1669,11 @@
     width:100%;
     min-width:0;
     min-height:0;
-    padding:8px 36px 8px 10px;
+    padding:8px 10px;
     align-self:stretch;
     overflow:hidden;
   }
+  .camera-info-panel > .room-description-box .desc-header { padding-right:32px; }
   .camera-workspace-deadlines {
     grid-row:2;
     grid-column:1;
@@ -2478,13 +2479,16 @@ function renderCameraArrivalInfo() {
       if (entry.empty) details.push('Опустошить');
       if (refillRequest) {
         const type = refillRoomType(refillRequest);
-        const productsText = refillRequest.allProducts || requestMatchesFullTemplate(refillRequest)
-          ? (type === 'suite' ? 'Корзинка люкс' : 'Корзинка стандарт')
-          : (refillRequest.items || []).filter(item => Number(item.qty) > 0).map(item => {
+        const requestItems = (refillRequest.items || []).filter(item => Number(item.qty) > 0);
+        const productsText = requestItems.length
+          ? requestItems.map(item => {
               const qty = Math.max(0, Number(item.qty) || 0);
               const name = String(item.name || 'Продукт');
               return qty > 1 ? name + ' × ' + qty : name;
-            }).join(', ') || 'Продукты не указаны';
+            }).join(', ')
+          : refillRequest.allProducts || requestMatchesFullTemplate(refillRequest)
+            ? (type === 'suite' ? 'Корзинка люкс' : 'Корзинка стандарт')
+            : 'Продукты не указаны';
         details.push(productsText);
       }
     }
