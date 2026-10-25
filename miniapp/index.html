@@ -692,13 +692,13 @@
     justify-content: flex-start;
     gap: 8px;
     min-height: 26px;
-    padding-left: 30px;
+    padding-right: 30px;
   }
 
   .desc-room-remove {
     z-index:4;
     position: absolute;
-    left: 0;
+    right: 0;
     top: 2px;
     transform: none;
     flex: 0 0 22px;
@@ -6138,8 +6138,8 @@ function renderDrawerRooms(filterQuery = '') {
         ? 'Список Заезды пуст. Добавьте номера на сайте.'
         : 'В списке нет доступных номеров. Добавьте номер или загрузите PDF на сайте.')
       : 'Номера не найдены') + '</div>';
-  const footerHtml = listMode
-    ? (activeListKey === 'gih' ? renderGihListProductsSection() : renderRefillSection())
+  const footerHtml = listMode && activeListKey === 'gih'
+    ? renderGihListProductsSection()
     : '';
   sheetContent.innerHTML = roomsHtml + footerHtml;
   sheetPeekTitle.textContent = hasActiveList
