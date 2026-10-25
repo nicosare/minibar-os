@@ -2983,7 +2983,7 @@ function roomNeedsRefillMarker(number) {
   const room = ROOM_BY_NUMBER.get(cleanNumber);
   return activeListKey !== 'gih' && (
     activeRefillsByNumber.has(cleanNumber) ||
-    room?.expiryStatus === 'empty' ||
+    room?.expiryStatus === 'empty'
   );
 }
 function renderRefillCarouselStatuses() {
