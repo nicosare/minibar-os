@@ -6845,7 +6845,7 @@ cameraArrivalInfoList?.addEventListener('click', event => {
   const number = String(row.dataset.listInfoNumber || '');
   if (activeListKey === 'arrivals' && currentArrivalWorkingNumbers().has(number) &&
       !currentArrivalReadyNumbers().has(number)) {
-    showMessage('Номер ' + number + ' ещё не отмечен как готовый к работе', 2200);
+    void updateArrivalListRoom(number, 'ready', true);
     return;
   }
   if (carouselItems.has(number)) selectRoomByNumber(number, true, 'smooth', true);
