@@ -1876,8 +1876,8 @@
     background:rgba(255,255,255,.035);color:rgba(255,255,255,.72);cursor:pointer;
     transition:background .15s ease,border-color .15s ease,color .15s ease;
   }
-  .camera-arrival-info-toggle svg { display:block;width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;transition:transform .18s ease; }
-  .camera-arrival-info-toggle[aria-expanded="false"] svg { transform:rotate(180deg); }
+  .camera-arrival-info-toggle svg { display:block;flex:0 0 15px;width:15px;height:15px;margin:-1px 0 0;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;transition:transform .18s ease; }
+  .camera-arrival-info-toggle[aria-expanded="false"] svg { transform:translateY(-1px) rotate(180deg); }
   .camera-arrival-info-toggle:active { background:rgba(255,255,255,.09);color:#fff; }
   .camera-arrival-info-toggle:focus-visible { outline:2px solid rgba(255,204,0,.55);outline-offset:2px; }
   .camera-arrival-info-panel.is-collapsed {
