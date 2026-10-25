@@ -1842,9 +1842,9 @@
     .camera-arrival-info-row { font-size:8px; line-height:10px; }
   }
 
-  /* Give the Sроки/GIH row roughly 1.5x more vertical space without changing camera geometry. */
+  /* Preserve original Sроки/GIH row height; keep the collapsible info panel. */
   .camera-info-panel {
-    grid-template-rows:42px clamp(252px, 37.5dvh, 297px) minmax(0,1fr) 72px;
+    grid-template-rows:42px clamp(168px, 25dvh, 198px) minmax(0,1fr) 72px;
   }
   .camera-arrival-info-toggle {
     flex:0 0 28px; width:28px; height:25px; display:inline-flex; align-items:center; justify-content:center;
@@ -1856,13 +1856,13 @@
     padding-top:4px; padding-bottom:4px; overflow:hidden;
   }
   .camera-info-panel:has(.camera-arrival-info-panel.is-collapsed) {
-    grid-template-rows:42px clamp(252px, 37.5dvh, 297px) 34px 72px;
+    grid-template-rows:42px clamp(168px, 25dvh, 198px) 34px 72px;
   }
   .camera-arrival-info-panel.is-collapsed .camera-arrival-info-list { display:none; }
   @media(max-height:740px) {
-    .camera-info-panel { grid-template-rows:42px clamp(252px, 37.5dvh, 297px) minmax(0,1fr) 72px; }
+    .camera-info-panel { grid-template-rows:42px clamp(168px, 25dvh, 198px) minmax(0,1fr) 72px; }
     .camera-info-panel:has(.camera-arrival-info-panel.is-collapsed) {
-      grid-template-rows:42px clamp(252px, 37.5dvh, 297px) 34px 72px;
+      grid-template-rows:42px clamp(168px, 25dvh, 198px) 34px 72px;
     }
   }
 </style>
