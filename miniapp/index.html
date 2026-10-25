@@ -1877,7 +1877,6 @@
     cursor:pointer;transition:background .15s ease,border-color .15s ease,color .15s ease;
   }
   .camera-arrival-info-toggle svg { display:block;width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .16s ease; }
-  .camera-arrival-info-toggle[aria-expanded="true"] { color:var(--yellow);border-color:rgba(255,204,0,.35); }
   .camera-arrival-info-toggle[aria-expanded="true"] svg { transform:rotate(180deg); }
   .camera-arrival-info-toggle:active { background:rgba(255,255,255,.09);color:#fff; }
   .camera-arrival-info-toggle:focus-visible { outline:2px solid rgba(255,204,0,.55);outline-offset:2px; }
@@ -3558,7 +3557,6 @@ function setCameraInfoCollapsed(collapsed) {
     cameraArrivalInfoToggle.setAttribute('aria-expanded', String(!cameraInfoCollapsed));
     cameraArrivalInfoToggle.setAttribute('aria-label', cameraInfoCollapsed ? 'Развернуть информацию' : 'Свернуть информацию');
     cameraArrivalInfoToggle.title = cameraInfoCollapsed ? 'Развернуть информацию' : 'Свернуть информацию';
-    cameraArrivalInfoToggle.textContent = cameraInfoCollapsed ? '⌃' : '⌄';
   }
   try { localStorage.setItem(CAMERA_INFO_COLLAPSED_KEY, cameraInfoCollapsed ? '1' : '0'); } catch (_) {}
 }
