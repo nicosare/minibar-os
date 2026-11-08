@@ -414,3 +414,9 @@ details.list-room-card.is-completed { background:#fbfcfe; }
 .list-marker-icon{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;flex:0 0 auto}
 .list-marker-icon.is-vip{color:#d97706}.list-marker-icon.is-empty{color:#dc2626}.list-marker-icon.is-ready{color:#059669}.list-marker-icon.is-deadline{color:#2563eb}.list-marker-icon.is-refill{color:#ea580c}.list-marker-icon.is-arrival{color:#7c3aed}.list-marker-icon.is-comment{color:#64748b}.list-marker-icon.is-muted{color:#94a3b8}
 .list-marker-word{font-size:11px;font-weight:700;color:#dc2626}
+
+.list-room-open { display:inline-flex; align-items:center; min-height:32px; cursor:pointer; }
+.list-room-open:active { color:var(--primary); }
+.list-empty-badge { display:inline-flex; align-items:center; margin-left:6px; padding:3px 6px; color:#0369a1; border-radius:6px; background:#e0f2fe; font-size:9px; font-weight:750; }
+.list-marker-word { display:inline-flex; align-items:center; min-height:22px; padding:3px 6px; color:#0369a1; border-radius:6px; background:#e0f2fe; font-size:9px; font-weight:750; }
+.camera-back-link { display:inline-flex; align-items:center; gap:3px; margin:0 0 8px; padding:5px 0; color:var(--primary); border:0; background:transparent; font-size:11px; font-weight:700; }
