@@ -3,6 +3,7 @@ import { getState } from '../core/store.js';
 import { icon } from '../components/icons.js';
 
 let stream = null;
+let videoTrack = null;
 let selectedNumber = '';
 let rooms = [];
 let activeRefills = [];
@@ -23,6 +24,12 @@ let statusToken = 0;
 let cameraStarting = false;
 let torchSupported = false;
 let torchEnabled = false;
+let orientationPermissionAsked = false;
+let orientationPermissionPromise = null;
+let currentDeviceAngle = 0;
+let lastSensorOrientationAt = 0;
+let hasSensorOrientation = false;
+let hasMotionOrientation = false;
 
 const $ = id => document.getElementById(id);
 const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, char => ({
@@ -33,6 +40,71 @@ const productColors = {
   purple:'#f3e8ff', emerald:'#d1fae5', rose:'#ffe4e6', orange:'#ffedd5', slate:'#e2e8f0'
 };
 const categoryOrder = ['Дверца','Напитки','Алкоголь','Соки'];
+
+function ensureOrientationSensorPermission() {
+  if (orientationPermissionAsked) return orientationPermissionPromise || Promise.resolve('denied');
+  orientationPermissionAsked = true;
+  try {
+    if (typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+      orientationPermissionPromise = DeviceOrientationEvent.requestPermission().catch(()=>'denied');
+    } else orientationPermissionPromise = Promise.resolve('granted');
+  } catch (_) { orientationPermissionPromise = Promise.resolve('denied'); }
+  return orientationPermissionPromise;
+}
+function normalizeAngle(angle) { return ((Number(angle)%360)+360)%360; }
+function updateOrientationFromScreen() {
+  if (hasSensorOrientation) return;
+  let angle = null;
+  if (window.screen?.orientation && typeof window.screen.orientation.angle === 'number') angle = normalizeAngle(window.screen.orientation.angle);
+  else if (typeof window.orientation === 'number') angle = normalizeAngle(window.orientation);
+  else if (window.innerWidth > window.innerHeight) angle = 90;
+  if (angle !== null && [0,90,180,270].includes(angle)) currentDeviceAngle = angle;
+}
+function applyGravityOrientation(x,y,fromMotion=false) {
+  if (!Number.isFinite(x)||!Number.isFinite(y)) return;
+  const ax=Math.abs(x), ay=Math.abs(y);
+  if (Math.max(ax,ay)<5.5 || Math.min(ax,ay)>Math.max(ax,ay)*.72) return;
+  const next=ay>ax ? (y>=0?0:180) : (x>=0?90:270);
+  if (fromMotion) hasMotionOrientation=true;
+  if (next===currentDeviceAngle) return;
+  currentDeviceAngle=next; hasSensorOrientation=true; lastSensorOrientationAt=Date.now();
+}
+function updateOrientationFromMotion(event) {
+  const gravity=event.accelerationIncludingGravity;
+  if (gravity) applyGravityOrientation(gravity.x,gravity.y,true);
+}
+function updateOrientationFromSensor(beta,gamma) {
+  if (hasMotionOrientation || !Number.isFinite(beta) || !Number.isFinite(gamma)) return;
+  const bp=Math.sin(beta*Math.PI/180), gp=Math.sin(gamma*Math.PI/180);
+  const ab=Math.abs(bp), ag=Math.abs(gp);
+  if (Math.max(ab,ag)<.62) return;
+  let next=null;
+  if (ab>ag*1.25) next=bp>=0?0:180;
+  else if (ag>ab*1.25) next=gp>0?90:270;
+  if (next===null || next===currentDeviceAngle) return;
+  currentDeviceAngle=next; hasSensorOrientation=true; lastSensorOrientationAt=Date.now();
+}
+function getPhysicalDeviceAngle() {
+  if (hasMotionOrientation || hasSensorOrientation) return currentDeviceAngle;
+  updateOrientationFromScreen();
+  return currentDeviceAngle;
+}
+function getCaptureOrientationAngle(sourceWidth,sourceHeight) {
+  const angle=getPhysicalDeviceAngle();
+  if (sourceWidth>sourceHeight) {
+    if (angle===90) return 180;
+    if (angle===270) return 0;
+    return angle;
+  }
+  return normalizeAngle(angle);
+}
+function syncOrientationFromScreen() { updateOrientationFromScreen(); }
+window.addEventListener('orientationchange',syncOrientationFromScreen);
+window.screen?.orientation?.addEventListener?.('change',syncOrientationFromScreen);
+if (window.DeviceMotionEvent) window.addEventListener('devicemotion',updateOrientationFromMotion,true);
+if (window.DeviceOrientationEvent) window.addEventListener('deviceorientation',event=>updateOrientationFromSensor(event.beta,event.gamma),true);
+updateOrientationFromScreen();
 
 function sourceData() {
   const state = getState();
@@ -288,6 +360,7 @@ function showNotice(message, isError = false) {
 function stopCamera() {
   torchEnabled = false;
   torchSupported = false;
+  videoTrack = null;
   const flash = $('cameraFlash');
   if (flash) { flash.classList.remove('is-on'); flash.setAttribute('aria-pressed','false'); }
   if (stream) {
@@ -341,33 +414,21 @@ async function startCamera() {
   showLoader('Подключаем камеру…','Подготовка видоискателя');
   try {
     if (!navigator.mediaDevices?.getUserMedia) throw new Error('Камера недоступна в этом браузере');
-    const constraints = {
+    stream = await navigator.mediaDevices.getUserMedia({
       audio:false,
-      video:{
-        facingMode:{ ideal:'environment' },
-        width:{ ideal:1440 },
-        height:{ ideal:1920 },
-        aspectRatio:{ ideal:0.75 }
-      }
-    };
-    try {
-      stream = await navigator.mediaDevices.getUserMedia(constraints);
-    } catch (_) {
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio:false, video:{ facingMode:{ ideal:'environment' } }
-      });
-    }
+      video:{ facingMode:{ ideal:'environment' }, width:{ ideal:1920 }, height:{ ideal:1440 } }
+    });
     if (!mounted) { stream.getTracks().forEach(track=>track.stop()); stream=null; return; }
     const video = $('cameraVideo');
     if (!video) throw new Error('Не найден видоискатель камеры');
+    videoTrack = stream.getVideoTracks()[0] || null;
+    if (!videoTrack) throw new Error('Камера не вернула видеопоток');
     video.srcObject = stream;
     await video.play();
     await waitForVideo(video);
-    video.classList.toggle('is-portrait-rotated',video.videoWidth > video.videoHeight);
     $('cameraStage')?.classList.add('is-live');
-    const track = stream.getVideoTracks()[0];
-    const capabilities = track?.getCapabilities?.();
-    torchSupported = Boolean(capabilities?.torch);
+    const capabilities = videoTrack?.getCapabilities?.();
+    torchSupported = capabilities?.torch === true;
     torchEnabled = false;
     const flash = $('cameraFlash');
     if (flash) {
@@ -376,6 +437,10 @@ async function startCamera() {
       flash.setAttribute('aria-label',torchSupported?'Включить вспышку':'Вспышка недоступна');
       flash.title = torchSupported?'Включить вспышку':'Устройство не поддерживает управление вспышкой';
     }
+    try {
+      const focusModes = Array.isArray(capabilities?.focusMode) ? capabilities.focusMode : [];
+      if (focusModes.includes('continuous')) await videoTrack.applyConstraints({advanced:[{focusMode:'continuous'}]});
+    } catch (_) {}
     hideLoader();
   } catch (error) {
     stopCamera();
@@ -387,8 +452,8 @@ async function startCamera() {
   }
 }
 async function toggleFlash() {
-  if (!stream || !torchSupported || captureBusy) return;
-  const track = stream.getVideoTracks()[0];
+  if (!videoTrack || !torchSupported || captureBusy) return;
+  const track = videoTrack;
   const next = !torchEnabled;
   try {
     await track.applyConstraints({ advanced:[{ torch:next }] });
@@ -404,89 +469,75 @@ async function toggleFlash() {
     showNotice('Не удалось переключить вспышку на этом устройстве',true);
   }
 }
-async function normalizePortraitPhoto(blob) {
-  if (typeof createImageBitmap !== 'function') return blob;
-  let bitmap;
-  try { bitmap = await createImageBitmap(blob); } catch (_) { return blob; }
-  if (bitmap.height >= bitmap.width) { bitmap.close?.(); return blob; }
-  const canvas = document.createElement('canvas');
-  canvas.width = bitmap.height;
-  canvas.height = bitmap.width;
-  const context = canvas.getContext('2d',{alpha:false});
-  context.translate(canvas.width,0);
-  context.rotate(Math.PI/2);
-  context.drawImage(bitmap,0,0);
-  bitmap.close?.();
-  const rotated = await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.9));
-  return rotated || blob;
+function drawSourceToCanvas(source,srcW,srcH,angle=0) {
+  if (!srcW || !srcH) throw new Error('Камера не передала изображение');
+  angle=normalizeAngle(angle);
+  const quarter=angle===90||angle===270;
+  const canvas=$('cameraCanvas');
+  canvas.width=quarter?srcH:srcW;
+  canvas.height=quarter?srcW:srcH;
+  const ctx=canvas.getContext('2d',{alpha:false});
+  if (!ctx) throw new Error('Не удалось подготовить снимок');
+  ctx.save();
+  if(angle===90){ctx.translate(srcH,0);ctx.rotate(Math.PI/2);}
+  else if(angle===180){ctx.translate(srcW,srcH);ctx.rotate(Math.PI);}
+  else if(angle===270){ctx.translate(0,srcW);ctx.rotate(-Math.PI/2);}
+  ctx.drawImage(source,0,0,srcW,srcH);
+  ctx.restore();
 }
-async function makeFallbackPhoto(video) {
-  await waitForVideo(video);
-  const sourceWidth = video.videoWidth;
-  const sourceHeight = video.videoHeight;
-  const rotate = sourceWidth > sourceHeight;
-  const outputWidth = rotate ? sourceHeight : sourceWidth;
-  const outputHeight = rotate ? sourceWidth : sourceHeight;
-  const scale = Math.min(1,1920 / Math.max(outputWidth,outputHeight));
-  const width = Math.max(1,Math.round(outputWidth * scale));
-  const height = Math.max(1,Math.round(outputHeight * scale));
-  const canvas = $('cameraCanvas');
-  canvas.width = width;
-  canvas.height = height;
-  const context = canvas.getContext('2d',{alpha:false});
-  if (rotate) {
-    context.translate(width,0);
-    context.rotate(Math.PI/2);
-    context.drawImage(video,0,0,height,width);
-  } else {
-    context.drawImage(video,0,0,width,height);
-  }
-  const blob = await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.86));
-  if (!blob) throw new Error('Не удалось подготовить снимок');
+function waitForVideoFrame() {
+  const video=$('cameraVideo');
+  return new Promise(resolve=>{
+    if(typeof video.requestVideoFrameCallback==='function') video.requestVideoFrameCallback(()=>resolve());
+    else requestAnimationFrame(()=>requestAnimationFrame(resolve));
+  });
+}
+async function encodeCanvasPhoto() {
+  const canvas=$('cameraCanvas');
+  if(!canvas.width||!canvas.height) throw new Error('Не удалось подготовить снимок');
+  const maxEdge=1600;
+  const scale=Math.min(1,maxEdge/Math.max(canvas.width,canvas.height));
+  const upload=document.createElement('canvas');
+  upload.width=Math.max(1,Math.round(canvas.width*scale));
+  upload.height=Math.max(1,Math.round(canvas.height*scale));
+  const ctx=upload.getContext('2d',{alpha:false});
+  if(!ctx) throw new Error('Не удалось подготовить снимок');
+  ctx.drawImage(canvas,0,0,upload.width,upload.height);
+  const blob=await new Promise(resolve=>upload.toBlob(resolve,'image/jpeg',.82));
+  if(!blob||!blob.size) throw new Error('Не удалось подготовить снимок');
   return blob;
 }
 async function capturePhoto() {
   if (captureBusy || photoBlob || isArrivalNotReady(roomByNumber(selectedNumber))) {
-    if (isArrivalNotReady(roomByNumber(selectedNumber))) showNotice('Сначала отметь «Можно делать» для этого номера', true);
+    if (isArrivalNotReady(roomByNumber(selectedNumber))) showNotice('Сначала отметь «Можно делать» для этого номера',true);
     return;
   }
   if (!stream) await startCamera();
-  if (!stream) return;
-  const roomNumber = String(selectedNumber);
-  captureBusy = true;
+  if (!stream || !videoTrack) return;
+  captureBusy=true;
   updateActionAvailability();
-  const shutter = $('cameraCapture');
+  const shutter=$('cameraCapture');
   shutter?.classList.add('is-capturing');
   try {
-    const track = stream.getVideoTracks()[0];
-    let blob = null;
-    if (typeof window.ImageCapture === 'function' && track) {
-      try {
-        const capture = new window.ImageCapture(track);
-        blob = await capture.takePhoto();
-      } catch (_) {}
-    }
-    if (!blob) {
-      const video = $('cameraVideo');
-      if (!video?.videoWidth) throw new Error('Камера ещё не готова. Попробуй через секунду.');
-      blob = await makeFallbackPhoto(video);
-    }
-    blob = await normalizePortraitPhoto(blob);
-    photoBlob = blob;
-    photoRandomId = String(Math.floor(Math.random()*2147483646)+1);
-    photoUrl = URL.createObjectURL(blob);
-    const preview = $('cameraPreviewImage');
-    preview.src = photoUrl;
-    $('cameraPreviewRoom').textContent = 'Номер ' + roomNumber;
+    await (orientationPermissionPromise || Promise.resolve());
+    await waitForVideoFrame();
+    const video=$('cameraVideo');
+    drawSourceToCanvas(video,video.videoWidth,video.videoHeight,getCaptureOrientationAngle(video.videoWidth,video.videoHeight));
+    const blob=await encodeCanvasPhoto();
+    photoBlob=blob;
+    photoRandomId=String(Math.floor(Math.random()*2147483646)+1);
+    photoUrl=URL.createObjectURL(blob);
+    $('cameraPreviewImage').src=photoUrl;
+    $('cameraPreviewRoom').textContent='Номер '+String(selectedNumber);
     $('cameraPreviewModal').classList.remove('hidden');
     $('cameraPreviewModal').setAttribute('aria-hidden','false');
     $('cameraCarouselWrap').classList.add('is-disabled');
     $('cameraStage').classList.add('is-preview');
-  } catch (error) {
-    showNotice(error.message || 'Не удалось сделать снимок',true);
+  } catch(error) {
+    showNotice(error.message||'Не удалось сделать снимок',true);
   } finally {
     shutter?.classList.remove('is-capturing');
-    captureBusy = false;
+    captureBusy=false;
     updateActionAvailability();
   }
 }
@@ -723,7 +774,7 @@ function handleClick(event) {
     if (target.id === 'cameraPreviewModal') closePreview();
     return;
   }
-  if (action === 'capture') void capturePhoto();
+  if (action === 'capture') { void ensureOrientationSensorPermission(); void capturePhoto(); }
   else if (action === 'flash') void toggleFlash();
   else if (action === 'retry-camera') { hideLoader(); void startCamera(); }
   else if (action === 'retake') closePreview();
