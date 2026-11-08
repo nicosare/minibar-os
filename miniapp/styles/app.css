@@ -730,7 +730,7 @@ html[data-screen="camera"] .screen-camera {
   gap:5px;
   overflow-x:hidden;
   overflow-y:auto;
-  padding:calc(50% - 25px) 0;
+  padding:calc((min(55dvh,460px) - 49px) / 2) 0;
   scrollbar-width:none;
   scroll-snap-type:y mandatory;
   overscroll-behavior-y:contain;
@@ -836,6 +836,7 @@ html[data-screen="camera"] .screen-camera {
   .camera-workspace { gap:7px; }
   .camera-viewport { width:min(calc(100vw - 92px),330px,calc(50dvh * .75)); max-height:50dvh; }
   .camera-carousel-wrap { width:50px; flex-basis:50px; height:min(50dvh,390px); }
+  .camera-carousel { padding:calc((min(50dvh,390px) - 49px) / 2) 0; }
   .camera-action-row { gap:5px; }
   .camera-room-action { min-height:38px; font-size:9px; }
   .camera-capture-zone { min-height:57px; flex-basis:57px; }
