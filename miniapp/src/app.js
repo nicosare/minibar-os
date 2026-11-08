@@ -1,6 +1,7 @@
 import { getState, setState, subscribe } from './core/store.js';
 import { initializeVkApp } from './core/vk.js';
 import { renderTopbar, renderBottomNav } from './components/chrome.js';
+import { renderIcons } from './components/icons.js';
 import { renderToday } from './screens/today.js';
 import { renderLists } from './screens/lists.js';
 import { renderCamera } from './screens/camera.js';
@@ -19,6 +20,7 @@ function render() {
   topbar.innerHTML = renderTopbar();
   main.innerHTML = renderers[screen](state);
   bottomNav.innerHTML = renderBottomNav({ ...state, screen });
+  renderIcons();
   document.documentElement.dataset.screen = screen;
   main.scrollTop = 0;
 }
