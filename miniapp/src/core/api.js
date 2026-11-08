@@ -1,7 +1,8 @@
 const API_BASE = '/minibar-os/api';
 
 export async function apiRequest(path, options = {}) {
-  const endpoint = String(path || '').replace(/^\\/+/, '');
+  let endpoint = String(path || '');
+  while (endpoint.startsWith('/')) endpoint = endpoint.slice(1);
   const headers = new Headers(options.headers || {});
   headers.set('Accept', 'application/json');
   headers.set('X-Timezone-Offset', String(new Date().getTimezoneOffset()));
