@@ -710,3 +710,19 @@ html[data-screen="camera"] .screen-camera { position:relative; }
   border-radius:9px;
   background:#111c2e;
 }
+
+
+.camera-flash {
+  width:auto;
+  min-width:39px;
+  height:39px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:0 10px;
+}
+.camera-flash span { color:inherit; font-size:9px; line-height:1; font-weight:750; white-space:nowrap; }
+.camera-room-markers { gap:2px; }
+.camera-room-marker { width:9px; height:9px; }
+.camera-room-marker svg { width:9px; height:9px; }
