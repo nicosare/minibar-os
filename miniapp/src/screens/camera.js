@@ -273,6 +273,10 @@ async function loadRoomHistory(number = selectedNumber) {
         productId:Number(item.productId), name:item.product?.name || item.name || 'Продукт',
         expiryStatus:item.expiryStatus || 'ok', qtyToReplace:Number(item.qtyToReplace) || 0
       }));
+      const baseRoom = rooms.find(item => Number(item.id) === Number(room.id));
+      if (baseRoom) baseRoom.productStatuses = room.productStatuses;
+      const listRoom = sourceData().data?.roomInfo?.[String(room.number)];
+      if (listRoom) listRoom.productStatuses = room.productStatuses;
       renderStandby();
     }
     renderHistory();
@@ -324,6 +328,7 @@ function stopCamera() {
     video.pause?.();
     video.srcObject = null;
   }
+  $('cameraStage')?.classList.remove('is-live');
 }
 function showLoader(title, subtitle, error = false) {
   const loader = $('cameraLoader');
@@ -357,7 +362,7 @@ async function waitForVideo(video) {
     video.addEventListener('loadedmetadata', done, { once:true });
   });
 }
-async function capturePhoto() {
+async async function capturePhoto() {
   if (captureBusy || photoBlob || isArrivalNotReady(roomByNumber(selectedNumber))) {
     if (isArrivalNotReady(roomByNumber(selectedNumber))) showNotice('Сначала отметь «Можно делать» для этого номера', true);
     return;
@@ -414,7 +419,7 @@ function closePreview(force = false) {
   hideLoader();
   updateActionAvailability();
 }
-async function sendPhoto() {
+async async function sendPhoto() {
   if (!photoBlob || !selectedNumber || captureBusy) return;
   captureBusy = true;
   const number = String(selectedNumber);
@@ -588,7 +593,7 @@ async function saveRefill() {
     updateActionAvailability();
   }
 }
-async function markRoomEmpty() {
+async async function markRoomEmpty() {
   const room = roomByNumber(selectedNumber);
   if (!room.id || refillBusy) return;
   refillBusy = true;
@@ -599,7 +604,8 @@ async function markRoomEmpty() {
     if (list?.roomInfo?.[String(room.number)]) list.roomInfo[String(room.number)].expiryStatus = 'empty';
     const baseRoom = rooms.find(item => Number(item.id) === Number(room.id));
     if (baseRoom) baseRoom.expiryStatus = 'empty';
-    closeRefillModal();
+    $('refillModal')?.classList.add('hidden');
+    $('refillModal')?.setAttribute('aria-hidden','true');
     renderStandby();
     renderCarousel();
     showNotice('Номер отмечен как пустой');
