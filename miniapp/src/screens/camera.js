@@ -134,7 +134,7 @@ function renderStandby() {
   const refill = activeRefill(room);
   const entry = listEntry(room.number);
   const deadlineClass = room.expiryStatus === 'empty' ? 'is-empty'
-    : room.expiryStatus === 'needs_replacement' || room.productStatuses?.length ? 'is-deadline' : '';
+    : room.expiryStatus === 'needs_replacement' || (room.productStatuses || []).some(item => item.expiryStatus === 'needs_replacement' || Number(item.qtyToReplace) > 0) ? 'is-deadline' : '';
   const summary = refillDescription(refill);
   const { type } = sourceData();
   const listTitle = type === 'arrivals' ? 'Заезды' : 'Выезды';
@@ -157,7 +157,6 @@ function renderStandby() {
           '<strong>' + summary + '</strong>' +
         '</section>' +
       '</div>' +
-      (entry.comment ? '<div class="camera-info-comment-line">' + icon('message-square',13) + '<span>' + esc(entry.comment) + '</span></div>' : '') +
     '</section>';
   renderIcons();
 }
