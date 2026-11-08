@@ -7,7 +7,7 @@ export function pageHeader({ eyebrow = '', title, description = '' }) {
 
 export function renderTopbar() {
   return '<div class="topbar-brand"><span class="brand-mark">' + icon('brand', 22) +
-    '</span><span class="brand-name">MINIBAR <strong>OS</strong></span></div><span class="topbar-caption">Рабочее пространство</span>';
+    '</span><span class="brand-name">MINIBAR <strong>OS</strong></span></div>';
 }
 
 const navItems = [
