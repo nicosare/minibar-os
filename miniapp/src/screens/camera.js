@@ -120,7 +120,6 @@ function renderStatusChips(room) {
   if (type === 'departures' && (getState().listData?.departures?.arrivalRooms || []).map(String).includes(String(room.number))) {
     chips.push('<span class="camera-info-chip is-arrival">На заезд</span>');
   }
-  if (entry.comment) chips.push('<span class="camera-info-comment">' + icon('message-square',12) + ' ' + esc(entry.comment) + '</span>');
   return chips.join('');
 }
 function renderStandby() {
@@ -137,7 +136,7 @@ function renderStandby() {
   const refill = activeRefill(room);
   const entry = listEntry(room.number);
   const deadlineClass = room.expiryStatus === 'empty' ? 'is-empty'
-    : room.expiryStatus === 'needs_replacement' || room.productStatuses?.length ? 'is-deadline' : '';
+    : room.expiryStatus === 'needs_replacement' || (room.productStatuses || []).some(p => p.expiryStatus === 'needs_replacement' || Number(p.qtyToReplace) > 0) ? 'is-deadline' : '';
   const summary = refillDescription(refill);
   const { type } = sourceData();
   const listTitle = type === 'arrivals' ? 'Заезды' : 'Выезды';
@@ -197,7 +196,6 @@ function renderCarousel() {
     const checked = (getState().listData?.[getState().cameraSourceListType || getState().listType]?.checkedRoomNumbers ||
       getState().listData?.[getState().cameraSourceListType || getState().listType]?.completedNumbers || []).map(String).includes(String(number));
     if (checked) classes.push('is-checked');
-    const entry = listEntry(number);
     const marks = [];
     if (entry.vip) marks.push('<span class="camera-number-mark is-vip" title="VIP">' + icon('crown',10) + '</span>');
     if (empty) marks.push('<span class="camera-number-mark is-empty" title="Опустошён">' + icon('package-x',10) + '</span>');
