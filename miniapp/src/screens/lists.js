@@ -399,7 +399,7 @@ export function handleListClick(event) {
   const target = event.target instanceof Element ? event.target : null;
   if (!target) return false;
 
-  const tab = target.closest('[data-list-type]');
+  const tab = target.closest('[data-list-type][role="tab"]');
   if (tab) {
     event.preventDefault();
     const type = tab.dataset.listType;

@@ -15,6 +15,7 @@ if (!topbar || !main || !bottomNav) throw new Error('Не найдена обо�
 
 const renderers = { today: renderToday, lists: renderLists, camera: renderCamera, rooms: renderRooms, more: renderMore };
 let renderedScreen = null;
+let renderedListType = null;
 
 function render() {
   const state = getState();
@@ -25,9 +26,10 @@ function render() {
   bottomNav.innerHTML = renderBottomNav({ ...state, screen });
   renderIcons();
   document.documentElement.dataset.screen = screen;
-  if (screen !== renderedScreen) main.scrollTop = 0;
+  if (screen !== renderedScreen || (screen === 'lists' && state.listType !== renderedListType)) main.scrollTop = 0;
   else main.scrollTop = scrollTop;
   renderedScreen = screen;
+  renderedListType = state.listType;
 }
 
 initializeLists();
