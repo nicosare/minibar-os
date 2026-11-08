@@ -164,6 +164,8 @@ function renderStandby() {
 function updateActionAvailability() {
   const room = roomByNumber(selectedNumber);
   const disabled = !room.id || isArrivalNotReady(room) || captureBusy || refillBusy;
+  const shutter = $('cameraCapture');
+  if (shutter) shutter.disabled = disabled || cameraStarting || !stream;
   ['cameraActionEmpty','cameraActionRefill','cameraActionResidential','cameraCapture'].forEach(id => {
     const button = $(id);
     if (button) button.disabled = disabled;
