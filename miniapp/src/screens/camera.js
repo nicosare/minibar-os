@@ -454,18 +454,6 @@ function clearPhoto() {
   if (photoUrl) URL.revokeObjectURL(photoUrl);
   photoUrl = '';
 }
-async function waitForVideo(video) {
-  if (video.videoWidth && video.videoHeight) return;
-  await new Promise((resolve,reject) => {
-    const timeout = setTimeout(() => reject(new Error('Камера не передала изображение')), 5000);
-    const done = () => {
-      clearTimeout(timeout);
-      video.removeEventListener('loadedmetadata', done);
-      resolve();
-    };
-    video.addEventListener('loadedmetadata', done, { once:true });
-  });
-}
 async function capturePhoto() {
   const roomNumber = String(selectedNumber);
   if (captureBusy || photoBlob || !roomNumber || isArrivalNotReady(roomByNumber(roomNumber))) {
