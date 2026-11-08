@@ -232,7 +232,7 @@ function setSelectedRoom(number, options = {}) {
   updateActionAvailability();
   if (changed) void loadRoomStatus(next);
 }
-async async function loadRoomStatus(number = selectedNumber) {
+async function loadRoomStatus(number = selectedNumber) {
   const room = roomByNumber(number);
   const token = ++statusToken;
   if (!room.id) return;
@@ -286,6 +286,8 @@ function showNotice(message, isError = false) {
 function stopCamera() {
   torchEnabled = false;
   torchSupported = false;
+  const flash = $('cameraFlash');
+  if (flash) { flash.classList.remove('is-on'); flash.setAttribute('aria-pressed','false'); }
   if (stream) {
     stream.getTracks().forEach(track => {
       try { track.stop(); } catch (_) {}
@@ -399,6 +401,24 @@ async function toggleFlash() {
     showNotice('Не удалось переключить вспышку на этом устройстве',true);
   }
 }
+async function normalizePortraitPhoto(blob) {
+  const portrait = screen.orientation?.type?.startsWith('portrait') ??
+    window.matchMedia?.('(orientation: portrait)').matches ?? true;
+  if (!portrait || typeof createImageBitmap !== 'function') return blob;
+  let bitmap;
+  try { bitmap = await createImageBitmap(blob); } catch (_) { return blob; }
+  if (bitmap.height >= bitmap.width) { bitmap.close?.(); return blob; }
+  const canvas = document.createElement('canvas');
+  canvas.width = bitmap.height;
+  canvas.height = bitmap.width;
+  const context = canvas.getContext('2d',{alpha:false});
+  context.translate(canvas.width,0);
+  context.rotate(Math.PI/2);
+  context.drawImage(bitmap,0,0);
+  bitmap.close?.();
+  const rotated = await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.9));
+  return rotated || blob;
+}
 async function makeFallbackPhoto(video) {
   await waitForVideo(video);
   const sourceWidth = video.videoWidth;
@@ -450,6 +470,7 @@ async function capturePhoto() {
       if (!video?.videoWidth) throw new Error('Камера ещё не готова. Попробуй через секунду.');
       blob = await makeFallbackPhoto(video);
     }
+    blob = await normalizePortraitPhoto(blob);
     photoBlob = blob;
     photoRandomId = String(Math.floor(Math.random()*2147483646)+1);
     photoUrl = URL.createObjectURL(blob);
@@ -703,7 +724,7 @@ function handleClick(event) {
   }
   if (action === 'capture') void capturePhoto();
   else if (action === 'flash') void toggleFlash();
-  else if (action === 'retry-camera') { hideLoader(); void capturePhoto(); }
+  else if (action === 'retry-camera') { hideLoader(); void startCamera(); }
   else if (action === 'retake') closePreview();
   else if (action === 'send-photo') void sendPhoto();
   else if (action === 'empty') void sendRoomMessage('опустошён','Опустошение отправлено');
@@ -729,7 +750,7 @@ function attachCarouselScroll(carousel = $('cameraCarousel')) {
       let best = null, distance = Infinity;
       carousel.querySelectorAll('[data-camera-room]').forEach(item => {
         const box = item.getBoundingClientRect();
-        const delta = Math.abs(box.left + box.width/2 - center);
+        const delta = Math.abs(box.top + box.height/2 - center);
         if (delta < distance) { distance=delta; best=item; }
       });
       if (best && best.dataset.cameraRoom !== selectedNumber) setSelectedRoom(best.dataset.cameraRoom);
