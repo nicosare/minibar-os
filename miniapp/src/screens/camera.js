@@ -4,6 +4,8 @@ import { icon, renderIcons } from '../components/icons.js';
 
 let stream = null;
 let videoTrack = null, torchSupported = false, flashOn = false, deviceAngle = 0, sensorAngleReady = false;
+let orientationPermissionPromise = null;
+let orientationPermissionGranted = false;
 let selectedNumber = '';
 let rooms = [];
 let activeRefills = [];
@@ -283,6 +285,21 @@ async function toggleFlash(){
   try{await videoTrack.applyConstraints({advanced:[{torch:!flashOn}]});flashOn=!flashOn;updateFlashControl();}
   catch(_){showNotice('Вспышка недоступна на этом устройстве',true);}
 }
+function requestOrientationPermission(){
+  if(orientationPermissionGranted)return Promise.resolve(true);
+  if(orientationPermissionPromise)return orientationPermissionPromise;
+  const Orientation=window.DeviceOrientationEvent;
+  const Motion=window.DeviceMotionEvent;
+  const request=typeof Orientation?.requestPermission==='function'
+    ? Orientation.requestPermission.bind(Orientation)
+    : typeof Motion?.requestPermission==='function' ? Motion.requestPermission.bind(Motion) : null;
+  if(!request){orientationPermissionGranted=true;return Promise.resolve(true);}
+  orientationPermissionPromise=request().then(result=>{
+    orientationPermissionGranted=result==='granted';
+    return orientationPermissionGranted;
+  }).catch(()=>false).finally(()=>{orientationPermissionPromise=null;});
+  return orientationPermissionPromise;
+}
 function updatePhysicalAngle(e){
   const g=e?.accelerationIncludingGravity;
   if(g&&Number.isFinite(g.x)&&Number.isFinite(g.y)){
@@ -372,6 +389,7 @@ async function capturePhoto(){
   if(!stream||!v||v.readyState<2||!v.videoWidth){await startCamera();if(!stream||!v?.videoWidth){showNotice('Камера ещё не готова. Попробуй снова.',true);return;}}
   captureBusy=true;updateActionAvailability();
   try{
+    await requestOrientationPermission();
     const canvas=$('cameraCanvas'),w=v.videoWidth,h=v.videoHeight,angle=currentDeviceAngle(),base=w>h?90:0,rot=((angle-base)%360+360)%360,quarter=rot===90||rot===270;
     canvas.width=quarter?h:w;canvas.height=quarter?w:h;
     const ctx=canvas.getContext('2d',{alpha:false});if(!ctx)throw new Error('Не удалось подготовить снимок');
@@ -705,7 +723,7 @@ export function renderCamera(state) {
 export function cameraDidRender() {
   bind();
   if(mounted){const v=$('cameraVideo');if(v&&stream){v.srcObject=stream;v.play().catch(()=>{});$('cameraStage')?.classList.add('is-live');}renderCarousel();renderStandby();updateFlashControl();return;}
-  mounted=true;void loadCameraData();renderCarousel();renderStandby();void startCamera();
+  mounted=true;void requestOrientationPermission();void loadCameraData();renderCarousel();renderStandby();void startCamera();
 }
 export function cameraWillUnmount() {
   mounted = false;
