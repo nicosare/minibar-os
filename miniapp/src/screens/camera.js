@@ -164,12 +164,12 @@ function renderStandby() {
 function updateActionAvailability() {
   const room = roomByNumber(selectedNumber);
   const disabled = !room.id || isArrivalNotReady(room) || captureBusy || refillBusy;
-  const shutter = $('cameraCapture');
-  if (shutter) shutter.disabled = disabled || cameraStarting || !stream;
-  ['cameraActionEmpty','cameraActionRefill','cameraActionResidential','cameraCapture'].forEach(id => {
+  ['cameraActionEmpty','cameraActionRefill','cameraActionResidential'].forEach(id => {
     const button = $(id);
     if (button) button.disabled = disabled;
   });
+  const shutter = $('cameraCapture');
+  if (shutter) shutter.disabled = disabled || cameraStarting || !stream;
 }
 function renderCarousel() {
   const host = $('cameraCarousel');
@@ -425,7 +425,8 @@ async function makeFallbackPhoto(video) {
   await waitForVideo(video);
   const sourceWidth = video.videoWidth;
   const sourceHeight = video.videoHeight;
-  const rotate = sourceWidth > sourceHeight && screen.orientation?.type?.startsWith('portrait');
+  const portrait = screen.orientation?.type?.startsWith('portrait') ?? window.matchMedia?.('(orientation: portrait)').matches ?? true;
+  const rotate = sourceWidth > sourceHeight && portrait;
   const outputWidth = rotate ? sourceHeight : sourceWidth;
   const outputHeight = rotate ? sourceWidth : sourceHeight;
   const scale = Math.min(1,1920 / Math.max(outputWidth,outputHeight));
