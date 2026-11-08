@@ -596,6 +596,7 @@ function handleClick(event) {
     return;
   }
   if (action === 'capture') void capturePhoto();
+  else if (action === 'toggle-flash') void toggleFlash();
   else if (action === 'retry-camera') { hideLoader(); void capturePhoto(); }
   else if (action === 'retake') closePreview();
   else if (action === 'send-photo') void sendPhoto();
@@ -662,7 +663,7 @@ export function renderCamera(state) {
 }
 export function cameraDidRender() {
   bind();
-  if(mounted){const v=$('cameraVideo');if(v&&stream){v.srcObject=stream;v.play().catch(()=>{});}renderCarousel();renderStandby();updateFlashControl();return;}
+  if(mounted){const v=$('cameraVideo');if(v&&stream){v.srcObject=stream;v.play().catch(()=>{});$('cameraStage')?.classList.add('is-live');}renderCarousel();renderStandby();updateFlashControl();return;}
   mounted=true;void loadCameraData();renderCarousel();renderStandby();void startCamera();
 }
 export function cameraWillUnmount() {
