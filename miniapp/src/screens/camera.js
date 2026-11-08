@@ -187,7 +187,8 @@ function renderCarousel() {
     const refill = activeRefill(room);
     const classes = ['camera-number-item'];
     if (String(number) === String(selectedNumber)) classes.push('is-active');
-    const empty = room.expiryStatus === 'empty';
+    const entry = listEntry(number);
+    const empty = room.expiryStatus === 'empty' || Boolean(entry.empty);
     const needsDeadline = room.expiryStatus === 'needs_replacement' || (room.productStatuses || []).some(p => p.expiryStatus === 'needs_replacement' || Number(p.qtyToReplace) > 0);
     const needsRefill = Boolean(refill?.items?.length);
     if (empty) classes.push('is-empty');
