@@ -75,7 +75,7 @@ jobs:
           contains(toJSON(github.event.head_commit.modified), 'miniapp/')
         run: node frontend/tests/desktop-smoke.cjs
 
-      - name: Test VK Mini App photo destination
+      - name: Test VK Mini App modules and preserved photo flow
         run: |
           node --check vk-proxy/server.js
           node --check vk-proxy/peer-id.js
@@ -83,15 +83,29 @@ jobs:
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const html = fs.readFileSync('miniapp/index.html', 'utf8');
-          const match = html.match(/<script\b[^>]*type=["']module["'][^>]*>([\s\S]*?)<\/script>/i);
-          if (!match) throw new Error('Mini App module script not found');
-          const source = match[1].replace(/^import\s+bridge\s+from\s+['"][^'"]+['"];\s*/m, 'const bridge = {};');
-          new Function(source);
-          if (!source.includes('PHOTO_QUEUE_DB_NAME') || !source.includes('schedulePhotoQueueRetry')) {
-            throw new Error('Persistent photo queue or retry logic is missing');
+          const legacy = fs.readFileSync('miniapp/legacy/index.html', 'utf8');
+          if (!html.includes('./src/app.js') || !html.includes('./styles/app.css')) {
+            throw new Error('New modular Mini App entry points are missing');
           }
-          console.log('Mini App module syntax and persistent photo queue: OK');
+          if (!legacy.includes('PHOTO_QUEUE_DB_NAME') || !legacy.includes('schedulePhotoQueueRetry') ||
+              !legacy.includes('previewBlob') || !legacy.includes('btnSend')) {
+            throw new Error('Legacy photo preview/confirmation or persistent queue was not preserved');
+          }
+          const paths = [];
+          const walk = dir => {
+            for (const item of fs.readdirSync(dir, { withFileTypes: true })) {
+              const path = dir + '/' + item.name;
+              if (item.isDirectory()) walk(path);
+              else if (path.endsWith('.js')) paths.push(path);
+            }
+          };
+          walk('miniapp/src');
+          if (paths.length < 10) throw new Error('Mini App module tree is incomplete');
+          console.log('Mini App modules and preserved photo confirmation/queue: OK');
           NODE
+          while IFS= read -r -d '' file; do
+            node --input-type=module --check < "$file"
+          done < <(find miniapp/src -type f -name '*.js' -print0)
 
       - name: Build all production service images
         run: |
