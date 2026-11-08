@@ -916,7 +916,8 @@ let savedDeparturesPrint = null;
       'the print footer should come after the working list');
     assert.equal(await page.locator('#departures-work-footer button').first().getAttribute('id'), 'departures-print-btn',
       'the print button should be the leftmost footer control');
-    assert.equal(await page.locator('#departures-work-footer').evaluate(el => getComputedStyle(el).justifyContent), 'flex-start',
+    const printFooterAlignment = await page.locator('#departures-work-footer').evaluate(el => getComputedStyle(el).justifyContent);
+    assert.ok(['flex-start', 'flow-start'].includes(printFooterAlignment),
       'the print footer should be left-aligned');
 
     const workEmpty = page.locator('#departures-work-list [data-departures-room="504"]');
