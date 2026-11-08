@@ -362,7 +362,7 @@ async function waitForVideo(video) {
     video.addEventListener('loadedmetadata', done, { once:true });
   });
 }
-async async function capturePhoto() {
+async function capturePhoto() {
   if (captureBusy || photoBlob || isArrivalNotReady(roomByNumber(selectedNumber))) {
     if (isArrivalNotReady(roomByNumber(selectedNumber))) showNotice('Сначала отметь «Можно делать» для этого номера', true);
     return;
@@ -419,7 +419,7 @@ function closePreview(force = false) {
   hideLoader();
   updateActionAvailability();
 }
-async async function sendPhoto() {
+async function sendPhoto() {
   if (!photoBlob || !selectedNumber || captureBusy) return;
   captureBusy = true;
   const number = String(selectedNumber);
@@ -593,7 +593,7 @@ async function saveRefill() {
     updateActionAvailability();
   }
 }
-async async function markRoomEmpty() {
+async function markRoomEmpty() {
   const room = roomByNumber(selectedNumber);
   if (!room.id || refillBusy) return;
   refillBusy = true;
