@@ -273,3 +273,75 @@ details.list-room-card.is-completed { background:#fbfcfe; }
 }
 
 .list-marker-dot.is-comment { background:#8b5cf6; }
+
+
+/* Room camera workspace */
+.list-room-number { padding:0; border:0; background:transparent; color:var(--text); font:inherit; font-size:21px; line-height:1; font-weight:800; letter-spacing:-.4px; font-variant-numeric:tabular-nums; cursor:pointer; }
+.list-room-number:active { color:var(--primary); }
+.list-marker-icon { display:inline-flex; align-items:center; justify-content:center; width:23px; height:23px; color:#64748b; border-radius:7px; background:#f1f5f9; }
+.list-marker-icon.is-vip { color:#a16207; background:#fef3c7; }
+.list-marker-icon.is-empty { color:#0284c7; background:#e0f2fe; }
+.list-marker-icon.is-ready { color:#059669; background:#d1fae5; }
+.list-marker-icon.is-deadline { color:#2563eb; background:#dbeafe; }
+.list-marker-icon.is-refill { color:#c2410c; background:#ffedd5; }
+.list-marker-icon.is-arrival { color:#4f46e5; background:#e0e7ff; }
+.list-summary-dots { display:flex; align-items:center; flex-wrap:wrap; gap:5px; margin-left:auto; }
+.list-summary-time,.list-summary-comment { display:inline-flex; align-items:center; gap:4px; color:#52657c; font-size:10px; line-height:1.35; }
+.list-summary-comment { min-width:0; max-width:45%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.list-empty-tag { margin-left:6px; padding:3px 6px; color:#0369a1; border-radius:6px; background:#e0f2fe; font-size:9px; font-weight:750; }
+.camera-workspace-new { display:grid; gap:12px; padding-bottom:14px; }
+.camera-selected-title { font-size:17px; font-weight:780; }
+.camera-carousel { display:flex; align-items:center; gap:7px; min-height:43px; padding:3px 0 7px; overflow-x:auto; overscroll-behavior-x:contain; scrollbar-width:none; scroll-snap-type:x mandatory; }
+.camera-carousel::-webkit-scrollbar { display:none; }
+.camera-room-pill { min-width:48px; min-height:37px; padding:7px 11px; border:1px solid var(--border); border-radius:10px; background:#fff; color:#64748b; font-size:12px; font-weight:750; font-variant-numeric:tabular-nums; scroll-snap-align:center; }
+.camera-room-pill.is-active { color:#fff; border-color:var(--primary); background:var(--primary); }
+.camera-carousel-empty { color:var(--muted); font-size:11px; }
+.camera-viewfinder-new { position:relative; width:100%; aspect-ratio:3/4; max-height:48dvh; overflow:hidden; border-radius:16px; background:#111827; }
+.camera-viewfinder-new video,.camera-viewfinder-new img { width:100%; height:100%; object-fit:cover; }
+.camera-viewfinder-new video { display:block; }
+.camera-viewfinder-placeholder { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:9px; color:#94a3b8; background:#182235; pointer-events:none; }
+.camera-viewfinder-placeholder small { font-size:10px; }
+.camera-viewfinder-new.is-live .camera-viewfinder-placeholder { display:none; }
+.camera-viewfinder-new.has-preview video { visibility:hidden; }
+.camera-viewfinder-overlay { position:absolute; inset:13px; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; pointer-events:none; }
+.camera-viewfinder-overlay span { width:20px; height:20px; border-color:rgba(255,255,255,.82); border-style:solid; }
+.camera-viewfinder-overlay span:nth-child(1) { align-self:start;justify-self:start;border-width:2px 0 0 2px;border-radius:4px 0 0; }
+.camera-viewfinder-overlay span:nth-child(2) { align-self:start;justify-self:end;border-width:2px 2px 0 0;border-radius:0 4px 0 0; }
+.camera-viewfinder-overlay span:nth-child(3) { align-self:end;justify-self:start;border-width:0 0 2px 2px;border-radius:0 0 0 4px; }
+.camera-viewfinder-overlay span:nth-child(4) { align-self:end;justify-self:end;border-width:0 2px 2px 0;border-radius:0 0 4px; }
+.camera-capture-row { display:flex; justify-content:center; margin-top:-2px; }
+.camera-capture-button { width:62px; height:62px; border:4px solid #fff; border-radius:50%; background:#fff; box-shadow:0 0 0 2px #cbd5e1,0 3px 12px rgba(15,23,42,.18); }
+.camera-capture-button:active { transform:scale(.94); }
+.camera-summary-card,.camera-refill-card { padding:13px; border:1px solid var(--border); border-radius:14px; background:#fff; box-shadow:var(--shadow); }
+.camera-section-title { margin-bottom:10px; font-size:13px; font-weight:780; }
+.camera-room-summary { display:grid; gap:8px; }
+.camera-room-summary-top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.camera-room-summary-top strong { font-size:18px; }
+.camera-room-summary-top>span { color:var(--muted); font-size:10px; }
+.camera-summary-chips { display:flex; flex-wrap:wrap; gap:5px; }
+.camera-summary-chip { display:inline-flex; align-items:center; gap:4px; padding:4px 7px; color:#475569; border-radius:7px; background:#f1f5f9; font-size:9px; font-weight:700; }
+.camera-summary-chip.is-vip { color:#92400e; background:#fef3c7; }
+.camera-summary-chip.is-empty { color:#0369a1; background:#e0f2fe; }
+.camera-summary-line { display:flex; align-items:flex-start; gap:7px; color:var(--muted); font-size:10px; line-height:1.45; }
+.camera-summary-line>span { display:flex; align-items:center; gap:4px; flex:0 0 auto; }
+.camera-summary-line strong { color:var(--text); font-weight:650; overflow-wrap:anywhere; }
+.camera-summary-line.is-refill strong { color:#c2410c; }
+.camera-summary-empty,.camera-empty-products { padding:8px 0; color:var(--muted); font-size:11px; }
+.camera-product-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
+.camera-product-card { min-width:0; min-height:83px; display:grid; grid-template-columns:30px minmax(0,1fr); grid-template-rows:1fr auto; align-items:center; gap:4px 8px; padding:9px; border:1px solid var(--border); border-radius:11px; background:#f8fafc; text-align:left; }
+.camera-product-card.is-selected { border-color:#a5b4fc; background:#eef2ff; }
+.camera-product-emoji { grid-row:1 / span 2; width:30px; height:30px; display:grid; place-items:center; border-radius:9px; background:#fff; font-size:16px; }
+.camera-product-name { min-width:0; align-self:end; font-size:10px; line-height:1.3; font-weight:680; overflow-wrap:anywhere; }
+.camera-product-qty { align-self:start; color:var(--muted); font-size:9px; font-weight:750; font-variant-numeric:tabular-nums; }
+.camera-product-card.is-selected .camera-product-qty { color:var(--primary-dark); }
+.camera-primary-button,.camera-secondary-button { min-height:40px; display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:8px 13px; border:1px solid var(--border); border-radius:10px; background:#fff; color:#475569; font-size:11px; font-weight:750; }
+.camera-primary-button { color:#fff; border-color:var(--primary); background:var(--primary); }
+.camera-save-refill { width:100%; margin-top:10px; }
+.camera-action-row { display:flex; justify-content:flex-end; }
+.camera-photo-review { display:grid; gap:9px; padding:10px; border:1px solid var(--border); border-radius:13px; background:#fff; }
+.camera-photo-review.hidden { display:none; }
+.camera-photo-review img { width:100%; max-height:42dvh; object-fit:contain; border-radius:8px; background:#0f172a; }
+.camera-photo-review>div { display:flex; justify-content:space-between; gap:8px; }
+.camera-feedback { min-height:18px; color:var(--success); font-size:10px; line-height:1.45; }
+.camera-feedback.is-error { color:#b91c1c; }
+@media(max-width:370px) { .camera-product-grid { gap:5px; } .camera-product-card { padding:7px; } }
