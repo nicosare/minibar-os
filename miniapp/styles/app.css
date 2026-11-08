@@ -564,3 +564,8 @@ html[data-screen="camera"] .screen-camera {
   .camera-number-item { flex-basis:78px; width:78px; }
   .camera-carousel { padding-left:calc(50% - 39px); padding-right:calc(50% - 39px); }
 }
+
+html[data-screen="camera"] .screen-camera { position:relative; }
+@media(max-height:740px) {
+  .camera-viewport { width:min(88vw,440px,calc(47dvh * .75)); max-height:47dvh; }
+}
