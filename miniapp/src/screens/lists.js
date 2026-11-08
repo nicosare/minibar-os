@@ -267,7 +267,9 @@ function renderDeadlineDetails(info, details) {
 
 function renderRefillDetails(state, info) {
   const request = refillForRoom(state, info.id);
-  const templateItems = Array.isArray(info.templateItems) ? info.templateItems : [];
+  const templateItems = Array.isArray(info.templateItems) && info.templateItems.length
+    ? info.templateItems
+    : (Array.isArray(request?.templateItems) ? request.templateItems : []);
   const busy = isBusy('refill', String(info.id));
   if (busy) return '<div class="list-detail-line"><span class="list-inline-spinner"></span>Сохраняем пополнение…</div>';
   const selected = new Map((request?.items || []).map(item => [Number(item.productId), Number(item.qty) || 0]));
@@ -562,6 +564,10 @@ async function saveRefill(card) {
     productId: Number(input.dataset.productId),
     qty: Math.max(0, Math.min(Number(input.max) || 1, Number.parseInt(input.value, 10) || 0))
   })).filter(item => item.productId > 0 && item.qty > 0);
+  if (!items.length && !current) {
+    setNotice('Выбери хотя бы один отсутствующий продукт и укажи количество.', true);
+    return;
+  }
   updateBusy('refill', busyKey, true);
   setNotice('');
   try {
