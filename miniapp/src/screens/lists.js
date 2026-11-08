@@ -215,7 +215,7 @@ function renderArrivalMarkers(entry, done, info, state, details) {
   if (deadlines) marks.push(marker('Сроки: ' + deadlines, 'is-deadline'));
   const refill = details.refill ? refillText(refillForRoom(state, info.id)) : '';
   if (refill) marks.push(marker('Требует пополнения: ' + refill, 'is-refill'));
-  if (info.expiryStatus === 'empty') marks.push(marker('Пустой', 'is-empty'));\n  if (done) marks.push(marker('Выполнен', 'is-muted'));
+  if (done) marks.push(marker('Выполнен', 'is-muted'));
   return marks.join('');
 }
 
