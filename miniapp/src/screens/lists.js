@@ -216,7 +216,7 @@ function renderArrivalMarkers(entry, done, info, state, details) {
   if (deadlines) marks.push(marker('Сроки: ' + deadlines, 'is-deadline'));
   const refill = details.refill ? refillText(refillForRoom(state, info.id)) : '';
   if (refill) marks.push(marker('Требует пополнения: ' + refill, 'is-refill'));
-  if (done) marks.push(marker('Выполнен', 'is-muted'));
+  if (info.expiryStatus === 'empty') marks.push(marker('Пустой', 'is-empty'));\n  if (done) marks.push(marker('Выполнен', 'is-muted'));
   return marks.join('');
 }
 
@@ -344,8 +344,9 @@ function renderArrivalCard(number, info, entry, done, state, busy, ui) {
   const roomNumber = '<span class="list-room-number list-room-open" data-open-camera="' + escapeHtml(number) + '">' + escapeHtml(number) + '</span>' + (empty ? '<span class="list-empty-badge">Пустой</span>' : '');
   const summary = compact
     ? roomNumber +
-      (entry.time ? '<span class="list-summary-time">' + escapeHtml(entry.time) + '</span>' : '') +
-      (entry.comment ? marker('Есть комментарий', 'is-comment') : '') +
+      (info.expiryStatus === 'empty' ? '<span class="list-empty-tag">Пустой</span>' : '') +
+      (entry.time ? '<span class="list-summary-time">' + icon('clock',13) + ' ' + escapeHtml(entry.time) + '</span>' : '') +
+      (entry.comment ? '<span class="list-summary-comment">' + icon('message-square',13) + ' ' + escapeHtml(entry.comment) + '</span>' : '') +
       '<span class="list-summary-dots">' + renderArrivalMarkers(entry, done, info, state, ui.details) + '</span>'
     : '<div class="list-standard-summary">' +
       '<div class="list-room-identity">' + roomNumber +
@@ -363,7 +364,7 @@ function renderDepartureCard(number, info, onArrival, done, state, busy, ui) {
     ? '<strong class="list-room-number">' + escapeHtml(number) + '</strong>' +
       '<span class="list-summary-dots">' + renderDepartureMarkers(onArrival, done, info, state, ui.details) + '</span>'
     : '<div class="list-standard-summary">' +
-      '<div class="list-room-identity"><strong class="list-room-number">' + escapeHtml(number) + '</strong>' +
+      '<div class="list-room-identity"><button type="button" class="list-room-number" data-open-camera-room="' + escapeHtml(number) + '">' + escapeHtml(number) + '</button>' +
         roomMeta(info, ui.details) + '</div>' +
       '<div class="list-room-chips">' + renderDepartureLabels(onArrival, done, info, state, ui.details) + '</div></div>';
   return '<details class="list-room-card' + (compact ? ' is-compact' : ' is-standard') +
