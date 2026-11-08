@@ -296,9 +296,23 @@ function currentDeviceAngle(){
   if(typeof window.orientation==='number')return ((window.orientation%360)+360)%360;
   return window.innerWidth>window.innerHeight?90:0;
 }
+function syncVideoOrientation(){
+  const v=$('cameraVideo'),box=$('cameraViewport');
+  if(!v||!box||!v.videoWidth||!v.videoHeight)return;
+  const base=v.videoWidth>v.videoHeight?90:0;
+  const rotation=((currentDeviceAngle()-base)%360+360)%360;
+  if(rotation===90||rotation===270){
+    v.style.inset='auto';v.style.left='50%';v.style.top='50%';
+    v.style.width=box.clientHeight+'px';v.style.height=box.clientWidth+'px';
+    v.style.transform='translate(-50%,-50%) rotate('+rotation+'deg)';
+  }else{
+    v.style.inset='0';v.style.left='0';v.style.top='0';v.style.width='100%';v.style.height='100%';
+    v.style.transform=rotation===180?'rotate(180deg)':'none';
+  }
+}
 window.addEventListener('devicemotion',updatePhysicalAngle,true);
 window.addEventListener('deviceorientation',updatePhysicalAngle,true);
-window.addEventListener('orientationchange',()=>{sensorAngleReady=false;});
+window.addEventListener('orientationchange',()=>{sensorAngleReady=false;requestAnimationFrame(syncVideoOrientation);});
 async function startCamera(){
   if(stream){const v=$('cameraVideo');if(v&&v.srcObject!==stream){v.srcObject=stream;await v.play().catch(()=>{});}$('cameraStage')?.classList.add('is-live');updateFlashControl();return;}
   if(!navigator.mediaDevices?.getUserMedia){showLoader('Камера недоступна','Разреши доступ к камере в VK.',true);return;}
@@ -308,7 +322,7 @@ async function startCamera(){
     videoTrack=stream.getVideoTracks()[0]||null;if(!videoTrack)throw new Error('Камера не вернула видеопоток');
     torchSupported=videoTrack.getCapabilities?.().torch===true;
     const v=$('cameraVideo');v.srcObject=stream;await v.play();await waitForVideo(v);
-    $('cameraStage')?.classList.add('is-live');hideLoader();updateFlashControl();
+    $('cameraStage')?.classList.add('is-live');syncVideoOrientation();hideLoader();updateFlashControl();
   }catch(err){stopCamera();showLoader('Не удалось открыть камеру',err.message||'Проверь разрешение на камеру.',true);}
 }
 function showLoader(title, subtitle, error = false) {
