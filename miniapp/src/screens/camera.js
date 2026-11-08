@@ -1,209 +1,29 @@
 import { api } from '../core/api.js';
-import { getState, setState } from '../core/store.js';
+import { getState } from '../core/store.js';
 import { pageHeader } from '../components/chrome.js';
 import { icon } from '../components/icons.js';
 
-let cameraRooms = [];
-let cameraRoomDetails = null;
-let cameraStatuses = [];
-let cameraRefills = [];
-let cameraProducts = [];
-let cameraCounts = {};
-let cameraBusy = false;
-let cameraNotice = '';
-let cameraPreview = null;
-let cameraStream = null;
-let loadToken = 0;
-
-function esc(value) {
-  return String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-function currentRoom(state=getState()) {
-  return cameraRooms.find(room => String(room.number) === String(state.cameraRoomNumber)) || null;
-}
-function listLabel(type) { return type === 'arrivals' ? 'Заезды' : type === 'departures' ? 'Выезды' : 'Все номера'; }
-function currentRefill(room) { return cameraRefills.find(r => Number(r.roomId) === Number(room?.id)) || null; }
-
-export async function initializeCamera(roomNumber, listType) {
-  const token = ++loadToken;
-  cameraNotice = '';
-  cameraPreview = null;
-  await stopCamera();
-  setState({ screen: 'camera', cameraRoomNumber: String(roomNumber || ''), cameraListType: listType || '' });
-  try {
-    const [queue, list, refills] = await Promise.all([
-      api.get('miniapp/queue'),
-      listType === 'arrivals' || listType === 'departures'
-        ? api.get(listType === 'arrivals' ? 'arrivals/miniapp-list' : 'departures/miniapp-list').catch(() => null)
-        : Promise.resolve(null),
-      api.get('refills/active').catch(() => ({requests:[]}))
-    ]);
-    if (token !== loadToken) return;
-    const allowed = list?.roomNumbers ? new Set(list.roomNumbers.map(String)) : null;
-    cameraRooms = (queue.rooms || []).filter(room => !allowed || allowed.has(String(room.number)))
-      .sort((a,b) => Number(a.floor)-Number(b.floor) || Number(a.number)-Number(b.number));
-    cameraRefills = (refills.requests || []).filter(r => r.status === 'pending');
-    const chosen = cameraRooms.some(r => String(r.number) === String(roomNumber))
-      ? String(roomNumber) : String(cameraRooms[0]?.number || '');
-    setState({ cameraRoomNumber: chosen, cameraListData: list || null });
-    await loadRoom(chosen);
-  } catch (error) {
-    cameraNotice = error.message || 'Не удалось загрузить номера';
-    setState({ cameraLoadError: cameraNotice });
-  }
-}
-async function loadRoom(number) {
-  const token = ++loadToken;
-  const room = cameraRooms.find(r => String(r.number) === String(number));
-  cameraRoomDetails = room;
-  cameraStatuses = [];
-  cameraProducts = [];
-  cameraCounts = {};
-  if (!room?.id) { setState({cameraRoomNumber:String(number || '')}); return; }
-  setState({ cameraRoomNumber:String(number), cameraRoomLoading:true });
-  try {
-    const [details, statuses] = await Promise.all([
-      api.get('rooms/' + Number(room.id)),
-      api.get('rooms/' + Number(room.id) + '/product-statuses')
-    ]);
-    if (token !== loadToken) return;
-    cameraRoomDetails = details;
-    cameraStatuses = Array.isArray(statuses) ? statuses : [];
-    cameraProducts = (details.template?.items || []).map(item => {
-      const product = item.product || {};
-      return { id:Number(item.productId || product.id), name:product.name || 'Продукт',
-        category:product.category || 'Напитки', emoji:product.emoji || '•',
-        volume:product.volume, unit:product.unit || 'шт', max:Math.max(1,Number(item.qty)||1),
-        bgColor:product.bgColor || 'slate' };
-    }).filter(item => item.id);
-    const request = currentRefill(room);
-    (request?.items || []).forEach(item => { cameraCounts[Number(item.productId)] = Number(item.qty)||0; });
-    setState({ cameraRoomLoading:false, cameraRoomDetails:details, cameraStatuses, cameraProducts, cameraCounts:{...cameraCounts} });
-  } catch (error) {
-    if (token !== loadToken) return;
-    cameraNotice = error.message || 'Не удалось загрузить данные номера';
-    setState({ cameraRoomLoading:false, cameraRoomError:cameraNotice });
-  }
-}
-async function stopCamera() {
-  if (cameraStream) cameraStream.getTracks().forEach(track => track.stop());
-  cameraStream = null;
-}
-function roomSummary(room, state) {
-  if (!room) return '<div class="camera-empty-state">В выбранном списке нет номеров</div>';
-  const entry = state.cameraListData?.entries?.[String(room.number)] || {};
-  const status = cameraRoomDetails?.expiryStatus || room.expiryStatus || 'neutral';
-  const deadline = status === 'empty' ? 'Пустой' : cameraStatuses.filter(s => Number(s.qtyToReplace)>0)
-    .map(s => (s.product?.name || 'Продукт') + ' × ' + s.qtyToReplace).join(', ');
-  const refill = currentRefill(room);
-  const refillText = refill?.items?.filter(i=>Number(i.qty)>0).map(i=>i.name+' × '+i.qty).join(', ');
-  const info = [
-    room.floor ? Number(room.floor)+' этаж' : '',
-    (room.category || room.type) ? (String(room.category || room.type).toLowerCase().includes('lux') ? 'Люкс' : 'Стандарт') : '',
-    entry.time || '',
-    entry.comment || ''
-  ].filter(Boolean);
-  return '<section class="camera-room-summary"><div class="camera-room-heading"><div><span class="camera-eyebrow">'+esc(listLabel(state.cameraListType))+'</span><h2>Номер '+esc(room.number)+'</h2></div>' +
-    (status === 'empty' ? '<span class="camera-empty-badge">Пустой</span>' : '') + '</div>' +
-    '<div class="camera-room-meta">'+info.map(x=>'<span>'+esc(x)+'</span>').join('')+'</div>' +
-    (deadline ? '<div class="camera-summary-line">'+icon('timer',15)+'<span>Сроки: '+esc(deadline)+'</span></div>' : '') +
-    (entry.vip ? '<div class="camera-summary-line">'+icon('crown',15)+'<span>VIP</span></div>' : '') +
-    (entry.empty && status !== 'empty' ? '<div class="camera-summary-line">'+icon('package-x',15)+'<span>Опустошить</span></div>' : '') +
-    (refillText ? '<div class="camera-summary-line">'+icon('package-check',15)+'<span>Требует пополнения: '+esc(refillText)+'</span></div>' : '') +
-    '</section>';
-}
-function renderProducts() {
-  if (!cameraProducts.length) return '<p class="camera-muted">Для номера не задан шаблон наполнения.</p>';
-  const groups = [...new Set(cameraProducts.map(p=>p.category))];
-  return groups.map(group => '<section class="camera-product-group"><h3>'+esc(group)+'</h3><div class="camera-product-grid">'+
-    cameraProducts.filter(p=>p.category===group).map(p=>{
-      const count = Number(cameraCounts[p.id])||0;
-      const meta = [p.volume,p.unit].filter(Boolean).join(' ');
-      return '<button type="button" class="camera-product-card'+(count?' is-selected':'')+'" data-camera-product="'+p.id+'" data-max="'+p.max+'" aria-pressed="'+Boolean(count)+'">'+
-        '<span class="camera-product-emoji">'+esc(p.emoji)+'</span><strong>'+esc(p.name)+'</strong><small>'+esc(meta)+'</small>'+
-        '<span class="camera-product-count">'+(count ? count+' / '+p.max : '—')+'</span></button>';
-    }).join('')+'</div></section>').join('');
-}
-function renderPreview() {
-  if (!cameraPreview) return '';
-  return '<div class="camera-preview-overlay"><div class="camera-preview-card"><img src="'+cameraPreview.url+'" alt="Фото номера '+esc(cameraPreview.room)+'">'+
-    '<strong>Номер '+esc(cameraPreview.room)+'</strong><div class="camera-preview-actions"><button data-camera-action="retake" class="camera-secondary">Переснять</button>'+
-    '<button data-camera-action="send-photo" class="camera-primary">Отправить фото</button></div></div></div>';
-}
-export function renderCamera(state=getState()) {
-  const room = currentRoom(state);
-  const active = String(room?.number || '');
-  return '<div class="screen screen-camera">'+pageHeader({title:'Камера'})+
-    '<div class="camera-carousel-wrap"><div class="camera-carousel" aria-label="Выбор номера">'+cameraRooms.map(r=>
-      '<button type="button" class="camera-carousel-item'+(String(r.number)===active?' is-active':'')+(r.expiryStatus==='empty'?' is-empty':'')+'" data-camera-room="'+esc(r.number)+'">'+esc(r.number)+'</button>').join('')+'</div></div>'+
-    (state.cameraLoadError ? '<div class="camera-error">'+esc(state.cameraLoadError)+'</div>' : '')+
-    roomSummary(room,state)+
-    (state.cameraRoomLoading ? '<div class="camera-muted">Загружаем данные номера…</div>' : '')+
-    '<section class="camera-actions-grid"><button class="camera-action-card camera-action-photo" data-camera-action="photo">'+icon('camera',20)+'<span>Фото</span></button>'+
-      '<button class="camera-action-card" data-camera-action="refill">'+icon('package-plus',20)+'<span>Пополнение</span></button>'+
-      '<button class="camera-action-card" data-camera-action="empty">'+icon('package-x',20)+'<span>Опустошил</span></button>'+
-      '<button class="camera-action-card" data-camera-action="message">'+icon('message-square',20)+'<span>Сообщение</span></button></section>'+
-    (state.cameraMode === 'refill' ? '<section class="camera-refill-panel"><div class="camera-panel-heading"><h3>Что требуется пополнить</h3><button data-camera-action="close-panel" aria-label="Закрыть">'+icon('x',18)+'</button></div>'+renderProducts()+
-      '<button class="camera-primary camera-save-refill" data-camera-action="save-refill" '+(cameraBusy?'disabled':'')+'>Сохранить пополнение</button></section>' : '')+
-    (state.cameraMode === 'message' ? '<section class="camera-refill-panel"><div class="camera-panel-heading"><h3>Сообщение по номеру</h3><button data-camera-action="close-panel">'+icon('x',18)+'</button></div>'+
-      '<textarea class="camera-message-input" id="cameraMessageText" placeholder="Текст сообщения"></textarea><button class="camera-primary" data-camera-action="send-message">Отправить</button></section>' : '')+
-    (cameraNotice ? '<div class="camera-notice">'+esc(cameraNotice)+'</div>' : '')+
-    (cameraPreview ? renderPreview() : '')+
-    '</div>';
-}
-async function saveRefill() {
-  const state=getState(), room=currentRoom(state);
-  if (!room?.id || cameraBusy) return;
-  const items=Object.entries(cameraCounts).map(([productId,qty])=>({productId:Number(productId),qty:Number(qty)})).filter(x=>x.qty>0);
-  const existing=currentRefill(room);
-  if (!items.length && !existing) { cameraNotice='Выбери хотя бы один продукт.'; setState({cameraNotice}); return; }
-  cameraBusy=true; setState({cameraBusy:true});
-  try {
-    const result=await api.post('refills',{roomId:Number(room.id),allProducts:false,expectedRequestId:existing?.id || null,items});
-    cameraRefills=cameraRefills.filter(r=>Number(r.roomId)!==Number(room.id));
-    if(result.request?.status==='pending') cameraRefills.push(result.request);
-    cameraNotice=result.request?.status==='cancelled'?'Потребность в пополнении снята':'Пополнение сохранено';
-    setState({cameraMode:'',cameraNotice,cameraBusy:false});
-  } catch(error) { cameraNotice=error.message; setState({cameraNotice,cameraBusy:false}); }
-  finally { cameraBusy=false; }
-}
-async function sendMessage(text) {
-  const room=currentRoom(); if(!room) return;
-  const response=await fetch('/minibar-os/vk-proxy/send-message',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({message:text})});
-  const data=await response.json().catch(()=>({}));
-  if(!response.ok || !data.ok) throw new Error(data.error || 'Не удалось отправить сообщение');
-}
-async function takePhoto() {
-  const room=currentRoom(); if(!room) return;
-  const input=document.createElement('input'); input.type='file'; input.accept='image/*'; input.setAttribute('capture','environment');
-  input.onchange=()=>{const file=input.files?.[0];if(!file)return; if(cameraPreview?.url)URL.revokeObjectURL(cameraPreview.url);cameraPreview={file,url:URL.createObjectURL(file),room:String(room.number)};setState({cameraPreviewOpen:true});};
-  input.click();
-}
-async function uploadPhoto() {
-  if(!cameraPreview?.file) return;
-  const form=new FormData(); form.append('photo',cameraPreview.file,'photo.jpg');form.append('room',cameraPreview.room);form.append('random_id',String(Math.floor(Math.random()*2147483647)+1));
-  const response=await fetch('/minibar-os/vk-proxy/send-photo',{method:'POST',body:form});
-  const data=await response.json().catch(()=>({}));
-  if(!response.ok || !data.ok) throw new Error(data.error || 'Не удалось отправить фото');
-  URL.revokeObjectURL(cameraPreview.url);cameraPreview=null;setState({cameraPreviewOpen:false,cameraNotice:'Фото отправлено'});
-}
-export async function handleCameraClick(event) {
-  const target=event.target instanceof Element?event.target:null;if(!target)return false;
-  const roomButton=target.closest('[data-camera-room]');
-  if(roomButton){await stopCamera();cameraPreview=null;setState({cameraRoomNumber:roomButton.dataset.cameraRoom,cameraMode:''});await loadRoom(roomButton.dataset.cameraRoom);return true;}
-  const control=target.closest('[data-camera-action]');if(!control)return false;
-  const action=control.dataset.cameraAction;event.preventDefault();
-  try {
-    if(action==='photo') await takePhoto();
-    else if(action==='refill') {cameraNotice='';setState({cameraMode:'refill'});if(!cameraRoomDetails?.template) await loadRoom(currentRoom()?.number);}
-    else if(action==='close-panel') setState({cameraMode:''});
-    else if(action==='save-refill') await saveRefill();
-    else if(action==='empty') {await sendMessage(String(currentRoom()?.number)+' опустошён');cameraNotice='Сообщение об опустошении отправлено';setState({cameraNotice});}
-    else if(action==='message') setState({cameraMode:'message'});
-    else if(action==='send-message') {const value=document.getElementById('cameraMessageText')?.value.trim();if(!value)throw new Error('Напиши сообщение');await sendMessage('Номер '+currentRoom()?.number+': '+value);cameraNotice='Сообщение отправлено';setState({cameraMode:'',cameraNotice});}
-    else if(action==='send-photo') await uploadPhoto();
-    else if(action==='retake') {if(cameraPreview?.url)URL.revokeObjectURL(cameraPreview.url);cameraPreview=null;setState({cameraPreviewOpen:false});await takePhoto();}
-  } catch(error){cameraNotice=error.message||'Не удалось выполнить действие';setState({cameraNotice});}
-  return true;
-}
-export function handleCameraChange(event) { return false; }
+let stream=null, selectedNumber='', rooms=[], activeRefills=[], counts={}, photoBlob=null, busy=false, bound=false, loadToken=0;
+const $=id=>document.getElementById(id);
+const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function sourceData(){const s=getState(),type=s.cameraSourceListType||s.listType||'arrivals';return {type,data:s.listData?.[type]};}
+function roomByNumber(n){const {data}=sourceData(),info=data?.roomInfo?.[String(n)],r=rooms.find(x=>String(x.number)===String(n));return {...(r||{}),...(info||{}),number:String(n||'')};}
+function roomNumbers(){const {data}=sourceData();return data?.roomNumbers?.length?[...new Set(data.roomNumbers.map(String))]:rooms.map(r=>String(r.number)).sort((a,b)=>Number(a)-Number(b));}
+function templateItems(r){const a=Array.isArray(r?.templateItems)?r.templateItems:Array.isArray(r?.template?.items)?r.template.items:[];return a.map(x=>{const p=x.product||x;return {productId:Number(x.productId||p.id),name:p.name||x.name||'Продукт',emoji:p.emoji||x.emoji||'📦',max:Math.max(1,Number(x.qty||x.maxQty||1)),volume:p.volume??x.volume??'',unit:p.unit||x.unit||'шт'};}).filter(x=>x.productId>0);}
+function refillFor(r){return activeRefills.find(x=>Number(x.roomId)===Number(r?.id));}
+function productsHtml(r){const items=templateItems(r),req=refillFor(r),saved=new Map((req?.items||[]).map(x=>[Number(x.productId),Number(x.qty)||0]));items.forEach(x=>{if(counts[x.productId]===undefined)counts[x.productId]=saved.get(x.productId)||0;});if(!items.length)return '<div class="camera-empty-products">Для номера не задан шаблон наполнения.</div>';return '<div class="camera-product-grid">'+items.map(x=>{const q=Math.min(x.max,Math.max(0,Number(counts[x.productId])||0));return '<button type="button" class="camera-product-card'+(q?' is-selected':'')+'" data-camera-product="'+x.productId+'" data-max="'+x.max+'"><span class="camera-product-emoji">'+esc(x.emoji)+'</span><span class="camera-product-name">'+esc(x.name)+'</span><span class="camera-product-qty">'+q+' / '+x.max+'</span></button>';}).join('')+'</div>';}
+function summaryHtml(r){if(!r?.number)return '<div class="camera-summary-empty">Выбери номер в карусели ниже.</div>';const {type,data}=sourceData(),e=data?.entries?.[String(r.number)]||{},statuses=Array.isArray(r.productStatuses)?r.productStatuses:[],need=statuses.filter(x=>x.expiryStatus==='needs_replacement'||Number(x.qtyToReplace)>0).map(x=>esc(x.name)+(Number(x.qtyToReplace)>0?' ×'+Number(x.qtyToReplace):''));const deadline=r.expiryStatus==='empty'?'Пустой':need.join(', ')|| (r.expiryStatus==='needs_replacement'?'Требует замены':'Без замечаний'),chips=[];if(e.vip)chips.push('<span class="camera-summary-chip is-vip">'+icon('crown',13)+' VIP</span>');if(e.time)chips.push('<span class="camera-summary-chip">'+icon('clock',13)+' '+esc(e.time)+'</span>');if(e.empty)chips.push('<span class="camera-summary-chip is-empty">Опустошить</span>');if(e.ready!==undefined)chips.push('<span class="camera-summary-chip">'+(e.ready?'Можно делать':'Пока нельзя')+'</span>');if(type==='departures'&&(data?.arrivalRooms||[]).map(String).includes(String(r.number)))chips.push('<span class="camera-summary-chip">На заезд</span>');if(r.expiryStatus==='empty')chips.push('<span class="camera-summary-chip is-empty">Пустой</span>');const refill=refillFor(r),refillText=refill?.items?.length?refill.items.map(x=>esc(x.name)+(Number(x.qty)>1?' ×'+Number(x.qty):'')).join(', '):'';return '<div class="camera-room-summary"><div class="camera-room-summary-top"><strong>Номер '+esc(r.number)+'</strong><span>'+esc([r.floor?r.floor+' этаж':'',r.category==='lux'?'Люкс':r.category==='standard'?'Стандарт':''].filter(Boolean).join(' · '))+'</span></div><div class="camera-summary-chips">'+chips.join('')+'</div><div class="camera-summary-line"><span>'+icon('timer',14)+' Сроки:</span><strong>'+deadline+'</strong></div>'+(e.comment?'<div class="camera-summary-line"><span>'+icon('message-square',14)+' Комментарий:</span><strong>'+esc(e.comment)+'</strong></div>':'')+(refillText?'<div class="camera-summary-line is-refill"><span>'+icon('package',14)+' Требует пополнения:</span><strong>'+refillText+'</strong></div>':'')+'</div>';}
+function renderCarousel(){const host=$('cameraCarousel');if(!host)return;const ns=roomNumbers();if(!ns.length){host.innerHTML='<span class="camera-carousel-empty">Нет номеров в выбранном списке</span>';return;}if(!selectedNumber||!ns.includes(selectedNumber))selectedNumber=ns[0];host.innerHTML=ns.map(n=>'<button type="button" class="camera-room-pill'+(n===selectedNumber?' is-active':'')+'" data-camera-room="'+esc(n)+'">'+esc(n)+'</button>').join('');host.querySelector('.is-active')?.scrollIntoView({block:'nearest',inline:'center'});}
+function renderSelected(){const r=roomByNumber(selectedNumber);const a=$('cameraRoomSummary'),b=$('cameraProducts'),t=$('cameraSelectedTitle');if(a)a.innerHTML=summaryHtml(r);if(b)b.innerHTML=productsHtml(r);if(t)t.textContent=r.number?'Номер '+r.number:'Выбери номер';renderCarousel();}
+function notice(m,error=false){const n=$('cameraFeedback');if(n){n.textContent=m||'';n.className='camera-feedback'+(error?' is-error':'');}}
+async function loadData(){const token=++loadToken;const [rr,fr]=await Promise.allSettled([api.get('rooms'),api.get('refills/active')]);if(token!==loadToken)return;if(rr.status==='fulfilled')rooms=Array.isArray(rr.value)?rr.value:rr.value?.rooms||[];if(fr.status==='fulfilled')activeRefills=fr.value?.requests||[];renderSelected();}
+async function startStream(){const v=$('cameraVideo');if(!v||!navigator.mediaDevices?.getUserMedia){notice('Камера недоступна в этом браузере.',true);return;}try{stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}}});v.srcObject=stream;await v.play();$('cameraViewfinder')?.classList.add('is-live');}catch(_){notice('Не удалось открыть камеру. Проверь разрешение на камеру.',true);}}
+function stopStream(){if(stream)stream.getTracks().forEach(t=>{try{t.stop();}catch(_){}});stream=null;}
+function capture(){const v=$('cameraVideo'),c=$('cameraCanvas');if(!v?.videoWidth||!c){notice('Камера ещё не готова.',true);return;}c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d',{alpha:false}).drawImage(v,0,0,c.width,c.height);c.toBlob(blob=>{if(!blob){notice('Не удалось подготовить фото.',true);return;}photoBlob=blob;$('cameraPhotoPreview').src=URL.createObjectURL(blob);$('cameraPhotoReview').classList.remove('hidden');$('cameraViewfinder').classList.add('has-preview');stopStream();},'image/jpeg',.84);}
+async function sendPhoto(){if(!photoBlob||!selectedNumber||busy)return;busy=true;notice('Отправляем фото…');try{const f=new FormData();f.append('photo',photoBlob,'photo.jpg');f.append('room',selectedNumber);const res=await fetch('/minibar-os/vk-proxy/send-photo',{method:'POST',body:f});const data=await res.json().catch(()=>null);if(!res.ok||!data?.ok)throw new Error(data?.error||'Не удалось отправить фото');photoBlob=null;$('cameraPhotoReview').classList.add('hidden');$('cameraViewfinder').classList.remove('has-preview');notice('Фото отправлено.');await startStream();}catch(e){notice(e.message||'Не удалось отправить фото.',true);}finally{busy=false;}}
+async function saveRefill(){const r=roomByNumber(selectedNumber);if(!r.id||busy)return;const items=templateItems(r).map(x=>({productId:x.productId,qty:Math.min(x.max,Math.max(0,Number(counts[x.productId])||0))})).filter(x=>x.qty>0),current=refillFor(r);if(!items.length&&!current){notice('Выбери продукты, которые нужно пополнить.',true);return;}busy=true;notice('Сохраняем пополнение…');try{const result=await api.post('refills',{roomId:Number(r.id),allProducts:false,items,expectedRequestId:current?Number(current.id):null});activeRefills=activeRefills.filter(x=>Number(x.roomId)!==Number(r.id));if(result.request?.status==='pending')activeRefills.push(result.request);notice(result.request?.status==='pending'?'Пополнение сохранено.':'Запрос на пополнение снят.');renderSelected();}catch(e){notice(e.message||'Не удалось сохранить пополнение.',true);}finally{busy=false;}}
+async function markEmpty(){const r=roomByNumber(selectedNumber);if(!r.id||busy)return;busy=true;notice('Сохраняем опустошение…');try{await api.post('checks',{roomId:Number(r.id),type:'emptied',status:'done'});notice('Опустошение записано.');await loadData();}catch(e){notice(e.message||'Не удалось записать опустошение.',true);}finally{busy=false;}}
+function bind(){if(bound)return;bound=true;document.addEventListener('click',e=>{const t=e.target instanceof Element?e.target:null;if(!t)return;const rb=t.closest('[data-camera-room]');if(rb){selectedNumber=rb.dataset.cameraRoom;counts={};renderSelected();return;}const p=t.closest('[data-camera-product]');if(p){const id=Number(p.dataset.cameraProduct),max=Number(p.dataset.max)||1,q=Number(counts[id])||0;counts[id]=q>=max?0:q+1;renderSelected();return;}const a=t.closest('[data-camera-action]')?.dataset.cameraAction;if(a==='capture')capture();if(a==='retake'){photoBlob=null;$('cameraPhotoReview').classList.add('hidden');$('cameraViewfinder').classList.remove('has-preview');void startStream();}if(a==='send-photo')void sendPhoto();if(a==='save-refill')void saveRefill();if(a==='empty')void markEmpty();});}
+export function renderCamera(state){const d=state.listData?.[state.cameraSourceListType||state.listType||'arrivals'],ns=d?.roomNumbers||[];const initial=String(state.cameraSelectedRoomNumber||selectedNumber||ns[0]||'');if(initial&&initial!==selectedNumber){selectedNumber=initial;counts={};}return '<div class="screen screen-camera">'+pageHeader({title:'Камера'})+'<div class="camera-workspace-new"><div class="camera-selected-title" id="cameraSelectedTitle">Выбери номер</div><div class="camera-carousel" id="cameraCarousel"></div><div class="camera-viewfinder-new" id="cameraViewfinder"><video id="cameraVideo" autoplay playsinline muted></video><canvas id="cameraCanvas" hidden></canvas><div class="camera-viewfinder-overlay"><span></span><span></span><span></span><span></span></div><div class="camera-viewfinder-placeholder">'+icon('camera',34)+'<small>Камера запускается…</small></div></div><div class="camera-capture-row"><button type="button" data-camera-action="capture" class="camera-capture-button" aria-label="Сделать фото"></button></div><div class="camera-photo-review hidden" id="cameraPhotoReview"><img id="cameraPhotoPreview" alt="Предпросмотр фото"><div><button type="button" data-camera-action="retake" class="camera-secondary-button">Переснять</button><button type="button" data-camera-action="send-photo" class="camera-primary-button">Отправить</button></div></div><section class="camera-summary-card"><div class="camera-section-title">Краткая сводка</div><div id="cameraRoomSummary">'+(ns.length?summaryHtml(roomByNumber(initial)):'<div class="camera-summary-empty">Загружаем номера…</div>')+'</div></section><section class="camera-refill-card"><div class="camera-section-title">Пополнение</div><div id="cameraProducts">'+productsHtml(roomByNumber(initial))+'</div><button type="button" class="camera-primary-button camera-save-refill" data-camera-action="save-refill">Сохранить пополнение</button></section><div class="camera-action-row"><button type="button" class="camera-secondary-button" data-camera-action="empty">'+icon('package-open',16)+' Опустошил</button></div><div id="cameraFeedback" class="camera-feedback" role="status"></div></div></div>';}
+export function cameraDidRender(){bind();renderCarousel();renderSelected();void loadData();void startStream();}
+export function cameraWillUnmount(){stopStream();loadToken++;photoBlob=null;}
