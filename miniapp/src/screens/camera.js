@@ -363,6 +363,7 @@ async function startCamera() {
     video.srcObject = stream;
     await video.play();
     await waitForVideo(video);
+    video.classList.toggle('is-portrait-rotated',video.videoWidth > video.videoHeight);
     $('cameraStage')?.classList.add('is-live');
     const track = stream.getVideoTracks()[0];
     const capabilities = track?.getCapabilities?.();
@@ -404,9 +405,7 @@ async function toggleFlash() {
   }
 }
 async function normalizePortraitPhoto(blob) {
-  const portrait = screen.orientation?.type?.startsWith('portrait') ??
-    window.matchMedia?.('(orientation: portrait)').matches ?? true;
-  if (!portrait || typeof createImageBitmap !== 'function') return blob;
+  if (typeof createImageBitmap !== 'function') return blob;
   let bitmap;
   try { bitmap = await createImageBitmap(blob); } catch (_) { return blob; }
   if (bitmap.height >= bitmap.width) { bitmap.close?.(); return blob; }
@@ -425,8 +424,7 @@ async function makeFallbackPhoto(video) {
   await waitForVideo(video);
   const sourceWidth = video.videoWidth;
   const sourceHeight = video.videoHeight;
-  const portrait = screen.orientation?.type?.startsWith('portrait') ?? window.matchMedia?.('(orientation: portrait)').matches ?? true;
-  const rotate = sourceWidth > sourceHeight && portrait;
+  const rotate = sourceWidth > sourceHeight;
   const outputWidth = rotate ? sourceHeight : sourceWidth;
   const outputHeight = rotate ? sourceWidth : sourceHeight;
   const scale = Math.min(1,1920 / Math.max(outputWidth,outputHeight));
