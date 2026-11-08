@@ -144,7 +144,20 @@ async function getMiniAppArrivalList(req) {
   const range = todayRange(req);
   const [rooms, checks, session] = await Promise.all([
     prisma.room.findMany({
-      select: { number: true, floor: true, category: true },
+      select: {
+        id: true,
+        number: true,
+        floor: true,
+        category: true,
+        expiryStatus: true,
+        productStatuses: {
+          select: {
+            expiryStatus: true,
+            qtyToReplace: true,
+            product: { select: { name: true } }
+          }
+        }
+      },
       orderBy: { number: 'asc' }
     }),
     prisma.check.findMany({
@@ -181,6 +194,18 @@ async function getMiniAppArrivalList(req) {
   }
 
   const completedCount = checkedRoomNumbers.size;
+  const roomInfo = Object.fromEntries(rooms
+    .filter(room => assigned.has(String(room.number)))
+    .map(room => [String(room.number), {
+      floor: room.floor,
+      category: room.category,
+      expiryStatus: room.expiryStatus || 'neutral',
+      productStatuses: (room.productStatuses || []).map(item => ({
+        name: item.product?.name || '',
+        expiryStatus: item.expiryStatus || 'ok',
+        qtyToReplace: Number(item.qtyToReplace) || 0
+      }))
+    }]));
   return {
     dateKey: range.dateKey,
     name: 'Заезды',
@@ -194,7 +219,8 @@ async function getMiniAppArrivalList(req) {
     checkedRoomNumbers: [...checkedRoomNumbers],
     roomNumbers,
     readyNumbers,
-    entries
+    entries,
+    roomInfo
   };
 }
 
