@@ -162,7 +162,6 @@ function renderStandby() {
       '</div>' +
       (entry.comment ? '<div class="camera-info-comment-line">' + icon('message-square',13) + '<span>' + esc(entry.comment) + '</span></div>' : '') +
     '</section>';
-  renderHistory();
 }
 function updateActionAvailability() {
   const room = roomByNumber(selectedNumber);
@@ -209,7 +208,7 @@ function renderCarousel() {
     return '<button type="button" class="' + classes.join(' ') + '" data-camera-room="' + esc(number) + '"><strong>' + esc(number) + '</strong><span class="camera-number-marks">' + marks.join('') + '</span></button>';
   }).join('');
   const active = host.querySelector('.is-active');
-  if (active) host.scrollLeft = Math.max(0, active.offsetLeft - (host.clientWidth - active.clientWidth) / 2);
+  if (active) host.scrollTop = Math.max(0, active.offsetTop - (host.clientHeight - active.clientHeight) / 2);
   attachCarouselScroll(host);
   updateActionAvailability();
 }
@@ -462,7 +461,7 @@ async function waitForVideo(video) {
     video.addEventListener('loadedmetadata', done, { once:true });
   });
 }
-async function capturePhoto() {
+async async function capturePhoto() {
   const roomNumber = String(selectedNumber);
   if (captureBusy || photoBlob || !roomNumber || isArrivalNotReady(roomByNumber(roomNumber))) {
     if (isArrivalNotReady(roomByNumber(roomNumber))) showNotice('Сначала отметь «Можно делать» для этого номера',true);
@@ -837,6 +836,7 @@ export function cameraDidRender() {
     if (video && stream) {
       video.srcObject = stream;
       video.play().catch(()=>{});
+      $('cameraStage')?.classList.add('is-live');
     }
     renderCarousel();
     renderStandby();
