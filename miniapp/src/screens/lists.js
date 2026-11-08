@@ -235,6 +235,7 @@ function renderArrivalLabels(entry, done, info, state, details) {
   if (entry.vip) marks.push(standardChip('VIP', 'is-vip'));
   if (entry.empty) marks.push(standardChip('Опустошить', 'is-empty-action'));
   if (entry.time) marks.push(standardChip(entry.time, 'is-time'));
+  if (entry.comment) marks.push(standardChip('Комментарий', 'is-comment'));
   marks.push(entry.ready
     ? standardChip('Можно делать', 'is-ready')
     : standardChip('Пока нельзя', 'is-not-ready'));
