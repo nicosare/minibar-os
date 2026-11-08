@@ -331,7 +331,6 @@ function renderDepartureDetails(number, info, onArrival, done, state, busy, deta
       (done ? '<span class="list-done-label">' + icon('check-circle-2', 15) + ' Выполнен</span>' : '') +
     '</div>' +
     renderDeadlineDetails(info, details) +
-    renderRefillDetails(state, info) +
     '<div class="list-card-footer"><span class="list-saving-label">' + (busy ? 'Сохраняем…' : '') + '</span>' +
       '<button type="button" class="list-danger-action" data-list-action="remove" data-number="' + escapeHtml(number) +
       '"' + (busy ? ' disabled' : '') + '>' + icon('x', 15) + ' Убрать номер</button></div></div>';
@@ -359,11 +358,13 @@ function renderArrivalCard(number, info, entry, done, state, busy, ui) {
 
 function renderDepartureCard(number, info, onArrival, done, state, busy, ui) {
   const compact = ui.format === 'compact';
+  const empty = info.expiryStatus === 'empty';
+  const roomNumber = '<span class="list-room-number list-room-open" data-open-camera="' + escapeHtml(number) + '">' + escapeHtml(number) + '</span>' + (empty ? '<span class="list-empty-badge">Пустой</span>' : '');
   const summary = compact
-    ? '<strong class="list-room-number">' + escapeHtml(number) + '</strong>' +
+    ? roomNumber +
       '<span class="list-summary-dots">' + renderDepartureMarkers(onArrival, done, info, state, ui.details) + '</span>'
     : '<div class="list-standard-summary">' +
-      '<div class="list-room-identity"><button type="button" class="list-room-number" data-open-camera-room="' + escapeHtml(number) + '">' + escapeHtml(number) + '</button>' +
+      '<div class="list-room-identity">' + roomNumber +
         roomMeta(info, ui.details) + '</div>' +
       '<div class="list-room-chips">' + renderDepartureLabels(onArrival, done, info, state, ui.details) + '</div></div>';
   return '<details class="list-room-card' + (compact ? ' is-compact' : ' is-standard') +
