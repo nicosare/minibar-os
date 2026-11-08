@@ -461,7 +461,7 @@ async function waitForVideo(video) {
     video.addEventListener('loadedmetadata', done, { once:true });
   });
 }
-async async function capturePhoto() {
+async function capturePhoto() {
   const roomNumber = String(selectedNumber);
   if (captureBusy || photoBlob || !roomNumber || isArrivalNotReady(roomByNumber(roomNumber))) {
     if (isArrivalNotReady(roomByNumber(roomNumber))) showNotice('Сначала отметь «Можно делать» для этого номера',true);
@@ -782,7 +782,7 @@ function attachCarouselScroll(carousel = $('cameraCarousel')) {
       let best = null, distance = Infinity;
       carousel.querySelectorAll('[data-camera-room]').forEach(item => {
         const box = item.getBoundingClientRect();
-        const delta = Math.abs(box.left + box.width/2 - center);
+        const delta = Math.abs(box.top + box.height/2 - center);
         if (delta < distance) { distance=delta; best=item; }
       });
       if (best && best.dataset.cameraRoom !== selectedNumber) setSelectedRoom(best.dataset.cameraRoom);
@@ -819,7 +819,7 @@ export function renderCamera(state) {
     '</section>' +
     '<div class="camera-feedback" id="cameraFeedback" role="status"></div>' +
     '<div class="camera-modal-overlay hidden" id="cameraPreviewModal" role="dialog" aria-modal="true" aria-label="Предпросмотр фотографии" aria-hidden="true">' +
-      '<div class="camera-preview-card"><div class="camera-preview-room" id="cameraPreviewRoom">Номер</div><img id="cameraPreviewImage" alt="Предпросмотр фото"><div class="camera-preview-actions"><button type="button" class="camera-preview-secondary" data-camera-action="retake">Переснять</button><button type="button" class="camera-preview-primary" data-camera-action="send-photo" id="cameraSendPhoto">Отправить</button></div></div>' +
+      '<div class="camera-preview-card"><div class="camera-preview-room" id="cameraPreviewRoom">Номер</div><canvas id="cameraPreviewCanvas" class="camera-preview-canvas"></canvas><div class="camera-preview-actions"><button type="button" class="camera-preview-secondary" data-camera-action="retake">Переснять</button><button type="button" class="camera-preview-primary" data-camera-action="send-photo" id="cameraSendPhoto">Отправить</button></div></div>' +
     '</div>' +
     '<div class="camera-modal-overlay hidden" id="refillModal" role="dialog" aria-modal="true" aria-label="Пополнить номер" aria-hidden="true">' +
       '<div class="camera-refill-modal"><header class="camera-modal-header"><strong>Пополнить · номер <span id="refillModalRoom"></span></strong><button type="button" data-camera-action="close-refill" aria-label="Закрыть">×</button></header>' +
