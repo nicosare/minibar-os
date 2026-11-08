@@ -725,7 +725,7 @@ export function renderCamera(state) {
 export function cameraDidRender() {
   bind();
   if(mounted){const v=$('cameraVideo');if(v&&stream){v.srcObject=stream;v.play().catch(()=>{});$('cameraStage')?.classList.add('is-live');}renderCarousel();renderStandby();updateFlashControl();return;}
-  mounted=true;void requestOrientationPermission();void loadCameraData();renderCarousel();renderStandby();void startCamera();
+  mounted=true;void loadCameraData();renderCarousel();renderStandby();void startCamera();
 }
 export function cameraWillUnmount() {
   mounted = false;
