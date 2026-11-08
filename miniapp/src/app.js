@@ -4,7 +4,7 @@ import { renderTopbar, renderBottomNav } from './components/chrome.js';
 import { renderIcons } from './components/icons.js';
 import { renderToday } from './screens/today.js';
 import { renderLists, initializeLists, loadList, handleListClick, handleListChange } from './screens/lists.js';
-import { renderCamera } from './screens/camera.js';
+import { renderCamera, cameraDidRender, cameraWillUnmount } from './screens/camera.js';
 import { renderRooms } from './screens/rooms.js';
 import { renderMore } from './screens/more.js';
 
@@ -26,8 +26,10 @@ function render() {
   const expandedRooms = preserveExpanded
     ? [...main.querySelectorAll('details.list-room-card[open]')].map(card => card.dataset.roomNumber)
     : [];
+  if (renderedScreen === 'camera' && screen !== 'camera') cameraWillUnmount();
   topbar.innerHTML = renderTopbar();
   main.innerHTML = renderers[screen](state);
+  if (screen === 'camera') cameraDidRender();
   bottomNav.innerHTML = renderBottomNav({ ...state, screen });
   renderIcons();
   document.documentElement.dataset.screen = screen;
@@ -47,6 +49,7 @@ subscribe(render);
 
 document.addEventListener('click', event => {
   if (handleListClick(event)) return;
+
   const target = event.target instanceof Element ? event.target : null;
   if (!target) return;
 
