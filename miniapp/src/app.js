@@ -26,8 +26,10 @@ function render() {
   const expandedRooms = preserveExpanded
     ? [...main.querySelectorAll('details.list-room-card[open]')].map(card => card.dataset.roomNumber)
     : [];
+  if (renderedScreen === 'camera' && screen !== 'camera') cameraWillUnmount();
   topbar.innerHTML = renderTopbar();
   main.innerHTML = renderers[screen](state);
+  if (screen === 'camera') cameraDidRender();
   bottomNav.innerHTML = renderBottomNav({ ...state, screen });
   renderIcons();
   document.documentElement.dataset.screen = screen;
