@@ -2,6 +2,7 @@ import { api } from '../core/api.js';
 import { getState, setState } from '../core/store.js';
 import { pageHeader } from '../components/chrome.js';
 import { icon } from '../components/icons.js';
+import { initializeCamera } from './camera.js';
 
 const TYPES = [
   { id: 'arrivals', label: 'Заезды' },
@@ -201,14 +202,14 @@ function standardChip(text, tone) {
 }
 
 function marker(label, tone) {
-  return '<span class="list-marker-dot ' + tone + '" title="' + escapeHtml(label) +
-    '" aria-label="' + escapeHtml(label) + '"></span>';
+  const glyph = tone === 'is-vip' ? 'crown' : tone === 'is-empty' ? 'package-x' : tone === 'is-ready' ? 'check-circle-2' : tone === 'is-muted' ? 'circle-minus' : tone === 'is-deadline' ? 'timer' : tone === 'is-refill' ? 'package-plus' : tone === 'is-arrival' ? 'plane-landing' : 'message-square';
+  return '<span class="list-marker-icon ' + tone + '" title="' + escapeHtml(label) + '" aria-label="' + escapeHtml(label) + '">' + icon(glyph,14) + '</span>';
 }
 
 function renderArrivalMarkers(entry, done, info, state, details) {
   const marks = [];
   if (entry.vip) marks.push(marker('VIP', 'is-vip'));
-  if (entry.empty) marks.push(marker('Опустошить', 'is-empty'));
+  if (entry.empty) marks.push('<span class="list-marker-word is-empty">Опустошить</span>');
   if (entry.ready) marks.push(marker('Можно делать', 'is-ready'));
   else marks.push(marker('Пока нельзя', 'is-muted'));
   const deadlines = details.deadlines ? deadlineText(info) : '';
@@ -315,7 +316,7 @@ function renderArrivalDetails(number, info, entry, done, state, busy, details) {
         escapeHtml(number) + '" value="' + escapeHtml(entry.comment || '') + '" placeholder="Добавить комментарий"' + disabled + '></label>' +
     '</div>' +
     renderDeadlineDetails(info, details) +
-    renderRefillDetails(state, info) +
+    '' +
     '<div class="list-card-footer"><span class="list-saving-label">' + (busy ? 'Сохраняем…' : '') + '</span>' +
       '<button type="button" class="list-danger-action" data-list-action="remove" data-number="' + escapeHtml(number) +
       '"' + (busy ? ' disabled' : '') + '>' + icon('x', 15) + ' Убрать номер</button></div></div>';
@@ -339,13 +340,15 @@ function renderDepartureDetails(number, info, onArrival, done, state, busy, deta
 
 function renderArrivalCard(number, info, entry, done, state, busy, ui) {
   const compact = ui.format === 'compact';
+  const empty = info.expiryStatus === 'empty';
+  const roomNumber = '<span class="list-room-number list-room-open" data-open-camera="' + escapeHtml(number) + '">' + escapeHtml(number) + '</span>' + (empty ? '<span class="list-empty-badge">Пустой</span>' : '');
   const summary = compact
-    ? '<strong class="list-room-number">' + escapeHtml(number) + '</strong>' +
+    ? roomNumber +
       (entry.time ? '<span class="list-summary-time">' + escapeHtml(entry.time) + '</span>' : '') +
       (entry.comment ? marker('Есть комментарий', 'is-comment') : '') +
       '<span class="list-summary-dots">' + renderArrivalMarkers(entry, done, info, state, ui.details) + '</span>'
     : '<div class="list-standard-summary">' +
-      '<div class="list-room-identity"><strong class="list-room-number">' + escapeHtml(number) + '</strong>' +
+      '<div class="list-room-identity">' + roomNumber +
         roomMeta(info, ui.details) + '</div>' +
       '<div class="list-room-chips">' + renderArrivalLabels(entry, done, info, state, ui.details) + '</div></div>';
   return '<details class="list-room-card' + (compact ? ' is-compact' : ' is-standard') +
@@ -602,6 +605,14 @@ export function handleListClick(event) {
     setNotice('');
     setState({ listType: type });
     void loadList(type);
+    return true;
+  }
+
+  const openRoom = target.closest('[data-open-camera]');
+  if (openRoom) {
+    event.preventDefault();
+    event.stopPropagation();
+    void initializeCamera(openRoom.dataset.openCamera, getState().listType);
     return true;
   }
 
