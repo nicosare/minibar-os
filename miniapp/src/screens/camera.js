@@ -417,10 +417,15 @@ async function startCamera() {
     showLoader('Запускаем камеру…','Подготавливаем изображение');
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('Камера недоступна в этом браузере');
-      stream = await navigator.mediaDevices.getUserMedia({
+      const openedStream = await navigator.mediaDevices.getUserMedia({
         audio:false,
         video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}}
       });
+      if (!mounted) {
+        openedStream.getTracks().forEach(track=>track.stop());
+        throw new Error('Камера закрыта');
+      }
+      stream = openedStream;
       videoTrack = stream.getVideoTracks()[0] || null;
       if (!videoTrack) throw new Error('Камера не вернула видеопоток');
       const video = $('cameraVideo');
