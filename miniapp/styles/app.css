@@ -693,3 +693,20 @@ html[data-screen="camera"] .screen-camera { position:relative; }
   .camera-carousel-wrap {width:54px;flex-basis:54px}
   .camera-room-action {font-size:8px}
 }
+
+
+/* Camera polish: status glyphs and immediate canvas preview. */
+.camera-room-marker.is-deadline { color:#ea7a25; }
+.camera-room-marker.is-comment { color:#8b5cf6; }
+.camera-number-item.is-deadline:not(.is-active) { color:#bd702c; background:#fff8ef; }
+.camera-number-item.is-active .camera-room-marker.is-deadline,
+.camera-number-item.is-active .camera-room-marker.is-comment { color:#fff; }
+.camera-preview-canvas {
+  display:block;
+  width:100%;
+  max-height:calc(100dvh - 190px);
+  height:auto;
+  object-fit:contain;
+  border-radius:9px;
+  background:#111c2e;
+}
