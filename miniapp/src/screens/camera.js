@@ -159,6 +159,7 @@ function renderStandby() {
       '</div>' +
       (entry.comment ? '<div class="camera-info-comment-line">' + icon('message-square',13) + '<span>' + esc(entry.comment) + '</span></div>' : '') +
     '</section>';
+  renderIcons();
 }
 function updateActionAvailability() {
   const room = roomByNumber(selectedNumber);
@@ -279,6 +280,7 @@ function updateFlashControl(){
   b.classList.toggle('hidden',!torchSupported);b.classList.toggle('is-on',flashOn);
   b.setAttribute('aria-pressed',String(flashOn));
   b.innerHTML=icon(flashOn?'flashlight':'flashlight-off',17)+'<span>'+(flashOn?'Вспышка включена':'Вспышка')+'</span>';
+  renderIcons();
 }
 async function toggleFlash(){
   if(!videoTrack||!torchSupported)return;
