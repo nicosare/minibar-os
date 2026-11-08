@@ -432,9 +432,10 @@ App.departuresModule = (() => {
     if (state.pendingMarks.has(number)) return;
     const isPdfRoom = normalizePdfRooms().includes(number);
     const previousMark = roomMark(number);
+    const previousSessionMark = state.session.marks && state.session.marks[number] || null;
+    const previousWorklist = { ...(state.data.miniAppWorklist || {}) };
     const mark = nextMark(previousMark);
     state.pendingMarks.add(number);
-    const previousWorklistMarks = { ...(state.data.miniAppWorklist?.marks || {}) };
     if (isPdfRoom) {
       if (!state.session.marks) state.session.marks = {};
       if (mark) state.session.marks[number] = mark;
@@ -468,17 +469,11 @@ App.departuresModule = (() => {
       hideFeedback();
     } catch (error) {
       if (isPdfRoom) {
-        if (previousMark) state.session.marks[number] = previousMark;
+        if (!state.session.marks) state.session.marks = {};
+        if (previousSessionMark) state.session.marks[number] = previousSessionMark;
         else delete state.session.marks[number];
       }
-      const worklist = state.data.miniAppWorklist || {};
-      const marks = { ...(worklist.marks || {}) };
-      if (Object.prototype.hasOwnProperty.call(previousWorklistMarks, number)) {
-        marks[number] = previousWorklistMarks[number];
-      } else {
-        delete marks[number];
-      }
-      state.data.miniAppWorklist = { ...worklist, marks };
+      state.data.miniAppWorklist = previousWorklist;
       showFeedback(error.message || 'Не удалось сохранить отметку номера.', 'error');
     } finally {
       state.pendingMarks.delete(number);
