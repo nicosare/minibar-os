@@ -1,6 +1,6 @@
 import { api } from '../core/api.js';
 import { getState } from '../core/store.js';
-import { icon } from '../components/icons.js';
+import { icon, renderIcons } from '../components/icons.js';
 
 let stream = null;
 let videoTrack = null;
@@ -161,6 +161,7 @@ function renderStandby() {
       '</div>' +
       (entry.comment ? '<div class="camera-info-comment-line">' + icon('message-square',13) + '<span>' + esc(entry.comment) + '</span></div>' : '') +
     '</section>';
+  renderIcons();
 }
 function updateActionAvailability() {
   const room = roomByNumber(selectedNumber);
@@ -210,6 +211,7 @@ function renderCarousel() {
   if (active) host.scrollTop = Math.max(0, active.offsetTop - (host.clientHeight - active.clientHeight) / 2);
   attachCarouselScroll(host);
   updateActionAvailability();
+  renderIcons();
 }
 function centerRoom(number, behavior = 'smooth') {
   const host = $('cameraCarousel');
