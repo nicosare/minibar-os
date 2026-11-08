@@ -363,6 +363,8 @@ function detectTorch() {
     button.hidden = !torchSupported;
     button.classList.toggle('is-on',torchEnabled);
     button.setAttribute('aria-pressed',String(torchEnabled));
+    button.setAttribute('aria-label',torchEnabled ? 'Выключить вспышку' : 'Включить вспышку');
+    button.title = torchEnabled ? 'Выключить вспышку' : 'Включить вспышку';
   }
 }
 async function setTorch(enabled) {
