@@ -87,9 +87,16 @@ App.departuresModule = (() => {
 
   function roomMark(number) {
     const key = String(number);
-    return (state.session.marks && state.session.marks[key]) ||
-      (state.data.miniAppWorklist?.marks && state.data.miniAppWorklist.marks[key]) ||
-      ((state.data.miniAppWorklist?.arrivalRooms || []).map(String).includes(key) ? 'arrival' : null);
+    const sessionMark = state.session.marks && state.session.marks[key];
+    if (sessionMark) return sessionMark;
+    const worklist = state.data.miniAppWorklist || {};
+    if (worklist.marks && Object.prototype.hasOwnProperty.call(worklist.marks, key)) {
+      return worklist.marks[key] === 'none' ? null : worklist.marks[key];
+    }
+    if (worklist.arrivalOverrides && Object.prototype.hasOwnProperty.call(worklist.arrivalOverrides, key)) {
+      return worklist.arrivalOverrides[key] ? 'arrival' : null;
+    }
+    return (worklist.arrivalRooms || []).map(String).includes(key) ? 'arrival' : null;
   }
 
   function normalizePdfRooms() {

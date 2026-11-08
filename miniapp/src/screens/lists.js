@@ -265,9 +265,10 @@ function renderDeadlineDetails(info, details) {
     : '';
 }
 
-function renderRefillDetails(state, info, busy) {
+function renderRefillDetails(state, info) {
   const request = refillForRoom(state, info.id);
   const templateItems = Array.isArray(info.templateItems) ? info.templateItems : [];
+  const busy = isBusy('refill', String(info.id));
   if (busy) return '<div class="list-detail-line"><span class="list-inline-spinner"></span>Сохраняем пополнение…</div>';
   const selected = new Map((request?.items || []).map(item => [Number(item.productId), Number(item.qty) || 0]));
   const items = templateItems.map(item => {
@@ -287,8 +288,8 @@ function renderRefillDetails(state, info, busy) {
     (items
       ? '<div class="list-refill-products">' + items + '</div>' 
       : '<div class="list-editor-empty">Для номера не задан шаблон продуктов.</div>') +
-    (items ? '<button type="button" class="list-primary-action" data-list-action="save-refill" data-number="' +
-      escapeHtml(String(info.number || '')) + '"' + (isBusy('refill', String(info.id)) ? ' disabled' : '') +
+    (items ? '<button type="button" class="list-primary-action" data-list-action="save-refill"' +
+      (isBusy('refill', String(info.id)) ? ' disabled' : '') +
       '>' + icon('save', 15) + ' Сохранить пополнение</button>' : '') +
     '<small class="list-editor-hint">Укажи количество отсутствующих продуктов. Ноль — не требуется.</small></section>';
 }
@@ -311,7 +312,7 @@ function renderArrivalDetails(number, info, entry, done, state, busy, details) {
         escapeHtml(number) + '" value="' + escapeHtml(entry.comment || '') + '" placeholder="Добавить комментарий"' + disabled + '></label>' +
     '</div>' +
     renderDeadlineDetails(info, details) +
-    (details.refill ? renderRefillDetails(state, info, busy) : '') +
+    (details.refill ? renderRefillDetails(state, info) : '') +
     '<div class="list-card-footer"><span class="list-saving-label">' + (busy ? 'Сохраняем…' : '') + '</span>' +
       '<button type="button" class="list-danger-action" data-list-action="remove" data-number="' + escapeHtml(number) +
       '"' + (busy ? ' disabled' : '') + '>' + icon('x', 15) + ' Убрать номер</button></div></div>';
@@ -327,7 +328,7 @@ function renderDepartureDetails(number, info, onArrival, done, state, busy, deta
       (done ? '<span class="list-done-label">' + icon('check-circle-2', 15) + ' Выполнен</span>' : '') +
     '</div>' +
     renderDeadlineDetails(info, details) +
-    (details.refill ? renderRefillDetails(state, info, busy) : '') +
+    (details.refill ? renderRefillDetails(state, info) : '') +
     '<div class="list-card-footer"><span class="list-saving-label">' + (busy ? 'Сохраняем…' : '') + '</span>' +
       '<button type="button" class="list-danger-action" data-list-action="remove" data-number="' + escapeHtml(number) +
       '"' + (busy ? ' disabled' : '') + '>' + icon('x', 15) + ' Убрать номер</button></div></div>';
@@ -338,6 +339,7 @@ function renderArrivalCard(number, info, entry, done, state, busy, ui) {
   const summary = compact
     ? '<strong class="list-room-number">' + escapeHtml(number) + '</strong>' +
       (entry.time ? '<span class="list-summary-time">' + escapeHtml(entry.time) + '</span>' : '') +
+      (entry.comment ? marker('Есть комментарий', 'is-comment') : '') +
       '<span class="list-summary-dots">' + renderArrivalMarkers(entry, done, info, state, ui.details) + '</span>'
     : '<div class="list-standard-summary">' +
       '<div class="list-room-identity"><strong class="list-room-number">' + escapeHtml(number) + '</strong>' +

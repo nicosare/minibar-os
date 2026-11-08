@@ -168,7 +168,7 @@ function parseMiniAppWorklist(value, dateKey) {
   const marks = {};
   if (parsed.marks && typeof parsed.marks === 'object' && !Array.isArray(parsed.marks)) {
     for (const [rawNumber, mark] of Object.entries(parsed.marks)) {
-      if (/^\d{1,4}$/.test(rawNumber) && VALID_MARKS.has(mark)) {
+      if (/^\d{1,4}$/.test(rawNumber) && (VALID_MARKS.has(mark) || mark === 'none')) {
         marks[String(Number(rawNumber))] = mark;
       }
     }
@@ -301,7 +301,7 @@ export async function getMiniAppDepartureList(req) {
   }
   for (const [number, mark] of Object.entries(worklist.marks || {})) {
     if (mark === 'arrival') effectiveArrivalRooms.add(number);
-    else if (mark === 'resident') effectiveArrivalRooms.delete(number);
+    else if (mark === 'resident' || mark === 'none') effectiveArrivalRooms.delete(number);
   }
   const assignedNumbers = [...assigned].sort((a, b) => {
     const roomA = roomByNumber.get(a);
@@ -499,7 +499,7 @@ router.patch('/session/mark', async (req, res) => {
     }
     const worklist = await updateMiniAppWorklist(req, current => {
       const marks = { ...(current.marks || {}) };
-      if (mark === null) delete marks[normalizedNumber];
+      if (mark === null) marks[normalizedNumber] = 'none';
       else marks[normalizedNumber] = mark;
       return { ...current, marks };
     });
