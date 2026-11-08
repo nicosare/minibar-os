@@ -2,7 +2,6 @@ import { api } from '../core/api.js';
 import { getState, setState } from '../core/store.js';
 import { pageHeader } from '../components/chrome.js';
 import { icon } from '../components/icons.js';
-import { initializeCamera } from './camera.js';
 
 const TYPES = [
   { id: 'arrivals', label: 'Заезды' },
@@ -613,7 +612,7 @@ export function handleListClick(event) {
   if (openRoom) {
     event.preventDefault();
     event.stopPropagation();
-    void initializeCamera(openRoom.dataset.openCamera, getState().listType);
+    setState({ screen: 'camera', cameraSourceListType: getState().listType, cameraSelectedRoomNumber: openRoom.dataset.openCamera });
     return true;
   }
 
