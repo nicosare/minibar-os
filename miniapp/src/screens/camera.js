@@ -225,35 +225,6 @@ function setSelectedRoom(number, options = {}) {
   updateActionAvailability();
   if (changed) updateFlashControl();
 }
-async function loadRoomHistory(number = selectedNumber) {
-  const room = roomByNumber(number);
-  const token = ++historyToken;
-  roomHistory = [];
-  renderHistory();
-  if (!room.id) return;
-  try {
-    const [historyResult, statusResult] = await Promise.allSettled([
-      api.get('checks/history?roomId=' + Number(room.id) + '&pageSize=4'),
-      api.get('rooms/' + Number(room.id) + '/product-statuses')
-    ]);
-    if (token !== historyToken || String(number) !== selectedNumber) return;
-    if (historyResult.status === 'fulfilled') roomHistory = Array.isArray(historyResult.value?.items) ? historyResult.value.items : [];
-    if (statusResult.status === 'fulfilled' && Array.isArray(statusResult.value)) {
-      room.productStatuses = statusResult.value.map(item => ({
-        productId:Number(item.productId), name:item.product?.name || item.name || 'Продукт',
-        expiryStatus:item.expiryStatus || 'ok', qtyToReplace:Number(item.qtyToReplace) || 0
-      }));
-      const baseRoom = rooms.find(item => Number(item.id) === Number(room.id));
-      if (baseRoom) baseRoom.productStatuses = room.productStatuses;
-      const listRoom = sourceData().data?.roomInfo?.[String(room.number)];
-      if (listRoom) listRoom.productStatuses = room.productStatuses;
-      renderStandby();
-    }
-    renderHistory();
-  } catch (_) {
-    if (token === historyToken) { roomHistory = []; renderHistory(); }
-  }
-}
 async function loadCameraData() {
   const token = ++loadToken;
   const [roomResult, refillResult] = await Promise.allSettled([
