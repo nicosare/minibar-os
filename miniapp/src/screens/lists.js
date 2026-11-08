@@ -14,6 +14,6 @@ export function renderLists(state) {
     '<div class="segmented-tabs" role="tablist" aria-label="Тип списка">' +
     types.map(item => '<button type="button" role="tab" data-list-type="' + item.id + '" aria-selected="' + (item.id === active.id) +
       '" class="segment-tab' + (item.id === active.id ? ' is-selected' : '') + '">' + item.label + '</button>').join('') +
-    '</div><section class="list-workspace-card"><div class="list-empty-state"><span class="list-empty-icon">' + icon('lists', 27) +
+    '</div><section class="list-workspace-card"><div class="list-empty-state"><span class="list-empty-icon">' + icon('list', 24) +
     '</span><strong>Пока нет номеров</strong></div></section></div>';
 }

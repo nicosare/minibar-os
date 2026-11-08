@@ -6,25 +6,25 @@ export function pageHeader({ eyebrow = '', title, description = '' }) {
 }
 
 export function renderTopbar() {
-  return '<div class="topbar-brand"><span class="brand-mark">' + icon('brand', 22) +
+  return '<div class="topbar-brand"><span class="brand-mark">' + icon('box', 20) +
     '</span><span class="brand-name">MINIBAR <strong>OS</strong></span></div>';
 }
 
 const navItems = [
-  { id: 'today', label: 'Сегодня', glyph: 'today' },
-  { id: 'lists', label: 'Списки', glyph: 'lists' },
-  { id: 'camera', label: 'Камера', glyph: 'camera', primary: true },
-  { id: 'rooms', label: 'Номера', glyph: 'rooms' },
-  { id: 'more', label: 'Ещё', glyph: 'more' }
+  { id: 'today', label: 'Сегодня', glyph: 'layout-dashboard' },
+  { id: 'lists', label: 'Списки', glyph: 'list' },
+  { id: 'camera', label: 'Камера', glyph: 'camera' },
+  { id: 'rooms', label: 'Номера', glyph: 'door-open' },
+  { id: 'more', label: 'Ещё', glyph: 'more-horizontal' }
 ];
 
 export function renderBottomNav(state) {
   const active = state.screen === 'more-detail' ? 'more' : state.screen;
   return navItems.map(item => {
     const selected = item.id === active;
-    return '<button type="button" class="nav-item' + (item.primary ? ' nav-item-primary' : '') +
-      (selected ? ' is-active' : '') + '" data-nav="' + item.id + '" aria-label="' + item.label +
+    return '<button type="button" class="nav-item' + (selected ? ' is-active' : '') +
+      '" data-nav="' + item.id + '" aria-label="' + item.label +
       '" aria-current="' + (selected ? 'page' : 'false') + '"><span class="nav-icon">' +
-      icon(item.glyph, item.primary ? 23 : 21) + '</span><span class="nav-label">' + item.label + '</span></button>';
+      icon(item.glyph, 19) + '</span><span class="nav-label">' + item.label + '</span></button>';
   }).join('');
 }
