@@ -271,3 +271,5 @@ details.list-room-card.is-completed { background:#fbfcfe; }
   .list-arrival-text-fields { grid-template-columns:minmax(76px,.65fr) minmax(0,1.4fr); }
   .list-refill-product input { width:55px; }
 }
+
+.list-marker-dot.is-comment { background:#8b5cf6; }

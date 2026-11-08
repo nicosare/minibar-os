@@ -214,7 +214,7 @@ function renderArrivalMarkers(entry, done, info, state, details) {
   const deadlines = details.deadlines ? deadlineText(info) : '';
   if (deadlines) marks.push(marker('Сроки: ' + deadlines, 'is-deadline'));
   const refill = details.refill ? refillText(refillForRoom(state, info.id)) : '';
-  if (refill) marks.push(marker('Пополнение: ' + refill, 'is-refill'));
+  if (refill) marks.push(marker('Требует пополнения: ' + refill, 'is-refill'));
   if (done) marks.push(marker('Выполнен', 'is-muted'));
   return marks.join('');
 }
@@ -225,7 +225,7 @@ function renderDepartureMarkers(onArrival, done, info, state, details) {
   const deadlines = details.deadlines ? deadlineText(info) : '';
   if (deadlines) marks.push(marker('Сроки: ' + deadlines, 'is-deadline'));
   const refill = details.refill ? refillText(refillForRoom(state, info.id)) : '';
-  if (refill) marks.push(marker('Пополнение: ' + refill, 'is-refill'));
+  if (refill) marks.push(marker('Требует пополнения: ' + refill, 'is-refill'));
   if (done) marks.push(marker('Выполнен', 'is-muted'));
   return marks.join('');
 }
@@ -242,7 +242,7 @@ function renderArrivalLabels(entry, done, info, state, details) {
   const deadlines = details.deadlines ? deadlineText(info) : '';
   if (deadlines) marks.push(standardChip('Сроки: ' + deadlines, 'is-deadline'));
   const refill = details.refill ? refillText(refillForRoom(state, info.id)) : '';
-  if (refill) marks.push(standardChip('Пополнение: ' + refill, 'is-refill'));
+  if (refill) marks.push(standardChip('Требует пополнения: ' + refill, 'is-refill'));
   return marks.join('');
 }
 
@@ -253,7 +253,7 @@ function renderDepartureLabels(onArrival, done, info, state, details) {
   const deadlines = details.deadlines ? deadlineText(info) : '';
   if (deadlines) marks.push(standardChip('Сроки: ' + deadlines, 'is-deadline'));
   const refill = details.refill ? refillText(refillForRoom(state, info.id)) : '';
-  if (refill) marks.push(standardChip('Пополнение: ' + refill, 'is-refill'));
+  if (refill) marks.push(standardChip('Требует пополнения: ' + refill, 'is-refill'));
   return marks.join('');
 }
 
@@ -312,7 +312,7 @@ function renderArrivalDetails(number, info, entry, done, state, busy, details) {
         escapeHtml(number) + '" value="' + escapeHtml(entry.comment || '') + '" placeholder="Добавить комментарий"' + disabled + '></label>' +
     '</div>' +
     renderDeadlineDetails(info, details) +
-    (details.refill ? renderRefillDetails(state, info) : '') +
+    renderRefillDetails(state, info) +
     '<div class="list-card-footer"><span class="list-saving-label">' + (busy ? 'Сохраняем…' : '') + '</span>' +
       '<button type="button" class="list-danger-action" data-list-action="remove" data-number="' + escapeHtml(number) +
       '"' + (busy ? ' disabled' : '') + '>' + icon('x', 15) + ' Убрать номер</button></div></div>';
@@ -328,7 +328,7 @@ function renderDepartureDetails(number, info, onArrival, done, state, busy, deta
       (done ? '<span class="list-done-label">' + icon('check-circle-2', 15) + ' Выполнен</span>' : '') +
     '</div>' +
     renderDeadlineDetails(info, details) +
-    (details.refill ? renderRefillDetails(state, info) : '') +
+    renderRefillDetails(state, info) +
     '<div class="list-card-footer"><span class="list-saving-label">' + (busy ? 'Сохраняем…' : '') + '</span>' +
       '<button type="button" class="list-danger-action" data-list-action="remove" data-number="' + escapeHtml(number) +
       '"' + (busy ? ' disabled' : '') + '>' + icon('x', 15) + ' Убрать номер</button></div></div>';

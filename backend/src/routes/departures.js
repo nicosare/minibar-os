@@ -575,21 +575,30 @@ router.patch('/miniapp-list/room', async (req, res) => {
     await updateMiniAppWorklist(req, current => {
       const overrides = { ...current.overrides };
       const arrivalRooms = new Set(current.arrivalRooms);
-
       const arrivalOverrides = { ...(current.arrivalOverrides || {}) };
+      const marks = { ...(current.marks || {}) };
+
       if (action === 'add') {
         overrides[number] = 'include';
+        delete marks[number];
+        delete arrivalOverrides[number];
       } else if (action === 'remove') {
         overrides[number] = 'exclude';
         arrivalRooms.delete(number);
         arrivalOverrides[number] = false;
+        delete marks[number];
       } else {
         arrivalOverrides[number] = Boolean(req.body.enabled);
-        if (req.body.enabled) arrivalRooms.add(number);
-        else arrivalRooms.delete(number);
+        if (req.body.enabled) {
+          arrivalRooms.add(number);
+          marks[number] = 'arrival';
+        } else {
+          arrivalRooms.delete(number);
+          marks[number] = 'none';
+        }
       }
 
-      return { ...current, overrides, arrivalRooms: [...arrivalRooms], arrivalOverrides };
+      return { ...current, overrides, arrivalRooms: [...arrivalRooms], arrivalOverrides, marks };
     });
 
     const list = await getMiniAppDepartureList(req);
