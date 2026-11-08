@@ -279,13 +279,13 @@ function updatePhysicalAngle(e){
   if(g&&Number.isFinite(g.x)&&Number.isFinite(g.y)){
     const x=g.x,y=g.y,ax=Math.abs(x),ay=Math.abs(y);
     if(Math.max(ax,ay)>5.5&&Math.min(ax,ay)<Math.max(ax,ay)*.72){
-      deviceAngle=ay>ax?(y>=0?0:180):(x>=0?90:270);sensorAngleReady=true;return;
+      deviceAngle=ay>ax?(y>=0?0:180):(x>=0?90:270);sensorAngleReady=true;requestAnimationFrame(syncVideoOrientation);return;
     }
   }
   if(Number.isFinite(e?.beta)&&Number.isFinite(e?.gamma)){
     const b=Math.sin(e.beta*Math.PI/180),q=Math.sin(e.gamma*Math.PI/180);
     if(Math.max(Math.abs(b),Math.abs(q))>.62){
-      deviceAngle=Math.abs(b)>Math.abs(q)*1.25?(b>=0?0:180):(q>0?90:270);sensorAngleReady=true;
+      deviceAngle=Math.abs(b)>Math.abs(q)*1.25?(b>=0?0:180):(q>0?90:270);sensorAngleReady=true;requestAnimationFrame(syncVideoOrientation);
     }
   }
 }
