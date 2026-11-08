@@ -87,8 +87,6 @@ App.departuresModule = (() => {
 
   function roomMark(number) {
     const key = String(number);
-    const sessionMark = state.session.marks && state.session.marks[key];
-    if (sessionMark) return sessionMark;
     const worklist = state.data.miniAppWorklist || {};
     if (worklist.marks && Object.prototype.hasOwnProperty.call(worklist.marks, key)) {
       return worklist.marks[key] === 'none' ? null : worklist.marks[key];
@@ -96,6 +94,8 @@ App.departuresModule = (() => {
     if (worklist.arrivalOverrides && Object.prototype.hasOwnProperty.call(worklist.arrivalOverrides, key)) {
       return worklist.arrivalOverrides[key] ? 'arrival' : null;
     }
+    const sessionMark = state.session.marks && state.session.marks[key];
+    if (sessionMark) return sessionMark;
     return (worklist.arrivalRooms || []).map(String).includes(key) ? 'arrival' : null;
   }
 
@@ -434,17 +434,26 @@ App.departuresModule = (() => {
     const previousMark = roomMark(number);
     const mark = nextMark(previousMark);
     state.pendingMarks.add(number);
+    const previousWorklistMarks = { ...(state.data.miniAppWorklist?.marks || {}) };
     if (isPdfRoom) {
       if (!state.session.marks) state.session.marks = {};
       if (mark) state.session.marks[number] = mark;
       else delete state.session.marks[number];
-    } else {
-      const worklist = state.data.miniAppWorklist || {};
-      const marks = { ...(worklist.marks || {}) };
-      if (mark) marks[number] = mark;
-      else delete marks[number];
-      state.data.miniAppWorklist = { ...worklist, marks };
     }
+    const worklist = state.data.miniAppWorklist || {};
+    const marks = { ...(worklist.marks || {}) };
+    marks[number] = mark === null ? 'none' : mark;
+    const arrivalRooms = new Set((worklist.arrivalRooms || []).map(String));
+    const arrivalOverrides = { ...(worklist.arrivalOverrides || {}) };
+    arrivalOverrides[number] = mark === 'arrival';
+    if (mark === 'arrival') arrivalRooms.add(number);
+    else arrivalRooms.delete(number);
+    state.data.miniAppWorklist = {
+      ...worklist,
+      marks,
+      arrivalRooms: [...arrivalRooms],
+      arrivalOverrides
+    };
     render();
 
     try {
@@ -461,13 +470,15 @@ App.departuresModule = (() => {
       if (isPdfRoom) {
         if (previousMark) state.session.marks[number] = previousMark;
         else delete state.session.marks[number];
-      } else {
-        const worklist = state.data.miniAppWorklist || {};
-        const marks = { ...(worklist.marks || {}) };
-        if (previousMark) marks[number] = previousMark;
-        else delete marks[number];
-        state.data.miniAppWorklist = { ...worklist, marks };
       }
+      const worklist = state.data.miniAppWorklist || {};
+      const marks = { ...(worklist.marks || {}) };
+      if (Object.prototype.hasOwnProperty.call(previousWorklistMarks, number)) {
+        marks[number] = previousWorklistMarks[number];
+      } else {
+        delete marks[number];
+      }
+      state.data.miniAppWorklist = { ...worklist, marks };
       showFeedback(error.message || 'Не удалось сохранить отметку номера.', 'error');
     } finally {
       state.pendingMarks.delete(number);

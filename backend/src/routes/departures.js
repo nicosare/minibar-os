@@ -487,7 +487,17 @@ router.patch('/session/mark', async (req, res) => {
         else marks[normalizedNumber] = mark;
         return { ...current, marks };
       });
-      return res.json({ ok: true, session });
+      const worklist = await updateMiniAppWorklist(req, current => {
+        const marks = { ...(current.marks || {}) };
+        const arrivalRooms = new Set(current.arrivalRooms || []);
+        const arrivalOverrides = { ...(current.arrivalOverrides || {}) };
+        marks[normalizedNumber] = mark === null ? 'none' : mark;
+        arrivalOverrides[normalizedNumber] = mark === 'arrival';
+        if (mark === 'arrival') arrivalRooms.add(normalizedNumber);
+        else arrivalRooms.delete(normalizedNumber);
+        return { ...current, marks, arrivalRooms: [...arrivalRooms], arrivalOverrides };
+      });
+      return res.json({ ok: true, session, worklist });
     }
 
     const [room, currentWorklist] = await Promise.all([
