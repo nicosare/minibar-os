@@ -218,7 +218,20 @@ export async function getMiniAppDepartureList(req) {
   const range = todayRange(req);
   const [rooms, checks, session, worklist] = await Promise.all([
     prisma.room.findMany({
-      select: { id: true, number: true, floor: true, expiryStatus: true },
+      select: {
+        id: true,
+        number: true,
+        floor: true,
+        category: true,
+        expiryStatus: true,
+        productStatuses: {
+          select: {
+            expiryStatus: true,
+            qtyToReplace: true,
+            product: { select: { name: true } }
+          }
+        }
+      },
       orderBy: [{ floor: 'asc' }, { number: 'asc' }]
     }),
     prisma.check.findMany({
@@ -260,13 +273,26 @@ export async function getMiniAppDepartureList(req) {
     if (enabled) effectiveArrivalRooms.add(number);
     else effectiveArrivalRooms.delete(number);
   }
-  const roomNumbers = [...assigned]
-    .filter(number => !checkedSet.has(number))
-    .sort((a, b) => {
-      const roomA = roomByNumber.get(a);
-      const roomB = roomByNumber.get(b);
-      return Number(roomA?.floor) - Number(roomB?.floor) || Number(a) - Number(b);
-    });
+  const assignedNumbers = [...assigned].sort((a, b) => {
+    const roomA = roomByNumber.get(a);
+    const roomB = roomByNumber.get(b);
+    return Number(roomA?.floor) - Number(roomB?.floor) || Number(a) - Number(b);
+  });
+  const roomNumbers = assignedNumbers.filter(number => !checkedSet.has(number));
+  const completedNumbers = assignedNumbers.filter(number => checkedSet.has(number));
+  const roomInfo = Object.fromEntries(assignedNumbers.map(number => {
+    const room = roomByNumber.get(number);
+    return [number, {
+      floor: room.floor,
+      category: room.category,
+      expiryStatus: room.expiryStatus || 'neutral',
+      productStatuses: (room.productStatuses || []).map(item => ({
+        name: item.product?.name || '',
+        expiryStatus: item.expiryStatus || 'ok',
+        qtyToReplace: Number(item.qtyToReplace) || 0
+      }))
+    }];
+  }));
 
   return {
     dateKey: range.dateKey,
@@ -278,8 +304,10 @@ export async function getMiniAppDepartureList(req) {
     completedCount: [...assigned].filter(number => checkedSet.has(number)).length,
     remainingCount: roomNumbers.length,
     roomNumbers,
+    completedNumbers,
+    roomInfo,
     checkedToday,
-    arrivalRooms: [...effectiveArrivalRooms].filter(number => roomNumbers.includes(number)),
+    arrivalRooms: [...effectiveArrivalRooms].filter(number => assigned.has(number)),
     overrides: worklist.overrides
   };
 }
