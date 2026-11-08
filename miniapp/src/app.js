@@ -4,7 +4,7 @@ import { renderTopbar, renderBottomNav } from './components/chrome.js';
 import { renderIcons } from './components/icons.js';
 import { renderToday } from './screens/today.js';
 import { renderLists, initializeLists, loadList, handleListClick, handleListChange } from './screens/lists.js';
-import { renderCamera, initializeCamera, handleCameraClick } from './screens/camera.js';
+import { renderCamera, cameraDidRender, cameraWillUnmount } from './screens/camera.js';
 import { renderRooms } from './screens/rooms.js';
 import { renderMore } from './screens/more.js';
 
@@ -49,7 +49,7 @@ subscribe(render);
 
 document.addEventListener('click', event => {
   if (handleListClick(event)) return;
-  if (getState().screen === 'camera' && handleCameraClick(event)) return;
+
   const target = event.target instanceof Element ? event.target : null;
   if (!target) return;
 
