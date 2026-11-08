@@ -637,7 +637,7 @@ function attachCarouselScroll(carousel = $('cameraCarousel')) {
       let best = null, distance = Infinity;
       carousel.querySelectorAll('[data-camera-room]').forEach(item => {
         const box = item.getBoundingClientRect();
-        const delta = Math.abs(box.left + box.width/2 - center);
+        const delta = Math.abs(box.top + box.height/2 - center);
         if (delta < distance) { distance=delta; best=item; }
       });
       if (best && best.dataset.cameraRoom !== selectedNumber) setSelectedRoom(best.dataset.cameraRoom);
