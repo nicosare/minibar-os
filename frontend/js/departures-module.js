@@ -3,7 +3,7 @@ App.departuresModule = (() => {
 
   const SESSION_DATE = () => localDateKey(new Date());
   const state = {
-    data: { dateKey: '', rooms: [], checkedToday: [] },
+    data: { dateKey: '', rooms: [], checkedToday: [], miniAppWorklist: null },
     session: { dateKey: SESSION_DATE(), fileName: '', pdfRooms: [], marks: {} },
     initialized: false,
     requestSequence: 0,
@@ -86,7 +86,10 @@ App.departuresModule = (() => {
   }
 
   function roomMark(number) {
-    return (state.session.marks && state.session.marks[String(number)]) || null;
+    const key = String(number);
+    return (state.session.marks && state.session.marks[key]) ||
+      (state.data.miniAppWorklist?.marks && state.data.miniAppWorklist.marks[key]) ||
+      ((state.data.miniAppWorklist?.arrivalRooms || []).map(String).includes(key) ? 'arrival' : null);
   }
 
   function normalizePdfRooms() {
@@ -106,10 +109,15 @@ App.departuresModule = (() => {
   function currentWorkingRooms() {
     const byNumber = roomsByNumber();
     const checked = checkedNumbers();
-    return normalizePdfRooms()
-      .filter(number => !checked.has(number))
+    const worklist = state.data.miniAppWorklist || {};
+    const numbers = new Set(normalizePdfRooms());
+    Object.entries(worklist.overrides || {}).forEach(([number, override]) => {
+      if (override === 'include') numbers.add(String(number));
+      if (override === 'exclude') numbers.delete(String(number));
+    });
+    return [...numbers]
+      .filter(number => byNumber.has(number) && !checked.has(number))
       .map(number => byNumber.get(number))
-      .filter(Boolean)
       .sort((a, b) => Number(a.floor) - Number(b.floor) || Number(a.number) - Number(b.number));
   }
 
@@ -184,19 +192,23 @@ App.departuresModule = (() => {
     const finalCount = document.getElementById('departures-final-count');
     if (!container) return;
 
-    if (fileName) fileName.textContent = state.session.fileName || 'PDF ещё не загружен';
+    const manualCount = (state.data.miniAppWorklist?.manualRoomNumbers || []).length;
+    if (fileName) fileName.textContent = state.session.fileName ||
+      (manualCount ? 'Номера добавлены вручную из Mini App' : 'PDF ещё не загружен');
     const rooms = currentWorkingRooms();
     const printableRooms = rooms.filter(room => roomMark(roomNumber(room)) !== 'resident');
-    if (printButton) printButton.disabled = !state.session.fileName || !printableRooms.length || state.parsingPdf;
+    if (printButton) printButton.disabled = !printableRooms.length || state.parsingPdf;
     if (resetButton) resetButton.disabled = !state.session.fileName || state.parsingPdf;
     if (finalCount) finalCount.textContent = String(printableRooms.length);
 
-    if (!state.session.fileName || !state.session.pdfRooms.length) {
+    const hasPdfRooms = Boolean(state.session.fileName && state.session.pdfRooms.length);
+    const hasManualRooms = manualCount > 0;
+    if (!hasPdfRooms && !hasManualRooms) {
       container.innerHTML = '<div class="departures-empty-state"><span class="departures-empty-icon"><i data-lucide="file-up"></i></span>' +
-        '<strong>PDF ещё не загружен</strong><span>Загрузите файл через кнопку вверху. Номера распределятся по этажам автоматически.</span></div>';
+        '<strong>PDF ещё не загружен</strong><span>Загрузите файл на сайте или добавьте номера в Mini App.</span></div>';
     } else if (!rooms.length) {
       container.innerHTML = '<div class="departures-empty-state"><span class="departures-empty-icon"><i data-lucide="check-circle-2"></i></span>' +
-        '<strong>Все номера из PDF уже проверены</strong><span>В сегодняшней очереди больше нет номеров для проверки.</span></div>';
+        '<strong>Все номера из списка уже проверены</strong><span>В сегодняшней очереди больше нет номеров для проверки.</span></div>';
     } else {
       container.innerHTML = renderFloorSections(rooms);
     }
@@ -263,7 +275,10 @@ App.departuresModule = (() => {
       state.data = {
         dateKey: data.dateKey || SESSION_DATE(),
         rooms: Array.isArray(data.rooms) ? data.rooms : [],
-        checkedToday: Array.isArray(data.checkedToday) ? data.checkedToday : []
+        checkedToday: Array.isArray(data.checkedToday) ? data.checkedToday : [],
+        miniAppWorklist: data.miniAppWorklist && typeof data.miniAppWorklist === 'object'
+          ? data.miniAppWorklist
+          : null
       };
       state.session = data.session && data.session.dateKey === state.data.dateKey
         ? {
@@ -408,21 +423,44 @@ App.departuresModule = (() => {
 
   async function handleRoomMark(number) {
     if (state.pendingMarks.has(number)) return;
-    const previousMark = state.session.marks[number] || null;
+    const isPdfRoom = normalizePdfRooms().includes(number);
+    const previousMark = roomMark(number);
     const mark = nextMark(previousMark);
     state.pendingMarks.add(number);
-    if (!state.session.marks) state.session.marks = {};
-    if (mark) state.session.marks[number] = mark;
-    else delete state.session.marks[number];
+    if (isPdfRoom) {
+      if (!state.session.marks) state.session.marks = {};
+      if (mark) state.session.marks[number] = mark;
+      else delete state.session.marks[number];
+    } else {
+      const worklist = state.data.miniAppWorklist || {};
+      const marks = { ...(worklist.marks || {}) };
+      if (mark) marks[number] = mark;
+      else delete marks[number];
+      state.data.miniAppWorklist = { ...worklist, marks };
+    }
     render();
 
     try {
       const response = await api().setDeparturesMark(number, mark);
-      state.session = response.session;
+      if (response.session) state.session = response.session;
+      if (response.worklist) {
+        state.data.miniAppWorklist = {
+          ...(state.data.miniAppWorklist || {}),
+          ...response.worklist
+        };
+      }
       hideFeedback();
     } catch (error) {
-      if (previousMark) state.session.marks[number] = previousMark;
-      else delete state.session.marks[number];
+      if (isPdfRoom) {
+        if (previousMark) state.session.marks[number] = previousMark;
+        else delete state.session.marks[number];
+      } else {
+        const worklist = state.data.miniAppWorklist || {};
+        const marks = { ...(worklist.marks || {}) };
+        if (previousMark) marks[number] = previousMark;
+        else delete marks[number];
+        state.data.miniAppWorklist = { ...worklist, marks };
+      }
       showFeedback(error.message || 'Не удалось сохранить отметку номера.', 'error');
     } finally {
       state.pendingMarks.delete(number);
@@ -501,9 +539,10 @@ App.departuresModule = (() => {
 
     // Re-read the server session and current VK checks immediately before printing.
     await refresh();
-    if (!state.session.fileName) {
+    const hasManualRooms = (state.data.miniAppWorklist?.manualRoomNumbers || []).length > 0;
+    if (!state.session.fileName && !hasManualRooms) {
       printWindow.close();
-      showFeedback('Сначала загрузите PDF с выездами.', 'warning');
+      showFeedback('Сначала загрузите PDF или добавьте номера в рабочий список.', 'warning');
       return;
     }
 

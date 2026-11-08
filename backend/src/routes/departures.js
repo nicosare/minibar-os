@@ -130,7 +130,7 @@ async function updateSession(req, updater) {
 const MINIAPP_WORKLIST_KEY = 'miniapp-departures-worklist-v1';
 
 function blankMiniAppWorklist(dateKey) {
-  return { dateKey, overrides: {}, arrivalRooms: [], arrivalOverrides: {} };
+  return { dateKey, overrides: {}, arrivalRooms: [], arrivalOverrides: {}, marks: {} };
 }
 
 function parseMiniAppWorklist(value, dateKey) {
@@ -165,7 +165,16 @@ function parseMiniAppWorklist(value, dateKey) {
     }
   }
 
-  return { dateKey, overrides, arrivalRooms, arrivalOverrides };
+  const marks = {};
+  if (parsed.marks && typeof parsed.marks === 'object' && !Array.isArray(parsed.marks)) {
+    for (const [rawNumber, mark] of Object.entries(parsed.marks)) {
+      if (/^\d{1,4}$/.test(rawNumber) && VALID_MARKS.has(mark)) {
+        marks[String(Number(rawNumber))] = mark;
+      }
+    }
+  }
+
+  return { dateKey, overrides, arrivalRooms, arrivalOverrides, marks };
 }
 
 async function readMiniAppWorklist(db, dateKey) {
@@ -226,9 +235,26 @@ export async function getMiniAppDepartureList(req) {
         expiryStatus: true,
         productStatuses: {
           select: {
+            productId: true,
             expiryStatus: true,
             qtyToReplace: true,
             product: { select: { name: true } }
+          }
+        },
+        template: {
+          select: {
+            items: {
+              orderBy: { sortOrder: 'asc' },
+              select: {
+                qty: true,
+                product: {
+                  select: {
+                    id: true, name: true, category: true, volume: true,
+                    unit: true, emoji: true, bgColor: true, isActive: true
+                  }
+                }
+              }
+            }
           }
         }
       },
@@ -273,6 +299,10 @@ export async function getMiniAppDepartureList(req) {
     if (enabled) effectiveArrivalRooms.add(number);
     else effectiveArrivalRooms.delete(number);
   }
+  for (const [number, mark] of Object.entries(worklist.marks || {})) {
+    if (mark === 'arrival') effectiveArrivalRooms.add(number);
+    else if (mark === 'resident') effectiveArrivalRooms.delete(number);
+  }
   const assignedNumbers = [...assigned].sort((a, b) => {
     const roomA = roomByNumber.get(a);
     const roomB = roomByNumber.get(b);
@@ -283,14 +313,28 @@ export async function getMiniAppDepartureList(req) {
   const roomInfo = Object.fromEntries(assignedNumbers.map(number => {
     const room = roomByNumber.get(number);
     return [number, {
+      id: room.id,
       floor: room.floor,
       category: room.category,
       expiryStatus: room.expiryStatus || 'neutral',
       productStatuses: (room.productStatuses || []).map(item => ({
+        productId: Number(item.productId),
         name: item.product?.name || '',
         expiryStatus: item.expiryStatus || 'ok',
         qtyToReplace: Number(item.qtyToReplace) || 0
-      }))
+      })),
+      templateItems: (room.template?.items || [])
+        .filter(item => item.product && item.product.isActive)
+        .map(item => ({
+          productId: Number(item.product.id),
+          name: item.product.name,
+          category: item.product.category || 'Напитки',
+          volume: item.product.volume ?? null,
+          unit: item.product.unit || 'шт',
+          emoji: item.product.emoji || null,
+          bgColor: item.product.bgColor || 'slate',
+          qty: Math.max(1, Number(item.qty) || 1)
+        }))
     }];
   }));
 
@@ -308,7 +352,8 @@ export async function getMiniAppDepartureList(req) {
     roomInfo,
     checkedToday,
     arrivalRooms: [...effectiveArrivalRooms].filter(number => assigned.has(number)),
-    overrides: worklist.overrides
+    overrides: worklist.overrides,
+    marks: worklist.marks
   };
 }
 
@@ -339,7 +384,8 @@ router.get('/', async (req, res) => {
         },
         orderBy: [{ checkDate: 'desc' }, { id: 'desc' }]
       }),
-      readSession(prisma, range.dateKey)
+      readSession(prisma, range.dateKey),
+      readMiniAppWorklist(prisma, range.dateKey)
     ]);
 
     const roomByNumber = new Map(rooms.map(room => [String(room.number), room]));
@@ -358,8 +404,20 @@ router.get('/', async (req, res) => {
       });
     }
 
+    const manualRoomNumbers = Object.entries(worklist.overrides || {})
+      .filter(([number, override]) => override === 'include' && roomByNumber.has(number))
+      .map(([number]) => number)
+      .sort((a, b) => Number(a) - Number(b));
+    const miniAppWorklist = {
+      overrides: worklist.overrides,
+      arrivalRooms: worklist.arrivalRooms,
+      arrivalOverrides: worklist.arrivalOverrides,
+      marks: worklist.marks,
+      manualRoomNumbers
+    };
+
     res.set('Cache-Control', 'no-store');
-    res.json({ dateKey: range.dateKey, rooms, checkedToday, session });
+    res.json({ dateKey: range.dateKey, rooms, checkedToday, session, miniAppWorklist });
   } catch (error) {
     console.error('GET /api/departures error:', error);
     res.status(500).json({ error: error.message || 'Не удалось загрузить данные Выездов' });
@@ -419,18 +477,33 @@ router.patch('/session/mark', async (req, res) => {
       return res.status(400).json({ error: 'Некорректная отметка номера' });
     }
 
-    const session = await updateSession(req, current => {
-      if (!current.pdfRooms.includes(String(Number(number)))) {
-        const error = new Error('Номер отсутствует в текущем списке PDF');
-        error.statusCode = 409;
-        throw error;
-      }
-      const marks = { ...current.marks };
-      if (mark === null) delete marks[String(Number(number))];
-      else marks[String(Number(number))] = mark;
+    const normalizedNumber = String(Number(number));
+    const { dateKey } = todayRange(req);
+    const currentSession = await readSession(prisma, dateKey);
+    if (currentSession.pdfRooms.includes(normalizedNumber)) {
+      const session = await updateSession(req, current => {
+        const marks = { ...current.marks };
+        if (mark === null) delete marks[normalizedNumber];
+        else marks[normalizedNumber] = mark;
+        return { ...current, marks };
+      });
+      return res.json({ ok: true, session });
+    }
+
+    const [room, currentWorklist] = await Promise.all([
+      prisma.room.findUnique({ where: { number: Number(normalizedNumber) }, select: { id: true, number: true } }),
+      readMiniAppWorklist(prisma, dateKey)
+    ]);
+    if (!room || !assignedDepartureNumbers(currentSession, currentWorklist, new Map([[normalizedNumber, room]])).has(normalizedNumber)) {
+      return res.status(409).json({ error: 'Номер отсутствует в активном списке Выездов' });
+    }
+    const worklist = await updateMiniAppWorklist(req, current => {
+      const marks = { ...(current.marks || {}) };
+      if (mark === null) delete marks[normalizedNumber];
+      else marks[normalizedNumber] = mark;
       return { ...current, marks };
     });
-    res.json({ ok: true, session });
+    res.json({ ok: true, session: currentSession, worklist });
   } catch (error) {
     const status = error.statusCode || 500;
     if (status >= 500) console.error('PATCH /api/departures/session/mark error:', error);
