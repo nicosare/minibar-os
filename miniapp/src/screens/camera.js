@@ -6,7 +6,6 @@ let stream = null;
 let selectedNumber = '';
 let rooms = [];
 let activeRefills = [];
-let roomHistory = [];
 let refillCounts = {};
 let refillRequestId = null;
 let refillBusy = false;
@@ -20,7 +19,10 @@ let carouselFrame = 0;
 let bound = false;
 let mounted = false;
 let loadToken = 0;
-let historyToken = 0;
+let statusToken = 0;
+let cameraStarting = false;
+let torchSupported = false;
+let torchEnabled = false;
 
 const $ = id => document.getElementById(id);
 const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, char => ({
@@ -119,32 +121,6 @@ function renderStatusChips(room) {
   if (entry.comment) chips.push('<span class="camera-info-comment">' + icon('message-square',12) + ' ' + esc(entry.comment) + '</span>');
   return chips.join('');
 }
-function historyLabel(item) {
-  const type = String(item.type || '');
-  if (type === 'emptied' || type === 'vk_emptied') return 'Опустошён';
-  if (type === 'gih') return 'GIH · ' + (item.gihRoomStatus || 'Проверка');
-  if (type === 'deadline') return 'Сроки';
-  if (type === 'check') return 'Проверен';
-  return type ? type.charAt(0).toUpperCase() + type.slice(1) : 'Запись';
-}
-function historyTime(item) {
-  const date = new Date(item.checkDate || item.createdAt || '');
-  if (!Number.isFinite(date.getTime())) return '—';
-  return date.toLocaleDateString('ru-RU', { day:'2-digit', month:'2-digit' }) + ' · ' +
-    date.toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' });
-}
-function renderHistory() {
-  const host = $('cameraHistory');
-  if (!host) return;
-  if (!roomHistory.length) {
-    host.innerHTML = '<div class="camera-history-empty">История номера пока пуста</div>';
-    return;
-  }
-  host.innerHTML = roomHistory.slice(0,3).map(item =>
-    '<div class="camera-history-entry"><span class="camera-history-time">' + esc(historyTime(item)) +
-    '</span><strong>' + esc(historyLabel(item)) + '</strong></div>'
-  ).join('');
-}
 function renderStandby() {
   const room = roomByNumber(selectedNumber);
   const panel = $('cameraStandby');
@@ -183,12 +159,7 @@ function renderStandby() {
         '</section>' +
       '</div>' +
       (entry.comment ? '<div class="camera-info-comment-line">' + icon('message-square',13) + '<span>' + esc(entry.comment) + '</span></div>' : '') +
-      '<section class="camera-history-card">' +
-        '<div class="camera-history-heading"><strong>История</strong><span>последние записи</span></div>' +
-        '<div id="cameraHistory" class="camera-history-list"><div class="camera-history-empty">Загрузка…</div></div>' +
-      '</section>' +
     '</section>';
-  renderHistory();
 }
 function updateActionAvailability() {
   const room = roomByNumber(selectedNumber);
@@ -220,10 +191,16 @@ function renderCarousel() {
     const checked = (getState().listData?.[getState().cameraSourceListType || getState().listType]?.checkedRoomNumbers ||
       getState().listData?.[getState().cameraSourceListType || getState().listType]?.completedNumbers || []).map(String).includes(String(number));
     if (checked) classes.push('is-checked');
-    return '<button type="button" class="' + classes.join(' ') + '" data-camera-room="' + esc(number) + '">' + esc(number) + '</button>';
+    const markers = [];
+    if (listEntry(number).vip) markers.push('<i class="camera-number-marker is-vip" title="VIP">' + icon('crown',10) + '</i>');
+    if (room.expiryStatus === 'empty') markers.push('<i class="camera-number-marker is-empty" title="Пустой номер">' + icon('droplet',10) + '</i>');
+    else if (room.expiryStatus === 'needs_replacement' || room.productStatuses?.some(item => item.expiryStatus === 'needs_replacement' || Number(item.qtyToReplace) > 0)) markers.push('<i class="camera-number-marker is-deadline" title="Сроки">' + icon('clock',10) + '</i>');
+    if (refill?.items?.length) markers.push('<i class="camera-number-marker is-refill" title="Требует пополнения">' + icon('package',10) + '</i>');
+    if (checked) markers.push('<i class="camera-number-marker is-checked" title="Проверен">' + icon('check',10) + '</i>');
+    return '<button type="button" class="' + classes.join(' ') + '" data-camera-room="' + esc(number) + '"><span class="camera-number-label">' + esc(number) + '</span><span class="camera-number-markers">' + markers.join('') + '</span></button>';
   }).join('');
   const active = host.querySelector('.is-active');
-  if (active) host.scrollLeft = Math.max(0, active.offsetLeft - (host.clientWidth - active.clientWidth) / 2);
+  if (active) host.scrollTop = Math.max(0, active.offsetTop - (host.clientHeight - active.clientHeight) / 2);
   attachCarouselScroll(host);
   updateActionAvailability();
 }
@@ -233,7 +210,7 @@ function centerRoom(number, behavior = 'smooth') {
   const item = [...host.querySelectorAll('[data-camera-room]')].find(el => el.dataset.cameraRoom === String(number));
   if (!item) return;
   host.scrollTo({
-    left:Math.max(0,item.offsetLeft - (host.clientWidth - item.clientWidth) / 2),
+    top:Math.max(0,item.offsetTop - (host.clientHeight - item.clientHeight) / 2),
     behavior
   });
 }
@@ -253,36 +230,26 @@ function setSelectedRoom(number, options = {}) {
   if (options.center) centerRoom(next, options.behavior || 'smooth');
   renderStandby();
   updateActionAvailability();
-  if (changed) void loadRoomHistory(next);
+  if (changed) void loadRoomStatus(next);
 }
-async function loadRoomHistory(number = selectedNumber) {
+async async function loadRoomStatus(number = selectedNumber) {
   const room = roomByNumber(number);
-  const token = ++historyToken;
-  roomHistory = [];
-  renderHistory();
+  const token = ++statusToken;
   if (!room.id) return;
   try {
-    const [historyResult, statusResult] = await Promise.allSettled([
-      api.get('checks/history?roomId=' + Number(room.id) + '&pageSize=4'),
-      api.get('rooms/' + Number(room.id) + '/product-statuses')
-    ]);
-    if (token !== historyToken || String(number) !== selectedNumber) return;
-    if (historyResult.status === 'fulfilled') roomHistory = Array.isArray(historyResult.value?.items) ? historyResult.value.items : [];
-    if (statusResult.status === 'fulfilled' && Array.isArray(statusResult.value)) {
-      room.productStatuses = statusResult.value.map(item => ({
-        productId:Number(item.productId), name:item.product?.name || item.name || 'Продукт',
-        expiryStatus:item.expiryStatus || 'ok', qtyToReplace:Number(item.qtyToReplace) || 0
-      }));
-      const baseRoom = rooms.find(item => Number(item.id) === Number(room.id));
-      if (baseRoom) baseRoom.productStatuses = room.productStatuses;
-      const listRoom = sourceData().data?.roomInfo?.[String(room.number)];
-      if (listRoom) listRoom.productStatuses = room.productStatuses;
-      renderStandby();
-    }
-    renderHistory();
-  } catch (_) {
-    if (token === historyToken) { roomHistory = []; renderHistory(); }
-  }
+    const result = await api.get('rooms/' + Number(room.id) + '/product-statuses');
+    if (token !== statusToken || String(number) !== selectedNumber || !Array.isArray(result)) return;
+    room.productStatuses = result.map(item => ({
+      productId:Number(item.productId), name:item.product?.name || item.name || 'Продукт',
+      expiryStatus:item.expiryStatus || 'ok', qtyToReplace:Number(item.qtyToReplace) || 0
+    }));
+    const baseRoom = rooms.find(item => Number(item.id) === Number(room.id));
+    if (baseRoom) baseRoom.productStatuses = room.productStatuses;
+    const listRoom = sourceData().data?.roomInfo?.[String(room.number)];
+    if (listRoom) listRoom.productStatuses = room.productStatuses;
+    renderStandby();
+    renderCarousel();
+  } catch (_) {}
 }
 async function loadCameraData() {
   const token = ++loadToken;
@@ -303,7 +270,7 @@ async function loadCameraData() {
   renderCarousel();
   renderStandby();
   updateActionAvailability();
-  if (selectedNumber) void loadRoomHistory(selectedNumber);
+  if (selectedNumber) void loadRoomStatus(selectedNumber);
 }
 function showNotice(message, isError = false) {
   const host = $('cameraFeedback');
@@ -317,6 +284,8 @@ function showNotice(message, isError = false) {
   }, 3000);
 }
 function stopCamera() {
+  torchEnabled = false;
+  torchSupported = false;
   if (stream) {
     stream.getTracks().forEach(track => {
       try { track.stop(); } catch (_) {}
@@ -362,49 +331,139 @@ async function waitForVideo(video) {
     video.addEventListener('loadedmetadata', done, { once:true });
   });
 }
+async function startCamera() {
+  if (stream || cameraStarting || !mounted) return;
+  cameraStarting = true;
+  showLoader('Подключаем камеру…','Подготовка видоискателя');
+  try {
+    if (!navigator.mediaDevices?.getUserMedia) throw new Error('Камера недоступна в этом браузере');
+    const constraints = {
+      audio:false,
+      video:{
+        facingMode:{ ideal:'environment' },
+        width:{ ideal:1440 },
+        height:{ ideal:1920 },
+        aspectRatio:{ ideal:0.75 }
+      }
+    };
+    try {
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (_) {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio:false, video:{ facingMode:{ ideal:'environment' } }
+      });
+    }
+    if (!mounted) { stream.getTracks().forEach(track=>track.stop()); stream=null; return; }
+    const video = $('cameraVideo');
+    if (!video) throw new Error('Не найден видоискатель камеры');
+    video.srcObject = stream;
+    await video.play();
+    await waitForVideo(video);
+    $('cameraStage')?.classList.add('is-live');
+    const track = stream.getVideoTracks()[0];
+    const capabilities = track?.getCapabilities?.();
+    torchSupported = Boolean(capabilities?.torch);
+    torchEnabled = false;
+    const flash = $('cameraFlash');
+    if (flash) {
+      flash.disabled = !torchSupported;
+      flash.classList.toggle('is-unavailable',!torchSupported);
+      flash.setAttribute('aria-label',torchSupported?'Включить вспышку':'Вспышка недоступна');
+      flash.title = torchSupported?'Включить вспышку':'Устройство не поддерживает управление вспышкой';
+    }
+    hideLoader();
+  } catch (error) {
+    stopCamera();
+    showLoader('Не удалось открыть камеру',error.message || 'Проверь разрешение на камеру и повтори попытку.',true);
+    showNotice(error.message || 'Не удалось открыть камеру',true);
+  } finally {
+    cameraStarting = false;
+    updateActionAvailability();
+  }
+}
+async function toggleFlash() {
+  if (!stream || !torchSupported || captureBusy) return;
+  const track = stream.getVideoTracks()[0];
+  const next = !torchEnabled;
+  try {
+    await track.applyConstraints({ advanced:[{ torch:next }] });
+    torchEnabled = next;
+    const button = $('cameraFlash');
+    button?.classList.toggle('is-on',torchEnabled);
+    button?.setAttribute('aria-pressed',String(torchEnabled));
+    button?.setAttribute('aria-label',torchEnabled?'Выключить вспышку':'Включить вспышку');
+  } catch (_) {
+    torchSupported = false;
+    const button = $('cameraFlash');
+    if (button) { button.disabled=true; button.classList.add('is-unavailable'); }
+    showNotice('Не удалось переключить вспышку на этом устройстве',true);
+  }
+}
+async function makeFallbackPhoto(video) {
+  await waitForVideo(video);
+  const sourceWidth = video.videoWidth;
+  const sourceHeight = video.videoHeight;
+  const rotate = sourceWidth > sourceHeight && screen.orientation?.type?.startsWith('portrait');
+  const outputWidth = rotate ? sourceHeight : sourceWidth;
+  const outputHeight = rotate ? sourceWidth : sourceHeight;
+  const scale = Math.min(1,1920 / Math.max(outputWidth,outputHeight));
+  const width = Math.max(1,Math.round(outputWidth * scale));
+  const height = Math.max(1,Math.round(outputHeight * scale));
+  const canvas = $('cameraCanvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d',{alpha:false});
+  if (rotate) {
+    context.translate(width,0);
+    context.rotate(Math.PI/2);
+    context.drawImage(video,0,0,height,width);
+  } else {
+    context.drawImage(video,0,0,width,height);
+  }
+  const blob = await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.86));
+  if (!blob) throw new Error('Не удалось подготовить снимок');
+  return blob;
+}
 async function capturePhoto() {
   if (captureBusy || photoBlob || isArrivalNotReady(roomByNumber(selectedNumber))) {
     if (isArrivalNotReady(roomByNumber(selectedNumber))) showNotice('Сначала отметь «Можно делать» для этого номера', true);
     return;
   }
+  if (!stream) await startCamera();
+  if (!stream) return;
   const roomNumber = String(selectedNumber);
   captureBusy = true;
   updateActionAvailability();
-  showLoader('Запуск камеры…','Подготавливаю снимок');
+  const shutter = $('cameraCapture');
+  shutter?.classList.add('is-capturing');
   try {
-    if (!navigator.mediaDevices?.getUserMedia) throw new Error('Камера недоступна в этом браузере');
-    stream = await navigator.mediaDevices.getUserMedia({
-      audio:false,
-      video:{ facingMode:{ ideal:'environment' }, width:{ ideal:1920 }, height:{ ideal:1440 } }
-    });
-    const video = $('cameraVideo');
-    video.srcObject = stream;
-    await video.play();
-    $('cameraStage')?.classList.add('is-live');
-    await waitForVideo(video);
-    hideLoader();
-    await new Promise(resolve => setTimeout(resolve, 220));
-    const canvas = $('cameraCanvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d',{alpha:false}).drawImage(video,0,0,canvas.width,canvas.height);
-    const blob = await new Promise(resolve => canvas.toBlob(resolve,'image/jpeg',.9));
-    if (!blob) throw new Error('Не удалось подготовить снимок');
+    const track = stream.getVideoTracks()[0];
+    let blob = null;
+    if (typeof window.ImageCapture === 'function' && track) {
+      try {
+        const capture = new window.ImageCapture(track);
+        blob = await capture.takePhoto();
+      } catch (_) {}
+    }
+    if (!blob) {
+      const video = $('cameraVideo');
+      if (!video?.videoWidth) throw new Error('Камера ещё не готова. Попробуй через секунду.');
+      blob = await makeFallbackPhoto(video);
+    }
     photoBlob = blob;
     photoRandomId = String(Math.floor(Math.random()*2147483646)+1);
     photoUrl = URL.createObjectURL(blob);
-    stopCamera();
-    $('cameraPreviewImage').src = photoUrl;
+    const preview = $('cameraPreviewImage');
+    preview.src = photoUrl;
     $('cameraPreviewRoom').textContent = 'Номер ' + roomNumber;
     $('cameraPreviewModal').classList.remove('hidden');
     $('cameraPreviewModal').setAttribute('aria-hidden','false');
     $('cameraCarouselWrap').classList.add('is-disabled');
     $('cameraStage').classList.add('is-preview');
   } catch (error) {
-    stopCamera();
-    showLoader('Не удалось открыть камеру',error.message || 'Проверь разрешение на камеру и повтори попытку.',true);
     showNotice(error.message || 'Не удалось сделать снимок',true);
   } finally {
+    shutter?.classList.remove('is-capturing');
     captureBusy = false;
     updateActionAvailability();
   }
@@ -643,6 +702,7 @@ function handleClick(event) {
     return;
   }
   if (action === 'capture') void capturePhoto();
+  else if (action === 'flash') void toggleFlash();
   else if (action === 'retry-camera') { hideLoader(); void capturePhoto(); }
   else if (action === 'retake') closePreview();
   else if (action === 'send-photo') void sendPhoto();
@@ -665,7 +725,7 @@ function attachCarouselScroll(carousel = $('cameraCarousel')) {
     cancelAnimationFrame(carouselFrame);
     carouselFrame = requestAnimationFrame(() => {
       const rect = carousel.getBoundingClientRect();
-      const center = rect.left + rect.width/2;
+      const center = rect.top + rect.height/2;
       let best = null, distance = Infinity;
       carousel.querySelectorAll('[data-camera-room]').forEach(item => {
         const box = item.getBoundingClientRect();
@@ -688,11 +748,15 @@ export function renderCamera(state) {
   const initial = String(state.cameraSelectedRoomNumber || selectedNumber || numbers[0] || '');
   if (initial && initial !== selectedNumber) selectedNumber = initial;
   return '<div class="screen screen-camera" id="cameraStage">' +
-    '<div class="camera-viewport" id="cameraViewport">' +
-      '<video id="cameraVideo" autoplay playsinline muted></video><canvas id="cameraCanvas" hidden></canvas>' +
-      '<div class="camera-focus-frame" aria-hidden="true"><span></span><span></span><span></span><span></span></div>' +
-      '<div class="camera-standby" id="cameraStandby"></div>' +
-      '<div class="camera-loader hidden" id="cameraLoader"><span class="camera-loader-spinner"></span><strong id="cameraLoaderTitle">Запуск камеры…</strong><small id="cameraLoaderSubtitle"></small><button type="button" class="camera-retry hidden" data-camera-action="retry-camera" id="cameraLoaderRetry">Повторить</button></div>' +
+    '<div class="camera-workspace">' +
+      '<div class="camera-carousel-wrap" id="cameraCarouselWrap"><div class="camera-carousel-fade is-top"></div><div class="camera-carousel" id="cameraCarousel"></div><div class="camera-carousel-fade is-bottom"></div></div>' +
+      '<div class="camera-viewport" id="cameraViewport">' +
+        '<video id="cameraVideo" autoplay playsinline muted></video><canvas id="cameraCanvas" hidden></canvas>' +
+        '<div class="camera-focus-frame" aria-hidden="true"><span></span><span></span><span></span><span></span></div>' +
+        '<button type="button" class="camera-flash" data-camera-action="flash" id="cameraFlash" aria-label="Вспышка" title="Вспышка" disabled>' + icon('zap',17) + '</button>' +
+        '<div class="camera-standby" id="cameraStandby"></div>' +
+        '<div class="camera-loader hidden" id="cameraLoader"><span class="camera-loader-spinner"></span><strong id="cameraLoaderTitle">Подключаем камеру…</strong><small id="cameraLoaderSubtitle"></small><button type="button" class="camera-retry hidden" data-camera-action="retry-camera" id="cameraLoaderRetry">Повторить</button></div>' +
+      '</div>' +
     '</div>' +
     '<div class="camera-action-row">' +
       '<button type="button" class="camera-room-action" data-camera-action="empty" id="cameraActionEmpty">Опустошён</button>' +
@@ -700,7 +764,6 @@ export function renderCamera(state) {
       '<button type="button" class="camera-room-action" data-camera-action="residential" id="cameraActionResidential">Жилой</button>' +
     '</div>' +
     '<div class="camera-capture-zone"><button type="button" class="camera-capture-button" data-camera-action="capture" id="cameraCapture" aria-label="Сделать фото"><span></span></button></div>' +
-    '<div class="camera-carousel-wrap" id="cameraCarouselWrap"><div class="camera-carousel-fade is-left"></div><div class="camera-carousel" id="cameraCarousel"></div><div class="camera-carousel-fade is-right"></div></div>' +
     '<div class="camera-feedback" id="cameraFeedback" role="status"></div>' +
     '<div class="camera-modal-overlay hidden" id="cameraPreviewModal" role="dialog" aria-modal="true" aria-label="Предпросмотр фотографии" aria-hidden="true">' +
       '<div class="camera-preview-card"><div class="camera-preview-room" id="cameraPreviewRoom">Номер</div><img id="cameraPreviewImage" alt="Предпросмотр фото"><div class="camera-preview-actions"><button type="button" class="camera-preview-secondary" data-camera-action="retake">Переснять</button><button type="button" class="camera-preview-primary" data-camera-action="send-photo" id="cameraSendPhoto">Отправить</button></div></div>' +
@@ -720,7 +783,8 @@ export function cameraDidRender() {
     if (video && stream) {
       video.srcObject = stream;
       video.play().catch(()=>{});
-    }
+      $('cameraStage')?.classList.add('is-live');
+    } else void startCamera();
     renderCarousel();
     renderStandby();
     return;
@@ -729,12 +793,14 @@ export function cameraDidRender() {
   void loadCameraData();
   renderCarousel();
   renderStandby();
+  void startCamera();
 }
 export function cameraWillUnmount() {
   mounted = false;
   loadToken++;
-  historyToken++;
+  statusToken++;
   if (carouselTimer) clearTimeout(carouselTimer);
   if (stream) stopCamera();
+  cameraStarting = false;
   clearPhoto();
 }
