@@ -1,6 +1,6 @@
 import { api } from '../core/api.js';
 import { getState } from '../core/store.js';
-import { icon } from '../components/icons.js';
+import { icon, renderIcons } from '../components/icons.js';
 
 let stream = null;
 let videoTrack = null, torchSupported = false, flashOn = false, deviceAngle = 0, sensorAngleReady = false;
@@ -181,24 +181,33 @@ function renderCarousel() {
   host.innerHTML = numbers.map(number => {
     const room = roomByNumber(number);
     const refill = activeRefill(room);
+    const entry = listEntry(number);
+    const empty = room.expiryStatus === 'empty' || Boolean(entry.empty);
+    const needsDeadline = room.expiryStatus === 'needs_replacement' ||
+      (room.productStatuses || []).some(item => item.expiryStatus === 'needs_replacement' || Number(item.qtyToReplace) > 0);
+    const needsRefill = Boolean(refill?.items?.length);
     const classes = ['camera-number-item'];
     if (String(number) === String(selectedNumber)) classes.push('is-active');
-    if (room.expiryStatus === 'empty') classes.push('is-empty');
-    if (refill?.items?.length) classes.push('is-refill');
+    if (empty) classes.push('is-empty');
+    if (needsDeadline) classes.push('is-deadline');
+    if (needsRefill) classes.push('is-refill');
     const checked = (getState().listData?.[getState().cameraSourceListType || getState().listType]?.checkedRoomNumbers ||
       getState().listData?.[getState().cameraSourceListType || getState().listType]?.completedNumbers || []).map(String).includes(String(number));
     if (checked) classes.push('is-checked');
     const marks=[];
-    if(room.expiryStatus==='empty')marks.push('<i class="camera-room-marker is-empty" title="Пустой">'+icon('droplet',10)+'</i>');
-    if(refill?.items?.length)marks.push('<i class="camera-room-marker is-refill" title="Пополнение">'+icon('package',10)+'</i>');
-    if(checked)marks.push('<i class="camera-room-marker is-checked" title="Проверен">'+icon('check',10)+'</i>');
-    if(listEntry(number).vip)marks.push('<i class="camera-room-marker is-vip" title="VIP">'+icon('crown',10)+'</i>');
-    return '<button type="button" class="' + classes.join(' ') + '" data-camera-room="' + esc(number) + '"><strong>'+esc(number)+'</strong><span class="camera-room-markers">'+marks.join('')+'</span></button>';
+    if(entry.vip)marks.push('<i class="camera-room-marker is-vip" title="VIP">'+icon('crown',9)+'</i>');
+    if(empty)marks.push('<i class="camera-room-marker is-empty" title="Опустошён">'+icon('package-x',9)+'</i>');
+    if(needsDeadline)marks.push('<i class="camera-room-marker is-deadline" title="Сроки">'+icon('timer',9)+'</i>');
+    if(needsRefill)marks.push('<i class="camera-room-marker is-refill" title="Пополнение">'+icon('package',9)+'</i>');
+    if(entry.comment)marks.push('<i class="camera-room-marker is-comment" title="Комментарий">'+icon('message-square',9)+'</i>');
+    if(checked)marks.push('<i class="camera-room-marker is-checked" title="Проверен">'+icon('check',9)+'</i>');
+    return '<button type="button" class="' + classes.join(' ') + '" data-camera-room="' + esc(number) + '"><strong>'+esc(number)+'</strong><span class="camera-room-markers">'+marks.slice(0,5).join('')+'</span></button>';
   }).join('');
   const active = host.querySelector('.is-active');
   if (active) host.scrollTop = Math.max(0, active.offsetTop - (host.clientHeight - active.clientHeight) / 2);
   attachCarouselScroll(host);
   updateActionAvailability();
+  renderIcons();
 }
 function centerRoom(number, behavior = 'smooth') {
   const host = $('cameraCarousel');
@@ -368,11 +377,28 @@ async function capturePhoto(){
     const ctx=canvas.getContext('2d',{alpha:false});if(!ctx)throw new Error('Не удалось подготовить снимок');
     ctx.save();if(rot===90){ctx.translate(canvas.width,0);ctx.rotate(Math.PI/2);}else if(rot===180){ctx.translate(canvas.width,canvas.height);ctx.rotate(Math.PI);}else if(rot===270){ctx.translate(0,canvas.height);ctx.rotate(-Math.PI/2);}
     ctx.drawImage(v,0,0,w,h);ctx.restore();
-    const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.82));if(!blob)throw new Error('Не удалось подготовить снимок');
-    photoBlob=blob;photoRandomId=String(Math.floor(Math.random()*2147483646)+1);photoUrl=URL.createObjectURL(blob);
-    $('cameraPreviewImage').src=photoUrl;$('cameraPreviewRoom').textContent='Номер '+number;
+
+    // Show the frozen frame immediately. JPEG encoding continues while the user reviews it.
+    const previewCanvas=$('cameraPreviewCanvas');
+    previewCanvas.width=canvas.width;previewCanvas.height=canvas.height;
+    previewCanvas.getContext('2d',{alpha:false}).drawImage(canvas,0,0);
+    photoBlob=null;photoRandomId=String(Math.floor(Math.random()*2147483646)+1);
+    const send=$('cameraSendPhoto');send.disabled=true;send.textContent='Подготовка…';
+    $('cameraPreviewRoom').textContent='Номер '+number;
     $('cameraPreviewModal').classList.remove('hidden');$('cameraPreviewModal').setAttribute('aria-hidden','false');
     $('cameraCarouselWrap').classList.add('is-disabled');$('cameraStage').classList.add('is-preview');
+    if(flashOn&&videoTrack){flashOn=false;updateFlashControl();void videoTrack.applyConstraints({advanced:[{torch:false}]}).catch(()=>{});}
+
+    const maxEdge=1600,scale=Math.min(1,maxEdge/Math.max(canvas.width,canvas.height));
+    const uploadCanvas=document.createElement('canvas');
+    uploadCanvas.width=Math.max(1,Math.round(canvas.width*scale));
+    uploadCanvas.height=Math.max(1,Math.round(canvas.height*scale));
+    uploadCanvas.getContext('2d',{alpha:false}).drawImage(canvas,0,0,uploadCanvas.width,uploadCanvas.height);
+    uploadCanvas.toBlob(blob=>{
+      if(!$('cameraPreviewModal')||$('cameraPreviewModal').classList.contains('hidden'))return;
+      if(!blob){showNotice('Не удалось подготовить фото. Пересними.',true);send.disabled=true;send.textContent='Ошибка';return;}
+      photoBlob=blob;send.disabled=false;send.textContent='Отправить';
+    },'image/jpeg',.84);
   }catch(err){showNotice(err.message||'Не удалось сделать снимок',true);}
   finally{captureBusy=false;updateActionAvailability();}
 }
@@ -383,6 +409,7 @@ function closePreview(force = false) {
   $('cameraCarouselWrap')?.classList.remove('is-disabled');
   $('cameraStage')?.classList.remove('is-preview');
   clearPhoto();
+  if($('cameraSendPhoto')){$('cameraSendPhoto').disabled=false;$('cameraSendPhoto').textContent='Отправить';}
   hideLoader();
   updateActionAvailability();
 }
