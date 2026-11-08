@@ -1,9 +1,11 @@
 import { api } from '../core/api.js';
 import { getState } from '../core/store.js';
-import { icon } from '../components/icons.js';
+import { icon, renderIcons } from '../components/icons.js';
 
 let stream = null;
 let videoTrack = null, torchSupported = false, flashOn = false, deviceAngle = 0, sensorAngleReady = false;
+let orientationPermissionPromise = null;
+let orientationPermissionGranted = false;
 let selectedNumber = '';
 let rooms = [];
 let activeRefills = [];
@@ -132,7 +134,7 @@ function renderStandby() {
   const refill = activeRefill(room);
   const entry = listEntry(room.number);
   const deadlineClass = room.expiryStatus === 'empty' ? 'is-empty'
-    : room.expiryStatus === 'needs_replacement' || room.productStatuses?.length ? 'is-deadline' : '';
+    : room.expiryStatus === 'needs_replacement' || (room.productStatuses || []).some(item => item.expiryStatus === 'needs_replacement' || Number(item.qtyToReplace) > 0) ? 'is-deadline' : '';
   const summary = refillDescription(refill);
   const { type } = sourceData();
   const listTitle = type === 'arrivals' ? 'Заезды' : 'Выезды';
@@ -155,8 +157,8 @@ function renderStandby() {
           '<strong>' + summary + '</strong>' +
         '</section>' +
       '</div>' +
-      (entry.comment ? '<div class="camera-info-comment-line">' + icon('message-square',13) + '<span>' + esc(entry.comment) + '</span></div>' : '') +
     '</section>';
+  renderIcons();
 }
 function updateActionAvailability() {
   const room = roomByNumber(selectedNumber);
@@ -181,24 +183,33 @@ function renderCarousel() {
   host.innerHTML = numbers.map(number => {
     const room = roomByNumber(number);
     const refill = activeRefill(room);
+    const entry = listEntry(number);
+    const empty = room.expiryStatus === 'empty' || Boolean(entry.empty);
+    const needsDeadline = room.expiryStatus === 'needs_replacement' ||
+      (room.productStatuses || []).some(item => item.expiryStatus === 'needs_replacement' || Number(item.qtyToReplace) > 0);
+    const needsRefill = Boolean(refill?.items?.length);
     const classes = ['camera-number-item'];
     if (String(number) === String(selectedNumber)) classes.push('is-active');
-    if (room.expiryStatus === 'empty') classes.push('is-empty');
-    if (refill?.items?.length) classes.push('is-refill');
+    if (empty) classes.push('is-empty');
+    if (needsDeadline) classes.push('is-deadline');
+    if (needsRefill) classes.push('is-refill');
     const checked = (getState().listData?.[getState().cameraSourceListType || getState().listType]?.checkedRoomNumbers ||
       getState().listData?.[getState().cameraSourceListType || getState().listType]?.completedNumbers || []).map(String).includes(String(number));
     if (checked) classes.push('is-checked');
     const marks=[];
-    if(room.expiryStatus==='empty')marks.push('<i class="camera-room-marker is-empty" title="Пустой">'+icon('droplet',10)+'</i>');
-    if(refill?.items?.length)marks.push('<i class="camera-room-marker is-refill" title="Пополнение">'+icon('package',10)+'</i>');
-    if(checked)marks.push('<i class="camera-room-marker is-checked" title="Проверен">'+icon('check',10)+'</i>');
-    if(listEntry(number).vip)marks.push('<i class="camera-room-marker is-vip" title="VIP">'+icon('crown',10)+'</i>');
-    return '<button type="button" class="' + classes.join(' ') + '" data-camera-room="' + esc(number) + '"><strong>'+esc(number)+'</strong><span class="camera-room-markers">'+marks.join('')+'</span></button>';
+    if(entry.vip)marks.push('<i class="camera-room-marker is-vip" title="VIP">'+icon('crown',9)+'</i>');
+    if(empty)marks.push('<i class="camera-room-marker is-empty" title="Опустошён">'+icon('package-x',9)+'</i>');
+    if(needsDeadline)marks.push('<i class="camera-room-marker is-deadline" title="Сроки">'+icon('timer',9)+'</i>');
+    if(needsRefill)marks.push('<i class="camera-room-marker is-refill" title="Пополнение">'+icon('package',9)+'</i>');
+    if(entry.comment)marks.push('<i class="camera-room-marker is-comment" title="Комментарий">'+icon('message-square',9)+'</i>');
+    if(checked)marks.push('<i class="camera-room-marker is-checked" title="Проверен">'+icon('check',9)+'</i>');
+    return '<button type="button" class="' + classes.join(' ') + '" data-camera-room="' + esc(number) + '"><strong>'+esc(number)+'</strong><span class="camera-room-markers">'+marks.slice(0,5).join('')+'</span></button>';
   }).join('');
   const active = host.querySelector('.is-active');
   if (active) host.scrollTop = Math.max(0, active.offsetTop - (host.clientHeight - active.clientHeight) / 2);
   attachCarouselScroll(host);
   updateActionAvailability();
+  renderIcons();
 }
 function centerRoom(number, behavior = 'smooth') {
   const host = $('cameraCarousel');
@@ -268,11 +279,27 @@ function updateFlashControl(){
   b.classList.toggle('hidden',!torchSupported);b.classList.toggle('is-on',flashOn);
   b.setAttribute('aria-pressed',String(flashOn));
   b.innerHTML=icon(flashOn?'flashlight':'flashlight-off',17)+'<span>'+(flashOn?'Вспышка включена':'Вспышка')+'</span>';
+  renderIcons();
 }
 async function toggleFlash(){
   if(!videoTrack||!torchSupported)return;
   try{await videoTrack.applyConstraints({advanced:[{torch:!flashOn}]});flashOn=!flashOn;updateFlashControl();}
   catch(_){showNotice('Вспышка недоступна на этом устройстве',true);}
+}
+function requestOrientationPermission(){
+  if(orientationPermissionGranted)return Promise.resolve(true);
+  if(orientationPermissionPromise)return orientationPermissionPromise;
+  const Orientation=window.DeviceOrientationEvent;
+  const Motion=window.DeviceMotionEvent;
+  const request=typeof Orientation?.requestPermission==='function'
+    ? Orientation.requestPermission.bind(Orientation)
+    : typeof Motion?.requestPermission==='function' ? Motion.requestPermission.bind(Motion) : null;
+  if(!request){orientationPermissionGranted=true;return Promise.resolve(true);}
+  orientationPermissionPromise=request().then(result=>{
+    orientationPermissionGranted=result==='granted';
+    return orientationPermissionGranted;
+  }).catch(()=>false).finally(()=>{orientationPermissionPromise=null;});
+  return orientationPermissionPromise;
 }
 function updatePhysicalAngle(e){
   const g=e?.accelerationIncludingGravity;
@@ -363,16 +390,34 @@ async function capturePhoto(){
   if(!stream||!v||v.readyState<2||!v.videoWidth){await startCamera();if(!stream||!v?.videoWidth){showNotice('Камера ещё не готова. Попробуй снова.',true);return;}}
   captureBusy=true;updateActionAvailability();
   try{
+    await requestOrientationPermission();
     const canvas=$('cameraCanvas'),w=v.videoWidth,h=v.videoHeight,angle=currentDeviceAngle(),base=w>h?90:0,rot=((angle-base)%360+360)%360,quarter=rot===90||rot===270;
     canvas.width=quarter?h:w;canvas.height=quarter?w:h;
     const ctx=canvas.getContext('2d',{alpha:false});if(!ctx)throw new Error('Не удалось подготовить снимок');
     ctx.save();if(rot===90){ctx.translate(canvas.width,0);ctx.rotate(Math.PI/2);}else if(rot===180){ctx.translate(canvas.width,canvas.height);ctx.rotate(Math.PI);}else if(rot===270){ctx.translate(0,canvas.height);ctx.rotate(-Math.PI/2);}
     ctx.drawImage(v,0,0,w,h);ctx.restore();
-    const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.82));if(!blob)throw new Error('Не удалось подготовить снимок');
-    photoBlob=blob;photoRandomId=String(Math.floor(Math.random()*2147483646)+1);photoUrl=URL.createObjectURL(blob);
-    $('cameraPreviewImage').src=photoUrl;$('cameraPreviewRoom').textContent='Номер '+number;
+
+    // Show the frozen frame immediately. JPEG encoding continues while the user reviews it.
+    const previewCanvas=$('cameraPreviewCanvas');
+    previewCanvas.width=canvas.width;previewCanvas.height=canvas.height;
+    previewCanvas.getContext('2d',{alpha:false}).drawImage(canvas,0,0);
+    photoBlob=null;photoRandomId=String(Math.floor(Math.random()*2147483646)+1);
+    const send=$('cameraSendPhoto');send.disabled=true;send.textContent='Подготовка…';
+    $('cameraPreviewRoom').textContent='Номер '+number;
     $('cameraPreviewModal').classList.remove('hidden');$('cameraPreviewModal').setAttribute('aria-hidden','false');
     $('cameraCarouselWrap').classList.add('is-disabled');$('cameraStage').classList.add('is-preview');
+    if(flashOn&&videoTrack){flashOn=false;updateFlashControl();void videoTrack.applyConstraints({advanced:[{torch:false}]}).catch(()=>{});}
+
+    const maxEdge=1600,scale=Math.min(1,maxEdge/Math.max(canvas.width,canvas.height));
+    const uploadCanvas=document.createElement('canvas');
+    uploadCanvas.width=Math.max(1,Math.round(canvas.width*scale));
+    uploadCanvas.height=Math.max(1,Math.round(canvas.height*scale));
+    uploadCanvas.getContext('2d',{alpha:false}).drawImage(canvas,0,0,uploadCanvas.width,uploadCanvas.height);
+    uploadCanvas.toBlob(blob=>{
+      if(!$('cameraPreviewModal')||$('cameraPreviewModal').classList.contains('hidden'))return;
+      if(!blob){showNotice('Не удалось подготовить фото. Пересними.',true);send.disabled=true;send.textContent='Ошибка';return;}
+      photoBlob=blob;send.disabled=false;send.textContent='Отправить';
+    },'image/jpeg',.84);
   }catch(err){showNotice(err.message||'Не удалось сделать снимок',true);}
   finally{captureBusy=false;updateActionAvailability();}
 }
@@ -383,6 +428,7 @@ function closePreview(force = false) {
   $('cameraCarouselWrap')?.classList.remove('is-disabled');
   $('cameraStage')?.classList.remove('is-preview');
   clearPhoto();
+  if($('cameraSendPhoto')){$('cameraSendPhoto').disabled=false;$('cameraSendPhoto').textContent='Отправить';}
   hideLoader();
   updateActionAvailability();
 }
@@ -663,15 +709,15 @@ export function renderCamera(state) {
           '<video id="cameraVideo" autoplay playsinline muted></video><canvas id="cameraCanvas" hidden></canvas>' +
           '<div class="camera-focus-frame" aria-hidden="true"><span></span><span></span><span></span><span></span></div>' +
           '<button type="button" class="camera-flash hidden" id="cameraFlash" data-camera-action="toggle-flash" aria-label="Вспышка" aria-pressed="false"></button>' +
+          '<div class="camera-standby" id="cameraStandby"></div>' +
           '<div class="camera-loader hidden" id="cameraLoader"><span class="camera-loader-spinner"></span><strong id="cameraLoaderTitle">Запуск камеры…</strong><small id="cameraLoaderSubtitle"></small><button type="button" class="camera-retry hidden" data-camera-action="retry-camera" id="cameraLoaderRetry">Повторить</button></div>' +
         '</div>' +
-        '<div class="camera-standby" id="cameraStandby"></div>' +
         '<div class="camera-action-row"><button type="button" class="camera-room-action" data-camera-action="empty" id="cameraActionEmpty">Опустошён</button><button type="button" class="camera-room-action is-primary" data-camera-action="open-refill" id="cameraActionRefill">Пополнить</button><button type="button" class="camera-room-action" data-camera-action="residential" id="cameraActionResidential">Жилой</button></div>' +
         '<div class="camera-capture-zone"><button type="button" class="camera-capture-button" data-camera-action="capture" id="cameraCapture" aria-label="Сделать фото"><span></span></button></div>' +
       '</div>' +
     '</div>' +
     '<div class="camera-feedback" id="cameraFeedback" role="status"></div>' +
-    '<div class="camera-modal-overlay hidden" id="cameraPreviewModal" role="dialog" aria-modal="true" aria-label="Предпросмотр фотографии" aria-hidden="true"><div class="camera-preview-card"><div class="camera-preview-room" id="cameraPreviewRoom">Номер</div><img id="cameraPreviewImage" alt="Предпросмотр фото"><div class="camera-preview-actions"><button type="button" class="camera-preview-secondary" data-camera-action="retake">Переснять</button><button type="button" class="camera-preview-primary" data-camera-action="send-photo" id="cameraSendPhoto">Отправить</button></div></div></div>' +
+    '<div class="camera-modal-overlay hidden" id="cameraPreviewModal" role="dialog" aria-modal="true" aria-label="Предпросмотр фотографии" aria-hidden="true"><div class="camera-preview-card"><div class="camera-preview-room" id="cameraPreviewRoom">Номер</div><canvas id="cameraPreviewCanvas" class="camera-preview-canvas"></canvas><div class="camera-preview-actions"><button type="button" class="camera-preview-secondary" data-camera-action="retake">Переснять</button><button type="button" class="camera-preview-primary" data-camera-action="send-photo" id="cameraSendPhoto">Отправить</button></div></div></div>' +
     '<div class="camera-modal-overlay hidden" id="refillModal" role="dialog" aria-modal="true" aria-label="Пополнить номер" aria-hidden="true"><div class="camera-refill-modal"><header class="camera-modal-header"><strong>Пополнить · номер <span id="refillModalRoom"></span></strong><button type="button" data-camera-action="close-refill" aria-label="Закрыть">×</button></header><div class="camera-refill-products" id="refillProducts"></div><div class="camera-refill-feedback" id="refillFeedback"></div><footer class="camera-refill-footer"><button type="button" class="camera-refill-all" data-camera-action="refill-all">Всё в списке продуктов</button><div class="camera-refill-footer-row"><button type="button" data-camera-action="clear-refill">Очистить</button><button type="button" class="is-save" data-camera-action="save-refill" id="refillSave">Сохранить пополнение</button></div></footer></div></div>' +
   '</div>';
 }
