@@ -862,3 +862,12 @@ html[data-screen="camera"] .screen-camera {
   .camera-capture-button { width:52px; height:52px; }
   .camera-capture-button span { width:37px; height:37px; }
 }
+
+.camera-viewport video.is-portrait-rotated {
+  left:-16.6667%;
+  top:12.5%;
+  width:133.3334%;
+  height:75%;
+  transform:rotate(90deg);
+  transform-origin:center;
+}
