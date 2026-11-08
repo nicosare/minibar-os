@@ -10,12 +10,13 @@ const TYPES = [
   { id: 'empty', label: 'Пустые' }
 ];
 
-const PREFERENCES_KEY = 'minibar-os-miniapp-list-preferences-v1';
+const PREFERENCES_KEY = 'minibar-os-miniapp-list-preferences-v2';
 const DEFAULT_UI = {
   showCompleted: false,
   sort: 'asc',
+  format: 'standard',
   settingsOpen: false,
-  details: { roomStatus: true, products: true, roomMeta: false }
+  details: { deadlines: true, refill: true, roomMeta: false }
 };
 const requestSequence = { arrivals: 0, departures: 0 };
 
@@ -28,11 +29,17 @@ function escapeHtml(value) {
 function readPreferences() {
   try {
     const stored = JSON.parse(localStorage.getItem(PREFERENCES_KEY) || '{}');
+    const oldDetails = stored.details || {};
     return {
       ...DEFAULT_UI,
       ...stored,
+      format: stored.format === 'compact' ? 'compact' : 'standard',
       settingsOpen: false,
-      details: { ...DEFAULT_UI.details, ...(stored.details || {}) }
+      details: {
+        deadlines: oldDetails.deadlines ?? oldDetails.roomStatus ?? true,
+        refill: oldDetails.refill ?? true,
+        roomMeta: oldDetails.roomMeta ?? false
+      }
     };
   } catch (_) {
     return { ...DEFAULT_UI, details: { ...DEFAULT_UI.details } };
@@ -44,6 +51,7 @@ function persistPreferences(ui) {
     localStorage.setItem(PREFERENCES_KEY, JSON.stringify({
       showCompleted: ui.showCompleted,
       sort: ui.sort,
+      format: ui.format,
       details: ui.details
     }));
   } catch (_) {}
@@ -108,10 +116,22 @@ export async function loadList(type) {
 
   try {
     const path = type === 'arrivals' ? 'arrivals/miniapp-list' : 'departures/miniapp-list';
-    const data = await api.get(path);
+    const [listResult, refillResult] = await Promise.allSettled([
+      api.get(path),
+      api.get('refills/active')
+    ]);
     if (sequence !== requestSequence[type]) return;
+    if (listResult.status === 'rejected') throw listResult.reason;
+
+    const refills = refillResult.status === 'fulfilled' && Array.isArray(refillResult.value?.requests)
+      ? refillResult.value.requests.filter(request => request && request.status === 'pending')
+      : [];
     setState(current => ({
-      listData: { ...(current.listData || {}), [type]: data },
+      listData: { ...(current.listData || {}), [type]: listResult.value },
+      listRefills: refills,
+      listRefillError: refillResult.status === 'rejected'
+        ? (refillResult.reason?.message || 'Не удалось загрузить данные пополнения')
+        : '',
       listLoading: { ...(current.listLoading || {}), [type]: false },
       listErrors: { ...(current.listErrors || {}), [type]: '' }
     }));
@@ -127,65 +147,155 @@ export async function loadList(type) {
 function listNumbers(type, data, showCompleted) {
   if (!data) return { pending: [], completed: [], visible: [] };
   const completedSet = new Set((type === 'arrivals'
-    ? data.checkedRoomNumbers
-    : data.completedNumbers || []).map(value => String(value)));
+    ? (data.checkedRoomNumbers || [])
+    : (data.completedNumbers || [])).map(value => String(value)));
   const source = (data.roomNumbers || []).map(value => String(value));
-  const pending = type === 'arrivals'
-    ? source.filter(number => !completedSet.has(number))
-    : source;
+  const pending = source.filter(number => !completedSet.has(number));
   const completed = type === 'arrivals'
     ? source.filter(number => completedSet.has(number))
     : (data.completedNumbers || []).map(value => String(value));
-
-  const visible = [...pending, ...(showCompleted ? completed : [])];
-  const unique = [...new Set(visible)];
-  return { pending, completed, visible: unique };
+  return {
+    pending,
+    completed,
+    visible: [...new Set([...pending, ...(showCompleted ? completed : [])])]
+  };
 }
 
-function renderRoomMeta(info, details) {
+function roomMeta(info, details) {
   if (!details.roomMeta) return '';
   const values = [];
   if (info.floor !== undefined && info.floor !== null) values.push('Этаж ' + info.floor);
-  if (info.category) values.push(info.category);
+  if (info.category) values.push(info.category === 'lux' ? 'Люкс' : info.category === 'standard' ? 'Стандарт' : info.category);
   return values.length ? '<span class="list-room-meta">' + values.map(escapeHtml).join(' · ') + '</span>' : '';
 }
 
-function renderRoomStatuses(info, details) {
-  const badges = [];
-  if (details.roomStatus) {
-    if (info.expiryStatus === 'empty') badges.push('<span class="list-status-chip is-empty">Пустой</span>');
-    if (info.expiryStatus === 'needs_replacement') badges.push('<span class="list-status-chip is-refill">Требует пополнения</span>');
+function deadlineText(info) {
+  const products = Array.isArray(info.productStatuses) ? info.productStatuses : [];
+  const needed = products.filter(item => item &&
+    (item.expiryStatus === 'needs_replacement' || Number(item.qtyToReplace) > 0));
+  if (info.expiryStatus === 'empty') return 'Пустой';
+  if (needed.length) {
+    return needed.map(item => {
+      const quantity = Number(item.qtyToReplace) > 0 ? ' ×' + Number(item.qtyToReplace) : '';
+      return String(item.name || 'Продукт') + quantity;
+    }).join(', ');
   }
-  if (details.products) {
-    const products = Array.isArray(info.productStatuses) ? info.productStatuses : [];
-    products.filter(item => item && (item.expiryStatus === 'needs_replacement' || Number(item.qtyToReplace) > 0))
-      .forEach(item => {
-        const name = String(item.name || 'Продукт');
-        const quantity = Number(item.qtyToReplace) > 0 ? ' ×' + Number(item.qtyToReplace) : '';
-        badges.push('<span class="list-product-chip">' + escapeHtml(name + quantity) + '</span>');
-      });
-  }
-  return badges.length ? '<div class="list-room-deadlines">' + badges.join('') + '</div>' : '';
+  if (info.expiryStatus === 'needs_replacement') return 'Требует замены';
+  return '';
 }
 
-function renderArrivalCard(number, info, entry, done, details, busy) {
-  const disabled = busy || done ? ' disabled' : '';
-  const flags = [];
-  if (entry.vip) flags.push('<span class="list-room-chip is-vip">VIP</span>');
-  if (entry.empty) flags.push('<span class="list-room-chip is-empty-action">Опустошить</span>');
-  if (entry.time) flags.push('<span class="list-room-chip is-time">' + escapeHtml(entry.time) + '</span>');
-  flags.push(entry.ready
-    ? '<span class="list-room-chip is-ready">Можно делать</span>'
-    : '<span class="list-room-chip is-not-ready">Пока нельзя</span>');
-  if (done) flags.push('<span class="list-room-chip is-completed">Выполнен</span>');
+function refillForRoom(state, roomId) {
+  return (state.listRefills || []).find(request => Number(request.roomId) === Number(roomId)) || null;
+}
 
-  return '<article class="list-room-card' + (done ? ' is-completed' : '') + (busy ? ' is-saving' : '') + '">' +
-    '<div class="list-room-card-top"><div class="list-room-identity"><strong>' + escapeHtml(number) + '</strong>' +
-    renderRoomMeta(info, details) + '</div>' +
-    '<button type="button" class="list-remove-button" data-list-action="remove" data-number="' + escapeHtml(number) +
-    '" aria-label="Убрать номер ' + escapeHtml(number) + '"' + (busy ? ' disabled' : '') + '>' + icon('x', 17) + '</button></div>' +
-    '<div class="list-room-chips">' + flags.join('') + '</div>' +
-    renderRoomStatuses(info, details) +
+function refillText(request) {
+  if (!request || !Array.isArray(request.items) || !request.items.length) return '';
+  return request.items.map(item => {
+    const qty = Number(item.qty) > 0 ? ' ×' + Number(item.qty) : '';
+    return String(item.name || 'Продукт') + qty;
+  }).join(', ');
+}
+
+function standardChip(text, tone) {
+  return '<span class="list-room-chip ' + tone + '">' + escapeHtml(text) + '</span>';
+}
+
+function marker(label, tone) {
+  return '<span class="list-marker-dot ' + tone + '" title="' + escapeHtml(label) +
+    '" aria-label="' + escapeHtml(label) + '"></span>';
+}
+
+function renderArrivalMarkers(entry, done, info, state, details) {
+  const marks = [];
+  if (entry.vip) marks.push(marker('VIP', 'is-vip'));
+  if (entry.empty) marks.push(marker('Опустошить', 'is-empty'));
+  if (entry.ready) marks.push(marker('Можно делать', 'is-ready'));
+  else marks.push(marker('Пока нельзя', 'is-muted'));
+  const deadlines = details.deadlines ? deadlineText(info) : '';
+  if (deadlines) marks.push(marker('Сроки: ' + deadlines, 'is-deadline'));
+  const refill = details.refill ? refillText(refillForRoom(state, info.id)) : '';
+  if (refill) marks.push(marker('Пополнение: ' + refill, 'is-refill'));
+  if (done) marks.push(marker('Выполнен', 'is-muted'));
+  return marks.join('');
+}
+
+function renderDepartureMarkers(onArrival, done, info, state, details) {
+  const marks = [];
+  if (onArrival) marks.push(marker('На заезд', 'is-arrival'));
+  const deadlines = details.deadlines ? deadlineText(info) : '';
+  if (deadlines) marks.push(marker('Сроки: ' + deadlines, 'is-deadline'));
+  const refill = details.refill ? refillText(refillForRoom(state, info.id)) : '';
+  if (refill) marks.push(marker('Пополнение: ' + refill, 'is-refill'));
+  if (done) marks.push(marker('Выполнен', 'is-muted'));
+  return marks.join('');
+}
+
+function renderArrivalLabels(entry, done, info, state, details) {
+  const marks = [];
+  if (entry.vip) marks.push(standardChip('VIP', 'is-vip'));
+  if (entry.empty) marks.push(standardChip('Опустошить', 'is-empty-action'));
+  if (entry.time) marks.push(standardChip(entry.time, 'is-time'));
+  marks.push(entry.ready
+    ? standardChip('Можно делать', 'is-ready')
+    : standardChip('Пока нельзя', 'is-not-ready'));
+  if (done) marks.push(standardChip('Выполнен', 'is-completed'));
+  const deadlines = details.deadlines ? deadlineText(info) : '';
+  if (deadlines) marks.push(standardChip('Сроки: ' + deadlines, 'is-deadline'));
+  const refill = details.refill ? refillText(refillForRoom(state, info.id)) : '';
+  if (refill) marks.push(standardChip('Пополнение: ' + refill, 'is-refill'));
+  return marks.join('');
+}
+
+function renderDepartureLabels(onArrival, done, info, state, details) {
+  const marks = [];
+  if (onArrival) marks.push(standardChip('На заезд', 'is-arrival'));
+  if (done) marks.push(standardChip('Выполнен', 'is-completed'));
+  const deadlines = details.deadlines ? deadlineText(info) : '';
+  if (deadlines) marks.push(standardChip('Сроки: ' + deadlines, 'is-deadline'));
+  const refill = details.refill ? refillText(refillForRoom(state, info.id)) : '';
+  if (refill) marks.push(standardChip('Пополнение: ' + refill, 'is-refill'));
+  return marks.join('');
+}
+
+function renderDeadlineDetails(info, details) {
+  if (!details.deadlines) return '';
+  const description = deadlineText(info);
+  return description
+    ? '<div class="list-detail-line"><strong>Сроки:</strong> <span>' + escapeHtml(description) + '</span></div>'
+    : '';
+}
+
+function renderRefillDetails(state, info, busy) {
+  const request = refillForRoom(state, info.id);
+  const templateItems = Array.isArray(info.templateItems) ? info.templateItems : [];
+  if (busy) return '<div class="list-detail-line"><span class="list-inline-spinner"></span>Сохраняем пополнение…</div>';
+  const selected = new Map((request?.items || []).map(item => [Number(item.productId), Number(item.qty) || 0]));
+  const items = templateItems.map(item => {
+    const id = Number(item.productId);
+    const maxQty = Math.max(1, Number(item.qty) || 1);
+    const value = Math.max(0, Math.min(maxQty, selected.get(id) || 0));
+    const meta = [item.volume != null ? item.volume : '', item.unit || 'шт'].filter(Boolean).join(' ');
+    return '<label class="list-refill-product"><span class="list-refill-product-copy">' +
+      '<strong>' + escapeHtml(item.emoji ? item.emoji + ' ' + item.name : item.name) + '</strong>' +
+      '<small>' + escapeHtml(meta + ' · максимум ' + maxQty) + '</small></span>' +
+      '<input type="number" inputmode="numeric" min="0" max="' + maxQty + '" step="1" value="' + value +
+      '" data-refill-qty data-product-id="' + id + '" aria-label="' + escapeHtml(item.name + ', количество к пополнению') + '"></label>';
+  }).join('');
+  const summary = refillText(request);
+  return '<section class="list-refill-editor"><div class="list-editor-heading"><strong>Пополнение</strong>' +
+    (summary ? '<span class="list-refill-current">Сейчас: ' + escapeHtml(summary) + '</span>' : '') + '</div>' +
+    (items
+      ? '<div class="list-refill-products">' + items + '</div>' 
+      : '<div class="list-editor-empty">Для номера не задан шаблон продуктов.</div>') +
+    (items ? '<button type="button" class="list-primary-action" data-list-action="save-refill" data-number="' +
+      escapeHtml(String(info.number || '')) + '"' + (isBusy('refill', String(info.id)) ? ' disabled' : '') +
+      '>' + icon('save', 15) + ' Сохранить пополнение</button>' : '') +
+    '<small class="list-editor-hint">Укажи количество отсутствующих продуктов. Ноль — не требуется.</small></section>';
+}
+
+function renderArrivalDetails(number, info, entry, done, state, busy, details) {
+  const disabled = busy || done ? ' disabled' : '';
+  return '<div class="list-room-expanded">' +
     '<div class="list-arrival-controls">' +
       '<label class="list-switch"><input type="checkbox" data-list-field="vip" data-number="' + escapeHtml(number) + '"' +
         (entry.vip ? ' checked' : '') + disabled + '><span>VIP</span></label>' +
@@ -199,79 +309,118 @@ function renderArrivalCard(number, info, entry, done, details, busy) {
         '" value="' + escapeHtml(entry.time || '') + '"' + disabled + '></label>' +
       '<label class="list-field list-comment-field"><span>Комментарий</span><input type="text" maxlength="500" data-list-field="comment" data-number="' +
         escapeHtml(number) + '" value="' + escapeHtml(entry.comment || '') + '" placeholder="Добавить комментарий"' + disabled + '></label>' +
-    '</div></article>';
+    '</div>' +
+    renderDeadlineDetails(info, details) +
+    (details.refill ? renderRefillDetails(state, info, busy) : '') +
+    '<div class="list-card-footer"><span class="list-saving-label">' + (busy ? 'Сохраняем…' : '') + '</span>' +
+      '<button type="button" class="list-danger-action" data-list-action="remove" data-number="' + escapeHtml(number) +
+      '"' + (busy ? ' disabled' : '') + '>' + icon('x', 15) + ' Убрать номер</button></div></div>';
 }
 
-function renderDepartureCard(number, info, onArrival, done, details, busy) {
-  return '<article class="list-room-card' + (done ? ' is-completed' : '') + (busy ? ' is-saving' : '') + '">' +
-    '<div class="list-room-card-top"><div class="list-room-identity"><strong>' + escapeHtml(number) + '</strong>' +
-    renderRoomMeta(info, details) + '</div>' +
-    '<button type="button" class="list-remove-button" data-list-action="remove" data-number="' + escapeHtml(number) +
-    '" aria-label="Убрать номер ' + escapeHtml(number) + '"' + (busy ? ' disabled' : '') + '>' + icon('x', 17) + '</button></div>' +
-    (onArrival ? '<div class="list-room-chips"><span class="list-room-chip is-arrival">На заезд</span></div>' : '') +
-    renderRoomStatuses(info, details) +
+function renderDepartureDetails(number, info, onArrival, done, state, busy, details) {
+  return '<div class="list-room-expanded">' +
     '<div class="list-departure-actions">' +
       '<button type="button" class="list-arrival-toggle' + (onArrival ? ' is-active' : '') +
         '" data-list-action="toggle-arrival" data-number="' + escapeHtml(number) + '" aria-pressed="' + String(onArrival) +
         '"' + (busy || done ? ' disabled' : '') + '>' + icon('arrow-right-circle', 16) +
         (onArrival ? 'Снять «На заезд»' : 'Отметить «На заезд»') + '</button>' +
       (done ? '<span class="list-done-label">' + icon('check-circle-2', 15) + ' Выполнен</span>' : '') +
-    '</div></article>';
+    '</div>' +
+    renderDeadlineDetails(info, details) +
+    (details.refill ? renderRefillDetails(state, info, busy) : '') +
+    '<div class="list-card-footer"><span class="list-saving-label">' + (busy ? 'Сохраняем…' : '') + '</span>' +
+      '<button type="button" class="list-danger-action" data-list-action="remove" data-number="' + escapeHtml(number) +
+      '"' + (busy ? ' disabled' : '') + '>' + icon('x', 15) + ' Убрать номер</button></div></div>';
+}
+
+function renderArrivalCard(number, info, entry, done, state, busy, ui) {
+  const compact = ui.format === 'compact';
+  const summary = compact
+    ? '<strong class="list-room-number">' + escapeHtml(number) + '</strong>' +
+      (entry.time ? '<span class="list-summary-time">' + escapeHtml(entry.time) + '</span>' : '') +
+      '<span class="list-summary-dots">' + renderArrivalMarkers(entry, done, info, state, ui.details) + '</span>'
+    : '<div class="list-standard-summary">' +
+      '<div class="list-room-identity"><strong class="list-room-number">' + escapeHtml(number) + '</strong>' +
+        roomMeta(info, ui.details) + '</div>' +
+      '<div class="list-room-chips">' + renderArrivalLabels(entry, done, info, state, ui.details) + '</div></div>';
+  return '<details class="list-room-card' + (compact ? ' is-compact' : ' is-standard') +
+    (done ? ' is-completed' : '') + (busy ? ' is-saving' : '') + '" data-room-number="' + escapeHtml(number) + '">' +
+    '<summary class="list-room-summary">' + summary + '<span class="list-expand-icon">' + icon('chevron-down', 17) + '</span></summary>' +
+    renderArrivalDetails(number, info, entry, done, state, busy, ui.details) + '</details>';
+}
+
+function renderDepartureCard(number, info, onArrival, done, state, busy, ui) {
+  const compact = ui.format === 'compact';
+  const summary = compact
+    ? '<strong class="list-room-number">' + escapeHtml(number) + '</strong>' +
+      '<span class="list-summary-dots">' + renderDepartureMarkers(onArrival, done, info, state, ui.details) + '</span>'
+    : '<div class="list-standard-summary">' +
+      '<div class="list-room-identity"><strong class="list-room-number">' + escapeHtml(number) + '</strong>' +
+        roomMeta(info, ui.details) + '</div>' +
+      '<div class="list-room-chips">' + renderDepartureLabels(onArrival, done, info, state, ui.details) + '</div></div>';
+  return '<details class="list-room-card' + (compact ? ' is-compact' : ' is-standard') +
+    (done ? ' is-completed' : '') + (busy ? ' is-saving' : '') + '" data-room-number="' + escapeHtml(number) + '">' +
+    '<summary class="list-room-summary">' + summary + '<span class="list-expand-icon">' + icon('chevron-down', 17) + '</span></summary>' +
+    renderDepartureDetails(number, info, onArrival, done, state, busy, ui.details) + '</details>';
 }
 
 function renderSettings(ui) {
   if (!ui.settingsOpen) return '';
   return '<section class="list-settings-panel"><div class="list-settings-title">Отображение</div>' +
-    '<label class="list-settings-option"><input type="checkbox" data-list-pref="roomStatus"' +
-      (ui.details.roomStatus ? ' checked' : '') + '><span>Статус номера: пустой / пополнение</span></label>' +
-    '<label class="list-settings-option"><input type="checkbox" data-list-pref="products"' +
-      (ui.details.products ? ' checked' : '') + '><span>Сроки и продукты к пополнению</span></label>' +
+    '<label class="list-settings-row"><span>Формат карточек</span><select data-list-format aria-label="Формат карточек">' +
+      '<option value="standard"' + (ui.format === 'standard' ? ' selected' : '') + '>Стандартный</option>' +
+      '<option value="compact"' + (ui.format === 'compact' ? ' selected' : '') + '>Упрощённый</option>' +
+    '</select></label>' +
+    '<label class="list-settings-option"><input type="checkbox" data-list-pref="deadlines"' +
+      (ui.details.deadlines ? ' checked' : '') + '><span>Показывать сведения «Сроки»</span></label>' +
+    '<label class="list-settings-option"><input type="checkbox" data-list-pref="refill"' +
+      (ui.details.refill ? ' checked' : '') + '><span>Показывать пополнение</span></label>' +
     '<label class="list-settings-option"><input type="checkbox" data-list-pref="roomMeta"' +
-      (ui.details.roomMeta ? ' checked' : '') + '><span>Этаж и категория</span></label>' +
+      (ui.details.roomMeta ? ' checked' : '') + '><span>Показывать этаж и категорию</span></label>' +
     '</section>';
 }
 
 function renderListBody(state, type) {
   if (type !== 'arrivals' && type !== 'departures') {
     const title = type === 'gih' ? 'GIH' : 'Пустые';
-    return '<section class="list-placeholder"><span class="list-placeholder-icon">' + icon(type === 'gih' ? 'clipboard-check' : 'door-open', 24) +
+    return '<section class="list-placeholder"><span class="list-placeholder-icon">' +
+      icon(type === 'gih' ? 'clipboard-check' : 'door-open', 24) +
       '</span><strong>' + title + '</strong><span>Этот список подключим отдельным этапом.</span></section>';
   }
 
   const data = state.listData && state.listData[type];
   const loading = Boolean(state.listLoading && state.listLoading[type]);
   const error = state.listErrors && state.listErrors[type];
-  if (!data && loading) {
-    return '<div class="list-loading"><span class="list-loading-spinner"></span> Загружаем список</div>';
-  }
-  if (!data && error) {
-    return '<div class="list-error"><span>' + escapeHtml(error) + '</span><button type="button" data-list-action="retry">Повторить</button></div>';
-  }
+  if (!data && loading) return '<div class="list-loading"><span class="list-loading-spinner"></span> Загружаем список</div>';
+  if (!data && error) return '<div class="list-error"><span>' + escapeHtml(error) +
+    '</span><button type="button" data-list-action="retry">Повторить</button></div>';
   if (!data) return '<div class="list-loading"><span class="list-loading-spinner"></span> Загружаем список</div>';
 
   const ui = state.listUi || DEFAULT_UI;
   const numbers = listNumbers(type, data, ui.showCompleted);
-  const details = ui.details || DEFAULT_UI.details;
   const completeCount = numbers.completed.length;
+  const doneSet = new Set((type === 'arrivals' ? (data.checkedRoomNumbers || []) : (data.completedNumbers || [])).map(String));
   const cards = numbers.visible.slice().sort((a, b) =>
     ui.sort === 'desc' ? Number(b) - Number(a) : Number(a) - Number(b)
   ).map(number => {
     const info = data.roomInfo && data.roomInfo[number] || {};
-    const doneSet = new Set((type === 'arrivals' ? data.checkedRoomNumbers : data.completedNumbers || []).map(value => String(value)));
     const done = doneSet.has(number);
     const busy = isBusy(type, number);
     if (type === 'arrivals') {
       const entry = data.entries && data.entries[number] || {};
-      return renderArrivalCard(number, info, entry, done, details, busy);
+      return renderArrivalCard(number, info, entry, done, state, busy, ui);
     }
     const onArrival = (data.arrivalRooms || []).map(String).includes(number);
-    return renderDepartureCard(number, info, onArrival, done, details, busy);
+    return renderDepartureCard(number, info, onArrival, done, state, busy, ui);
   }).join('');
 
   let notice = '';
   if (state.listNotice && state.listNotice.message) {
     notice = '<div class="list-notice' + (state.listNotice.isError ? ' is-error' : '') + '">' +
       escapeHtml(state.listNotice.message) + '</div>';
+  }
+  if (state.listRefillError) {
+    notice += '<div class="list-notice is-error">Пополнения: ' + escapeHtml(state.listRefillError) + '</div>';
   }
   const emptyText = numbers.pending.length === 0 && completeCount > 0
     ? 'Все номера выполнены'
@@ -395,6 +544,44 @@ async function updateArrivalField(number, field, value) {
   }
 }
 
+async function saveRefill(card) {
+  const number = String(card?.dataset.roomNumber || '');
+  const type = getState().listType;
+  const data = getState().listData && getState().listData[type];
+  const info = data?.roomInfo?.[number];
+  if (!info || !Number(info.id)) {
+    setNotice('Не удалось определить номер для пополнения.', true);
+    return;
+  }
+  const busyKey = String(info.id);
+  if (isBusy('refill', busyKey)) return;
+  const current = refillForRoom(getState(), info.id);
+  const items = [...card.querySelectorAll('[data-refill-qty]')].map(input => ({
+    productId: Number(input.dataset.productId),
+    qty: Math.max(0, Math.min(Number(input.max) || 1, Number.parseInt(input.value, 10) || 0))
+  })).filter(item => item.productId > 0 && item.qty > 0);
+  updateBusy('refill', busyKey, true);
+  setNotice('');
+  try {
+    const response = await api.post('refills', {
+      roomId: Number(info.id),
+      allProducts: false,
+      items,
+      expectedRequestId: current ? Number(current.id) : null
+    });
+    const request = response.request;
+    const listRefills = (getState().listRefills || []).filter(item => Number(item.roomId) !== Number(info.id));
+    if (request && request.status === 'pending') listRefills.push(request);
+    setState({ listRefills });
+    setNotice(request?.status === 'pending' ? 'Пополнение номера ' + number + ' сохранено.' : 'Пополнение номера ' + number + ' отменено.');
+  } catch (error) {
+    setNotice(error.message || 'Не удалось сохранить пополнение.', true);
+    void loadList(type);
+  } finally {
+    updateBusy('refill', busyKey, false);
+  }
+}
+
 export function handleListClick(event) {
   const target = event.target instanceof Element ? event.target : null;
   if (!target) return false;
@@ -417,6 +604,7 @@ export function handleListClick(event) {
   if (action === 'add') void addRoom();
   else if (action === 'remove' && number) void removeRoom(number);
   else if (action === 'toggle-arrival' && number) void toggleArrival(number);
+  else if (action === 'save-refill') void saveRefill(control.closest('[data-room-number]'));
   else if (action === 'toggle-completed') updateUi({ showCompleted: !(getState().listUi || DEFAULT_UI).showCompleted });
   else if (action === 'settings') updateUi({ settingsOpen: !(getState().listUi || DEFAULT_UI).settingsOpen });
   else if (action === 'retry') void loadList(getState().listType);
@@ -445,10 +633,16 @@ export function handleListChange(event) {
     return true;
   }
 
+  const format = target.closest('[data-list-format]');
+  if (format) {
+    updateUi({ format: format.value === 'compact' ? 'compact' : 'standard' });
+    return true;
+  }
+
   const preference = target.closest('[data-list-pref]');
   if (preference) {
     const key = preference.dataset.listPref;
-    if (key === 'roomStatus' || key === 'products' || key === 'roomMeta') {
+    if (key === 'deadlines' || key === 'refill' || key === 'roomMeta') {
       const ui = getState().listUi || DEFAULT_UI;
       updateUi({ details: { ...ui.details, [key]: preference.checked } });
     }
