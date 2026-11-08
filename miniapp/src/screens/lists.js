@@ -342,7 +342,6 @@ function renderArrivalCard(number, info, entry, done, state, busy, ui) {
   const roomNumber = '<span class="list-room-number list-room-open" data-open-camera="' + escapeHtml(number) + '">' + escapeHtml(number) + '</span>' + (empty ? '<span class="list-empty-badge">Пустой</span>' : '');
   const summary = compact
     ? roomNumber +
-      (info.expiryStatus === 'empty' ? '<span class="list-empty-tag">Пустой</span>' : '') +
       (entry.time ? '<span class="list-summary-time">' + icon('clock',13) + ' ' + escapeHtml(entry.time) + '</span>' : '') +
       (entry.comment ? '<span class="list-summary-comment">' + icon('message-square',13) + ' ' + escapeHtml(entry.comment) + '</span>' : '') +
       '<span class="list-summary-dots">' + renderArrivalMarkers(entry, done, info, state, ui.details) + '</span>'
