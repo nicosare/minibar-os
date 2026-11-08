@@ -152,9 +152,26 @@ async function getMiniAppArrivalList(req) {
         expiryStatus: true,
         productStatuses: {
           select: {
+            productId: true,
             expiryStatus: true,
             qtyToReplace: true,
             product: { select: { name: true } }
+          }
+        },
+        template: {
+          select: {
+            items: {
+              orderBy: { sortOrder: 'asc' },
+              select: {
+                qty: true,
+                product: {
+                  select: {
+                    id: true, name: true, category: true, volume: true,
+                    unit: true, emoji: true, bgColor: true, isActive: true
+                  }
+                }
+              }
+            }
           }
         }
       },
@@ -197,14 +214,28 @@ async function getMiniAppArrivalList(req) {
   const roomInfo = Object.fromEntries(rooms
     .filter(room => assigned.has(String(room.number)))
     .map(room => [String(room.number), {
+      id: room.id,
       floor: room.floor,
       category: room.category,
       expiryStatus: room.expiryStatus || 'neutral',
       productStatuses: (room.productStatuses || []).map(item => ({
+        productId: Number(item.productId),
         name: item.product?.name || '',
         expiryStatus: item.expiryStatus || 'ok',
         qtyToReplace: Number(item.qtyToReplace) || 0
-      }))
+      })),
+      templateItems: (room.template?.items || [])
+        .filter(item => item.product && item.product.isActive)
+        .map(item => ({
+          productId: Number(item.product.id),
+          name: item.product.name,
+          category: item.product.category || 'Напитки',
+          volume: item.product.volume ?? null,
+          unit: item.product.unit || 'шт',
+          emoji: item.product.emoji || null,
+          bgColor: item.product.bgColor || 'slate',
+          qty: Math.max(1, Number(item.qty) || 1)
+        }))
     }]));
   return {
     dateKey: range.dateKey,

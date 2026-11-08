@@ -21,6 +21,11 @@ function render() {
   const state = getState();
   const screen = renderers[state.screen] ? state.screen : 'today';
   const scrollTop = main.scrollTop;
+  const preserveExpanded = screen === renderedScreen &&
+    (screen !== 'lists' || state.listType === renderedListType);
+  const expandedRooms = preserveExpanded
+    ? [...main.querySelectorAll('details.list-room-card[open]')].map(card => card.dataset.roomNumber)
+    : [];
   topbar.innerHTML = renderTopbar();
   main.innerHTML = renderers[screen](state);
   bottomNav.innerHTML = renderBottomNav({ ...state, screen });
@@ -28,6 +33,11 @@ function render() {
   document.documentElement.dataset.screen = screen;
   if (screen !== renderedScreen || (screen === 'lists' && state.listType !== renderedListType)) main.scrollTop = 0;
   else main.scrollTop = scrollTop;
+  if (expandedRooms.length) {
+    main.querySelectorAll('details.list-room-card[data-room-number]').forEach(card => {
+      if (expandedRooms.includes(card.dataset.roomNumber)) card.open = true;
+    });
+  }
   renderedScreen = screen;
   renderedListType = state.listType;
 }

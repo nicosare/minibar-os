@@ -7,11 +7,14 @@ const initialState = {
   listErrors: { arrivals: '', departures: '' },
   listBusy: {},
   listNotice: null,
+  listRefills: [],
+  listRefillError: '',
   listUi: {
     showCompleted: false,
     sort: 'asc',
     settingsOpen: false,
-    details: { roomStatus: true, products: true, roomMeta: false }
+    format: 'standard',
+    details: { deadlines: true, refill: true, roomMeta: false }
   }
 };
 let state = { ...initialState };
