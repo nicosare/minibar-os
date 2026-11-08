@@ -726,3 +726,72 @@ html[data-screen="camera"] .screen-camera { position:relative; }
 .camera-room-markers { gap:2px; }
 .camera-room-marker { width:9px; height:9px; }
 .camera-room-marker svg { width:9px; height:9px; }
+
+
+/* Keep the live viewfinder tall; the room summary floats as a compact glass panel. */
+.camera-viewport { min-height:220px; }
+.camera-standby {
+  position:absolute;
+  z-index:4;
+  inset:auto 8px 8px;
+  width:auto;
+  max-height:42%;
+  flex:none;
+  padding:0;
+  overflow:hidden;
+  border:0;
+  border-radius:13px;
+  background:transparent;
+  box-shadow:none;
+  pointer-events:none;
+}
+.camera-info-panel {
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  padding:9px;
+  color:#fff;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:13px;
+  background:rgba(13,24,40,.78);
+  box-shadow:0 5px 18px rgba(0,0,0,.16);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+}
+.camera-info-room { min-height:23px; }
+.camera-info-room-main strong { color:#fff; font-size:15px; }
+.camera-info-room-main>span { color:rgba(255,255,255,.68); }
+.camera-info-list-name { color:#d9e8fb; background:rgba(255,255,255,.13); }
+.camera-info-chip { color:#e6edf6; background:rgba(255,255,255,.13); }
+.camera-info-chip.is-vip { color:#ffe4a3; background:rgba(180,125,30,.24); }
+.camera-info-chip.is-ready { color:#b7f7d6; background:rgba(16,140,90,.24); }
+.camera-info-chip.is-empty { color:#bdeaff; background:rgba(2,132,199,.25); }
+.camera-info-chip.is-arrival { color:#d8dfff; background:rgba(99,102,241,.25); }
+.camera-info-comment { color:#e6d9ff; }
+.camera-info-tile {
+  min-height:0;
+  gap:3px;
+  padding:6px 7px;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:8px;
+  background:rgba(255,255,255,.1);
+}
+.camera-info-tile-label { color:#d2dce9; }
+.camera-info-tile>strong { color:#fff; -webkit-line-clamp:2; }
+.camera-info-tile>small { color:rgba(255,255,255,.58); }
+.camera-info-tile.is-empty,
+.camera-info-tile.is-deadline,
+.camera-info-tile.is-refill { border-color:rgba(255,255,255,.14); background:rgba(255,255,255,.1); }
+.camera-info-tile.is-empty .camera-info-tile-label,
+.camera-info-tile.is-empty>strong { color:#bdeaff; }
+.camera-info-tile.is-deadline .camera-info-tile-label,
+.camera-info-tile.is-deadline>strong,
+.camera-info-tile.is-refill .camera-info-tile-label,
+.camera-info-tile.is-refill>strong { color:#ffd1a8; }
+.camera-info-comment-line { color:#e8dcff; }
+@media(max-height:700px) {
+  .camera-viewport { min-height:190px; }
+  .camera-standby { max-height:45%; inset:auto 6px 6px; }
+  .camera-info-panel { gap:4px; padding:7px; }
+  .camera-info-tile { padding:5px; }
+}
