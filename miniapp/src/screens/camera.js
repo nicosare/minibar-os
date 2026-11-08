@@ -710,9 +710,9 @@ export function renderCamera(state) {
           '<video id="cameraVideo" autoplay playsinline muted></video><canvas id="cameraCanvas" hidden></canvas>' +
           '<div class="camera-focus-frame" aria-hidden="true"><span></span><span></span><span></span><span></span></div>' +
           '<button type="button" class="camera-flash hidden" id="cameraFlash" data-camera-action="toggle-flash" aria-label="Вспышка" aria-pressed="false"></button>' +
+          '<div class="camera-standby" id="cameraStandby"></div>' +
           '<div class="camera-loader hidden" id="cameraLoader"><span class="camera-loader-spinner"></span><strong id="cameraLoaderTitle">Запуск камеры…</strong><small id="cameraLoaderSubtitle"></small><button type="button" class="camera-retry hidden" data-camera-action="retry-camera" id="cameraLoaderRetry">Повторить</button></div>' +
         '</div>' +
-        '<div class="camera-standby" id="cameraStandby"></div>' +
         '<div class="camera-action-row"><button type="button" class="camera-room-action" data-camera-action="empty" id="cameraActionEmpty">Опустошён</button><button type="button" class="camera-room-action is-primary" data-camera-action="open-refill" id="cameraActionRefill">Пополнить</button><button type="button" class="camera-room-action" data-camera-action="residential" id="cameraActionResidential">Жилой</button></div>' +
         '<div class="camera-capture-zone"><button type="button" class="camera-capture-button" data-camera-action="capture" id="cameraCapture" aria-label="Сделать фото"><span></span></button></div>' +
       '</div>' +
