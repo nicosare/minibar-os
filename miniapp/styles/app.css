@@ -668,7 +668,7 @@ html[data-screen="camera"] .screen-camera {
 }
 .camera-standby::-webkit-scrollbar { display:none; }
 .screen-camera.is-live .camera-standby { display:block; }
-.camera-info-panel { display:flex; flex-direction:column; gap:6px; color:var(--text); }
+.camera-info-panel { height:auto; min-height:0; display:flex; flex-direction:column; gap:6px; overflow:visible; color:var(--text); }
 .camera-info-room { min-height:28px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
 .camera-info-room-main { min-width:0; display:flex; align-items:baseline; flex-wrap:wrap; gap:6px; }
 .camera-info-room-main strong { color:#172033; font-size:16px; line-height:1.1; font-weight:850; letter-spacing:-.3px; font-variant-numeric:tabular-nums; }
