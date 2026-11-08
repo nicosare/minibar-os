@@ -360,7 +360,7 @@ export async function getMiniAppDepartureList(req) {
 router.get('/', async (req, res) => {
   try {
     const range = todayRange(req);
-    const [rooms, checks, session] = await Promise.all([
+    const [rooms, checks, session, worklist] = await Promise.all([
       prisma.room.findMany({
         select: {
           id: true,
