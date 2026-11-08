@@ -420,3 +420,152 @@ details.list-room-card.is-completed { background:#fbfcfe; }
 .list-empty-badge { display:inline-flex; align-items:center; margin-left:6px; padding:3px 6px; color:#0369a1; border-radius:6px; background:#e0f2fe; font-size:9px; font-weight:750; }
 .list-marker-word { display:inline-flex; align-items:center; min-height:22px; padding:3px 6px; color:#0369a1; border-radius:6px; background:#e0f2fe; font-size:9px; font-weight:750; }
 .camera-back-link { display:inline-flex; align-items:center; gap:3px; margin:0 0 8px; padding:5px 0; color:var(--primary); border:0; background:transparent; font-size:11px; font-weight:700; }
+
+
+/* Camera screen: restore the legacy viewfinder / action row / shutter / number carousel composition. */
+html[data-screen="camera"] .main-content { overflow:hidden; padding:8px 14px 6px; }
+html[data-screen="camera"] .screen-camera {
+  width:100%; height:100%; min-height:0; display:flex; flex-direction:column;
+  align-items:center; gap:0; padding:0; overflow:hidden;
+}
+.camera-viewport {
+  position:relative; flex:0 1 auto; width:min(88vw,440px,calc(50dvh * .75));
+  aspect-ratio:3/4; max-height:50dvh; min-height:0; overflow:hidden;
+  border:1px solid #dbe4ef; border-radius:17px; background:#182235;
+  box-shadow:0 3px 14px rgba(28,51,77,.1);
+}
+.camera-viewport video {
+  position:absolute; inset:0; display:block; width:100%; height:100%;
+  object-fit:contain; background:#0f172a; opacity:0; transition:opacity .16s ease;
+}
+.screen-camera.is-live .camera-viewport video { opacity:1; }
+.camera-focus-frame { position:absolute; inset:14px; z-index:2; pointer-events:none; }
+.camera-focus-frame span { position:absolute; width:19px; height:19px; border-color:rgba(255,255,255,.78); border-style:solid; }
+.camera-focus-frame span:nth-child(1) { top:0;left:0;border-width:2px 0 0 2px;border-radius:4px 0 0; }
+.camera-focus-frame span:nth-child(2) { top:0;right:0;border-width:2px 2px 0 0;border-radius:0 4px 0 0; }
+.camera-focus-frame span:nth-child(3) { bottom:0;left:0;border-width:0 0 2px 2px;border-radius:0 0 0 4px; }
+.camera-focus-frame span:nth-child(4) { bottom:0;right:0;border-width:0 2px 2px 0;border-radius:0 0 4px; }
+.camera-standby { position:absolute; inset:0; z-index:3; padding:10px; overflow:hidden; background:#f4f7fb; }
+.screen-camera.is-live .camera-standby { display:none; }
+.camera-info-panel { height:100%; min-height:0; display:flex; flex-direction:column; gap:8px; overflow:hidden; color:var(--text); }
+.camera-info-room { min-height:38px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.camera-info-room-main { min-width:0; display:flex; align-items:baseline; flex-wrap:wrap; gap:7px; }
+.camera-info-room-main strong { color:#172033; font-size:19px; line-height:1.1; font-weight:850; letter-spacing:-.35px; font-variant-numeric:tabular-nums; }
+.camera-info-room-main>span { color:#77869a; font-size:10px; font-weight:600; }
+.camera-info-list-name { flex:0 0 auto; padding:4px 7px; color:#52657c; border-radius:7px; background:#e8eef6; font-size:9px; font-weight:750; }
+.camera-info-chips { display:flex; align-items:center; flex-wrap:wrap; gap:5px; min-height:0; }
+.camera-info-chip { display:inline-flex; align-items:center; gap:4px; padding:4px 6px; color:#52657c; border-radius:6px; background:#e8eef6; font-size:9px; line-height:1.15; font-weight:700; }
+.camera-info-chip.is-vip { color:#92400e; background:#fef3c7; }
+.camera-info-chip.is-ready { color:#047857; background:#d1fae5; }
+.camera-info-chip.is-empty { color:#0369a1; background:#e0f2fe; }
+.camera-info-chip.is-arrival { color:#4338ca; background:#e0e7ff; }
+.camera-info-comment { min-width:0; display:inline-flex; align-items:center; gap:4px; color:#64748b; font-size:9px; line-height:1.3; }
+.camera-info-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; min-height:0; }
+.camera-info-tile { min-width:0; min-height:77px; display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start; gap:6px; padding:8px; border:1px solid #dce5ef; border-radius:10px; background:#fff; }
+.camera-info-tile-label { display:flex; align-items:center; gap:5px; color:#6b7d92; font-size:9px; line-height:12px; font-weight:800; }
+.camera-info-tile>strong { display:-webkit-box; min-width:0; overflow:hidden; color:#26364a; font-size:10px; line-height:1.35; font-weight:720; overflow-wrap:anywhere; -webkit-box-orient:vertical; -webkit-line-clamp:3; }
+.camera-info-tile>small { color:#8a98a9; font-size:8px; line-height:10px; }
+.camera-info-tile.is-empty { border-color:#bae6fd; background:#f0f9ff; }
+.camera-info-tile.is-empty .camera-info-tile-label,.camera-info-tile.is-empty>strong { color:#0369a1; }
+.camera-info-tile.is-deadline { border-color:#fed7aa; background:#fff7ed; }
+.camera-info-tile.is-deadline .camera-info-tile-label,.camera-info-tile.is-deadline>strong { color:#c2410c; }
+.camera-info-tile.is-refill { border-color:#fed7aa; background:#fffaf5; }
+.camera-info-tile.is-refill .camera-info-tile-label { color:#c2410c; }
+.camera-info-tile.is-refill>strong { color:#9a3412; }
+.camera-info-comment-line { display:flex; align-items:flex-start; gap:6px; color:#64748b; font-size:9px; line-height:1.35; }
+.camera-info-comment-line span { min-width:0; overflow-wrap:anywhere; }
+.camera-history-card { min-height:0; flex:1 1 auto; display:flex; flex-direction:column; gap:5px; overflow:hidden; padding:8px 9px; border:1px solid #dce5ef; border-radius:10px; background:#fff; }
+.camera-history-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.camera-history-heading strong { color:#34445a; font-size:10px; font-weight:800; }
+.camera-history-heading span { color:#9aa7b7; font-size:8px; }
+.camera-history-list { min-height:0; display:grid; align-content:start; gap:4px; overflow:hidden; }
+.camera-history-entry { min-width:0; display:flex; align-items:center; gap:8px; color:#53657b; font-size:9px; line-height:1.3; }
+.camera-history-entry strong { min-width:0; overflow:hidden; color:#34445a; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
+.camera-history-time { flex:0 0 auto; color:#96a3b3; font-size:8px; font-variant-numeric:tabular-nums; }
+.camera-history-empty,.camera-info-empty { color:#8492a3; font-size:10px; line-height:1.4; }
+.camera-loader { position:absolute; inset:0; z-index:8; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:9px; padding:18px; color:#fff; background:rgba(15,23,42,.94); text-align:center; }
+.camera-loader.hidden { display:none; }
+.camera-loader-spinner { width:26px; height:26px; border:3px solid rgba(255,255,255,.2); border-top-color:#fff; border-radius:50%; animation:boot-spin .8s linear infinite; }
+.camera-loader strong { font-size:12px; font-weight:800; }
+.camera-loader small { color:#cbd5e1; font-size:10px; line-height:1.4; }
+.camera-loader.is-error .camera-loader-spinner { display:none; }
+.camera-retry { min-height:35px; padding:7px 13px; color:#fff; border:1px solid rgba(255,255,255,.4); border-radius:9px; background:rgba(255,255,255,.12); font-size:10px; font-weight:750; }
+.camera-retry.hidden { display:none; }
+.camera-action-row { width:min(88vw,440px,calc(50dvh * .75)); flex:0 0 auto; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; margin-top:7px; }
+.camera-room-action { min-width:0; min-height:42px; display:flex; align-items:center; justify-content:center; padding:7px 5px; color:#53657b; border:1px solid #dce5ef; border-radius:10px; background:#fff; font-size:10px; line-height:1.2; font-weight:780; text-align:center; }
+.camera-room-action.is-primary { color:#fff; border-color:var(--primary); background:var(--primary); }
+.camera-room-action:disabled { opacity:.38; }
+.camera-capture-zone { width:min(88vw,440px,calc(50dvh * .75)); min-height:55px; flex:1 1 auto; display:grid; place-items:center; }
+.camera-capture-button { position:relative; width:61px; height:61px; display:grid; place-items:center; padding:0; border:3px solid #fff; border-radius:50%; background:var(--primary); box-shadow:0 0 0 1.5px #a9b9ca,0 3px 11px rgba(28,51,77,.16); }
+.camera-capture-button span { width:43px; height:43px; border-radius:50%; background:#fff; }
+.camera-capture-button:active { transform:scale(.95); }
+.camera-capture-button:disabled { opacity:.35; }
+.camera-carousel-wrap { position:relative; width:min(88vw,440px,calc(50dvh * .75)); height:56px; flex:0 0 56px; margin-top:0; }
+.camera-carousel-wrap.is-disabled { opacity:.3; pointer-events:none; }
+.camera-carousel-fade { position:absolute; z-index:2; top:0; bottom:0; width:34px; pointer-events:none; }
+.camera-carousel-fade.is-left { left:0; background:linear-gradient(90deg,#f8fafc 0%,rgba(248,250,252,0) 100%); }
+.camera-carousel-fade.is-right { right:0; background:linear-gradient(270deg,#f8fafc 0%,rgba(248,250,252,0) 100%); }
+.camera-carousel { width:100%; height:56px; display:flex; align-items:center; gap:24px; overflow-x:auto; overflow-y:hidden; padding:0 calc(50% - 44px); scrollbar-width:none; scroll-snap-type:x mandatory; overscroll-behavior-x:contain; touch-action:pan-x; }
+.camera-carousel::-webkit-scrollbar { display:none; }
+.camera-number-item { position:relative; flex:0 0 88px; width:88px; height:48px; display:flex; align-items:center; justify-content:center; padding:0; color:#9aa8b8; border:0; background:transparent; font-size:19px; line-height:1; font-weight:650; font-variant-numeric:tabular-nums; scroll-snap-align:center; transition:color .15s ease; }
+.camera-number-item.is-active { color:var(--primary); font-size:28px; font-weight:850; text-shadow:0 0 10px rgba(40,127,218,.12); }
+.camera-number-item.is-empty { color:#0891b2; }
+.camera-number-item.is-refill { color:#ea580c; }
+.camera-number-item.is-checked:not(.is-empty):not(.is-refill) { color:#16a34a; }
+.camera-number-item:focus-visible { outline:0; }
+.camera-feedback { position:absolute; z-index:12; left:50%; bottom:4px; max-width:calc(100% - 24px); padding:8px 12px; color:#fff; border-radius:9px; background:#334155; font-size:10px; line-height:1.35; text-align:center; opacity:0; pointer-events:none; transform:translate(-50%,5px); transition:opacity .15s ease,transform .15s ease; }
+.camera-feedback.is-visible { opacity:1; transform:translate(-50%,0); }
+.camera-feedback.is-error { background:#b42318; }
+.camera-modal-overlay { position:fixed; inset:0; z-index:100; display:flex; align-items:center; justify-content:center; padding:calc(env(safe-area-inset-top) + 12px) 14px calc(env(safe-area-inset-bottom) + 12px); background:rgba(15,23,42,.58); }
+.camera-modal-overlay.hidden { display:none; }
+.camera-preview-card { width:min(100%,520px); max-height:100%; display:flex; flex-direction:column; gap:10px; padding:12px; border-radius:15px; background:#fff; box-shadow:0 18px 55px rgba(15,23,42,.22); }
+.camera-preview-room { color:#334155; font-size:13px; font-weight:800; }
+.camera-preview-card img { display:block; width:100%; min-height:0; max-height:calc(100dvh - 190px); object-fit:contain; border-radius:9px; background:#0f172a; }
+.camera-preview-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.camera-preview-actions button { min-height:42px; border:1px solid #dce5ef; border-radius:10px; background:#fff; color:#52657c; font-size:11px; font-weight:750; }
+.camera-preview-actions .camera-preview-primary { color:#fff; border-color:var(--primary); background:var(--primary); }
+.camera-refill-modal { width:min(100%,520px); max-height:min(91dvh,760px); display:flex; flex-direction:column; overflow:hidden; border-radius:16px; background:#fff; box-shadow:0 18px 55px rgba(15,23,42,.22); }
+.camera-modal-header { min-height:52px; flex:0 0 auto; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 13px; border-bottom:1px solid #e7edf4; }
+.camera-modal-header strong { color:#243247; font-size:13px; font-weight:800; }
+.camera-modal-header button { width:32px; height:32px; display:grid; place-items:center; color:#6b7d92; border:1px solid #e2e8f0; border-radius:9px; background:#fff; font-size:22px; line-height:1; }
+.camera-refill-products { min-height:0; flex:1 1 auto; overflow-y:auto; overscroll-behavior:contain; padding:12px 13px; scrollbar-width:thin; }
+.refill-category + .refill-category { margin-top:13px; }
+.refill-category-title { margin:0 0 7px 2px; color:#8090a4; font-size:9px; font-weight:850; letter-spacing:.55px; text-transform:uppercase; }
+.refill-product-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
+.refill-product { position:relative; min-width:0; min-height:57px; display:flex; align-items:center; gap:8px; padding:8px; border:1px solid #e1e8f0; border-radius:10px; background:#f8fafc; text-align:left; }
+.refill-product.is-selected { border-color:#a5b4fc; background:#eef2ff; }
+.refill-product-emoji { width:33px; height:33px; flex:0 0 auto; display:grid; place-items:center; border-radius:9px; font-size:18px; }
+.refill-product-name { min-width:0; display:-webkit-box; overflow:hidden; color:#34445a; font-size:10px; line-height:1.25; font-weight:700; overflow-wrap:anywhere; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
+.refill-product-count { position:absolute; top:-5px; right:-5px; min-width:19px; height:19px; display:grid; place-items:center; padding:0 4px; color:#fff; border:2px solid #fff; border-radius:99px; background:var(--primary); font-size:9px; line-height:1; font-weight:850; font-variant-numeric:tabular-nums; }
+.refill-empty { padding:16px 8px; color:#8291a4; font-size:11px; text-align:center; }
+.camera-refill-feedback { min-height:0; padding:0 13px; color:#b42318; font-size:10px; line-height:1.4; }
+.camera-refill-footer { flex:0 0 auto; display:grid; gap:8px; padding:10px 13px calc(10px + env(safe-area-inset-bottom)); border-top:1px solid #e7edf4; background:#fff; }
+.camera-refill-all { min-height:37px; color:#9a3412; border:1px solid #fed7aa; border-radius:9px; background:#fff7ed; font-size:10px; font-weight:760; }
+.camera-refill-footer-row { display:grid; grid-template-columns:.7fr 1.3fr; gap:8px; }
+.camera-refill-footer-row button { min-height:40px; color:#64748b; border:1px solid #dce5ef; border-radius:9px; background:#fff; font-size:10px; font-weight:750; }
+.camera-refill-footer-row button.is-save { color:#fff; border-color:var(--primary); background:var(--primary); }
+.camera-refill-footer button:disabled { opacity:.45; }
+@media(max-height:740px) {
+  html[data-screen="camera"] .main-content { padding-top:5px; padding-bottom:4px; }
+  .camera-viewport { width:min(88vw,440px,calc(42dvh * .75)); max-height:42dvh; }
+  .camera-action-row { margin-top:5px; }
+  .camera-capture-button { width:55px; height:55px; }
+  .camera-capture-button span { width:39px; height:39px; }
+  .camera-info-panel { gap:6px; }
+  .camera-standby { padding:8px; }
+  .camera-info-grid { gap:5px; }
+  .camera-info-tile { min-height:64px; padding:6px; gap:4px; }
+  .camera-history-card { padding:6px 8px; }
+}
+@media(max-width:370px) {
+  .camera-viewport,.camera-action-row,.camera-capture-zone,.camera-carousel-wrap { width:calc(100vw - 28px); }
+  .camera-action-row { gap:5px; }
+  .camera-room-action { min-height:39px; font-size:9px; }
+  .camera-number-item { flex-basis:78px; width:78px; }
+  .camera-carousel { padding-left:calc(50% - 39px); padding-right:calc(50% - 39px); }
+}
+
+html[data-screen="camera"] .screen-camera { position:relative; }
+@media(max-height:740px) {
+  .camera-viewport { width:min(88vw,440px,calc(47dvh * .75)); max-height:47dvh; }
+}
