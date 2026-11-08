@@ -175,7 +175,7 @@ function renderStandby() {
         '<section class="camera-info-tile ' + deadlineClass + '">' +
           '<span class="camera-info-tile-label">' + icon('calendar-clock',13) + ' Сроки</span>' +
           '<strong>' + esc(deadline) + '</strong>' +
-          (room.productStatuses?.length ? '<small>' + room.productStatuses.length + ' отмет.' : '') + '</small>' +
+          (room.productStatuses?.length ? '<small>' + room.productStatuses.length + ' отмет.</small>' : '') +
         '</section>' +
         '<section class="camera-info-tile is-refill">' +
           '<span class="camera-info-tile-label">' + icon('package',13) + ' Пополнение</span>' +
@@ -223,10 +223,8 @@ function renderCarousel() {
     return '<button type="button" class="' + classes.join(' ') + '" data-camera-room="' + esc(number) + '">' + esc(number) + '</button>';
   }).join('');
   const active = host.querySelector('.is-active');
-  if (active && !host.dataset.initialized) {
-    host.dataset.initialized = '1';
-    host.scrollLeft = Math.max(0, active.offsetLeft - (host.clientWidth - active.clientWidth) / 2);
-  }
+  if (active) host.scrollLeft = Math.max(0, active.offsetLeft - (host.clientWidth - active.clientWidth) / 2);
+  attachCarouselScroll(host);
   updateActionAvailability();
 }
 function centerRoom(number, behavior = 'smooth') {
@@ -239,13 +237,20 @@ function centerRoom(number, behavior = 'smooth') {
     behavior
   });
 }
+function updateCarouselSelection() {
+  const host = $('cameraCarousel');
+  if (!host) return;
+  host.querySelectorAll('[data-camera-room]').forEach(item => {
+    item.classList.toggle('is-active', item.dataset.cameraRoom === selectedNumber);
+  });
+}
 function setSelectedRoom(number, options = {}) {
   const next = String(number || '');
   if (!next || !roomNumbers().includes(next)) return;
   const changed = selectedNumber !== next;
   selectedNumber = next;
+  updateCarouselSelection();
   if (options.center) centerRoom(next, options.behavior || 'smooth');
-  renderCarousel();
   renderStandby();
   updateActionAvailability();
   if (changed) void loadRoomHistory(next);
@@ -257,15 +262,22 @@ async function loadRoomHistory(number = selectedNumber) {
   renderHistory();
   if (!room.id) return;
   try {
-    const result = await api.get('checks/history?roomId=' + Number(room.id) + '&pageSize=4');
+    const [historyResult, statusResult] = await Promise.allSettled([
+      api.get('checks/history?roomId=' + Number(room.id) + '&pageSize=4'),
+      api.get('rooms/' + Number(room.id) + '/product-statuses')
+    ]);
     if (token !== historyToken || String(number) !== selectedNumber) return;
-    roomHistory = Array.isArray(result?.items) ? result.items : [];
+    if (historyResult.status === 'fulfilled') roomHistory = Array.isArray(historyResult.value?.items) ? historyResult.value.items : [];
+    if (statusResult.status === 'fulfilled' && Array.isArray(statusResult.value)) {
+      room.productStatuses = statusResult.value.map(item => ({
+        productId:Number(item.productId), name:item.product?.name || item.name || 'Продукт',
+        expiryStatus:item.expiryStatus || 'ok', qtyToReplace:Number(item.qtyToReplace) || 0
+      }));
+      renderStandby();
+    }
     renderHistory();
   } catch (_) {
-    if (token === historyToken) {
-      roomHistory = [];
-      renderHistory();
-    }
+    if (token === historyToken) { roomHistory = []; renderHistory(); }
   }
 }
 async function loadCameraData() {
@@ -318,12 +330,14 @@ function showLoader(title, subtitle, error = false) {
   if (!loader) return;
   loader.classList.remove('hidden','is-error');
   loader.classList.toggle('is-error', error);
+  $('cameraLoaderRetry').classList.toggle('hidden', !error);
   $('cameraLoaderTitle').textContent = title || '';
   $('cameraLoaderSubtitle').textContent = subtitle || '';
   $('cameraLoaderRetry').classList.toggle('hidden', !error);
 }
 function hideLoader() {
   $('cameraLoader')?.classList.add('hidden');
+  $('cameraLoaderRetry')?.classList.add('hidden');
 }
 function clearPhoto() {
   photoBlob = null;
@@ -361,6 +375,7 @@ async function capturePhoto() {
     const video = $('cameraVideo');
     video.srcObject = stream;
     await video.play();
+    $('cameraStage')?.classList.add('is-live');
     await waitForVideo(video);
     hideLoader();
     await new Promise(resolve => setTimeout(resolve, 220));
@@ -389,8 +404,8 @@ async function capturePhoto() {
     updateActionAvailability();
   }
 }
-function closePreview() {
-  if (captureBusy) return;
+function closePreview(force = false) {
+  if (captureBusy && !force) return;
   $('cameraPreviewModal')?.classList.add('hidden');
   $('cameraPreviewModal')?.setAttribute('aria-hidden','true');
   $('cameraCarouselWrap')?.classList.remove('is-disabled');
@@ -425,7 +440,7 @@ async function sendPhoto() {
     if (data.refill_synced !== false && request?.id) {
       activeRefills = activeRefills.filter(item => Number(item.id) !== Number(request.id));
     }
-    closePreview();
+    closePreview(true);
     renderStandby();
     renderCarousel();
     showNotice(data.refill_synced === false
@@ -532,8 +547,8 @@ function openRefillModal() {
   $('refillModal').setAttribute('aria-hidden','false');
   renderRefillProducts();
 }
-function closeRefillModal() {
-  if (refillBusy) return;
+function closeRefillModal(force = false) {
+  if (refillBusy && !force) return;
   $('refillModal')?.classList.add('hidden');
   $('refillModal')?.setAttribute('aria-hidden','true');
 }
@@ -560,7 +575,7 @@ async function saveRefill() {
     });
     activeRefills = activeRefills.filter(item=>Number(item.roomId)!==Number(room.id));
     if (result.request?.status==='pending') activeRefills.push(result.request);
-    closeRefillModal();
+    closeRefillModal(true);
     renderStandby();
     renderCarousel();
     showNotice(result.request?.status==='cancelled'?'Потребность снята':'Пополнение сохранено');
@@ -582,6 +597,8 @@ async function markRoomEmpty() {
     room.expiryStatus = 'empty';
     const list = sourceData().data;
     if (list?.roomInfo?.[String(room.number)]) list.roomInfo[String(room.number)].expiryStatus = 'empty';
+    const baseRoom = rooms.find(item => Number(item.id) === Number(room.id));
+    if (baseRoom) baseRoom.expiryStatus = 'empty';
     closeRefillModal();
     renderStandby();
     renderCarousel();
@@ -635,29 +652,28 @@ function handleClick(event) {
   }
   else if (action === 'refill-all') void markRoomEmpty();
 }
+function attachCarouselScroll(carousel = $('cameraCarousel')) {
+  if (!carousel || carousel.dataset.cameraScrollBound === '1') return;
+  carousel.dataset.cameraScrollBound = '1';
+  carousel.addEventListener('scroll',() => {
+    cancelAnimationFrame(carouselFrame);
+    carouselFrame = requestAnimationFrame(() => {
+      const rect = carousel.getBoundingClientRect();
+      const center = rect.left + rect.width/2;
+      let best = null, distance = Infinity;
+      carousel.querySelectorAll('[data-camera-room]').forEach(item => {
+        const box = item.getBoundingClientRect();
+        const delta = Math.abs(box.left + box.width/2 - center);
+        if (delta < distance) { distance=delta; best=item; }
+      });
+      if (best && best.dataset.cameraRoom !== selectedNumber) setSelectedRoom(best.dataset.cameraRoom);
+    });
+  },{passive:true});
+}
 function bind() {
   if (bound) return;
   bound = true;
   document.addEventListener('click',handleClick);
-  const carousel = $('cameraCarousel');
-  if (carousel) {
-    carousel.addEventListener('scroll',() => {
-      cancelAnimationFrame(carouselFrame);
-      carouselFrame = requestAnimationFrame(() => {
-        const rect = carousel.getBoundingClientRect();
-        const center = rect.left + rect.width/2;
-        let best = null, distance = Infinity;
-        carousel.querySelectorAll('[data-camera-room]').forEach(item => {
-          const box = item.getBoundingClientRect();
-          const delta = Math.abs(box.left + box.width/2 - center);
-          if (delta < distance) { distance=delta; best=item; }
-        });
-        if (best && best.dataset.cameraRoom !== selectedNumber) {
-          setSelectedRoom(best.dataset.cameraRoom);
-        }
-      });
-    },{passive:true});
-  }
 }
 export function renderCamera(state) {
   const type = state.cameraSourceListType || state.listType || 'arrivals';
@@ -669,7 +685,7 @@ export function renderCamera(state) {
     '<div class="camera-viewport" id="cameraViewport">' +
       '<video id="cameraVideo" autoplay playsinline muted></video><canvas id="cameraCanvas" hidden></canvas>' +
       '<div class="camera-focus-frame" aria-hidden="true"><span></span><span></span><span></span><span></span></div>' +
-      '<div class="camera-standby" id="cameraStandby"><div id="cameraStandby"></div></div>' +
+      '<div class="camera-standby" id="cameraStandby"></div>' +
       '<div class="camera-loader hidden" id="cameraLoader"><span class="camera-loader-spinner"></span><strong id="cameraLoaderTitle">Запуск камеры…</strong><small id="cameraLoaderSubtitle"></small><button type="button" class="camera-retry hidden" data-camera-action="retry-camera" id="cameraLoaderRetry">Повторить</button></div>' +
     '</div>' +
     '<div class="camera-action-row">' +
