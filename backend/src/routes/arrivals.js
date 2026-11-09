@@ -321,12 +321,18 @@ router.post('/session/rooms', async (req, res) => {
     const valid = requested.filter(number => known.has(number));
     const unknown = requested.filter(number => !known.has(number));
     if (!valid.length) return res.status(400).json({ error: 'Ни один из указанных номеров не найден в системе' });
+    const requestedEntries = req.body?.entries && typeof req.body.entries === 'object' &&
+      !Array.isArray(req.body.entries) ? req.body.entries : {};
     const session = await updateSession(req, current => {
       const pdfRooms = [...current.pdfRooms];
       const entries = { ...current.entries };
       valid.forEach(number => {
         if (!pdfRooms.includes(number)) pdfRooms.push(number);
-        if (!entries[number]) entries[number] = blankEntry();
+        if (!entries[number]) {
+          const source = requestedEntries[number] && typeof requestedEntries[number] === 'object' &&
+            !Array.isArray(requestedEntries[number]) ? requestedEntries[number] : blankEntry();
+          entries[number] = normalizeEntry(source);
+        }
       });
       return { ...current, pdfRooms, entries };
     });

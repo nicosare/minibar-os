@@ -49,6 +49,15 @@ function render() {
 initializeLists();
 subscribe(render);
 
+function resetSingleRoomCameraContext(screen) {
+  const state = getState();
+  if (screen !== 'camera' || state.cameraSourceListType !== 'room-single') return {};
+  return {
+    cameraSourceListType: state.listType === 'departures' ? 'departures' : 'arrivals',
+    cameraSelectedRoomNumber: ''
+  };
+}
+
 document.addEventListener('click', event => {
   if (handleListClick(event)) return;
   if (handleRoomsClick(event)) return;
@@ -59,7 +68,7 @@ document.addEventListener('click', event => {
   const nav = target.closest('[data-nav]');
   if (nav) {
     const screen = nav.dataset.nav;
-    setState({ screen, moreItem: null });
+    setState({ screen, moreItem: null, ...resetSingleRoomCameraContext(screen) });
     if (screen === 'lists') void loadList(getState().listType);
     return;
   }
@@ -70,6 +79,7 @@ document.addEventListener('click', event => {
     setState({
       screen,
       moreItem: null,
+      ...resetSingleRoomCameraContext(screen),
       ...(open.dataset.listType ? { listType: open.dataset.listType } : {})
     });
     if (screen === 'lists') void loadList(open.dataset.listType || getState().listType);

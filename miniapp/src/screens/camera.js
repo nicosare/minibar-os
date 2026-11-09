@@ -23,8 +23,9 @@ let deadlineRoomNumber = '';
 let deadlineProducts = [];
 let deadlineSelections = {};
 let photoBlob = null;
-let photoBlobPromise = null;
-let cameraStartPromise = null;
+let sharedRoomActionChanged = null;
+let sharedRoomActionNumber = '';
+let sharedRoomActionRoom = null;
 let photoQueueDbPromise = null;
 let photoQueueWorkerActive = false;
 let photoQueueRetryTimer = null;
@@ -61,13 +62,21 @@ function roomByNumber(number) {
   const { data } = sourceData();
   const info = data?.roomInfo?.[String(number)] || {};
   const room = rooms.find(item => String(item.number) === String(number)) || {};
-  return { ...room, ...info, number:String(number || '') };
+  const shared = String(sharedRoomActionNumber) === String(number) ? (sharedRoomActionRoom || {}) : {};
+  return { ...room, ...info, ...shared, number:String(number || '') };
 }
+
 function roomNumbers() {
-  const { data } = sourceData();
+  const state = getState();
+  const { type, data } = sourceData();
+  if (type === 'room-single') {
+    const number = String(state.cameraSelectedRoomNumber || selectedNumber || '');
+    return number ? [number] : [];
+  }
   if (Array.isArray(data?.roomNumbers)) return [...new Set(data.roomNumbers.map(String))];
   return rooms.map(room => String(room.number));
 }
+
 function carouselRoomNumbers() {
   const state = getState();
   const { type, data } = sourceData();
@@ -211,7 +220,7 @@ function renderStandby() {
     : room.expiryStatus === 'needs_replacement' || (room.productStatuses || []).some(item => item.expiryStatus === 'needs_replacement' || Number(item.qtyToReplace) > 0) ? 'is-deadline' : '';
   const summary = refillDescription(refill);
   const { type } = sourceData();
-  const listTitle = type === 'arrivals' ? 'Заезды' : 'Выезды';
+  const listTitle = type === 'arrivals' ? 'Заезды' : type === 'departures' ? 'Выезды' : 'Вне списков';
   panel.innerHTML =
     '<section class="camera-info-panel">' +
       '<header class="camera-info-room">' +
@@ -507,60 +516,52 @@ async function armTorch() {
   return setTorch(true);
 }
 async function startCamera() {
-  if (cameraStartPromise) return cameraStartPromise;
-  cameraStartPromise = (async () => {
-    if (stream && videoTrack) {
-      const existingVideo = $('cameraVideo');
-      if (existingVideo && existingVideo.srcObject !== stream) {
-        existingVideo.srcObject = stream;
-        await existingVideo.play().catch(() => {});
-        await waitForVideo(existingVideo);
-      }
-      $('cameraStage')?.classList.add('is-live');
-      hideLoader();
-      return true;
+  if (stream && videoTrack) {
+    const existingVideo = $('cameraVideo');
+    if (existingVideo && existingVideo.srcObject !== stream) {
+      existingVideo.srcObject = stream;
+      await existingVideo.play().catch(() => {});
+      await waitForVideo(existingVideo);
     }
-    if (!navigator.mediaDevices?.getUserMedia) {
-      showLoader('Камера недоступна', 'Разреши доступ к камере в VK.', true);
-      return false;
-    }
-    showLoader('Запуск камеры…', '');
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: {
-          facingMode: { ideal: 'environment' },
-          aspectRatio: { ideal: 4 / 3 },
-          width: { ideal: 1920 },
-          height: { ideal: 1440 }
-        }
-      });
-      videoTrack = stream.getVideoTracks()[0] || null;
-      if (!videoTrack) throw new Error('Камера не вернула видеопоток');
-      try {
-        const capabilities = videoTrack.getCapabilities?.();
-        torchSupported = capabilities ? capabilities.torch === true : null;
-      } catch (_) {
-        torchSupported = null;
-      }
-      const video = $('cameraVideo');
-      if (!video) throw new Error('Не найдено окно камеры');
-      video.srcObject = stream;
-      await video.play();
-      await waitForVideo(video);
-      $('cameraStage')?.classList.add('is-live');
-      hideLoader();
-      return true;
-    } catch (error) {
-      stopCamera();
-      showLoader('Не удалось открыть камеру', error.message || 'Проверь разрешение на камеру.', true);
-      return false;
-    }
-  })();
+    $('cameraStage')?.classList.add('is-live');
+    hideLoader();
+    return true;
+  }
+  if (!navigator.mediaDevices?.getUserMedia) {
+    showLoader('Камера недоступна', 'Разреши доступ к камере в VK.', true);
+    return false;
+  }
+  showLoader('Запуск камеры…', '');
   try {
-    return await cameraStartPromise;
-  } finally {
-    cameraStartPromise = null;
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        facingMode: { ideal: 'environment' },
+        aspectRatio: { ideal: 4 / 3 },
+        width: { ideal: 1920 },
+        height: { ideal: 1440 }
+      }
+    });
+    videoTrack = stream.getVideoTracks()[0] || null;
+    if (!videoTrack) throw new Error('Камера не вернула видеопоток');
+    try {
+      const capabilities = videoTrack.getCapabilities?.();
+      torchSupported = capabilities ? capabilities.torch === true : null;
+    } catch (_) {
+      torchSupported = null;
+    }
+    const video = $('cameraVideo');
+    if (!video) throw new Error('Не найдено окно камеры');
+    video.srcObject = stream;
+    await video.play();
+    await waitForVideo(video);
+    $('cameraStage')?.classList.add('is-live');
+    hideLoader();
+    return true;
+  } catch (error) {
+    stopCamera();
+    showLoader('Не удалось открыть камеру', error.message || 'Проверь разрешение на камеру.', true);
+    return false;
   }
 }
 
@@ -580,7 +581,6 @@ function hideLoader() {
 }
 function clearPhoto() {
   photoBlob = null;
-  photoBlobPromise = null;
   photoRandomId = null;
   if (photoUrl) URL.revokeObjectURL(photoUrl);
   photoUrl = '';
@@ -884,7 +884,9 @@ function cropCanvasToFourThree() {
   context.drawImage(source, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
 }
 async function capturePhoto() {
-  if (captureBusy || photoBlob || photoBlobPromise) return;
+  const room = roomByNumber(selectedNumber);
+  if (captureBusy || photoBlob) return;
+
   const number = String(selectedNumber);
   captureBusy = true;
   updateActionAvailability();
@@ -892,18 +894,27 @@ async function capturePhoto() {
     await requestOrientationPermission();
     const started = await startCamera();
     if (!started || !videoTrack) throw new Error('Не удалось открыть камеру');
-    const video = $('cameraVideo');
-    await waitForVideo(video, 1800);
 
-    // Capture the already-running viewfinder frame. Focus/sensor settling and
-    // JPEG encoding are no longer on the preview's critical path.
-    await armTorch();
-    drawSourceToCanvas(
-      video,
-      video.videoWidth,
-      video.videoHeight,
-      getCaptureOrientationAngle(video.videoWidth, video.videoHeight)
-    );
+    const video = $('cameraVideo');
+    await waitForVideo(video);
+    await waitForOrientationToSettle();
+    await prepareCameraFocus();
+    const flashReady = await armTorch();
+    await waitForVideo(video, 1800);
+    if (flashReady) await wait(140);
+
+    const nativeCaptureSucceeded = await captureStillPhotoToCanvas();
+    if (!nativeCaptureSucceeded) {
+      if (torchArmed) await setTorch(false);
+      drawSourceToCanvas(
+        video,
+        video.videoWidth,
+        video.videoHeight,
+        getCaptureOrientationAngle(video.videoWidth, video.videoHeight)
+      );
+    } else {
+      correctNativeLandscapeCapture();
+    }
     cropCanvasToFourThree();
 
     const canvas = $('cameraCanvas');
@@ -914,8 +925,9 @@ async function capturePhoto() {
 
     photoBlob = null;
     photoRandomId = String(Math.floor(Math.random() * 2147483646) + 1);
-    const captureId = photoRandomId;
     const send = $('cameraSendPhoto');
+    send.disabled = true;
+    send.textContent = 'Подготовка…';
     $('cameraPreviewRoom').textContent = 'Номер ' + number;
     $('cameraPreviewModal').classList.remove('hidden');
     $('cameraPreviewModal').setAttribute('aria-hidden', 'false');
@@ -930,20 +942,23 @@ async function capturePhoto() {
     uploadCanvas.getContext('2d', { alpha: false }).drawImage(
       canvas, 0, 0, uploadCanvas.width, uploadCanvas.height
     );
-
-    photoBlobPromise = new Promise(resolve => {
-      uploadCanvas.toBlob(blob => {
-        const readyBlob = blob && blob.size ? blob : null;
-        if (photoRandomId === captureId) photoBlob = readyBlob;
-        resolve(readyBlob);
-      }, 'image/jpeg', .84);
-    });
-    send.disabled = false;
-    send.textContent = 'Отправить';
+    uploadCanvas.toBlob(blob => {
+      if (!$('cameraPreviewModal') || $('cameraPreviewModal').classList.contains('hidden')) return;
+      if (!blob) {
+        showNotice('Не удалось подготовить фото. Пересними.', true);
+        send.disabled = true;
+        send.textContent = 'Ошибка';
+        return;
+      }
+      photoBlob = blob;
+      send.disabled = false;
+      send.textContent = 'Отправить';
+    }, 'image/jpeg', .84);
   } catch (error) {
     showNotice(error.message || 'Не удалось сделать снимок', true);
   } finally {
-    if (torchArmed) void setTorch(false);
+    if (torchArmed) await setTorch(false);
+    stopCamera();
     captureBusy = false;
     updateActionAvailability();
   }
@@ -968,19 +983,22 @@ function setPhotoQueueStatus(message, tone = 'pending', hideAfter = 0) {
   if (!host) return;
   if (photoQueueStatusTimer) clearTimeout(photoQueueStatusTimer);
   photoQueueStatusTimer = null;
-  host.textContent = message || '';
+  const spinner = tone === 'pending'
+    ? '<span class="camera-upload-spinner" aria-hidden="true"></span>' : '';
+  host.innerHTML = (message ? spinner + '<span>' + esc(message) + '</span>' : '');
   host.className = 'camera-upload-status' + (message ? ' is-visible is-' + tone : '');
   if (message && hideAfter > 0) {
     const expected = message;
     photoQueueStatusTimer = setTimeout(() => {
-      if (host.textContent === expected) {
-        host.textContent = '';
+      if (host.textContent.trim() === expected) {
+        host.innerHTML = '';
         host.className = 'camera-upload-status';
       }
       photoQueueStatusTimer = null;
     }, hideAfter);
   }
 }
+
 function openPhotoQueueDb() {
   if (!window.indexedDB) return Promise.reject(new Error('IndexedDB недоступен'));
   if (!photoQueueDbPromise) {
@@ -1062,10 +1080,8 @@ async function flushPendingPhotoWrites() {
   if (pendingPhotoWriteActive || !pendingPhotoWrites.size) return;
   pendingPhotoWriteActive = true;
   try {
-    for (const [id,pending] of pendingPhotoWrites) {
-      let blob = null;
-      try { blob = await pending.blobPromise; }
-      catch (error) { console.warn('[MINIBAR PHOTO QUEUE] Encoding failed:', error); }
+    for (const [id, pending] of pendingPhotoWrites) {
+      const blob = pending.blob;
       if (!blob || !blob.size) {
         pendingPhotoWrites.delete(id);
         setPhotoQueueStatus('Не удалось подготовить фото №' + pending.roomNumber + '. Пересними номер.', 'error');
@@ -1087,6 +1103,7 @@ async function flushPendingPhotoWrites() {
     pendingPhotoWriteActive = false;
   }
 }
+
 async function sendPhotoToServer(item) {
   try {
     const form = new FormData();
@@ -1243,26 +1260,25 @@ document.addEventListener('visibilitychange', () => {
 void restorePhotoUploadQueue();
 
 function sendPhoto() {
-  if (!selectedNumber || captureBusy || !photoRandomId) return;
+  if (!photoBlob || !selectedNumber || captureBusy) return;
   const number = String(selectedNumber);
   const request = activeRefill(roomByNumber(number));
-  const blobPromise = photoBlob ? Promise.resolve(photoBlob) : photoBlobPromise;
-  if (!blobPromise) {
-    showNotice('Фото ещё не подготовлено. Пересними его.', true);
-    return;
-  }
-
   const listType = sourceData().type;
-  const requestId = photoRandomId;
+  const requestId = photoRandomId || String(Math.floor(Math.random() * 2147483646) + 1);
   const pendingId = String(Date.now()) + '-' + requestId;
+  const blob = photoBlob;
+
   pendingPhotoWrites.set(pendingId, {
-    roomNumber: number, requestId, blobPromise,
-    refillRequestId: request?.id || null, listType
+    roomNumber: number,
+    requestId,
+    blob,
+    refillRequestId: request?.id || null,
+    listType
   });
 
+  // Close the preview and advance immediately. All disk/network work is detached.
   closePreview(true);
   triggerCarouselHaptic();
-  showNotice('Фото №' + number + ' принято — можно продолжать');
   setPhotoQueueStatus('Фото №' + number + ' отправляется в фоне…', 'pending');
   void advanceAfterRoomCompletion(listType, number);
   void flushPendingPhotoWrites();
@@ -1445,6 +1461,11 @@ function closeDeadlineModal(force = false) {
   if (deadlineBusy && !force) return;
   $('deadlineModal')?.classList.add('hidden');
   $('deadlineModal')?.setAttribute('aria-hidden','true');
+  if (!force && sharedRoomActionChanged) {
+    sharedRoomActionChanged = null;
+    sharedRoomActionNumber = '';
+    sharedRoomActionRoom = null;
+  }
 }
 function toggleDeadlineProduct(button) {
   if (deadlineBusy) return;
@@ -1462,11 +1483,16 @@ async function refreshSelectedRoom(type) {
   if (roomResult.status === 'fulfilled') {
     rooms = Array.isArray(roomResult.value) ? roomResult.value : roomResult.value?.rooms || [];
     rooms.sort((a,b) => Number(a.floor || 0) - Number(b.floor || 0) || Number(a.number) - Number(b.number));
+    if (String(sharedRoomActionNumber)) {
+      sharedRoomActionRoom = rooms.find(item => String(item.number) === String(sharedRoomActionNumber)) || sharedRoomActionRoom;
+    }
   }
-  await loadList(type);
+  if (!sharedRoomActionChanged && (type === 'arrivals' || type === 'departures')) await loadList(type);
   renderStandby();
   renderCarousel();
+  if (sharedRoomActionChanged) await notifySharedRoomActionChanged(sharedRoomActionNumber);
 }
+
 async function saveDeadlineSelections() {
   const room = roomByNumber(deadlineRoomNumber);
   if (!room.id || deadlineBusy) return;
@@ -1532,6 +1558,11 @@ function closeRefillModal(force = false) {
   if (refillBusy && !force) return;
   $('refillModal')?.classList.add('hidden');
   $('refillModal')?.setAttribute('aria-hidden','true');
+  if (!force && sharedRoomActionChanged) {
+    sharedRoomActionChanged = null;
+    sharedRoomActionNumber = '';
+    sharedRoomActionRoom = null;
+  }
 }
 async function saveRefill() {
   const room = roomByNumber(selectedNumber);
@@ -1559,6 +1590,7 @@ async function saveRefill() {
     closeRefillModal(true);
     renderStandby();
     renderCarousel();
+    await notifySharedRoomActionChanged(room.number);
     showNotice(result.request?.status==='cancelled'?'Потребность снята':'Пополнение сохранено');
   } catch (error) {
     $('refillFeedback').textContent = error.message || 'Не удалось сохранить пополнение';
@@ -1584,6 +1616,7 @@ async function markRoomEmpty() {
     $('refillModal')?.setAttribute('aria-hidden','true');
     renderStandby();
     renderCarousel();
+    await notifySharedRoomActionChanged(room.number);
     showNotice('Номер отмечен как пустой');
   } catch (error) {
     $('refillFeedback').textContent = error.message || 'Не удалось отметить номер пустым';
@@ -1673,6 +1706,44 @@ function attachCarouselScroll(carousel = $('cameraCarousel')) {
     });
   }, { passive: true });
 }
+export function renderSharedRoomActionModals() {
+  return '<div class="camera-modal-overlay hidden" id="refillModal" role="dialog" aria-modal="true" aria-label="Пополнить номер" aria-hidden="true"><div class="camera-refill-modal"><header class="camera-modal-header"><strong>Пополнение · номер <span id="refillModalRoom"></span></strong><button type="button" data-camera-action="close-refill" aria-label="Закрыть">×</button></header><div class="camera-refill-products" id="refillProducts"></div><div class="camera-refill-feedback" id="refillFeedback"></div><footer class="camera-refill-footer"><button type="button" class="camera-refill-all" data-camera-action="refill-all">Всё в списке продуктов</button><div class="camera-refill-footer-row"><button type="button" data-camera-action="clear-refill">Очистить</button><button type="button" class="is-save" data-camera-action="save-refill" id="refillSave">Сохранить пополнение</button></div></footer></div></div>' +
+    '<div class="camera-modal-overlay hidden" id="deadlineModal" role="dialog" aria-modal="true" aria-label="Сроки номера" aria-hidden="true"><div class="camera-refill-modal camera-deadline-modal"><header class="camera-modal-header"><div><strong>Сроки · номер <span id="deadlineModalRoom"></span></strong><small id="deadlineModalInfo"></small></div><button type="button" data-camera-action="close-deadlines" aria-label="Закрыть">×</button></header><div class="camera-refill-products camera-deadline-products" id="deadlineProducts"></div><div class="camera-refill-feedback" id="deadlineFeedback"></div><footer class="camera-refill-footer camera-deadline-footer"><div class="camera-deadline-status-actions"><button type="button" data-camera-action="deadline-empty">Пустой</button><button type="button" data-camera-action="deadline-valid">В порядке</button><button type="button" data-camera-action="deadline-reset">Сбросить</button></div><button type="button" class="is-save" data-camera-action="save-deadlines" id="deadlineSave">Сохранить</button></footer></div></div>';
+}
+
+export async function openSharedRoomActionModal(number, mode, room, refill, onChanged) {
+  bind();
+  selectedNumber = String(number || '');
+  sharedRoomActionNumber = selectedNumber;
+  sharedRoomActionRoom = room && typeof room === 'object' ? room : null;
+  sharedRoomActionChanged = typeof onChanged === 'function' ? onChanged : null;
+  if (sharedRoomActionRoom) {
+    const index = rooms.findIndex(item => Number(item.id) === Number(sharedRoomActionRoom.id));
+    if (index >= 0) rooms[index] = { ...rooms[index], ...sharedRoomActionRoom };
+    else rooms.push(sharedRoomActionRoom);
+  }
+  if (refill && refill.status === 'pending') {
+    activeRefills = activeRefills.filter(item => Number(item.roomId) !== Number(refill.roomId));
+    activeRefills.push(refill);
+  }
+  if (mode === 'deadlines') await openDeadlineModal();
+  else if (mode === 'refill') openRefillModal();
+}
+
+async function notifySharedRoomActionChanged(number) {
+  if (typeof sharedRoomActionChanged !== 'function') return;
+  const callback = sharedRoomActionChanged;
+  try {
+    await callback(String(number || sharedRoomActionNumber || ''));
+  } catch (error) {
+    console.warn('[MINIBAR ROOM ACTION] Could not refresh room card:', error);
+  } finally {
+    sharedRoomActionChanged = null;
+    sharedRoomActionNumber = '';
+    sharedRoomActionRoom = null;
+  }
+}
+
 function bind() {
   if (bound) return;
   bound = true;
@@ -1685,6 +1756,7 @@ export function renderCamera(state) {
   const initial = String(selectedNumber || state.cameraSelectedRoomNumber || numbers[0] || '');
   if (!selectedNumber && initial) selectedNumber = initial;
   return '<div class="screen screen-camera" id="cameraStage">' +
+    '<div class="camera-upload-status" id="cameraUploadStatus" aria-live="polite"></div>' +
     '<div class="camera-workspace">' +
       '<aside class="camera-carousel-wrap" id="cameraCarouselWrap"><div class="camera-carousel" id="cameraCarousel"></div></aside>' +
       '<div class="camera-main-column">' +
@@ -1698,10 +1770,9 @@ export function renderCamera(state) {
         '<div class="camera-capture-zone"><button type="button" class="camera-capture-button" data-camera-action="capture" id="cameraCapture" aria-label="Сделать фото"><span></span></button></div>' +
       '</div>' +
     '</div>' +
-    '<div class="camera-feedback" id="cameraFeedback" role="status"></div><div class="camera-upload-status" id="cameraUploadStatus" aria-live="polite"></div>' +
+    '<div class="camera-feedback" id="cameraFeedback" role="status"></div>' +
     '<div class="camera-modal-overlay hidden" id="cameraPreviewModal" role="dialog" aria-modal="true" aria-label="Предпросмотр фотографии" aria-hidden="true"><div class="camera-preview-card"><div class="camera-preview-room" id="cameraPreviewRoom">Номер</div><canvas id="cameraPreviewCanvas" class="camera-preview-canvas"></canvas><div class="camera-preview-actions"><button type="button" class="camera-preview-secondary" data-camera-action="retake">Переснять</button><button type="button" class="camera-preview-primary" data-camera-action="send-photo" id="cameraSendPhoto">Отправить</button></div></div></div>' +
-    '<div class="camera-modal-overlay hidden" id="refillModal" role="dialog" aria-modal="true" aria-label="Пополнить номер" aria-hidden="true"><div class="camera-refill-modal"><header class="camera-modal-header"><strong>Пополнение · номер <span id="refillModalRoom"></span></strong><button type="button" data-camera-action="close-refill" aria-label="Закрыть">×</button></header><div class="camera-refill-products" id="refillProducts"></div><div class="camera-refill-feedback" id="refillFeedback"></div><footer class="camera-refill-footer"><button type="button" class="camera-refill-all" data-camera-action="refill-all">Всё в списке продуктов</button><div class="camera-refill-footer-row"><button type="button" data-camera-action="clear-refill">Очистить</button><button type="button" class="is-save" data-camera-action="save-refill" id="refillSave">Сохранить пополнение</button></div></footer></div></div>' +
-    '<div class="camera-modal-overlay hidden" id="deadlineModal" role="dialog" aria-modal="true" aria-label="Сроки номера" aria-hidden="true"><div class="camera-refill-modal camera-deadline-modal"><header class="camera-modal-header"><div><strong>Сроки · номер <span id="deadlineModalRoom"></span></strong><small id="deadlineModalInfo"></small></div><button type="button" data-camera-action="close-deadlines" aria-label="Закрыть">×</button></header><div class="camera-refill-products camera-deadline-products" id="deadlineProducts"></div><div class="camera-refill-feedback" id="deadlineFeedback"></div><footer class="camera-refill-footer camera-deadline-footer"><div class="camera-deadline-status-actions"><button type="button" data-camera-action="deadline-empty">Пустой</button><button type="button" data-camera-action="deadline-valid">В порядке</button><button type="button" data-camera-action="deadline-reset">Сбросить</button></div><button type="button" class="is-save" data-camera-action="save-deadlines" id="deadlineSave">Сохранить</button></footer></div></div>' +
+    renderSharedRoomActionModals() +
   '</div>';
 }
 export function cameraDidRender() {
@@ -1722,8 +1793,6 @@ export function cameraDidRender() {
   renderCarousel();
   renderStandby();
   void restorePhotoUploadQueue();
-  // Warm the stream once per visit; each shutter click can then use the live frame.
-  void startCamera();
 }
 export function cameraWillUnmount() {
   mounted = false;

@@ -565,6 +565,9 @@ router.patch('/miniapp-list/room', async (req, res) => {
     if (action === 'arrival' && typeof req.body?.enabled !== 'boolean') {
       return res.status(400).json({ error: 'Для отметки «На заезд» укажите enabled: true или false' });
     }
+    if (action === 'add' && req.body?.arrival !== undefined && typeof req.body.arrival !== 'boolean') {
+      return res.status(400).json({ error: 'Для метки «На заезд» укажите true или false' });
+    }
 
     const room = await prisma.room.findUnique({
       where: { number: Number(number) },
@@ -608,9 +611,16 @@ router.patch('/miniapp-list/room', async (req, res) => {
       const marks = { ...(current.marks || {}) };
 
       if (action === 'add') {
+        const markArrival = req.body?.arrival === true;
         overrides[number] = 'include';
-        delete marks[number];
-        delete arrivalOverrides[number];
+        arrivalOverrides[number] = markArrival;
+        if (markArrival) {
+          arrivalRooms.add(number);
+          marks[number] = 'arrival';
+        } else {
+          arrivalRooms.delete(number);
+          marks[number] = 'none';
+        }
       } else if (action === 'remove') {
         overrides[number] = 'exclude';
         arrivalRooms.delete(number);

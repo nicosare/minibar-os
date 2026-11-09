@@ -50,7 +50,7 @@ router.get('/', async (req, res) => {
       where: {
         roomId: { in: rooms.map(room => room.id) },
         status: 'done',
-        type: { notIn: ['gih', 'deadline'] }
+        type: { in: ['vk_room', 'vk_emptied'] }
       },
       select: { id: true, roomId: true, checkDate: true, type: true },
       orderBy: [{ checkDate: 'desc' }, { id: 'desc' }]
