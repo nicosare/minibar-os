@@ -1881,6 +1881,7 @@ body.rooms-modal-open { overflow:hidden; }
 
 
 /* GIH product picker parity and legacy basket summary */
+.gih-product-row{grid-template-columns:minmax(0,1fr) auto}
 .gih-product-main{display:flex;align-items:center;gap:8px;min-width:0;padding:0;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer}
 .gih-product-main:disabled{opacity:.55;cursor:default}
 .gih-product-main .gih-product-emoji{flex:0 0 32px}
