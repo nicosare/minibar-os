@@ -2,6 +2,7 @@ import { api } from '../core/api.js';
 import { getState, setState } from '../core/store.js';
 import { pageHeader } from '../components/chrome.js';
 import { icon } from '../components/icons.js';
+import { renderGih } from './gih.js';
 
 const TYPES = [
   { id: 'arrivals', label: 'Заезды' },
@@ -389,11 +390,11 @@ function renderSettings(ui) {
 }
 
 function renderListBody(state, type) {
+  if (type === 'gih') return renderGih();
   if (type !== 'arrivals' && type !== 'departures') {
-    const title = type === 'gih' ? 'GIH' : 'Пустые';
     return '<section class="list-placeholder"><span class="list-placeholder-icon">' +
-      icon(type === 'gih' ? 'clipboard-check' : 'door-open', 24) +
-      '</span><strong>' + title + '</strong><span>Этот список подключим отдельным этапом.</span></section>';
+      icon('door-open', 24) +
+      '</span><strong>Пустые</strong><span>В этом списке пока нет данных.</span></section>';
   }
 
   const data = state.listData && state.listData[type];
