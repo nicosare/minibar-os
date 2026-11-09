@@ -519,7 +519,10 @@ function renderFactoryPreservingFocus() {
     renderWorkspace();
     return;
   }
+  const productsOpen = Boolean(root.querySelector('.gih-products-dropdown')?.open);
   root.innerHTML = renderFactory();
+  const productsMenu = root.querySelector('.gih-products-dropdown');
+  if (productsOpen && productsMenu) productsMenu.open = true;
   if (keepFocus) {
     const next = document.querySelector('[data-gih-input="room"]');
     if (next) {
