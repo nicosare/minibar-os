@@ -191,6 +191,20 @@ async function readMiniAppWorklist(db, dateKey) {
   return worklist;
 }
 
+async function readArrivalRoomNumbers(db, dateKey) {
+  const row = await db.setting.findUnique({ where: { key: 'arrivals-session-v1' } });
+  let session = null;
+  try {
+    session = typeof row?.value === 'string' ? JSON.parse(row.value) : row?.value;
+  } catch (_) {
+    session = null;
+  }
+  if (!session || session.dateKey !== dateKey || !Array.isArray(session.pdfRooms)) return [];
+  return [...new Set(session.pdfRooms
+    .map(value => String(Number(value)))
+    .filter(number => /^\\d{1,4}$/.test(number)))];
+}
+
 async function updateMiniAppWorklist(req, updater) {
   const { dateKey } = todayRange(req);
   return prisma.$transaction(async tx => {
@@ -271,7 +285,8 @@ export async function getMiniAppDepartureList(req) {
       orderBy: [{ checkDate: 'desc' }, { id: 'desc' }]
     }),
     readSession(prisma, range.dateKey),
-    readMiniAppWorklist(prisma, range.dateKey)
+    readMiniAppWorklist(prisma, range.dateKey),
+    readArrivalRoomNumbers(prisma, range.dateKey)
   ]);
 
   const roomByNumber = new Map(rooms.map(room => [String(room.number), room]));
@@ -303,6 +318,10 @@ export async function getMiniAppDepartureList(req) {
     if (mark === 'arrival') effectiveArrivalRooms.add(number);
     else if (mark === 'resident' || mark === 'none') effectiveArrivalRooms.delete(number);
   }
+  // A room present in both today's Arrivals and Departures is automatically
+  // treated as an arrival, regardless of a stale/manual departure override.
+  for (const number of arrivalNumbers) effectiveArrivalRooms.add(number);
+
   const assignedNumbers = [...assigned].sort((a, b) => {
     const roomA = roomByNumber.get(a);
     const roomB = roomByNumber.get(b);
