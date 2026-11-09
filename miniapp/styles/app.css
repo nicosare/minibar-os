@@ -1866,3 +1866,15 @@ body.rooms-modal-open { overflow:hidden; }
   .gih-record-actions button { padding:5px 6px; }
   .gih-done-line { grid-template-columns:minmax(74px,.72fr) minmax(0,1.5fr); }
 }
+
+/* GIH standalone factory controls */
+.gih-room-sort{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 12px;color:var(--muted);font-size:12px;font-weight:700}
+.gih-room-sort select{min-height:36px;max-width:55%;padding:0 30px 0 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);font:inherit}
+.gih-products-dropdown{margin-top:10px;border:1px solid var(--border);border-radius:13px;background:var(--surface);overflow:hidden}
+.gih-products-dropdown>summary{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;padding:0 13px;cursor:pointer;list-style:none;font-size:13px;font-weight:800}
+.gih-products-dropdown>summary::-webkit-details-marker{display:none}
+.gih-products-dropdown>summary:after{content:'⌄';margin-left:auto;color:var(--muted);font-size:17px;transition:transform .18s ease}
+.gih-products-dropdown[open]>summary:after{transform:rotate(180deg)}
+.gih-products-dropdown>summary strong{min-width:24px;padding:3px 7px;border-radius:8px;background:var(--surface-blue);color:var(--primary);font-size:11px;text-align:center}
+.gih-products-dropdown-body{padding:0 10px 10px;border-top:1px solid var(--border)}
+.gih-products-dropdown .gih-product-category{margin-top:10px}
