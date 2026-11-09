@@ -765,9 +765,9 @@ async function capturePhoto() {
         video.videoHeight,
         getCaptureOrientationAngle(video.videoWidth, video.videoHeight)
       );
-    } else {
-      correctNativeLandscapeCapture();
     }
+    // EXIF orientation or physical-device angle has already been applied
+    // inside captureStillPhotoToCanvas(). Do not rotate the raster a second time.
     cropCanvasToFourThree();
 
     const canvas = $('cameraCanvas');
