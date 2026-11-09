@@ -49,7 +49,8 @@ let factory = {
   counts: {},
   editId: null,
   mode: null,
-  notes: ''
+  notes: '',
+  sort: 'asc'
 };
 let roomHistory = {
   roomId: null,
@@ -199,10 +200,12 @@ function renderFactoryProducts(room) {
     ...CATEGORIES.filter(category => grouped.has(category)),
     ...[...grouped.keys()].filter(category => !CATEGORIES.includes(category)).sort()
   ];
-  return categories.map(category =>
-    '<section class="gih-product-category"><h4>' + escapeHtml(category) + '</h4>' +
-    grouped.get(category).map(renderProductRow).join('') + '</section>'
-  ).join('');
+  const productCount = templateItems.length;
+  return '<details class="gih-products-dropdown" open><summary><span>Все продукты</span><strong>' + productCount + '</strong></summary>' +
+    '<div class="gih-products-dropdown-body">' + categories.map(category =>
+      '<section class="gih-product-category"><h4>' + escapeHtml(category) + '</h4>' +
+      grouped.get(category).map(renderProductRow).join('') + '</section>'
+    ).join('') + '</div></details>';
 }
 
 function historySummary(item) {
@@ -238,7 +241,9 @@ function renderFactory() {
       (editing ? '<button type="button" class="gih-text-button" data-gih-action="cancel-edit">Отмена</button>' : '') +
     '</div>' +
     '<label class="gih-room-input"><span>Номер комнаты</span><input type="text" inputmode="numeric" autocomplete="off" maxlength="4" ' +
-      'data-gih-input="room" value="' + escapeHtml(factory.input) + '" placeholder="Например, 204"></label>' +
+      'data-gih-input="room" list="gih-room-options" value="' + escapeHtml(factory.input) + '" placeholder="Например, 204"></label>' +
+    '<datalist id="gih-room-options">' + rooms.slice().sort((a, b) => (factory.sort === \'desc\' ? Number(b.number) - Number(a.number) : Number(a.number) - Number(b.number))).map(item => '<option value="' + escapeHtml(item.number) + '"></option>').join('') + '</datalist>' +
+    '<label class="gih-room-sort"><span>Порядок номеров</span><select data-gih-sort><option value="asc"' + (factory.sort !== \'desc\' ? ' selected' : '') + '>По возрастанию</option><option value="desc"' + (factory.sort === \'desc\' ? ' selected' : '') + '>По убыванию</option></select></label>' +
     (room ? '<div class="gih-selected-room"><span class="gih-room-dot"></span> Номер ' +
       escapeHtml(room.number) + (room.floor ? ' · этаж ' + escapeHtml(room.floor) : '') + '</div>' : '') +
     '<div class="gih-factory-products">' + renderFactoryProducts(room) + '</div>' +
