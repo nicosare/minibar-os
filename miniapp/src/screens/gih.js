@@ -346,7 +346,7 @@ function workspaceContent() {
   return '<div class="gih-summary"><div><strong>' + drafts.length + '</strong><span>черновики</span></div>' +
     '<div><strong>' + completed.length + '</strong><span>сохранено сегодня</span></div></div>' +
     renderNotice() +
-    renderFactory() +
+    '<div id="gih-factory-root">' + renderFactory() + '</div>' +
     '<section class="gih-record-section"><div class="gih-section-heading"><h3>Активные проверки</h3>' +
       '<span>' + drafts.length + '</span></div>' +
       (drafts.length ? drafts.map(renderDraft).join('') :
@@ -643,8 +643,20 @@ export function renderGih() {
   return '<div id="gih-workspace" class="gih-workspace">' + workspaceContent() + '</div>';
 }
 
+function scheduleDayRollover() {
+  if (rolloverTimer) window.clearTimeout(rolloverTimer);
+  const now = new Date();
+  const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+  rolloverTimer = window.setTimeout(() => {
+    rolloverTimer = null;
+    if (mounted) void loadGih();
+    if (mounted) scheduleDayRollover();
+  }, Math.max(1000, nextMidnight.getTime() - now.getTime()));
+}
+
 export function gihDidRender() {
   mounted = true;
+  if (!rolloverTimer) scheduleDayRollover();
   if (!focusBound) {
     focusBound = true;
     window.addEventListener('focus', () => {
@@ -660,13 +672,23 @@ export function gihDidRender() {
 
 export function gihWillUnmount() {
   mounted = false;
+  if (rolloverTimer) window.clearTimeout(rolloverTimer);
+  rolloverTimer = null;
 }
 
 export function handleGihInput(event) {
   const target = event.target instanceof Element ? event.target : null;
-  if (!target || target.dataset.gihInput !== 'room') return false;
-  updateRoomFromInput(target);
-  return true;
+  if (!target) return false;
+  if (target.dataset.gihInput === 'room') {
+    updateRoomFromInput(target);
+    return true;
+  }
+  if (target.matches('[data-gih-note]')) {
+    const draft = drafts.find(item => item.id === Number(target.dataset.gihNote));
+    if (draft) draft.noteDraft = target.value;
+    return true;
+  }
+  return false;
 }
 
 export function handleGihClick(event) {
