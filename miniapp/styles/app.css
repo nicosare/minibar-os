@@ -1897,3 +1897,66 @@ body.rooms-modal-open { overflow:hidden; }
 .gih-products-summary-content .gih-section-empty { display:grid; gap:5px; margin-top:10px; }
 .gih-products-summary-content .gih-section-empty strong { color:var(--text); font-size:12px; }
 .gih-products-summary-content .gih-section-empty span { color:var(--muted); font-size:11px; }
+
+
+/* Camera/list workflow refinements. */
+.camera-preview-deadlines {
+  width:100%;
+  min-height:37px;
+  padding:8px 10px;
+  color:#315b91;
+  border:1px solid #dce8f7;
+  border-radius:9px;
+  background:#f5f9ff;
+  font-size:10px;
+  font-weight:800;
+}
+.camera-preview-deadlines[hidden] { display:none !important; }
+.camera-list-products-section { min-width:0; margin-top:6px; }
+.camera-list-products-section .gih-products-summary-head {
+  min-height:39px;
+  padding:0 10px;
+  font-size:11px;
+}
+.camera-list-products-section .gih-products-summary-content {
+  max-height:min(20dvh,150px);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+}
+.list-summary-actions { display:flex; align-items:center; justify-content:flex-end; gap:6px; flex:0 0 auto; }
+.list-camera-button {
+  min-height:34px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:7px 10px;
+  color:#315b91;
+  border:1px solid #dce8f7;
+  border-radius:9px;
+  background:#f5f9ff;
+  font-size:10px;
+  font-weight:750;
+  white-space:nowrap;
+}
+.list-camera-button:disabled { opacity:.42; }
+.list-camera-action {
+  min-height:36px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  padding:8px 10px;
+  color:#315b91;
+  border:1px solid #dce8f7;
+  border-radius:9px;
+  background:#f5f9ff;
+  font-size:10px;
+  font-weight:750;
+}
+.list-camera-action:disabled { opacity:.45; }
+@media(max-width:370px) {
+  .list-summary-actions { gap:4px; }
+  .list-camera-button { padding:7px 8px; font-size:9px; }
+  .list-settings-button { padding:7px 8px; }
+}
