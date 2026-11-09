@@ -1376,6 +1376,7 @@ async function sendRoomMessage(message, action) {
   const number = String(selectedNumber);
   const sourceType = sourceData().type;
   const commentInput = $('cameraComment');
+  const typedComment = String(commentInput?.value || '').trim();
   const comment = cameraRoomComment(number);
   const messageText = number + ' ' + message + (comment ? ' (' + comment + ')' : '');
   captureBusy = true;
@@ -1388,7 +1389,7 @@ async function sendRoomMessage(message, action) {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.ok) throw new Error(data.error || 'Не удалось отправить сообщение');
-    if (commentInput && commentInput.value.trim() === comment) commentInput.value = '';
+    if (commentInput && commentInput.value.trim() === typedComment) commentInput.value = '';
     showNotice(action + ' · номер ' + number);
     if (action === 'Опустошение отправлено') {
       await advanceAfterRoomCompletion(sourceType, number);
@@ -1767,24 +1768,46 @@ async function saveRefill() {
 async function markRoomEmpty() {
   const room = roomByNumber(selectedNumber);
   if (!room.id || refillBusy) return;
+  const template = refillItems(room, activeRefill(room));
+  if (!template.length) {
+    $('refillFeedback').textContent = 'Для номера не задан шаблон продуктов.';
+    return;
+  }
+
+  // Choosing the whole template means the minibar is empty: select the full
+  // quantity of every product and persist the empty-room status together.
+  refillCounts = Object.fromEntries(template.map(item => [
+    Number(item.id), Math.max(1, Number(item.maxQty) || 1)
+  ]));
+  refillAllSelected = true;
+  renderRefillProducts();
+
+  if (room.expiryStatus === 'empty') {
+    $('refillFeedback').textContent = 'Номер уже отмечен пустым. Выбрана полная корзина по шаблону.';
+    return;
+  }
+
   refillBusy = true;
+  const bulkButton = document.querySelector('[data-camera-action="refill-all"]');
+  if (bulkButton) bulkButton.disabled = true;
+  $('refillFeedback').textContent = 'Отмечаем номер пустым…';
   try {
-    await api.delete('rooms/' + Number(room.id) + '/product-statuses',{body:{roomStatus:'empty'}});
+    await api.delete('rooms/' + Number(room.id) + '/product-statuses', { body: { roomStatus: 'empty' } });
     room.expiryStatus = 'empty';
     const list = sourceData().data;
     if (list?.roomInfo?.[String(room.number)]) list.roomInfo[String(room.number)].expiryStatus = 'empty';
     const baseRoom = rooms.find(item => Number(item.id) === Number(room.id));
     if (baseRoom) baseRoom.expiryStatus = 'empty';
-    $('refillModal')?.classList.add('hidden');
-    $('refillModal')?.setAttribute('aria-hidden','true');
     renderStandby();
     renderCarousel();
     await notifySharedRoomActionChanged(room.number);
+    $('refillFeedback').textContent = 'Номер отмечен пустым. Выбрана полная корзина — нажми «Сохранить пополнение».';
     showNotice('Номер отмечен как пустой');
   } catch (error) {
     $('refillFeedback').textContent = error.message || 'Не удалось отметить номер пустым';
   } finally {
     refillBusy = false;
+    if (bulkButton) bulkButton.disabled = false;
     updateActionAvailability();
   }
 }
@@ -1851,21 +1874,7 @@ function handleClick(event) {
     refillAllSelected = false;
     renderRefillProducts();
   }
-  else if (action === 'refill-all') {
-    if (refillBusy) return;
-    const room = roomByNumber(selectedNumber);
-    const template = refillItems(room, activeRefill(room));
-    if (!template.length) {
-      $('refillFeedback').textContent = 'Для номера не задан шаблон продуктов.';
-      return;
-    }
-    refillCounts = Object.fromEntries(template.map(item => [
-      Number(item.id), Math.max(1, Number(item.maxQty) || 1)
-    ]));
-    refillAllSelected = true;
-    $('refillFeedback').textContent = 'Выбраны все продукты в полном количестве по шаблону.';
-    renderRefillProducts();
-  }
+  else if (action === 'refill-all') void markRoomEmpty();
 }
 function carouselTopIndex(carousel) {
   const items = [...carousel.querySelectorAll('[data-camera-room]')];
@@ -1907,7 +1916,7 @@ function attachCarouselScroll(carousel = $('cameraCarousel')) {
   }, { passive: true });
 }
 export function renderSharedRoomActionModals() {
-  return '<div class="camera-modal-overlay hidden" id="refillModal" role="dialog" aria-modal="true" aria-label="Пополнить номер" aria-hidden="true"><div class="camera-refill-modal"><header class="camera-modal-header"><strong>Пополнение · номер <span id="refillModalRoom"></span></strong><button type="button" data-camera-action="close-refill" aria-label="Закрыть">×</button></header><div class="camera-refill-products" id="refillProducts"></div><div class="camera-refill-feedback" id="refillFeedback"></div><footer class="camera-refill-footer"><button type="button" class="camera-refill-all" data-camera-action="refill-all">Выбрать все продукты</button><div class="camera-refill-footer-row"><button type="button" data-camera-action="clear-refill">Очистить</button><button type="button" class="is-save" data-camera-action="save-refill" id="refillSave">Сохранить пополнение</button></div></footer></div></div>' +
+  return '<div class="camera-modal-overlay hidden" id="refillModal" role="dialog" aria-modal="true" aria-label="Пополнить номер" aria-hidden="true"><div class="camera-refill-modal"><header class="camera-modal-header"><strong>Пополнение · номер <span id="refillModalRoom"></span></strong><button type="button" data-camera-action="close-refill" aria-label="Закрыть">×</button></header><div class="camera-refill-products" id="refillProducts"></div><div class="camera-refill-feedback" id="refillFeedback"></div><footer class="camera-refill-footer"><button type="button" class="camera-refill-all" data-camera-action="refill-all">Пустой номер — выбрать все продукты</button><div class="camera-refill-footer-row"><button type="button" data-camera-action="clear-refill">Очистить</button><button type="button" class="is-save" data-camera-action="save-refill" id="refillSave">Сохранить пополнение</button></div></footer></div></div>' +
     '<div class="camera-modal-overlay hidden" id="deadlineModal" role="dialog" aria-modal="true" aria-label="Сроки номера" aria-hidden="true"><div class="camera-refill-modal camera-deadline-modal"><header class="camera-modal-header"><div><strong>Сроки · номер <span id="deadlineModalRoom"></span></strong><small id="deadlineModalInfo"></small></div><button type="button" data-camera-action="close-deadlines" aria-label="Закрыть">×</button></header><div class="camera-refill-products camera-deadline-products" id="deadlineProducts"></div><div class="camera-refill-feedback" id="deadlineFeedback"></div><footer class="camera-refill-footer camera-deadline-footer"><div class="camera-deadline-status-actions"><button type="button" data-camera-action="deadline-empty">Пустой</button><button type="button" data-camera-action="deadline-valid">В порядке</button><button type="button" data-camera-action="deadline-reset">Сбросить</button></div><button type="button" class="is-save" data-camera-action="save-deadlines" id="deadlineSave">Сохранить</button></footer></div></div>';
 }
 
