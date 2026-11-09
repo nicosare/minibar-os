@@ -298,6 +298,12 @@ function renderRefillDetails(state, info) {
     '<small class="list-editor-hint">Укажи количество отсутствующих продуктов. Ноль — не требуется.</small></section>';
 }
 
+function renderCameraAction(number, busy, done) {
+  if (done) return '';
+  return '<button type="button" class="list-camera-action" data-open-camera="' + escapeHtml(number) + '"' +
+    (busy ? ' disabled' : '') + '>' + icon('camera', 15) + ' Открыть номер в камере</button>';
+}
+
 function renderArrivalDetails(number, info, entry, done, state, busy, details) {
   const disabled = busy || done ? ' disabled' : '';
   return '<div class="list-room-expanded">' +
@@ -315,6 +321,7 @@ function renderArrivalDetails(number, info, entry, done, state, busy, details) {
       '<label class="list-field list-comment-field"><span>Комментарий</span><input type="text" maxlength="500" data-list-field="comment" data-number="' +
         escapeHtml(number) + '" value="' + escapeHtml(entry.comment || '') + '" placeholder="Добавить комментарий"' + disabled + '></label>' +
     '</div>' +
+    renderCameraAction(number, busy, done) +
     renderDeadlineDetails(info, details) +
     '' +
     '<div class="list-card-footer"><span class="list-saving-label">' + (busy ? 'Сохраняем…' : '') + '</span>' +
@@ -331,6 +338,7 @@ function renderDepartureDetails(number, info, onArrival, done, state, busy, deta
         (onArrival ? 'Снять «На заезд»' : 'Отметить «На заезд»') + '</button>' +
       (done ? '<span class="list-done-label">' + icon('check-circle-2', 15) + ' Выполнен</span>' : '') +
     '</div>' +
+    renderCameraAction(number, busy, done) +
     renderDeadlineDetails(info, details) +
     '<div class="list-card-footer"><span class="list-saving-label">' + (busy ? 'Сохраняем…' : '') + '</span>' +
       '<button type="button" class="list-danger-action" data-list-action="remove" data-number="' + escapeHtml(number) +
@@ -408,6 +416,12 @@ function renderListBody(state, type) {
   const ui = state.listUi || DEFAULT_UI;
   const numbers = listNumbers(type, data, ui.showCompleted);
   const completeCount = numbers.completed.length;
+  const cameraNumber = numbers.pending.slice().sort((a, b) =>
+    ui.sort === 'desc' ? Number(b) - Number(a) : Number(a) - Number(b)
+  )[0] || '';
+  const cameraButton = '<button type="button" class="list-camera-button" data-open-camera="' +
+    escapeHtml(cameraNumber) + '"' + (!cameraNumber ? ' disabled title="Нет невыполненных номеров"' : ' title="Открыть камеру с первым невыполненным номером"') +
+    '>' + icon('camera', 15) + ' Камера</button>';
   const doneSet = new Set((type === 'arrivals' ? (data.checkedRoomNumbers || []) : (data.completedNumbers || [])).map(String));
   const cards = numbers.visible.slice().sort((a, b) =>
     ui.sort === 'desc' ? Number(b) - Number(a) : Number(a) - Number(b)
@@ -438,8 +452,9 @@ function renderListBody(state, type) {
   return '<section class="list-tools">' +
     '<div class="list-summary"><div><strong>' + numbers.pending.length + '</strong><span>осталось</span>' +
       '<i></i><strong>' + completeCount + '</strong><span>выполнено</span></div>' +
-      '<button type="button" class="list-settings-button' + (ui.settingsOpen ? ' is-active' : '') +
-        '" data-list-action="settings">' + icon('sliders-horizontal', 17) + ' Настроить</button></div>' +
+      '<div class="list-summary-actions">' + cameraButton +
+        '<button type="button" class="list-settings-button' + (ui.settingsOpen ? ' is-active' : '') +
+        '" data-list-action="settings">' + icon('sliders-horizontal', 17) + ' Настроить</button></div></div>' +
     '<div class="list-control-row">' +
       (completeCount ? '<button type="button" class="list-completed-toggle" data-list-action="toggle-completed">' +
         (ui.showCompleted ? 'Скрыть выполненные' : 'Показать выполненные · ' + completeCount) + '</button>' : '<span></span>') +
