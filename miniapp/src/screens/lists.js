@@ -275,10 +275,11 @@ function renderRefillDetails(state, info) {
   const busy = isBusy('refill', String(info.id));
   if (busy) return '<div class="list-detail-line"><span class="list-inline-spinner"></span>Сохраняем пополнение…</div>';
   const selected = new Map((request?.items || []).map(item => [Number(item.productId), Number(item.qty) || 0]));
+  const roomIsEmpty = info.expiryStatus === 'empty';
   const items = templateItems.map(item => {
     const id = Number(item.productId);
     const maxQty = Math.max(1, Number(item.qty) || 1);
-    const value = Math.max(0, Math.min(maxQty, selected.get(id) || 0));
+    const value = roomIsEmpty ? maxQty : Math.max(0, Math.min(maxQty, selected.get(id) || 0));
     const meta = [item.volume != null ? item.volume : '', item.unit || 'шт'].filter(Boolean).join(' ');
     return '<label class="list-refill-product"><span class="list-refill-product-copy">' +
       '<strong>' + escapeHtml(item.emoji ? item.emoji + ' ' + item.name : item.name) + '</strong>' +
@@ -290,7 +291,9 @@ function renderRefillDetails(state, info) {
   return '<section class="list-refill-editor"><div class="list-editor-heading"><strong>Пополнение</strong>' +
     (summary ? '<span class="list-refill-current">Сейчас: ' + escapeHtml(summary) + '</span>' : '') + '</div>' +
     (items
-      ? '<div class="list-refill-products">' + items + '</div>' 
+      ? '<button type="button" class="list-arrival-toggle" data-list-action="select-all-refill"' +
+        (busy ? ' disabled' : '') + '>Выбрать все продукты</button>' +
+        '<div class="list-refill-products">' + items + '</div>' 
       : '<div class="list-editor-empty">Для номера не задан шаблон продуктов.</div>') +
     (items ? '<button type="button" class="list-primary-action" data-list-action="save-refill"' +
       (isBusy('refill', String(info.id)) ? ' disabled' : '') +
@@ -593,6 +596,14 @@ async function saveRefill(card) {
     productId: Number(input.dataset.productId),
     qty: Math.max(0, Math.min(Number(input.max) || 1, Number.parseInt(input.value, 10) || 0))
   })).filter(item => item.productId > 0 && item.qty > 0);
+  const expected = new Map();
+  (Array.isArray(info.templateItems) ? info.templateItems : []).forEach(item => {
+    const id = Number(item.productId);
+    if (id > 0) expected.set(id, (expected.get(id) || 0) + Math.max(1, Number(item.qty) || 1));
+  });
+  const selected = new Map(items.map(item => [item.productId, item.qty]));
+  const allProducts = expected.size > 0 && selected.size === expected.size &&
+    [...expected].every(([id, qty]) => selected.get(id) === qty);
   if (!items.length && !current) {
     setNotice('Выбери хотя бы один отсутствующий продукт и укажи количество.', true);
     return;
@@ -602,7 +613,7 @@ async function saveRefill(card) {
   try {
     const response = await api.post('refills', {
       roomId: Number(info.id),
-      allProducts: false,
+      allProducts,
       items,
       expectedRequestId: current ? Number(current.id) : null
     });
@@ -650,6 +661,12 @@ export function handleListClick(event) {
   else if (action === 'remove' && number) void removeRoom(number);
   else if (action === 'toggle-arrival' && number) void toggleArrival(number);
   else if (action === 'save-refill') void saveRefill(control.closest('[data-room-number]'));
+  else if (action === 'select-all-refill') {
+    const card = control.closest('[data-room-number]');
+    if (card && !control.disabled) {
+      card.querySelectorAll('[data-refill-qty]').forEach(input => { input.value = input.max; });
+    }
+  }
   else if (action === 'toggle-completed') updateUi({ showCompleted: !(getState().listUi || DEFAULT_UI).showCompleted });
   else if (action === 'settings') updateUi({ settingsOpen: !(getState().listUi || DEFAULT_UI).settingsOpen });
   else if (action === 'retry') void loadList(getState().listType);
