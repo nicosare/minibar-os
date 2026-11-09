@@ -177,8 +177,9 @@ function factoryTemplateItems(room) {
   const groupedItems = new Map();
   sourceItems.forEach(item => {
     const product = item.product || {};
+    if (product.isActive === false) return;
     const productId = Number(item.productId || product.id);
-    if (!productId) return;
+    if (!Number.isInteger(productId) || productId <= 0) return;
     const key = String(productId);
     if (!groupedItems.has(key)) {
       groupedItems.set(key, { ...item, productId, product, qty: 0 });
@@ -377,6 +378,7 @@ function registerBasketTemplate(templateByType, type, items) {
   if (!Array.isArray(items) || !items.length) return false;
   const recipe = new Map();
   for (const item of items) {
+    if (item.product && item.product.isActive === false) continue;
     const productId = Number(item.productId || (item.product && item.product.id)) || 0;
     const key = String(productId);
     const qty = Math.max(0, Number(item.qty) || 0);
