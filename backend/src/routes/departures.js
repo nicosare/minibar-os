@@ -202,7 +202,7 @@ async function readArrivalRoomNumbers(db, dateKey) {
   if (!session || session.dateKey !== dateKey || !Array.isArray(session.pdfRooms)) return [];
   return [...new Set(session.pdfRooms
     .map(value => String(Number(value)))
-    .filter(number => /^\\d{1,4}$/.test(number)))];
+    .filter(number => /^\d{1,4}$/.test(number)))];
 }
 
 async function updateMiniAppWorklist(req, updater) {
