@@ -50,7 +50,6 @@ let factory = {
   editId: null,
   mode: null,
   notes: '',
-  sort: 'asc'
 };
 let roomHistory = {
   roomId: null,
@@ -164,20 +163,12 @@ function renderProductRow(item) {
   const count = Number(factory.counts[productId] || 0);
   const max = Math.max(1, Number.parseInt(item.qty, 10) || 1);
   const bg = String(product.bgColor || 'slate').toLowerCase();
-  return '<div class="gih-product-row">' +
-    '<button type="button" class="gih-product-main" data-gih-action="increment" data-product-id="' + productId +
-      '" data-max="' + max + '"' + (count >= max ? ' disabled' : '') + '>' +
-      '<span class="gih-product-emoji" data-color="' + escapeHtml(bg) + '">' + escapeHtml(productEmoji(product)) + '</span>' +
-      '<span class="gih-product-copy"><strong>' + escapeHtml(product.name || 'Продукт') + '</strong>' +
-        '<small>В шаблоне: ' + max + '</small></span>' +
-      '<span class="gih-product-selected">' + count + '</span></button>' +
-    '<span class="gih-stepper">' +
-      '<button type="button" data-gih-action="decrement" data-product-id="' + productId + '"' +
-        (count <= 0 ? ' disabled' : '') + ' aria-label="Уменьшить количество">−</button>' +
-      '<b>' + count + '</b>' +
-      '<button type="button" data-gih-action="increment" data-product-id="' + productId + '" data-max="' + max + '"' +
-        (count >= max ? ' disabled' : '') + ' aria-label="Увеличить количество">+</button>' +
-    '</span></div>';
+  return '<button type="button" class="gih-product-row" data-gih-action="cycle-factory-product"' +
+    ' data-product-id="' + productId + '" data-max="' + max + '">' +
+    '<span class="gih-product-emoji" data-color="' + escapeHtml(bg) + '">' + escapeHtml(productEmoji(product)) + '</span>' +
+    '<span class="gih-product-copy"><strong>' + escapeHtml(product.name || 'Продукт') + '</strong>' +
+    '<small>В шаблоне: ' + max + '</small></span>' +
+    '<span class="gih-product-selected">' + count + '</span></button>';
 }
 
 
@@ -217,11 +208,10 @@ function renderFactoryProducts(room) {
     ...CATEGORIES.filter(category => grouped.has(category)),
     ...[...grouped.keys()].filter(category => !CATEGORIES.includes(category)).sort()
   ];
-  return '<details class="gih-products-dropdown"><summary><span>Все продукты</span><strong>' + templateItems.length + '</strong></summary>' +
-    '<div class="gih-products-dropdown-body">' + categories.map(category =>
-      '<section class="gih-product-category"><h4>' + escapeHtml(category) + '</h4>' +
-      grouped.get(category).map(renderProductRow).join('') + '</section>'
-    ).join('') + '</div></details>';
+  return categories.map(category =>
+    '<section class="gih-product-category"><h4>' + escapeHtml(category) + '</h4>' +
+    grouped.get(category).map(renderProductRow).join('') + '</section>'
+  ).join('');
 }
 
 
@@ -258,9 +248,7 @@ function renderFactory() {
       (editing ? '<button type="button" class="gih-text-button" data-gih-action="cancel-edit">Отмена</button>' : '') +
     '</div>' +
     '<label class="gih-room-input"><span>Номер комнаты</span><input type="text" inputmode="numeric" autocomplete="off" maxlength="4" ' +
-      'data-gih-input="room" list="gih-room-options" value="' + escapeHtml(factory.input) + '" placeholder="Например, 204"></label>' +
-    '<datalist id="gih-room-options">' + rooms.slice().sort((a, b) => (factory.sort === 'desc' ? Number(b.number) - Number(a.number) : Number(a.number) - Number(b.number))).map(item => '<option value="' + escapeHtml(item.number) + '"></option>').join('') + '</datalist>' +
-    '<label class="gih-room-sort"><span>Порядок номеров</span><select data-gih-sort><option value="asc"' + (factory.sort !== 'desc' ? ' selected' : '') + '>По возрастанию</option><option value="desc"' + (factory.sort === 'desc' ? ' selected' : '') + '>По убыванию</option></select></label>' +
+      'data-gih-input="room" value="' + escapeHtml(factory.input) + '" placeholder="Например, 204"></label>' +
     (room ? '<div class="gih-selected-room"><span class="gih-room-dot"></span> Номер ' +
       escapeHtml(room.number) + (room.floor ? ' · этаж ' + escapeHtml(room.floor) : '') + '</div>' : '') +
     '<div class="gih-factory-products">' + renderFactoryProducts(room) + '</div>' +
@@ -461,11 +449,13 @@ function renderGihProductSummary() {
   }
 
   const products = finalizeBasketProductTotals(groupedProducts, templateByType);
-  const heading = '<div class="gih-section-heading"><h3>Продукты GIH</h3><span>' +
-    latestDraftByRoom.size + ' номеров</span></div>';
+  const heading = '<summary class="gih-products-summary-head"><span>Продукты GIH</span>' +
+    '<span class="gih-products-summary-count">' + latestDraftByRoom.size + ' номеров</span></summary>';
   if (!products.length) {
-    return '<section class="gih-record-section gih-products-section">' + heading +
-      '<div class="gih-section-empty"><strong>Пока нет продуктов</strong><span>Создай черновики GIH, чтобы собрать общий список.</span></div></section>';
+    return '<section class="gih-record-section gih-products-section"><details class="gih-products-summary-dropdown">' +
+      heading + '<div class="gih-products-summary-content"><div class="gih-section-empty">' +
+      '<strong>Пока нет продуктов</strong><span>Создай черновики GIH, чтобы собрать общий список.</span>' +
+      '</div></div></details></section>';
   }
 
   const basketIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 10 2 10h12l2-10H4Z"/><path d="m8 10 4-6 4 6M8 14v3M12 14v3M16 14v3"/></svg>';
@@ -477,8 +467,9 @@ function renderGihProductSummary() {
       '<span class="gih-list-product-name">' + escapeHtml(product.name) + '</span>' +
       '<strong class="gih-list-product-qty">' + product.qty + ' шт.</strong></div>';
   }).join('');
-  return '<section class="gih-record-section gih-products-section">' + heading +
-    '<div class="gih-list-products">' + productRows + '</div></section>';
+  return '<section class="gih-record-section gih-products-section"><details class="gih-products-summary-dropdown">' +
+    heading + '<div class="gih-products-summary-content"><div class="gih-list-products">' +
+    productRows + '</div></div></details></section>';
 }
 
 function workspaceContent() {
@@ -506,7 +497,11 @@ function workspaceContent() {
 
 function renderWorkspace() {
   const root = document.getElementById('gih-workspace');
-  if (root) root.innerHTML = workspaceContent();
+  if (!root) return;
+  const productsOpen = Boolean(root.querySelector('.gih-products-summary-dropdown')?.open);
+  root.innerHTML = workspaceContent();
+  const nextProducts = root.querySelector('.gih-products-summary-dropdown');
+  if (productsOpen && nextProducts) nextProducts.open = true;
 }
 
 function renderFactoryPreservingFocus() {
@@ -519,10 +514,7 @@ function renderFactoryPreservingFocus() {
     renderWorkspace();
     return;
   }
-  const productsOpen = Boolean(root.querySelector('.gih-products-dropdown')?.open);
   root.innerHTML = renderFactory();
-  const productsMenu = root.querySelector('.gih-products-dropdown');
-  if (productsOpen && productsMenu) productsMenu.open = true;
   if (keepFocus) {
     const next = document.querySelector('[data-gih-input="room"]');
     if (next) {
@@ -854,12 +846,11 @@ export function handleGihClick(event) {
     loaded = false;
     loadError = '';
     void loadGih();
-  } else if (action === 'increment' || action === 'decrement') {
+  } else if (action === 'cycle-factory-product') {
     const productId = Number(button.dataset.productId);
     const max = Math.max(1, Number.parseInt(button.dataset.max, 10) || 1);
     const current = Number(factory.counts[productId] || 0);
-    const next = action === 'increment' ? Math.min(max, current + 1) : Math.max(0, current - 1);
-    factory.counts[productId] = next;
+    factory.counts[productId] = current >= max ? 0 : current + 1;
     renderFactoryPreservingFocus();
   } else if (action === 'create') {
     void createFactory();
@@ -914,11 +905,6 @@ export function handleGihClick(event) {
 export function handleGihChange(event) {
   const target = event.target instanceof Element ? event.target : null;
   if (!target) return false;
-  if (target.matches('[data-gih-sort]')) {
-    factory.sort = target.value === 'desc' ? 'desc' : 'asc';
-    renderFactoryPreservingFocus();
-    return true;
-  }
   if (!target.matches('[data-gih-note]')) return false;
   const draft = drafts.find(item => item.id === Number(target.dataset.gihNote));
   if (draft) draft.noteDraft = target.value;
