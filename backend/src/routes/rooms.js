@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { upsertTodayRoomStats, updateAllTargets } from '../services/deadlines.js';
+import { setRoomDeadlineStatus } from '../services/roomDeadlineStatus.js';
 import { clientOffset, startOfLocalDay } from '../lib/timezone.js';
 
 const router = Router();
@@ -249,51 +250,11 @@ router.delete('/:id/product-statuses', async (req, res) => {
     const roomId = parseInt(req.params.id, 10);
     const { roomStatus } = req.body || {};
 
-    await prisma.$transaction(async tx => {
-      await tx.$queryRaw`SELECT id FROM rooms WHERE id = ${roomId} FOR UPDATE`;
-      const roomBefore = await tx.room.findUnique({ where: { id: roomId }, select: { id: true, number: true, expiryStatus: true } });
-      if (!roomBefore) throw new Error('Комната не найдена');
-      const statusesBefore = await tx.roomProductStatus.findMany({
-        where: { roomId },
-        include: { product: { select: { name: true } } }
-      });
+    await prisma.$transaction(tx => setRoomDeadlineStatus(tx, {
+      roomId,
+      roomStatus
+    }, offset));
 
-      await tx.roomProductStatus.deleteMany({ where: { roomId } });
-      if (roomStatus) await tx.room.update({ where: { id: roomId }, data: { expiryStatus: roomStatus } });
-
-      const action = roomStatus === 'empty' ? 'emptied'
-        : roomStatus === 'valid' ? 'marked_valid'
-        : roomStatus === 'neutral' ? 'status_reset'
-        : 'status_updated';
-      await tx.check.create({
-        data: deadlineEventData(roomId, {
-          action,
-          previousStatus: roomBefore.expiryStatus || 'neutral',
-          newStatus: roomStatus || roomBefore.expiryStatus || 'neutral',
-          previousProducts: productSnapshots(statusesBefore),
-          productsAfter: [],
-          note: roomStatus === 'empty' ? 'Номер отмечен как опустошённый в разделе Сроки'
-            : roomStatus === 'valid' ? 'Номер отмечен как исправный в разделе Сроки'
-            : roomStatus === 'neutral' ? 'Статус сброшен в разделе Сроки'
-            : null,
-          operationSnapshot: {
-            version: 1,
-            source: 'deadlines',
-            before: {
-              roomStatus: roomBefore.expiryStatus || 'neutral',
-              products: reversibleProductSnapshots(statusesBefore)
-            },
-            after: {
-              roomStatus: roomStatus || roomBefore.expiryStatus || 'neutral',
-              products: []
-            }
-          }
-        })
-      });
-
-      await upsertTodayRoomStats(tx, offset);
-      await updateAllTargets(tx, offset);
-    });
     res.json({ ok: true });
   } catch (err) {
     console.error('DELETE product-statuses error:', err);
