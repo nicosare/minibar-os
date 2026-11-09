@@ -3,7 +3,7 @@ import { getState } from '../core/store.js';
 import { icon, renderIcons } from '../components/icons.js';
 
 let stream = null;
-let videoTrack = null, torchSupported = false, flashOn = false, deviceAngle = 0, sensorAngleReady = false;
+let videoTrack = null, torchSupported = null, torchArmed = false, deviceAngle = 0, sensorAngleReady = false;
 let orientationPermissionPromise = null;
 let orientationPermissionGranted = false;
 let selectedNumber = '';
@@ -206,7 +206,7 @@ function renderCarousel() {
     return '<button type="button" class="' + classes.join(' ') + '" data-camera-room="' + esc(number) + '"><strong>'+esc(number)+'</strong><span class="camera-room-markers">'+marks.slice(0,5).join('')+'</span></button>';
   }).join('');
   const active = host.querySelector('.is-active');
-  if (active) host.scrollTop = Math.max(0, active.offsetTop - (host.clientHeight - active.clientHeight) / 2);
+  if (active) centerRoom(selectedNumber, 'auto');
   attachCarouselScroll(host);
   updateActionAvailability();
   renderIcons();
@@ -214,9 +214,19 @@ function renderCarousel() {
 function centerRoom(number, behavior = 'smooth') {
   const host = $('cameraCarousel');
   if (!host) return;
-  const item = [...host.querySelectorAll('[data-camera-room]')].find(el => el.dataset.cameraRoom === String(number));
+  const item = [...host.querySelectorAll('[data-camera-room]')]
+    .find(element => element.dataset.cameraRoom === String(number));
   if (!item) return;
-  host.scrollTo({top:Math.max(0,item.offsetTop-(host.clientHeight-item.clientHeight)/2),behavior});
+  const hostRect = host.getBoundingClientRect();
+  const itemRect = item.getBoundingClientRect();
+  const topPadding = 8;
+  const target = host.scrollTop + itemRect.top - hostRect.top - topPadding;
+  host.scrollTo({ top: Math.max(0, target), behavior });
+}
+function triggerCarouselHaptic() {
+  try {
+    if (typeof navigator.vibrate === 'function') navigator.vibrate(8);
+  } catch (_) {}
 }
 function updateCarouselSelection() {
   const host = $('cameraCarousel');
@@ -234,7 +244,7 @@ function setSelectedRoom(number, options = {}) {
   if (options.center) centerRoom(next, options.behavior || 'smooth');
   renderStandby();
   updateActionAvailability();
-  if (changed) updateFlashControl();
+  if (changed && options.haptic) triggerCarouselHaptic();
 }
 async function loadCameraData() {
   const token = ++loadToken;
@@ -255,7 +265,6 @@ async function loadCameraData() {
   renderCarousel();
   renderStandby();
   updateActionAvailability();
-  if (selectedNumber) updateFlashControl();
 }
 function showNotice(message, isError = false) {
   const host = $('cameraFeedback');
@@ -268,89 +277,161 @@ function showNotice(message, isError = false) {
     host?.classList.remove('is-visible');
   }, 3000);
 }
-function stopCamera() {
-  if(stream)stream.getTracks().forEach(t=>{try{t.stop();}catch(_){}});
-  stream=null;videoTrack=null;torchSupported=false;flashOn=false;
-  const v=$('cameraVideo');if(v){v.pause?.();v.srcObject=null;}
-  $('cameraStage')?.classList.remove('is-live');updateFlashControl();
+function normalizeAngle(angle) {
+  return ((Math.round(Number(angle) || 0) % 360) + 360) % 360;
 }
-function updateFlashControl(){
-  const b=$('cameraFlash');if(!b)return;
-  b.classList.toggle('hidden',!torchSupported);b.classList.toggle('is-on',flashOn);
-  b.setAttribute('aria-pressed',String(flashOn));
-  b.innerHTML=icon(flashOn?'flashlight':'flashlight-off',17)+'<span>'+(flashOn?'Вспышка включена':'Вспышка')+'</span>';
-  renderIcons();
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
-async function toggleFlash(){
-  if(!videoTrack||!torchSupported)return;
-  try{await videoTrack.applyConstraints({advanced:[{torch:!flashOn}]});flashOn=!flashOn;updateFlashControl();}
-  catch(_){showNotice('Вспышка недоступна на этом устройстве',true);}
-}
-function requestOrientationPermission(){
-  if(orientationPermissionGranted)return Promise.resolve(true);
-  if(orientationPermissionPromise)return orientationPermissionPromise;
-  const Orientation=window.DeviceOrientationEvent;
-  const Motion=window.DeviceMotionEvent;
-  const request=typeof Orientation?.requestPermission==='function'
+async function requestOrientationPermission() {
+  if (orientationPermissionGranted) return true;
+  if (orientationPermissionPromise) return orientationPermissionPromise;
+  const Orientation = window.DeviceOrientationEvent;
+  const Motion = window.DeviceMotionEvent;
+  const request = typeof Orientation?.requestPermission === 'function'
     ? Orientation.requestPermission.bind(Orientation)
-    : typeof Motion?.requestPermission==='function' ? Motion.requestPermission.bind(Motion) : null;
-  if(!request){orientationPermissionGranted=true;return Promise.resolve(true);}
-  orientationPermissionPromise=request().then(result=>{
-    orientationPermissionGranted=result==='granted';
+    : typeof Motion?.requestPermission === 'function' ? Motion.requestPermission.bind(Motion) : null;
+  if (!request) {
+    orientationPermissionGranted = true;
+    return true;
+  }
+  orientationPermissionPromise = request().then(result => {
+    orientationPermissionGranted = result === 'granted';
     return orientationPermissionGranted;
-  }).catch(()=>false).finally(()=>{orientationPermissionPromise=null;});
+  }).catch(() => false).finally(() => { orientationPermissionPromise = null; });
   return orientationPermissionPromise;
 }
-function updatePhysicalAngle(e){
-  const g=e?.accelerationIncludingGravity;
-  if(g&&Number.isFinite(g.x)&&Number.isFinite(g.y)){
-    const x=g.x,y=g.y,ax=Math.abs(x),ay=Math.abs(y);
-    if(Math.max(ax,ay)>5.5&&Math.min(ax,ay)<Math.max(ax,ay)*.72){
-      deviceAngle=ay>ax?(y>=0?0:180):(x>=0?90:270);sensorAngleReady=true;requestAnimationFrame(syncVideoOrientation);return;
+function updatePhysicalAngle(event) {
+  const gravity = event?.accelerationIncludingGravity;
+  if (gravity && Number.isFinite(gravity.x) && Number.isFinite(gravity.y)) {
+    const x = gravity.x, y = gravity.y;
+    const ax = Math.abs(x), ay = Math.abs(y);
+    if (Math.max(ax, ay) > 5.5 && Math.min(ax, ay) < Math.max(ax, ay) * .72) {
+      deviceAngle = ay > ax ? (y >= 0 ? 0 : 180) : (x >= 0 ? 90 : 270);
+      sensorAngleReady = true;
+      return;
     }
   }
-  if(Number.isFinite(e?.beta)&&Number.isFinite(e?.gamma)){
-    const b=Math.sin(e.beta*Math.PI/180),q=Math.sin(e.gamma*Math.PI/180);
-    if(Math.max(Math.abs(b),Math.abs(q))>.62){
-      deviceAngle=Math.abs(b)>Math.abs(q)*1.25?(b>=0?0:180):(q>0?90:270);sensorAngleReady=true;requestAnimationFrame(syncVideoOrientation);
+  if (Number.isFinite(event?.beta) && Number.isFinite(event?.gamma)) {
+    const beta = Math.sin(event.beta * Math.PI / 180);
+    const gamma = Math.sin(event.gamma * Math.PI / 180);
+    if (Math.max(Math.abs(beta), Math.abs(gamma)) > .62) {
+      deviceAngle = Math.abs(beta) > Math.abs(gamma) * 1.25
+        ? (beta >= 0 ? 0 : 180)
+        : (gamma > 0 ? 90 : 270);
+      sensorAngleReady = true;
     }
   }
 }
-function currentDeviceAngle(){
-  if(sensorAngleReady)return deviceAngle;
-  const a=window.screen?.orientation?.angle;
-  if(Number.isFinite(a))return ((a%360)+360)%360;
-  if(typeof window.orientation==='number')return ((window.orientation%360)+360)%360;
-  return window.innerWidth>window.innerHeight?90:0;
+function currentDeviceAngle() {
+  if (sensorAngleReady) return deviceAngle;
+  const angle = window.screen?.orientation?.angle;
+  if (Number.isFinite(angle)) return normalizeAngle(angle);
+  if (typeof window.orientation === 'number') return normalizeAngle(window.orientation);
+  return window.innerWidth > window.innerHeight ? 90 : 0;
 }
-function syncVideoOrientation(){
-  const v=$('cameraVideo'),box=$('cameraViewport');
-  if(!v||!box||!v.videoWidth||!v.videoHeight)return;
-  const base=v.videoWidth>v.videoHeight?90:0;
-  const rotation=((currentDeviceAngle()-base)%360+360)%360;
-  if(rotation===90||rotation===270){
-    v.style.inset='auto';v.style.left='50%';v.style.top='50%';
-    v.style.width=box.clientHeight+'px';v.style.height=box.clientWidth+'px';
-    v.style.transform='translate(-50%,-50%) rotate('+rotation+'deg)';
-  }else{
-    v.style.inset='0';v.style.left='0';v.style.top='0';v.style.width='100%';v.style.height='100%';
-    v.style.transform=rotation===180?'rotate(180deg)':'none';
+function getCaptureOrientationAngle(sourceWidth, sourceHeight) {
+  const angle = currentDeviceAngle();
+  // Native camera sensors can return landscape pixels without EXIF orientation.
+  if (sourceWidth > sourceHeight) {
+    if (angle === 90) return 180;
+    if (angle === 270) return 0;
+    return angle;
+  }
+  return normalizeAngle(angle);
+}
+window.addEventListener('devicemotion', updatePhysicalAngle, true);
+window.addEventListener('deviceorientation', updatePhysicalAngle, true);
+window.addEventListener('orientationchange', () => { sensorAngleReady = false; });
+
+function stopCamera() {
+  if (stream) {
+    stream.getTracks().forEach(track => {
+      try { track.stop(); } catch (_) {}
+    });
+  }
+  stream = null;
+  videoTrack = null;
+  torchSupported = null;
+  torchArmed = false;
+  const video = $('cameraVideo');
+  if (video) {
+    video.pause?.();
+    video.srcObject = null;
+    video.style.transform = 'none';
+    video.style.inset = '';
+    video.style.left = '';
+    video.style.top = '';
+    video.style.width = '';
+    video.style.height = '';
+  }
+  $('cameraStage')?.classList.remove('is-live');
+}
+async function setTorch(enabled) {
+  if (!videoTrack) return false;
+  if (!enabled && !torchArmed) return true;
+  try {
+    await videoTrack.applyConstraints({ advanced: [{ torch: Boolean(enabled) }] });
+    torchArmed = Boolean(enabled);
+    return true;
+  } catch (_) {
+    if (enabled) torchSupported = false;
+    torchArmed = false;
+    return false;
   }
 }
-window.addEventListener('devicemotion',updatePhysicalAngle,true);
-window.addEventListener('deviceorientation',updatePhysicalAngle,true);
-window.addEventListener('orientationchange',()=>{sensorAngleReady=false;requestAnimationFrame(syncVideoOrientation);});
-async function startCamera(){
-  if(stream){const v=$('cameraVideo');if(v&&v.srcObject!==stream){v.srcObject=stream;await v.play().catch(()=>{});}$('cameraStage')?.classList.add('is-live');updateFlashControl();return;}
-  if(!navigator.mediaDevices?.getUserMedia){showLoader('Камера недоступна','Разреши доступ к камере в VK.',true);return;}
-  showLoader('Запуск камеры…','');
-  try{
-    stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}}});
-    videoTrack=stream.getVideoTracks()[0]||null;if(!videoTrack)throw new Error('Камера не вернула видеопоток');
-    torchSupported=videoTrack.getCapabilities?.().torch===true;
-    const v=$('cameraVideo');v.srcObject=stream;await v.play();await waitForVideo(v);
-    $('cameraStage')?.classList.add('is-live');syncVideoOrientation();hideLoader();updateFlashControl();
-  }catch(err){stopCamera();showLoader('Не удалось открыть камеру',err.message||'Проверь разрешение на камеру.',true);}
+async function armTorch() {
+  if (!videoTrack || torchSupported === false) return false;
+  return setTorch(true);
+}
+async function startCamera() {
+  if (stream && videoTrack) {
+    const existingVideo = $('cameraVideo');
+    if (existingVideo && existingVideo.srcObject !== stream) {
+      existingVideo.srcObject = stream;
+      await existingVideo.play().catch(() => {});
+      await waitForVideo(existingVideo);
+    }
+    $('cameraStage')?.classList.add('is-live');
+    hideLoader();
+    return true;
+  }
+  if (!navigator.mediaDevices?.getUserMedia) {
+    showLoader('Камера недоступна', 'Разреши доступ к камере в VK.', true);
+    return false;
+  }
+  showLoader('Запуск камеры…', '');
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        facingMode: { ideal: 'environment' },
+        aspectRatio: { ideal: 4 / 3 },
+        width: { ideal: 1920 },
+        height: { ideal: 1440 }
+      }
+    });
+    videoTrack = stream.getVideoTracks()[0] || null;
+    if (!videoTrack) throw new Error('Камера не вернула видеопоток');
+    try {
+      const capabilities = videoTrack.getCapabilities?.();
+      torchSupported = capabilities ? capabilities.torch === true : null;
+    } catch (_) {
+      torchSupported = null;
+    }
+    const video = $('cameraVideo');
+    if (!video) throw new Error('Не найдено окно камеры');
+    video.srcObject = stream;
+    await video.play();
+    await waitForVideo(video);
+    $('cameraStage')?.classList.add('is-live');
+    hideLoader();
+    return true;
+  } catch (error) {
+    stopCamera();
+    showLoader('Не удалось открыть камеру', error.message || 'Проверь разрешение на камеру.', true);
+    return false;
+  }
 }
 function showLoader(title, subtitle, error = false) {
   const loader = $('cameraLoader');
@@ -372,54 +453,368 @@ function clearPhoto() {
   if (photoUrl) URL.revokeObjectURL(photoUrl);
   photoUrl = '';
 }
-async function waitForVideo(video) {
-  if (video.videoWidth && video.videoHeight) return;
-  await new Promise((resolve,reject) => {
-    const timeout = setTimeout(() => reject(new Error('Камера не передала изображение')), 5000);
-    const done = () => {
-      clearTimeout(timeout);
-      video.removeEventListener('loadedmetadata', done);
-      resolve();
-    };
-    video.addEventListener('loadedmetadata', done, { once:true });
-  });
+async function waitForVideo(video, timeoutMs = 4500) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (video.videoWidth > 0 && video.videoHeight > 0 && video.readyState >= 2) {
+      if (typeof video.requestVideoFrameCallback === 'function') {
+        await new Promise(resolve => video.requestVideoFrameCallback(() => resolve()));
+      } else {
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      }
+      return;
+    }
+    await wait(40);
+  }
+  throw new Error('Камера не успела подготовить изображение');
 }
-async function capturePhoto(){
-  if(captureBusy||photoBlob||isArrivalNotReady(roomByNumber(selectedNumber))){if(isArrivalNotReady(roomByNumber(selectedNumber)))showNotice('Сначала отметь «Можно делать» для этого номера',true);return;}
-  const number=String(selectedNumber),v=$('cameraVideo');
-  if(!stream||!v||v.readyState<2||!v.videoWidth){await startCamera();if(!stream||!v?.videoWidth){showNotice('Камера ещё не готова. Попробуй снова.',true);return;}}
-  captureBusy=true;updateActionAvailability();
-  try{
+function drawSourceToCanvas(source, srcW, srcH, angle = 0) {
+  const canvas = $('cameraCanvas');
+  if (!srcW || !srcH) throw new Error('Frame error');
+
+  angle = normalizeAngle(angle);
+  const quarterTurn = angle === 90 || angle === 270;
+  canvas.width = quarterTurn ? srcH : srcW;
+  canvas.height = quarterTurn ? srcW : srcH;
+
+  const ctx = canvas.getContext('2d', { alpha: false });
+  if (!ctx) throw new Error('Не удалось подготовить снимок');
+
+  ctx.save();
+  if (angle === 90) {
+    ctx.translate(srcH, 0);
+    ctx.rotate(Math.PI / 2);
+  } else if (angle === 180) {
+    ctx.translate(srcW, srcH);
+    ctx.rotate(Math.PI);
+  } else if (angle === 270) {
+    ctx.translate(0, srcW);
+    ctx.rotate(-Math.PI / 2);
+  }
+  ctx.drawImage(source, 0, 0, srcW, srcH);
+  ctx.restore();
+}
+
+/* Native still capture is consistently upside down in landscape in the VK WebView.
+   Correct only the final landscape raster; portrait captures remain untouched. */
+function correctNativeLandscapeCapture() {
+  const canvas = $('cameraCanvas');
+  if (!canvas.width || !canvas.height || canvas.width <= canvas.height) return;
+
+  const source = document.createElement('canvas');
+  source.width = canvas.width;
+  source.height = canvas.height;
+  const sourceContext = source.getContext('2d', { alpha: false });
+  const ctx = canvas.getContext('2d', { alpha: false });
+  if (!sourceContext || !ctx) throw new Error('Не удалось подготовить снимок');
+
+  sourceContext.drawImage(canvas, 0, 0);
+  ctx.save();
+  ctx.setTransform(-1, 0, 0, -1, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(source, 0, 0);
+  ctx.restore();
+}
+
+/* Prefer a full-resolution still photo when the browser supports it.
+   Decode EXIF orientation first, then apply the physical-phone turn exactly once. */
+async function prepareCameraFocus() {
+  if (!videoTrack || typeof videoTrack.getCapabilities !== 'function') return;
+  try {
+    const capabilities = videoTrack.getCapabilities();
+    const modes = Array.isArray(capabilities.focusMode) ? capabilities.focusMode : [];
+    if (modes.includes('continuous')) {
+      await videoTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+      await wait(100);
+    } else if (modes.includes('single-shot')) {
+      await videoTrack.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] });
+      await wait(140);
+    }
+  } catch (error) {
+    // Some WebViews expose focus capabilities but reject focus constraints.
+    // ImageCapture can still run the camera's normal autofocus sequence.
+    console.debug('[MINIBAR CAMERA] Explicit autofocus constraint unavailable:', error);
+  }
+}
+
+/* Read EXIF Orientation ourselves, then remove the EXIF segment before decoding.
+   This prevents browser auto-rotation and lets us apply orientation exactly once. */
+function readExifOrientation(bytes, payload, segmentEnd) {
+  const exifSignature = [0x45, 0x78, 0x69, 0x66, 0x00, 0x00];
+  if (payload + 14 > segmentEnd ||
+      !exifSignature.every((value, i) => bytes[payload + i] === value)) return null;
+
+  const tiff = payload + 6;
+  const byteOrder = String.fromCharCode(bytes[tiff], bytes[tiff + 1]);
+  const littleEndian = byteOrder === 'II';
+  if (!littleEndian && byteOrder !== 'MM') return null;
+
+  const u16 = offset => {
+    if (offset < tiff || offset + 2 > segmentEnd) return null;
+    return littleEndian
+      ? bytes[offset] | (bytes[offset + 1] << 8)
+      : (bytes[offset] << 8) | bytes[offset + 1];
+  };
+  const u32 = offset => {
+    if (offset < tiff || offset + 4 > segmentEnd) return null;
+    return littleEndian
+      ? (bytes[offset] | (bytes[offset + 1] << 8) |
+        (bytes[offset + 2] << 16) | (bytes[offset + 3] << 24)) >>> 0
+      : ((bytes[offset] << 24) | (bytes[offset + 1] << 16) |
+        (bytes[offset + 2] << 8) | bytes[offset + 3]) >>> 0;
+  };
+
+  if (u16(tiff + 2) !== 42) return null;
+  const ifdOffset = u32(tiff + 4);
+  if (ifdOffset === null) return null;
+  const ifd = tiff + ifdOffset;
+  const entryCount = u16(ifd);
+  if (entryCount === null) return null;
+
+  for (let i = 0; i < entryCount; i++) {
+    const entry = ifd + 2 + i * 12;
+    const tag = u16(entry);
+    if (tag === null || entry + 12 > segmentEnd) return null;
+    if (tag !== 0x0112) continue;
+
+    const type = u16(entry + 2);
+    const count = u32(entry + 4);
+    if (type !== 3 || count !== 1) return null;
+    const orientation = u16(entry + 8);
+    return orientation >= 1 && orientation <= 8 ? orientation : null;
+  }
+  return null;
+}
+
+async function stripJpegExifMetadata(blob) {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) {
+    return { blob, orientation: null };
+  }
+
+  const parts = [bytes.subarray(0, 2)];
+  let offset = 2;
+  let removedExif = false;
+  let orientation = null;
+
+  while (offset < bytes.length) {
+    if (bytes[offset] !== 0xff) throw new Error('Не удалось прочитать заголовок JPEG');
+
+    const markerStart = offset;
+    while (offset < bytes.length && bytes[offset] === 0xff) offset++;
+    if (offset >= bytes.length) throw new Error('Повреждённый заголовок JPEG');
+
+    const marker = bytes[offset++];
+    if (marker === 0xda || marker === 0xd9) {
+      parts.push(bytes.subarray(markerStart));
+      return {
+        blob: removedExif ? new Blob(parts, { type: blob.type || 'image/jpeg' }) : blob,
+        orientation
+      };
+    }
+
+    if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+      parts.push(bytes.subarray(markerStart, offset));
+      continue;
+    }
+
+    if (offset + 2 > bytes.length) throw new Error('Повреждённый сегмент JPEG');
+    const segmentLength = (bytes[offset] << 8) | bytes[offset + 1];
+    const segmentEnd = offset + segmentLength;
+    if (segmentLength < 2 || segmentEnd > bytes.length) {
+      throw new Error('Некорректная длина сегмента JPEG');
+    }
+
+    const payload = offset + 2;
+    const isExifSegment = marker === 0xe1 &&
+      bytes[payload] === 0x45 && bytes[payload + 1] === 0x78 &&
+      bytes[payload + 2] === 0x69 && bytes[payload + 3] === 0x66 &&
+      bytes[payload + 4] === 0x00 && bytes[payload + 5] === 0x00;
+
+    if (isExifSegment) {
+      if (orientation === null) orientation = readExifOrientation(bytes, payload, segmentEnd);
+      removedExif = true;
+    } else {
+      parts.push(bytes.subarray(markerStart, segmentEnd));
+    }
+    offset = segmentEnd;
+  }
+
+  return {
+    blob: removedExif ? new Blob(parts, { type: blob.type || 'image/jpeg' }) : blob,
+    orientation
+  };
+}
+
+function drawExifOrientedToCanvas(source, srcW, srcH, orientation) {
+  const canvas = $('cameraCanvas');
+  if (!srcW || !srcH) throw new Error('Frame error');
+  const turn = orientation >= 5 && orientation <= 8;
+  canvas.width = turn ? srcH : srcW;
+  canvas.height = turn ? srcW : srcH;
+
+  const ctx = canvas.getContext('2d', { alpha: false });
+  if (!ctx) throw new Error('Не удалось подготовить снимок');
+
+  // EXIF values 1–8 include rotations and mirrored orientations.
+  switch (orientation) {
+    case 2: ctx.setTransform(-1, 0, 0, 1, srcW, 0); break;
+    case 3: ctx.setTransform(-1, 0, 0, -1, srcW, srcH); break;
+    case 4: ctx.setTransform(1, 0, 0, -1, 0, srcH); break;
+    case 5: ctx.setTransform(0, 1, 1, 0, 0, 0); break;
+    case 6: ctx.setTransform(0, 1, -1, 0, srcH, 0); break;
+    case 7: ctx.setTransform(0, -1, -1, 0, srcH, srcW); break;
+    case 8: ctx.setTransform(0, -1, 1, 0, 0, srcW); break;
+    default: ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+  ctx.drawImage(source, 0, 0, srcW, srcH);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+
+async function captureStillPhotoToCanvas() {
+  if (typeof window.ImageCapture !== 'function' ||
+      typeof window.createImageBitmap !== 'function' ||
+      !videoTrack) {
+    return false;
+  }
+
+  let bitmap = null;
+  try {
+    const capture = new window.ImageCapture(videoTrack);
+    const photoBlob = await capture.takePhoto();
+    if (torchArmed) await setTorch(false);
+    if (!photoBlob || !photoBlob.size) throw new Error('Камера вернула пустое фото');
+
+    const decoded = await stripJpegExifMetadata(photoBlob);
+    bitmap = await window.createImageBitmap(decoded.blob);
+    if (decoded.orientation !== null) {
+      drawExifOrientedToCanvas(bitmap, bitmap.width, bitmap.height, decoded.orientation);
+    } else {
+      drawSourceToCanvas(
+        bitmap,
+        bitmap.width,
+        bitmap.height,
+        getCaptureOrientationAngle(bitmap.width, bitmap.height)
+      );
+    }
+    return true;
+  } catch (error) {
+    console.warn('[MINIBAR CAMERA] Native still capture unavailable; falling back to video frame:', error);
+    return false;
+  } finally {
+    if (bitmap && typeof bitmap.close === 'function') bitmap.close();
+  }
+}
+
+
+function cropCanvasToFourThree() {
+  const canvas = $('cameraCanvas');
+  if (!canvas?.width || !canvas?.height) return;
+  const landscape = canvas.width >= canvas.height;
+  const targetRatio = landscape ? 4 / 3 : 3 / 4;
+  const currentRatio = canvas.width / canvas.height;
+  if (Math.abs(currentRatio - targetRatio) < 0.008) return;
+
+  let sx = 0, sy = 0, sw = canvas.width, sh = canvas.height;
+  if (currentRatio > targetRatio) {
+    sw = canvas.height * targetRatio;
+    sx = (canvas.width - sw) / 2;
+  } else {
+    sh = canvas.width / targetRatio;
+    sy = (canvas.height - sh) / 2;
+  }
+  const source = document.createElement('canvas');
+  source.width = canvas.width;
+  source.height = canvas.height;
+  const sourceContext = source.getContext('2d', { alpha: false });
+  const context = canvas.getContext('2d', { alpha: false });
+  if (!sourceContext || !context) throw new Error('Не удалось обрезать фото до 4:3');
+  sourceContext.drawImage(canvas, 0, 0);
+  canvas.width = Math.max(1, Math.round(sw));
+  canvas.height = Math.max(1, Math.round(sh));
+  context.drawImage(source, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+}
+async function capturePhoto() {
+  const room = roomByNumber(selectedNumber);
+  if (captureBusy || photoBlob || isArrivalNotReady(room)) {
+    if (isArrivalNotReady(room)) showNotice('Сначала отметь «Можно делать» для этого номера', true);
+    return;
+  }
+
+  const number = String(selectedNumber);
+  captureBusy = true;
+  updateActionAvailability();
+  try {
     await requestOrientationPermission();
-    const canvas=$('cameraCanvas'),w=v.videoWidth,h=v.videoHeight,angle=currentDeviceAngle(),base=w>h?90:0,rot=((angle-base)%360+360)%360,quarter=rot===90||rot===270;
-    canvas.width=quarter?h:w;canvas.height=quarter?w:h;
-    const ctx=canvas.getContext('2d',{alpha:false});if(!ctx)throw new Error('Не удалось подготовить снимок');
-    ctx.save();if(rot===90){ctx.translate(canvas.width,0);ctx.rotate(Math.PI/2);}else if(rot===180){ctx.translate(canvas.width,canvas.height);ctx.rotate(Math.PI);}else if(rot===270){ctx.translate(0,canvas.height);ctx.rotate(-Math.PI/2);}
-    ctx.drawImage(v,0,0,w,h);ctx.restore();
+    const started = await startCamera();
+    if (!started || !videoTrack) throw new Error('Не удалось открыть камеру');
 
-    // Show the frozen frame immediately. JPEG encoding continues while the user reviews it.
-    const previewCanvas=$('cameraPreviewCanvas');
-    previewCanvas.width=canvas.width;previewCanvas.height=canvas.height;
-    previewCanvas.getContext('2d',{alpha:false}).drawImage(canvas,0,0);
-    photoBlob=null;photoRandomId=String(Math.floor(Math.random()*2147483646)+1);
-    const send=$('cameraSendPhoto');send.disabled=true;send.textContent='Подготовка…';
-    $('cameraPreviewRoom').textContent='Номер '+number;
-    $('cameraPreviewModal').classList.remove('hidden');$('cameraPreviewModal').setAttribute('aria-hidden','false');
-    $('cameraCarouselWrap').classList.add('is-disabled');$('cameraStage').classList.add('is-preview');
-    if(flashOn&&videoTrack){flashOn=false;updateFlashControl();void videoTrack.applyConstraints({advanced:[{torch:false}]}).catch(()=>{});}
+    const video = $('cameraVideo');
+    await waitForVideo(video);
+    await prepareCameraFocus();
+    const flashReady = await armTorch();
+    await waitForVideo(video, 1800);
+    if (flashReady) await wait(140);
 
-    const maxEdge=1600,scale=Math.min(1,maxEdge/Math.max(canvas.width,canvas.height));
-    const uploadCanvas=document.createElement('canvas');
-    uploadCanvas.width=Math.max(1,Math.round(canvas.width*scale));
-    uploadCanvas.height=Math.max(1,Math.round(canvas.height*scale));
-    uploadCanvas.getContext('2d',{alpha:false}).drawImage(canvas,0,0,uploadCanvas.width,uploadCanvas.height);
-    uploadCanvas.toBlob(blob=>{
-      if(!$('cameraPreviewModal')||$('cameraPreviewModal').classList.contains('hidden'))return;
-      if(!blob){showNotice('Не удалось подготовить фото. Пересними.',true);send.disabled=true;send.textContent='Ошибка';return;}
-      photoBlob=blob;send.disabled=false;send.textContent='Отправить';
-    },'image/jpeg',.84);
-  }catch(err){showNotice(err.message||'Не удалось сделать снимок',true);}
-  finally{captureBusy=false;updateActionAvailability();}
+    const nativeCaptureSucceeded = await captureStillPhotoToCanvas();
+    if (!nativeCaptureSucceeded) {
+      if (torchArmed) await setTorch(false);
+      drawSourceToCanvas(
+        video,
+        video.videoWidth,
+        video.videoHeight,
+        getCaptureOrientationAngle(video.videoWidth, video.videoHeight)
+      );
+    } else {
+      correctNativeLandscapeCapture();
+    }
+    cropCanvasToFourThree();
+
+    const canvas = $('cameraCanvas');
+    const previewCanvas = $('cameraPreviewCanvas');
+    previewCanvas.width = canvas.width;
+    previewCanvas.height = canvas.height;
+    previewCanvas.getContext('2d', { alpha: false }).drawImage(canvas, 0, 0);
+
+    photoBlob = null;
+    photoRandomId = String(Math.floor(Math.random() * 2147483646) + 1);
+    const send = $('cameraSendPhoto');
+    send.disabled = true;
+    send.textContent = 'Подготовка…';
+    $('cameraPreviewRoom').textContent = 'Номер ' + number;
+    $('cameraPreviewModal').classList.remove('hidden');
+    $('cameraPreviewModal').setAttribute('aria-hidden', 'false');
+    $('cameraCarouselWrap').classList.add('is-disabled');
+    $('cameraStage').classList.add('is-preview');
+
+    const maxEdge = 1600;
+    const scale = Math.min(1, maxEdge / Math.max(canvas.width, canvas.height));
+    const uploadCanvas = document.createElement('canvas');
+    uploadCanvas.width = Math.max(1, Math.round(canvas.width * scale));
+    uploadCanvas.height = Math.max(1, Math.round(canvas.height * scale));
+    uploadCanvas.getContext('2d', { alpha: false }).drawImage(
+      canvas, 0, 0, uploadCanvas.width, uploadCanvas.height
+    );
+    uploadCanvas.toBlob(blob => {
+      if (!$('cameraPreviewModal') || $('cameraPreviewModal').classList.contains('hidden')) return;
+      if (!blob) {
+        showNotice('Не удалось подготовить фото. Пересними.', true);
+        send.disabled = true;
+        send.textContent = 'Ошибка';
+        return;
+      }
+      photoBlob = blob;
+      send.disabled = false;
+      send.textContent = 'Отправить';
+    }, 'image/jpeg', .84);
+  } catch (error) {
+    showNotice(error.message || 'Не удалось сделать снимок', true);
+  } finally {
+    if (torchArmed) await setTorch(false);
+    stopCamera();
+    captureBusy = false;
+    updateActionAvailability();
+  }
 }
 function closePreview(force = false) {
   if (captureBusy && !force) return;
@@ -656,7 +1051,6 @@ function handleClick(event) {
     return;
   }
   if (action === 'capture') void capturePhoto();
-  else if (action === 'toggle-flash') void toggleFlash();
   else if (action === 'retry-camera') { hideLoader(); void capturePhoto(); }
   else if (action === 'retake') closePreview();
   else if (action === 'send-photo') void sendPhoto();
@@ -675,20 +1069,24 @@ function handleClick(event) {
 function attachCarouselScroll(carousel = $('cameraCarousel')) {
   if (!carousel || carousel.dataset.cameraScrollBound === '1') return;
   carousel.dataset.cameraScrollBound = '1';
-  carousel.addEventListener('scroll',() => {
+  carousel.addEventListener('scroll', () => {
     cancelAnimationFrame(carouselFrame);
     carouselFrame = requestAnimationFrame(() => {
       const rect = carousel.getBoundingClientRect();
-      const center = rect.top + rect.height/2;
-      let best = null, distance = Infinity;
-      carousel.querySelectorAll('[data-camera-room]').forEach(item => {
-        const box = item.getBoundingClientRect();
-        const delta = Math.abs(box.top + box.height/2 - center);
-        if (delta < distance) { distance=delta; best=item; }
-      });
-      if (best && best.dataset.cameraRoom !== selectedNumber) setSelectedRoom(best.dataset.cameraRoom);
+      const activationLine = rect.top + 12;
+      let active = null;
+      for (const item of carousel.querySelectorAll('[data-camera-room]')) {
+        const itemRect = item.getBoundingClientRect();
+        if (itemRect.bottom > activationLine) {
+          active = item;
+          break;
+        }
+      }
+      if (active && active.dataset.cameraRoom !== selectedNumber) {
+        setSelectedRoom(active.dataset.cameraRoom, { haptic: true });
+      }
     });
-  },{passive:true});
+  }, { passive: true });
 }
 function bind() {
   if (bound) return;
@@ -708,7 +1106,6 @@ export function renderCamera(state) {
         '<div class="camera-viewport" id="cameraViewport">' +
           '<video id="cameraVideo" autoplay playsinline muted></video><canvas id="cameraCanvas" hidden></canvas>' +
           '<div class="camera-focus-frame" aria-hidden="true"><span></span><span></span><span></span><span></span></div>' +
-          '<button type="button" class="camera-flash hidden" id="cameraFlash" data-camera-action="toggle-flash" aria-label="Вспышка" aria-pressed="false"></button>' +
           '<div class="camera-standby" id="cameraStandby"></div>' +
           '<div class="camera-loader hidden" id="cameraLoader"><span class="camera-loader-spinner"></span><strong id="cameraLoaderTitle">Запуск камеры…</strong><small id="cameraLoaderSubtitle"></small><button type="button" class="camera-retry hidden" data-camera-action="retry-camera" id="cameraLoaderRetry">Повторить</button></div>' +
         '</div>' +
@@ -723,8 +1120,21 @@ export function renderCamera(state) {
 }
 export function cameraDidRender() {
   bind();
-  if(mounted){const v=$('cameraVideo');if(v&&stream){v.srcObject=stream;v.play().catch(()=>{});$('cameraStage')?.classList.add('is-live');}renderCarousel();renderStandby();updateFlashControl();return;}
-  mounted=true;void loadCameraData();renderCarousel();renderStandby();void startCamera();
+  if (mounted) {
+    const video = $('cameraVideo');
+    if (video && stream) {
+      video.srcObject = stream;
+      video.play().catch(() => {});
+      $('cameraStage')?.classList.add('is-live');
+    }
+    renderCarousel();
+    renderStandby();
+    return;
+  }
+  mounted = true;
+  void loadCameraData();
+  renderCarousel();
+  renderStandby();
 }
 export function cameraWillUnmount() {
   mounted = false;
