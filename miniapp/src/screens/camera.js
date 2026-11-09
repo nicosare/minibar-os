@@ -3,7 +3,11 @@ import { getState } from '../core/store.js';
 import { icon, renderIcons } from '../components/icons.js';
 
 let stream = null;
-let videoTrack = null, torchSupported = null, torchArmed = false, deviceAngle = 0, sensorAngleReady = false;
+let videoTrack = null, torchSupported = null, torchArmed = false;
+let currentDeviceAngle = 0;
+let lastSensorOrientationAt = 0;
+let hasSensorOrientation = false;
+let hasMotionOrientation = false;
 let orientationPermissionPromise = null;
 let orientationPermissionGranted = false;
 let selectedNumber = '';
@@ -284,7 +288,7 @@ function showNotice(message, isError = false) {
   }, 3000);
 }
 function normalizeAngle(angle) {
-  return ((Math.round(Number(angle) || 0) % 360) + 360) % 360;
+  return ((Number(angle) % 360) + 360) % 360;
 }
 function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -307,48 +311,92 @@ async function requestOrientationPermission() {
   }).catch(() => false).finally(() => { orientationPermissionPromise = null; });
   return orientationPermissionPromise;
 }
-function updatePhysicalAngle(event) {
+
+/* Match the tested legacy sensor logic: gravity orientation wins over the
+   screen angle; Euler angles remain only a fallback. */
+function updateOrientationFromScreen() {
+  if (hasSensorOrientation) return;
+  let angle = null;
+  if (window.screen?.orientation &&
+      typeof window.screen.orientation.angle === 'number') {
+    angle = normalizeAngle(window.screen.orientation.angle);
+  } else if (typeof window.orientation === 'number') {
+    angle = normalizeAngle(window.orientation);
+  } else if (window.innerWidth > window.innerHeight) {
+    angle = 90;
+  }
+  if (angle !== null && [0, 90, 180, 270].includes(angle)) {
+    currentDeviceAngle = angle;
+  }
+}
+function applyGravityOrientation(x, y, fromMotion = false) {
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+  const absX = Math.abs(x);
+  const absY = Math.abs(y);
+  if (Math.max(absX, absY) < 5.5 ||
+      Math.min(absX, absY) > Math.max(absX, absY) * 0.72) return;
+  const nextAngle = absY > absX
+    ? (y >= 0 ? 0 : 180)
+    : (x >= 0 ? 90 : 270);
+  if (fromMotion) hasMotionOrientation = true;
+  if (nextAngle === currentDeviceAngle) return;
+  currentDeviceAngle = nextAngle;
+  hasSensorOrientation = true;
+  lastSensorOrientationAt = Date.now();
+}
+function updateOrientationFromMotion(event) {
   const gravity = event?.accelerationIncludingGravity;
-  if (gravity && Number.isFinite(gravity.x) && Number.isFinite(gravity.y)) {
-    const x = gravity.x, y = gravity.y;
-    const ax = Math.abs(x), ay = Math.abs(y);
-    if (Math.max(ax, ay) > 5.5 && Math.min(ax, ay) < Math.max(ax, ay) * .72) {
-      deviceAngle = ay > ax ? (y >= 0 ? 0 : 180) : (x >= 0 ? 90 : 270);
-      sensorAngleReady = true;
-      return;
-    }
-  }
-  if (Number.isFinite(event?.beta) && Number.isFinite(event?.gamma)) {
-    const beta = Math.sin(event.beta * Math.PI / 180);
-    const gamma = Math.sin(event.gamma * Math.PI / 180);
-    if (Math.max(Math.abs(beta), Math.abs(gamma)) > .62) {
-      deviceAngle = Math.abs(beta) > Math.abs(gamma) * 1.25
-        ? (beta >= 0 ? 0 : 180)
-        : (gamma > 0 ? 90 : 270);
-      sensorAngleReady = true;
-    }
-  }
+  if (gravity) applyGravityOrientation(gravity.x, gravity.y, true);
 }
-function currentDeviceAngle() {
-  if (sensorAngleReady) return deviceAngle;
-  const angle = window.screen?.orientation?.angle;
-  if (Number.isFinite(angle)) return normalizeAngle(angle);
-  if (typeof window.orientation === 'number') return normalizeAngle(window.orientation);
-  return window.innerWidth > window.innerHeight ? 90 : 0;
+function updateOrientationFromSensor(beta, gamma) {
+  if (hasMotionOrientation || !Number.isFinite(beta) || !Number.isFinite(gamma)) return;
+  const betaProjection = Math.sin(beta * Math.PI / 180);
+  const gammaProjection = Math.sin(gamma * Math.PI / 180);
+  const absBeta = Math.abs(betaProjection);
+  const absGamma = Math.abs(gammaProjection);
+  if (Math.max(absBeta, absGamma) < 0.62) return;
+  let nextAngle = null;
+  if (absBeta > absGamma * 1.25) {
+    nextAngle = betaProjection >= 0 ? 0 : 180;
+  } else if (absGamma > absBeta * 1.25) {
+    nextAngle = gammaProjection > 0 ? 90 : 270;
+  }
+  if (nextAngle === null || nextAngle === currentDeviceAngle) return;
+  currentDeviceAngle = nextAngle;
+  hasSensorOrientation = true;
+  lastSensorOrientationAt = Date.now();
 }
-function getCaptureOrientationAngle(sourceWidth, sourceHeight) {
-  const angle = currentDeviceAngle();
-  // Native camera sensors can return landscape pixels without EXIF orientation.
+function getPhysicalDeviceAngle() {
+  if (hasMotionOrientation || hasSensorOrientation) return currentDeviceAngle;
+  updateOrientationFromScreen();
+  return currentDeviceAngle;
+}
+function getCaptureOrientationAngle(sourceWidth = $('cameraVideo')?.videoWidth || 0,
+                                    sourceHeight = $('cameraVideo')?.videoHeight || 0) {
+  const deviceAngle = getPhysicalDeviceAngle();
   if (sourceWidth > sourceHeight) {
-    if (angle === 90) return 180;
-    if (angle === 270) return 0;
-    return angle;
+    if (deviceAngle === 90) return 180;
+    if (deviceAngle === 270) return 0;
+    return deviceAngle;
   }
-  return normalizeAngle(angle);
+  return normalizeAngle(deviceAngle);
 }
-window.addEventListener('devicemotion', updatePhysicalAngle, true);
-window.addEventListener('deviceorientation', updatePhysicalAngle, true);
-window.addEventListener('orientationchange', () => { sensorAngleReady = false; });
+function syncViewportAfterOrientationChange() {
+  updateOrientationFromScreen();
+}
+window.addEventListener('orientationchange', syncViewportAfterOrientationChange);
+if (window.screen?.orientation?.addEventListener) {
+  window.screen.orientation.addEventListener('change', syncViewportAfterOrientationChange);
+}
+if (window.DeviceMotionEvent) {
+  window.addEventListener('devicemotion', updateOrientationFromMotion, true);
+}
+if (window.DeviceOrientationEvent) {
+  window.addEventListener('deviceorientation', event => {
+    updateOrientationFromSensor(event.beta, event.gamma);
+  }, true);
+}
+updateOrientationFromScreen();
 
 function stopCamera() {
   if (stream) {
@@ -474,6 +522,22 @@ async function waitForVideo(video, timeoutMs = 4500) {
   }
   throw new Error('Камера не успела подготовить изображение');
 }
+async function waitForOrientationToSettle() {
+  const sensorTimestampBeforeWait = lastSensorOrientationAt;
+  await (orientationPermissionPromise || Promise.resolve());
+  const deadline = Date.now() + 420;
+  while (Date.now() < deadline) {
+    if (lastSensorOrientationAt > sensorTimestampBeforeWait) {
+      await wait(60);
+      return;
+    }
+    if (Date.now() - lastSensorOrientationAt < 900) {
+      await wait(80);
+      return;
+    }
+    await wait(40);
+  }
+}
 function drawSourceToCanvas(source, srcW, srcH, angle = 0) {
   const canvas = $('cameraCanvas');
   if (!srcW || !srcH) throw new Error('Frame error');
@@ -499,6 +563,26 @@ function drawSourceToCanvas(source, srcW, srcH, angle = 0) {
   }
   ctx.drawImage(source, 0, 0, srcW, srcH);
   ctx.restore();
+}
+
+/* VK WebView's native ImageCapture still is inverted in landscape even after
+   EXIF has been applied. Correct only that final landscape raster; leave
+   portrait photos and video-frame fallback untouched. */
+function correctNativeLandscapeCapture() {
+  const canvas = $('cameraCanvas');
+  if (!canvas.width || !canvas.height || canvas.width <= canvas.height) return;
+  const original = document.createElement('canvas');
+  original.width = canvas.width;
+  original.height = canvas.height;
+  const sourceContext = original.getContext('2d', { alpha: false });
+  const context = canvas.getContext('2d', { alpha: false });
+  if (!sourceContext || !context) throw new Error('Не удалось подготовить снимок');
+  sourceContext.drawImage(canvas, 0, 0);
+  context.save();
+  context.setTransform(-1, 0, 0, -1, canvas.width, canvas.height);
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(original, 0, 0);
+  context.restore();
 }
 
 /* Native still capture is consistently upside down in landscape in the VK WebView.
@@ -754,6 +838,7 @@ async function capturePhoto() {
 
     const video = $('cameraVideo');
     await waitForVideo(video);
+    await waitForOrientationToSettle();
     await prepareCameraFocus();
     const flashReady = await armTorch();
     await waitForVideo(video, 1800);
@@ -768,9 +853,9 @@ async function capturePhoto() {
         video.videoHeight,
         getCaptureOrientationAngle(video.videoWidth, video.videoHeight)
       );
+    } else {
+      correctNativeLandscapeCapture();
     }
-    // EXIF orientation or physical-device angle has already been applied
-    // inside captureStillPhotoToCanvas(). Do not rotate the raster a second time.
     cropCanvasToFourThree();
 
     const canvas = $('cameraCanvas');
