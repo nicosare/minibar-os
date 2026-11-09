@@ -216,7 +216,7 @@ function renderStandby() {
 function updateActionAvailability() {
   const room = roomByNumber(selectedNumber);
   const disabled = !room.id || captureBusy || refillBusy;
-  ['cameraActionEmpty','cameraActionRefill','cameraActionResidential','cameraCapture'].forEach(id => {
+  ['cameraActionEmpty','cameraActionResidential','cameraCapture'].forEach(id => {
     const button = $(id);
     if (button) button.disabled = disabled;
   });
@@ -986,19 +986,21 @@ async function sendPhoto() {
 }
 async function sendRoomMessage(message, action) {
   if (!selectedNumber || captureBusy) return;
+  const number = String(selectedNumber);
+  const sourceType = sourceData().type;
   captureBusy = true;
   updateActionAvailability();
   try {
     const response = await fetch('/minibar-os/vk-proxy/send-message',{
       method:'POST',
       headers:{'Content-Type':'application/json',Accept:'application/json'},
-      body:JSON.stringify({message:String(selectedNumber)+' '+message})
+      body:JSON.stringify({message:number+' '+message})
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.ok) throw new Error(data.error || 'Не удалось отправить сообщение');
-    showNotice(action + ' · номер ' + selectedNumber);
+    showNotice(action + ' · номер ' + number);
     if (action === 'Опустошение отправлено') {
-      await advanceAfterRoomCompletion(sourceData().type, String(selectedNumber));
+      await advanceAfterRoomCompletion(sourceType, number);
     }
   } catch (error) {
     showNotice(error.message || 'Не удалось отправить сообщение',true);
