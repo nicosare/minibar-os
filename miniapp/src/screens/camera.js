@@ -1064,6 +1064,7 @@ async function queuePhotoForUpload(pending, blob) {
   const item = {
     id: String(now) + '-' + requestId + '-' + Math.random().toString(36).slice(2, 9),
     roomNumber: String(pending.roomNumber), requestId,
+    comment: String(pending.comment || '').trim(),
     refillRequestId: Number.isSafeInteger(Number(pending.refillRequestId)) && Number(pending.refillRequestId) > 0
       ? Number(pending.refillRequestId) : null,
     listType: pending.listType || 'arrivals',
@@ -1120,6 +1121,7 @@ async function sendPhotoToServer(item) {
     const form = new FormData();
     form.append('photo', item.blob, 'photo.jpg');
     form.append('room', String(item.roomNumber));
+    if (item.comment) form.append('comment', String(item.comment));
     if (item.requestId) form.append('random_id', String(item.requestId));
     if (item.refillRequestId) form.append('refill_request_id', String(item.refillRequestId));
     const response = await fetch('/minibar-os/vk-proxy/send-photo', {
@@ -1280,14 +1282,18 @@ function sendPhoto() {
   const blob = photoBlob;
   const blobPromise = photoPreparationPromise;
 
+  const commentInput = $('cameraComment');
+  const comment = String(commentInput?.value || '').trim();
   pendingPhotoWrites.set(pendingId, {
     roomNumber: number,
     requestId,
     blob,
     blobPromise,
+    comment,
     refillRequestId: request?.id || null,
     listType
   });
+  if (commentInput) commentInput.value = '';
 
   // Close the preview and advance immediately. All disk/network work is detached.
   closePreview(true);
@@ -1705,28 +1711,14 @@ function attachCarouselScroll(carousel = $('cameraCarousel')) {
   if (!carousel || carousel.dataset.cameraScrollBound === '1') return;
   carousel.dataset.cameraScrollBound = '1';
   carousel.addEventListener('scroll', () => {
-    cancelAnimationFrame(carouselFrame);
-    carouselFrame = requestAnimationFrame(() => {
-      const rect = carousel.getBoundingClientRect();
-      const activationLine = rect.top + rect.height / 2;
-      let active = null;
-      let closestDistance = Infinity;
-      for (const item of carousel.querySelectorAll('[data-camera-room]')) {
-        const itemRect = item.getBoundingClientRect();
-        const distance = Math.abs((itemRect.top + itemRect.bottom) / 2 - activationLine);
-        if (distance < closestDistance) {
-          closestDistance = distance;
-          active = item;
-        }
-      }
-      // Keep the selected room stable while the carousel is being nudged.
-      // Selection follows the item nearest the viewport center, not the first
-      // partially visible item at the top edge.
-      if (active && closestDistance <= Math.max(18, rect.height * 0.16) &&
-          active.dataset.cameraRoom !== selectedNumber) {
-        setSelectedRoom(active.dataset.cameraRoom, { haptic: true });
-      }
-    });
+    // Scrolling only changes the viewport. Selection changes on tap or
+    // after a completed photo, never because another item crossed an edge.
+    if (carouselTimer) clearTimeout(carouselTimer);
+    carouselTimer = setTimeout(() => {
+      carouselTimer = null;
+      if (!mounted || !selectedNumber) return;
+      centerRoom(selectedNumber, 'smooth');
+    }, 3000);
   }, { passive: true });
 }
 export function renderSharedRoomActionModals() {
@@ -1790,7 +1782,7 @@ export function renderCamera(state) {
         '</div>' +
         '<div class="camera-standby" id="cameraStandby"></div>' +
         '<div class="camera-capture-zone"><button type="button" class="camera-capture-button" data-camera-action="capture" id="cameraCapture" aria-label="Сделать фото"><span></span></button></div>' +
-        '<input type="text" class="camera-comment-input" id="cameraComment" maxlength="240" placeholder="Комментарий (необязательно)" aria-label="Комментарий к сообщению" autocomplete="off">' +
+        '<input type="text" class="camera-comment-input" id="cameraComment" maxlength="240" placeholder="Комментарий" aria-label="Комментарий к сообщению" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">' +
         '<div class="camera-action-row"><button type="button" class="camera-room-action" data-camera-action="empty" id="cameraActionEmpty">Опустошён</button><button type="button" class="camera-room-action" data-camera-action="residential" id="cameraActionResidential">Жилой</button></div>' +
       '</div>' +
     '</div>' +
