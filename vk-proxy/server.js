@@ -359,6 +359,8 @@ app.post('/send-photo', upload.single('photo'), async (req, res) => {
 
     const peerId = resolvePeerId(req.body?.peer_id);
     const roomNumber = String(req.body?.room || 'Неизвестно');
+    const comment = String(req.body?.comment || '').trim().slice(0, 240);
+    const photoMessage = roomNumber + (comment ? ' (' + comment + ')' : '');
 
     if (!VK_ACCESS_TOKEN) {
       return res.status(500).json({
@@ -383,12 +385,12 @@ app.post('/send-photo', upload.single('photo'), async (req, res) => {
 
     const messageData = await vkCall('messages.send', {
       peer_id: peerId,
-      message: roomNumber,
+      message: photoMessage,
       attachment: savedAttachment.attachment,
       random_id: randomId
     });
 
-    const siteSync = await syncSentMessage(peerId, messageData.response, roomNumber);
+    const siteSync = await syncSentMessage(peerId, messageData.response, photoMessage);
     const requestedRefillId = Number(req.body?.refill_request_id);
     const hasRefillRequest = Number.isSafeInteger(requestedRefillId) && requestedRefillId > 0;
     const refillSync = hasRefillRequest
