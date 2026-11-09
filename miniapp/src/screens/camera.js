@@ -18,6 +18,10 @@ let activeRefills = [];
 let refillCounts = {};
 let refillRequestId = null;
 let refillBusy = false;
+let deadlineBusy = false;
+let deadlineRoomNumber = '';
+let deadlineProducts = [];
+let deadlineSelections = {};
 let photoBlob = null;
 let photoUrl = '';
 let photoRandomId = null;
@@ -196,15 +200,15 @@ function renderStandby() {
       '</header>' +
       '<div class="camera-info-chips">' + renderStatusChips(room) + '</div>' +
       '<div class="camera-info-grid">' +
-        '<section class="camera-info-tile ' + deadlineClass + '">' +
-          '<span class="camera-info-tile-label">' + icon('calendar-clock',13) + ' Сроки</span>' +
+        '<button type="button" class="camera-info-tile camera-info-tile-button ' + deadlineClass + '" data-camera-open="deadlines" aria-label="Открыть сроки номера ' + esc(room.number) + '">' +
+          '<span class="camera-info-tile-label">' + icon('calendar-clock',13) + ' Сроки ' + icon('chevron-right',12) + '</span>' +
           '<strong>' + esc(deadline) + '</strong>' +
           (room.productStatuses?.length ? '<small>' + room.productStatuses.length + ' отмет.</small>' : '') +
-        '</section>' +
-        '<section class="camera-info-tile is-refill">' +
-          '<span class="camera-info-tile-label">' + icon('package',13) + ' Пополнение</span>' +
+        '</button>' +
+        '<button type="button" class="camera-info-tile camera-info-tile-button is-refill" data-camera-open="refill" aria-label="Открыть пополнение номера ' + esc(room.number) + '">' +
+          '<span class="camera-info-tile-label">' + icon('package',13) + ' Пополнение ' + icon('chevron-right',12) + '</span>' +
           '<strong>' + summary + '</strong>' +
-        '</section>' +
+        '</button>' +
       '</div>' +
     '</section>';
   renderIcons();
@@ -1058,6 +1062,171 @@ function renderRefillProducts() {
     }).join('') + '</div></section>'
   ).join('');
 }
+function deadlineProductsForRoom(room) {
+  const source = Array.isArray(room?.template?.items) ? room.template.items
+    : Array.isArray(room?.templateItems) ? room.templateItems : [];
+  return source.map(item => {
+    const product = item.product || item;
+    return {
+      id: Number(item.productId || product.id),
+      name: product.name || item.name || 'Продукт',
+      category: product.category || item.category || 'Напитки',
+      volume: product.volume ?? item.volume ?? null,
+      unit: product.unit || item.unit || 'шт',
+      emoji: product.emoji || item.emoji || null,
+      bgColor: product.bgColor || item.bgColor || 'slate',
+      hasExpiry: product.hasExpiry !== false,
+      maxQty: Math.max(1, Number(item.qty || item.maxQty || 1))
+    };
+  }).filter(item => item.id > 0 && item.hasExpiry)
+    .sort((a,b) =>
+      (categoryOrder.indexOf(a.category) < 0 ? 99 : categoryOrder.indexOf(a.category)) -
+      (categoryOrder.indexOf(b.category) < 0 ? 99 : categoryOrder.indexOf(b.category)) ||
+      a.name.localeCompare(b.name,'ru'));
+}
+function renderDeadlineProducts() {
+  const host = $('deadlineProducts');
+  if (!host) return;
+  if (!deadlineProducts.length) {
+    host.innerHTML = '<div class="camera-deadline-empty">В шаблоне номера нет продуктов со сроком годности.</div>';
+    return;
+  }
+  const groups = new Map();
+  deadlineProducts.forEach(item => {
+    if (!groups.has(item.category)) groups.set(item.category, []);
+    groups.get(item.category).push(item);
+  });
+  const ordered = [
+    ...categoryOrder.filter(category => groups.has(category)),
+    ...[...groups.keys()].filter(category => !categoryOrder.includes(category)).sort((a,b)=>a.localeCompare(b,'ru'))
+  ];
+  host.innerHTML = ordered.map(category =>
+    '<section class="camera-deadline-category"><h4>' + esc(category) + '</h4><div class="camera-deadline-grid">' +
+    groups.get(category).map(item => {
+      const qty = Number(deadlineSelections[item.id]) || 0;
+      const emoji = item.emoji || String(item.name).charAt(0).toUpperCase();
+      const color = productColors[item.bgColor] || productColors.slate;
+      return '<button type="button" class="camera-deadline-product' + (qty ? ' is-selected' : '') +
+        '" data-deadline-product="' + item.id + '" data-max-qty="' + item.maxQty + '" aria-pressed="' + String(qty > 0) + '">' +
+        (qty ? '<span class="camera-deadline-count">' + qty + '</span>' : '') +
+        '<span class="camera-deadline-emoji" style="background:' + color + '">' + esc(emoji) + '</span>' +
+        '<span class="camera-deadline-copy"><strong>' + esc(item.name) + '</strong><small>' +
+        esc((item.volume == null ? '—' : item.volume) + ' ' + item.unit + ' · до ' + item.maxQty + ' шт.') +
+        '</small></span></button>';
+    }).join('') + '</div></section>'
+  ).join('');
+}
+async function openDeadlineModal() {
+  const room = roomByNumber(selectedNumber);
+  if (!room.id || deadlineBusy) return;
+  deadlineRoomNumber = String(room.number);
+  deadlineProducts = deadlineProductsForRoom(room);
+  deadlineSelections = {};
+  $('deadlineModalRoom').textContent = deadlineRoomNumber;
+  $('deadlineModalInfo').textContent = 'Загрузка текущих отметок…';
+  $('deadlineFeedback').textContent = '';
+  $('deadlineModal').classList.remove('hidden');
+  $('deadlineModal').setAttribute('aria-hidden','false');
+  renderDeadlineProducts();
+  try {
+    const statuses = await api.get('rooms/' + Number(room.id) + '/product-statuses');
+    (Array.isArray(statuses) ? statuses : []).forEach(status => {
+      if (Number(status.qtyToReplace) > 0) {
+        deadlineSelections[Number(status.productId)] = Number(status.qtyToReplace);
+      }
+    });
+    const freshRoom = roomByNumber(deadlineRoomNumber);
+    $('deadlineModalInfo').textContent = [
+      freshRoom.floor ? 'Этаж ' + freshRoom.floor : '',
+      freshRoom.category === 'lux' ? 'Люкс' : freshRoom.category === 'standard' ? 'Стандарт' : '',
+      deadlineStatusLabel(freshRoom.expiryStatus)
+    ].filter(Boolean).join(' · ');
+    renderDeadlineProducts();
+  } catch (error) {
+    $('deadlineModalInfo').textContent = 'Не удалось загрузить текущие отметки';
+    $('deadlineFeedback').textContent = error.message || 'Ошибка загрузки сроков';
+  }
+}
+function deadlineStatusLabel(status) {
+  return ({
+    neutral: 'Не проверен',
+    valid: 'В порядке',
+    empty: 'Пустой',
+    needs_replacement: 'Требует замены'
+  })[status] || 'Не проверен';
+}
+function closeDeadlineModal(force = false) {
+  if (deadlineBusy && !force) return;
+  $('deadlineModal')?.classList.add('hidden');
+  $('deadlineModal')?.setAttribute('aria-hidden','true');
+}
+function toggleDeadlineProduct(button) {
+  if (deadlineBusy) return;
+  const id = Number(button.dataset.deadlineProduct);
+  const product = deadlineProducts.find(item => item.id === id);
+  if (!product) return;
+  const current = Number(deadlineSelections[id]) || 0;
+  const next = current >= product.maxQty ? 0 : current + 1;
+  if (next) deadlineSelections[id] = next;
+  else delete deadlineSelections[id];
+  renderDeadlineProducts();
+}
+async function refreshSelectedRoom(type) {
+  const [roomResult] = await Promise.allSettled([api.get('rooms')]);
+  if (roomResult.status === 'fulfilled') {
+    rooms = Array.isArray(roomResult.value) ? roomResult.value : roomResult.value?.rooms || [];
+    rooms.sort((a,b) => Number(a.floor || 0) - Number(b.floor || 0) || Number(a.number) - Number(b.number));
+  }
+  await loadList(type);
+  renderStandby();
+  renderCarousel();
+}
+async function saveDeadlineSelections() {
+  const room = roomByNumber(deadlineRoomNumber);
+  if (!room.id || deadlineBusy) return;
+  const items = Object.entries(deadlineSelections)
+    .map(([productId, qty]) => ({
+      productId: Number(productId),
+      qtyToReplace: Number(qty),
+      expiryStatus: 'needs_replacement'
+    }))
+    .filter(item => item.productId > 0 && item.qtyToReplace > 0);
+  deadlineBusy = true;
+  const button = $('deadlineSave');
+  if (button) { button.disabled = true; button.textContent = 'Сохраняем…'; }
+  try {
+    await api.put('rooms/' + Number(room.id) + '/product-statuses', {
+      items,
+      roomStatus: items.length ? 'needs_replacement' : 'neutral'
+    });
+    await refreshSelectedRoom(sourceData().type);
+    closeDeadlineModal(true);
+    showNotice('Сроки номера ' + room.number + ' сохранены');
+  } catch (error) {
+    $('deadlineFeedback').textContent = error.message || 'Не удалось сохранить сроки';
+  } finally {
+    deadlineBusy = false;
+    if (button) { button.disabled = false; button.textContent = 'Сохранить'; }
+  }
+}
+async function setDeadlineRoomStatus(status) {
+  const room = roomByNumber(deadlineRoomNumber);
+  if (!room.id || deadlineBusy) return;
+  deadlineBusy = true;
+  $('deadlineFeedback').textContent = 'Сохраняем…';
+  try {
+    await api.delete('rooms/' + Number(room.id) + '/product-statuses', { body: { roomStatus: status } });
+    await refreshSelectedRoom(sourceData().type);
+    closeDeadlineModal(true);
+    showNotice(status === 'empty' ? 'Номер отмечен как пустой'
+      : status === 'valid' ? 'Номер отмечен как исправный'
+      : 'Статус номера сброшен');
+  } catch (error) {
+    $('deadlineFeedback').textContent = error.message || 'Не удалось обновить статус номера';
+  } finally {
+    deadlineBusy = false;
+  }
+}
 function openRefillModal() {
   const room = roomByNumber(selectedNumber);
   if (!room.id || refillBusy) return;
@@ -1147,6 +1316,17 @@ function handleClick(event) {
     setSelectedRoom(next,{center:true,behavior:'smooth',haptic:true});
     return;
   }
+  const detailTile = target.closest('[data-camera-open]');
+  if (detailTile) {
+    if (detailTile.dataset.cameraOpen === 'refill') openRefillModal();
+    else if (detailTile.dataset.cameraOpen === 'deadlines') void openDeadlineModal();
+    return;
+  }
+  const deadlineProduct = target.closest('[data-deadline-product]');
+  if (deadlineProduct) {
+    toggleDeadlineProduct(deadlineProduct);
+    return;
+  }
   const product = target.closest('[data-refill-product]');
   if (product) {
     if (refillBusy) return;
@@ -1160,6 +1340,7 @@ function handleClick(event) {
   const action = target.closest('[data-camera-action]')?.dataset.cameraAction;
   if (!action) {
     if (target.id === 'refillModal') closeRefillModal();
+    if (target.id === 'deadlineModal') closeDeadlineModal();
     if (target.id === 'cameraPreviewModal') closePreview();
     return;
   }
@@ -1169,6 +1350,11 @@ function handleClick(event) {
   else if (action === 'send-photo') void sendPhoto();
   else if (action === 'empty') void sendRoomMessage('опустошён','Опустошение отправлено');
   else if (action === 'residential') void sendRoomMessage('проверен, жилой','Отметка «Жилой» отправлена');
+  else if (action === 'close-deadlines') closeDeadlineModal();
+  else if (action === 'save-deadlines') void saveDeadlineSelections();
+  else if (action === 'deadline-empty') void setDeadlineRoomStatus('empty');
+  else if (action === 'deadline-valid') void setDeadlineRoomStatus('valid');
+  else if (action === 'deadline-reset') void setDeadlineRoomStatus('neutral');
   else if (action === 'open-refill') openRefillModal();
   else if (action === 'close-refill') closeRefillModal();
   else if (action === 'save-refill') void saveRefill();
@@ -1222,13 +1408,14 @@ export function renderCamera(state) {
               '<div class="camera-loader hidden" id="cameraLoader"><span class="camera-loader-spinner"></span><strong id="cameraLoaderTitle">Запуск камеры…</strong><small id="cameraLoaderSubtitle"></small><button type="button" class="camera-retry hidden" data-camera-action="retry-camera" id="cameraLoaderRetry">Повторить</button></div>' +
         '</div>' +
         '<div class="camera-standby" id="cameraStandby"></div>' +
-        '<div class="camera-action-row"><button type="button" class="camera-room-action" data-camera-action="empty" id="cameraActionEmpty">Опустошён</button><button type="button" class="camera-room-action is-primary" data-camera-action="open-refill" id="cameraActionRefill">Пополнить</button><button type="button" class="camera-room-action" data-camera-action="residential" id="cameraActionResidential">Жилой</button></div>' +
+        '<div class="camera-action-row"><button type="button" class="camera-room-action" data-camera-action="empty" id="cameraActionEmpty">Опустошён</button><button type="button" class="camera-room-action" data-camera-action="residential" id="cameraActionResidential">Жилой</button></div>' +
         '<div class="camera-capture-zone"><button type="button" class="camera-capture-button" data-camera-action="capture" id="cameraCapture" aria-label="Сделать фото"><span></span></button></div>' +
       '</div>' +
     '</div>' +
     '<div class="camera-feedback" id="cameraFeedback" role="status"></div>' +
     '<div class="camera-modal-overlay hidden" id="cameraPreviewModal" role="dialog" aria-modal="true" aria-label="Предпросмотр фотографии" aria-hidden="true"><div class="camera-preview-card"><div class="camera-preview-room" id="cameraPreviewRoom">Номер</div><canvas id="cameraPreviewCanvas" class="camera-preview-canvas"></canvas><div class="camera-preview-actions"><button type="button" class="camera-preview-secondary" data-camera-action="retake">Переснять</button><button type="button" class="camera-preview-primary" data-camera-action="send-photo" id="cameraSendPhoto">Отправить</button></div></div></div>' +
-    '<div class="camera-modal-overlay hidden" id="refillModal" role="dialog" aria-modal="true" aria-label="Пополнить номер" aria-hidden="true"><div class="camera-refill-modal"><header class="camera-modal-header"><strong>Пополнить · номер <span id="refillModalRoom"></span></strong><button type="button" data-camera-action="close-refill" aria-label="Закрыть">×</button></header><div class="camera-refill-products" id="refillProducts"></div><div class="camera-refill-feedback" id="refillFeedback"></div><footer class="camera-refill-footer"><button type="button" class="camera-refill-all" data-camera-action="refill-all">Всё в списке продуктов</button><div class="camera-refill-footer-row"><button type="button" data-camera-action="clear-refill">Очистить</button><button type="button" class="is-save" data-camera-action="save-refill" id="refillSave">Сохранить пополнение</button></div></footer></div></div>' +
+    '<div class="camera-modal-overlay hidden" id="refillModal" role="dialog" aria-modal="true" aria-label="Пополнить номер" aria-hidden="true"><div class="camera-refill-modal"><header class="camera-modal-header"><strong>Пополнение · номер <span id="refillModalRoom"></span></strong><button type="button" data-camera-action="close-refill" aria-label="Закрыть">×</button></header><div class="camera-refill-products" id="refillProducts"></div><div class="camera-refill-feedback" id="refillFeedback"></div><footer class="camera-refill-footer"><button type="button" class="camera-refill-all" data-camera-action="refill-all">Всё в списке продуктов</button><div class="camera-refill-footer-row"><button type="button" data-camera-action="clear-refill">Очистить</button><button type="button" class="is-save" data-camera-action="save-refill" id="refillSave">Сохранить пополнение</button></div></footer></div></div>' +
+    '<div class="camera-modal-overlay hidden" id="deadlineModal" role="dialog" aria-modal="true" aria-label="Сроки номера" aria-hidden="true"><div class="camera-refill-modal camera-deadline-modal"><header class="camera-modal-header"><div><strong>Сроки · номер <span id="deadlineModalRoom"></span></strong><small id="deadlineModalInfo"></small></div><button type="button" data-camera-action="close-deadlines" aria-label="Закрыть">×</button></header><div class="camera-refill-products camera-deadline-products" id="deadlineProducts"></div><div class="camera-refill-feedback" id="deadlineFeedback"></div><footer class="camera-refill-footer camera-deadline-footer"><div class="camera-deadline-status-actions"><button type="button" data-camera-action="deadline-empty">Пустой</button><button type="button" data-camera-action="deadline-valid">В порядке</button><button type="button" data-camera-action="deadline-reset">Сбросить</button></div><button type="button" class="is-save" data-camera-action="save-deadlines" id="deadlineSave">Сохранить</button></footer></div></div>' +
   '</div>';
 }
 export function cameraDidRender() {
