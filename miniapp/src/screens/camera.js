@@ -565,26 +565,6 @@ function drawSourceToCanvas(source, srcW, srcH, angle = 0) {
   ctx.restore();
 }
 
-/* VK WebView's native ImageCapture still is inverted in landscape even after
-   EXIF has been applied. Correct only that final landscape raster; leave
-   portrait photos and video-frame fallback untouched. */
-function correctNativeLandscapeCapture() {
-  const canvas = $('cameraCanvas');
-  if (!canvas.width || !canvas.height || canvas.width <= canvas.height) return;
-  const original = document.createElement('canvas');
-  original.width = canvas.width;
-  original.height = canvas.height;
-  const sourceContext = original.getContext('2d', { alpha: false });
-  const context = canvas.getContext('2d', { alpha: false });
-  if (!sourceContext || !context) throw new Error('Не удалось подготовить снимок');
-  sourceContext.drawImage(canvas, 0, 0);
-  context.save();
-  context.setTransform(-1, 0, 0, -1, canvas.width, canvas.height);
-  context.clearRect(0, 0, canvas.width, canvas.height);
-  context.drawImage(original, 0, 0);
-  context.restore();
-}
-
 /* Native still capture is consistently upside down in landscape in the VK WebView.
    Correct only the final landscape raster; portrait captures remain untouched. */
 function correctNativeLandscapeCapture() {
