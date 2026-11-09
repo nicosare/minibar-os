@@ -1,0 +1,747 @@
+import { api } from '../core/api.js';
+
+const CATEGORIES = ['Дверца', 'Напитки', 'Алкоголь', 'Соки'];
+const STATUS_CYCLE = ['pending', 'replenished', 'in_place', 'out', 'not_replenished'];
+const STATUS_LABEL = {
+  pending: 'Не отмечено',
+  replenished: 'Пополнено',
+  in_place: 'На месте',
+  out: 'Выложили',
+  not_replenished: 'Не пополнено'
+};
+const STATUS_CLASS = {
+  pending: 'is-pending',
+  replenished: 'is-replenished',
+  in_place: 'is-in-place',
+  out: 'is-out',
+  not_replenished: 'is-not-replenished'
+};
+const MODES = [
+  { key: 'dnd', label: 'DND' },
+  { key: 'all_in_place', label: 'Всё на месте' },
+  { key: 'all_out', label: 'Всё выложили' },
+  { key: 'empty', label: 'Опустошён' }
+];
+const MODE_LABEL = {
+  dnd: 'DND',
+  all_in_place: 'Всё на месте',
+  all_out: 'Всё выложили',
+  empty: 'Опустошён',
+  not_checked: 'Не проверен'
+};
+
+let rooms = [];
+let drafts = [];
+let completed = [];
+let loaded = false;
+let loading = false;
+let loadError = '';
+let notice = '';
+let noticeIsError = false;
+let mounted = false;
+let lastLoadedAt = 0;
+let rolloverTimer = null;
+let focusBound = false;
+let localEdits = new Set();
+let factory = {
+  roomId: null,
+  input: '',
+  counts: {},
+  editId: null,
+  mode: null,
+  notes: ''
+};
+let roomHistory = {
+  roomId: null,
+  loading: false,
+  items: [],
+  error: ''
+};
+
+const escapeHtml = value => String(value == null ? '' : value).replace(/[&<>"']/g, character => ({
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;'
+}[character]));
+
+function roomById(id) {
+  return rooms.find(room => Number(room.id) === Number(id)) || null;
+}
+
+function localDayKey(value) {
+  const date = value instanceof Date ? value : new Date(value || '');
+  if (!Number.isFinite(date.getTime())) return '';
+  return String(date.getFullYear()).padStart(4, '0') + '-' +
+    String(date.getMonth() + 1).padStart(2, '0') + '-' +
+    String(date.getDate()).padStart(2, '0');
+}
+
+function isToday(value) {
+  const key = localDayKey(value);
+  return Boolean(key) && key === localDayKey(new Date());
+}
+
+function formatTime(value) {
+  const date = new Date(value || '');
+  return Number.isFinite(date.getTime())
+    ? date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+    : '';
+}
+
+function formatDateTime(value) {
+  const date = new Date(value || '');
+  if (!Number.isFinite(date.getTime())) return 'Дата неизвестна';
+  return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) +
+    ' · ' + date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+}
+
+function normalizeCheck(check) {
+  const room = check.room || roomById(check.roomId);
+  return {
+    id: Number(check.id),
+    roomId: Number(check.roomId),
+    number: room ? String(room.number) : '—',
+    date: check.checkDate || check.createdAt,
+    mode: check.gihRoomStatus || null,
+    notes: check.notes || '',
+    noteDraft: check.notes || '',
+    noteOpen: false,
+    gihItems: (check.gihItems || []).map(item => {
+      const hasSnapshot = item.productName !== null && item.productName !== undefined;
+      const product = item.product || {};
+      return {
+        id: Number(item.id),
+        productId: Number(item.productId),
+        name: hasSnapshot ? item.productName : (product.name || 'Продукт'),
+        emoji: hasSnapshot ? item.productEmoji : (product.emoji || null),
+        bgColor: hasSnapshot ? item.productBgColor : (product.bgColor || 'slate'),
+        itemStatus: item.itemStatus || 'pending'
+      };
+    })
+  };
+}
+
+function productsDirty(draft) {
+  return (draft.gihItems || []).some(item => item.itemStatus !== 'pending');
+}
+
+function canSave(draft) {
+  return Boolean(draft.mode) ||
+    ((draft.gihItems || []).length > 0 && draft.gihItems.every(item => item.itemStatus !== 'pending'));
+}
+
+function assignedModeStatus(mode) {
+  if (mode === 'all_in_place') return 'in_place';
+  if (mode === 'all_out') return 'out';
+  return null;
+}
+
+function setNotice(message, isError = false) {
+  notice = message || '';
+  noticeIsError = Boolean(isError);
+  renderWorkspace();
+}
+
+function renderNotice() {
+  if (!notice) return '';
+  return '<div class="gih-notice' + (noticeIsError ? ' is-error' : '') + '">' + escapeHtml(notice) + '</div>';
+}
+
+function normalizeCategory(category) {
+  return category || 'Напитки';
+}
+
+function productEmoji(product) {
+  return product.emoji || (product.name ? String(product.name).slice(0, 1) : '•');
+}
+
+function renderProductRow(item) {
+  const product = item.product || {};
+  const productId = Number(item.productId || product.id);
+  const count = Number(factory.counts[productId] || 0);
+  const max = Math.max(1, Number.parseInt(item.qty, 10) || 1);
+  const bg = String(product.bgColor || 'slate').toLowerCase();
+  return '<div class="gih-product-row">' +
+    '<span class="gih-product-emoji" data-color="' + escapeHtml(bg) + '">' + escapeHtml(productEmoji(product)) + '</span>' +
+    '<span class="gih-product-copy"><strong>' + escapeHtml(product.name || 'Продукт') + '</strong>' +
+      '<small>В шаблоне: ' + max + '</small></span>' +
+    '<span class="gih-stepper">' +
+      '<button type="button" data-gih-action="decrement" data-product-id="' + productId + '"' +
+        (count <= 0 ? ' disabled' : '') + ' aria-label="Уменьшить количество">−</button>' +
+      '<b>' + count + '</b>' +
+      '<button type="button" data-gih-action="increment" data-product-id="' + productId + '" data-max="' + max + '"' +
+        (count >= max ? ' disabled' : '') + ' aria-label="Увеличить количество">+</button>' +
+    '</span></div>';
+}
+
+function renderFactoryProducts(room) {
+  if (!room) {
+    const value = String(factory.input || '').trim();
+    if (!value) return '<div class="gih-factory-empty">Введи номер комнаты, чтобы загрузить её шаблон наполнения.</div>';
+    return '<div class="gih-factory-empty is-error">Номер комнаты не найден.</div>';
+  }
+
+  const templateItems = room.template && Array.isArray(room.template.items) ? room.template.items : [];
+  if (!templateItems.length) {
+    return '<div class="gih-factory-empty">Для номера ' + escapeHtml(room.number) +
+      ' не настроен шаблон наполнения.</div>';
+  }
+
+  const grouped = new Map();
+  templateItems.forEach(item => {
+    const category = normalizeCategory(item.product && item.product.category);
+    if (!grouped.has(category)) grouped.set(category, []);
+    grouped.get(category).push(item);
+  });
+  const categories = [
+    ...CATEGORIES.filter(category => grouped.has(category)),
+    ...[...grouped.keys()].filter(category => !CATEGORIES.includes(category)).sort()
+  ];
+  return categories.map(category =>
+    '<section class="gih-product-category"><h4>' + escapeHtml(category) + '</h4>' +
+    grouped.get(category).map(renderProductRow).join('') + '</section>'
+  ).join('');
+}
+
+function historySummary(item) {
+  if (item.type === 'gih') {
+    return 'GIH · ' + (MODE_LABEL[item.gihRoomStatus] || 'Проверка');
+  }
+  if (item.type === 'emptied' || item.type === 'vk_emptied') return 'Опустошение';
+  if (item.type === 'deadline') return 'Сроки';
+  return 'Проверка';
+}
+
+function renderRoomHistory() {
+  if (!factory.roomId) return '';
+  if (roomHistory.roomId !== Number(factory.roomId)) return '';
+  if (roomHistory.loading) return '<div class="gih-room-history">Загружаем историю номера…</div>';
+  if (roomHistory.error) return '<div class="gih-room-history">История номера недоступна.</div>';
+  if (!roomHistory.items.length) return '<div class="gih-room-history">Истории по этому номеру пока нет.</div>';
+  return '<div class="gih-room-history"><div class="gih-room-history-title">Последние операции</div>' +
+    roomHistory.items.slice(0, 3).map(item =>
+      '<div class="gih-room-history-item"><span>' + escapeHtml(formatDateTime(item.checkDate || item.createdAt)) +
+      '</span><strong>' + escapeHtml(historySummary(item)) + '</strong></div>'
+    ).join('') + '</div>';
+}
+
+function renderFactory() {
+  const room = factory.roomId ? roomById(factory.roomId) : null;
+  const total = Object.values(factory.counts).reduce((sum, count) => sum + (Number(count) || 0), 0);
+  const editing = Boolean(factory.editId);
+  return '<section class="gih-panel gih-factory">' +
+    '<div class="gih-panel-heading"><div><span class="gih-kicker">' +
+      (editing ? 'РЕДАКТИРОВАНИЕ' : 'НОВАЯ ПРОВЕРКА') +
+      '</span><h3>' + (editing ? 'Изменить черновик' : 'Собрать мини-бар') + '</h3></div>' +
+      (editing ? '<button type="button" class="gih-text-button" data-gih-action="cancel-edit">Отмена</button>' : '') +
+    '</div>' +
+    '<label class="gih-room-input"><span>Номер комнаты</span><input type="text" inputmode="numeric" autocomplete="off" maxlength="4" ' +
+      'data-gih-input="room" value="' + escapeHtml(factory.input) + '" placeholder="Например, 204"></label>' +
+    (room ? '<div class="gih-selected-room"><span class="gih-room-dot"></span> Номер ' +
+      escapeHtml(room.number) + (room.floor ? ' · этаж ' + escapeHtml(room.floor) : '') + '</div>' : '') +
+    '<div class="gih-factory-products">' + renderFactoryProducts(room) + '</div>' +
+    renderRoomHistory() +
+    (editing && factory.mode ? '<div class="gih-edit-mode-note">Режим проверки: <strong>' +
+      escapeHtml(MODE_LABEL[factory.mode] || factory.mode) + '</strong></div>' : '') +
+    (editing && factory.notes ? '<div class="gih-edit-mode-note">Комментарий сохранится вместе с черновиком.</div>' : '') +
+    '<div class="gih-factory-footer"><span>Выбрано: <strong>' + total + '</strong></span>' +
+      '<button type="button" data-gih-action="create" ' + (!room || total <= 0 ? 'disabled' : '') + '>' +
+        (editing ? 'Сохранить изменения' : 'Создать черновик') + '</button></div>' +
+  '</section>';
+}
+
+function renderStatusPill(item, disabled, mode) {
+  const status = assignedModeStatus(mode) || item.itemStatus || 'pending';
+  return '<button type="button" class="gih-status-pill ' + (STATUS_CLASS[status] || STATUS_CLASS.pending) +
+    '" data-gih-action="cycle-status" data-item-id="' + item.id + '"' +
+    (disabled ? ' disabled' : '') + ' title="' + escapeHtml(STATUS_LABEL[status]) + '">' +
+    '<span class="gih-status-emoji">' + escapeHtml(item.emoji || item.name.slice(0, 1)) + '</span>' +
+    '<span class="gih-status-name">' + escapeHtml(item.name) + '</span>' +
+    '<span class="gih-status-label">' + escapeHtml(STATUS_LABEL[status]) + '</span></button>';
+}
+
+function renderModes(draft) {
+  const dirty = productsDirty(draft);
+  return '<div class="gih-modes">' + MODES.map(mode =>
+    '<button type="button" class="gih-mode-button' + (draft.mode === mode.key ? ' is-active mode-' + mode.key : '') + '"' +
+      ' data-gih-action="set-mode" data-mode="' + mode.key + '"' +
+      (dirty ? ' disabled' : '') + '>' + escapeHtml(mode.label) + '</button>'
+  ).join('') + '</div>';
+}
+
+function renderNoteEditor(draft) {
+  if (!draft.noteOpen) {
+    return '<button type="button" class="gih-note-toggle" data-gih-action="toggle-note" data-id="' + draft.id + '">' +
+      (draft.notes ? escapeHtml(draft.notes) : 'Добавить комментарий') + '</button>';
+  }
+  return '<div class="gih-note-editor"><textarea rows="2" maxlength="500" data-gih-note="' + draft.id + '" ' +
+    'placeholder="Комментарий к номеру">' + escapeHtml(draft.noteDraft || draft.notes || '') + '</textarea>' +
+    '<div><button type="button" data-gih-action="cancel-note" data-id="' + draft.id + '">Отмена</button>' +
+    '<button type="button" class="is-primary" data-gih-action="save-note" data-id="' + draft.id + '">Сохранить комментарий</button></div></div>';
+}
+
+function renderDraft(draft) {
+  const statuses = (draft.gihItems || []).length
+    ? draft.gihItems.map(item => renderStatusPill(item, Boolean(draft.mode), draft.mode)).join('')
+    : '<div class="gih-empty-products">В записи нет продуктов.</div>';
+  return '<article class="gih-record-card" data-gih-id="' + draft.id + '">' +
+    '<div class="gih-record-heading"><div><strong class="gih-record-room">' + escapeHtml(draft.number) + '</strong>' +
+      '<span class="gih-record-time">' + escapeHtml(formatTime(draft.date)) + '</span></div>' +
+      '<div class="gih-record-actions">' +
+        '<button type="button" data-gih-action="edit" data-id="' + draft.id + '" aria-label="Редактировать черновик">Изменить</button>' +
+        '<button type="button" data-gih-action="delete" data-id="' + draft.id + '" aria-label="Удалить черновик">Удалить</button>' +
+      '</div></div>' +
+    '<div class="gih-status-list">' + statuses + '</div>' +
+    renderModes(draft) +
+    renderNoteEditor(draft) +
+    '<div class="gih-status-legend"><span><i class="is-replenished"></i>Пополнено</span>' +
+      '<span><i class="is-in-place"></i>На месте</span><span><i class="is-out"></i>Выложили</span>' +
+      '<span><i class="is-not-replenished"></i>Не пополнено</span></div>' +
+    (canSave(draft) ? '<div class="gih-record-footer"><button type="button" data-gih-action="save" data-id="' +
+      draft.id + '">Сохранить проверку</button></div>' : '') +
+  '</article>';
+}
+
+function formatDoneItems(items, mode) {
+  const groups = {};
+  (items || []).forEach(item => {
+    const status = assignedModeStatus(mode) || item.itemStatus || 'pending';
+    groups[status] = groups[status] || {};
+    groups[status][item.name] = (groups[status][item.name] || 0) + 1;
+  });
+  const order = ['replenished', 'in_place', 'out', 'not_replenished', 'pending'];
+  return order.filter(status => groups[status]).map(status => {
+    const products = Object.entries(groups[status]).map(([name, qty]) =>
+      escapeHtml(name) + (qty > 1 ? ' ×' + qty : '')
+    ).join(', ');
+    return '<div class="gih-done-line ' + (STATUS_CLASS[status] || '') + '">' +
+      '<strong>' + escapeHtml(STATUS_LABEL[status] || status) + '</strong><span>' + products + '</span></div>';
+  }).join('');
+}
+
+function renderCompleted(record) {
+  const assigned = assignedModeStatus(record.mode);
+  const modeLabel = record.mode && !assigned ? MODE_LABEL[record.mode] : '';
+  return '<article class="gih-record-card gih-completed-card">' +
+    '<div class="gih-record-heading"><div><strong class="gih-record-room">' + escapeHtml(record.number) + '</strong>' +
+      '<span class="gih-record-time">' + escapeHtml(formatTime(record.date)) + '</span></div>' +
+      '<button type="button" class="gih-delete-completed" data-gih-action="delete" data-id="' + record.id + '">Удалить</button></div>' +
+    (modeLabel ? '<div class="gih-completed-mode">' + escapeHtml(modeLabel) + '</div>' : '') +
+    '<div class="gih-done-products">' + (formatDoneItems(record.gihItems, record.mode) || '<span>Нет данных о позициях</span>') + '</div>' +
+    (record.notes ? '<div class="gih-done-note">' + escapeHtml(record.notes) + '</div>' : '') +
+  '</article>';
+}
+
+function workspaceContent() {
+  if (loading && !loaded) {
+    return '<div class="gih-loading"><span class="list-loading-spinner"></span> Загружаем GIH</div>';
+  }
+  if (loadError && !loaded) {
+    return '<div class="gih-loading gih-load-error"><strong>' + escapeHtml(loadError) +
+      '</strong><button type="button" data-gih-action="retry">Повторить</button></div>';
+  }
+  const total = drafts.length + completed.length;
+  return '<div class="gih-summary"><div><strong>' + drafts.length + '</strong><span>черновики</span></div>' +
+    '<div><strong>' + completed.length + '</strong><span>сохранено сегодня</span></div></div>' +
+    renderNotice() +
+    renderFactory() +
+    '<section class="gih-record-section"><div class="gih-section-heading"><h3>Активные проверки</h3>' +
+      '<span>' + drafts.length + '</span></div>' +
+      (drafts.length ? drafts.map(renderDraft).join('') :
+        '<div class="gih-section-empty">' + (total ? 'Активных черновиков нет.' : 'Пока нет проверок за сегодня.') + '</div>') +
+    '</section>' +
+    (completed.length ? '<section class="gih-record-section"><div class="gih-section-heading"><h3>Сохранённые</h3>' +
+      '<span>' + completed.length + '</span></div>' + completed.map(renderCompleted).join('') + '</section>' : '');
+}
+
+function renderWorkspace() {
+  const root = document.getElementById('gih-workspace');
+  if (root) root.innerHTML = workspaceContent();
+}
+
+function renderFactoryPreservingFocus() {
+  const input = document.querySelector('[data-gih-input="room"]');
+  const keepFocus = Boolean(input && document.activeElement === input);
+  const start = input ? input.selectionStart : 0;
+  const end = input ? input.selectionEnd : 0;
+  const root = document.getElementById('gih-factory-root');
+  if (!root) {
+    renderWorkspace();
+    return;
+  }
+  root.innerHTML = renderFactory();
+  if (keepFocus) {
+    const next = document.querySelector('[data-gih-input="room"]');
+    if (next) {
+      next.focus();
+      try { next.setSelectionRange(start, end); } catch (_) {}
+    }
+  }
+}
+
+async function loadRoomHistory(roomId) {
+  const id = Number(roomId);
+  roomHistory = { roomId: id, loading: true, items: [], error: '' };
+  renderFactoryPreservingFocus();
+  try {
+    const response = await api.get('checks/history?operation=room&roomId=' + encodeURIComponent(id));
+    if (Number(factory.roomId) !== id) return;
+    const items = Array.isArray(response) ? response : (Array.isArray(response && response.items) ? response.items : []);
+    roomHistory = { roomId: id, loading: false, items: items.slice(0, 3), error: '' };
+  } catch (_) {
+    roomHistory = { roomId: id, loading: false, items: [], error: 'История недоступна' };
+  }
+  renderFactoryPreservingFocus();
+}
+
+async function loadGih() {
+  if (loading) return;
+  loading = true;
+  loadError = '';
+  const previousDrafts = new Map(drafts.map(draft => [draft.id, draft]));
+  renderWorkspace();
+  try {
+    const results = await Promise.all([api.get('rooms'), api.get('checks?type=gih&_t=' + Date.now())]);
+    rooms = Array.isArray(results[0]) ? results[0] : (results[0] && results[0].rooms) || [];
+    rooms.sort((a, b) => Number(a.number) - Number(b.number));
+    let all = Array.isArray(results[1]) ? results[1] : [];
+
+    const today = localDayKey(new Date());
+    const oldDrafts = all.filter(check => {
+      if ((check.status || 'draft') !== 'draft') return false;
+      const created = localDayKey(check.createdAt || check.checkDate);
+      return Boolean(created) && created < today;
+    });
+    let archived = false;
+    for (const check of oldDrafts) {
+      try {
+        await api.put('checks/' + Number(check.id), {
+          status: 'done',
+          gihRoomStatus: 'not_checked',
+          notes: check.notes || null
+        });
+        archived = true;
+        localEdits.delete(Number(check.id));
+      } catch (error) {
+        console.error('Не удалось перенести старый черновик GIH в историю:', check.id, error);
+      }
+    }
+    if (archived) {
+      const refreshed = await api.get('checks?type=gih&_t=' + Date.now());
+      all = Array.isArray(refreshed) ? refreshed : all;
+    }
+
+    const nextDrafts = all.filter(check =>
+      (check.status || 'draft') === 'draft' && isToday(check.createdAt || check.checkDate)
+    ).map(normalizeCheck);
+    const nextCompleted = all.filter(check =>
+      (check.status || 'draft') === 'done' &&
+      check.gihRoomStatus !== 'not_checked' &&
+      isToday(check.checkDate || check.createdAt)
+    ).map(normalizeCheck);
+
+    const nextById = new Map(nextDrafts.map(draft => [draft.id, draft]));
+    for (const id of [...localEdits]) {
+      const remote = nextById.get(id);
+      const local = previousDrafts.get(id);
+      if (!remote || !local) {
+        localEdits.delete(id);
+        continue;
+      }
+      nextById.set(id, {
+        ...remote,
+        ...local,
+        id: remote.id,
+        roomId: remote.roomId,
+        number: remote.number,
+        date: remote.date
+      });
+    }
+    drafts = nextDrafts.map(draft => nextById.get(draft.id) || draft);
+    completed = nextCompleted;
+    loaded = true;
+    lastLoadedAt = Date.now();
+
+    const typed = String(factory.input || '').trim();
+    const exact = typed ? rooms.find(room => String(room.number) === typed) : null;
+    if (!factory.roomId && exact) {
+      factory.roomId = Number(exact.id);
+      factory.counts = {};
+      void loadRoomHistory(factory.roomId);
+    }
+    loadError = '';
+    renderWorkspace();
+  } catch (error) {
+    loadError = error.message || 'Не удалось загрузить GIH.';
+    if (loaded) {
+      notice = loadError;
+      noticeIsError = true;
+    }
+    renderWorkspace();
+  } finally {
+    loading = false;
+    renderWorkspace();
+  }
+}
+
+async function createFactory() {
+  const room = roomById(factory.roomId);
+  if (!room) return;
+  const items = Object.entries(factory.counts)
+    .map(([productId, qty]) => ({ productId: Number(productId), qty: Number(qty) }))
+    .filter(item => item.productId > 0 && item.qty > 0);
+  if (!items.length) {
+    setNotice('Добавь хотя бы одну позицию.', true);
+    return;
+  }
+
+  const submit = document.querySelector('[data-gih-action="create"]');
+  if (submit) submit.disabled = true;
+  try {
+    if (factory.editId) {
+      await api.put('checks/' + Number(factory.editId), {
+        roomId: Number(factory.roomId),
+        gihItems: items,
+        status: 'draft',
+        gihRoomStatus: factory.mode || null,
+        notes: String(factory.notes || '').trim() || null
+      });
+      localEdits.delete(Number(factory.editId));
+      notice = 'Черновик обновлён.';
+    } else {
+      await api.post('checks', {
+        roomId: Number(factory.roomId),
+        type: 'gih',
+        status: 'draft',
+        gihItems: items
+      });
+      notice = 'Черновик создан.';
+    }
+    noticeIsError = false;
+    const savedRoomId = factory.roomId;
+    factory = { roomId: null, input: '', counts: {}, editId: null, mode: null, notes: '' };
+    roomHistory = { roomId: null, loading: false, items: [], error: '' };
+    await loadGih();
+    if (savedRoomId) {
+      // The next record starts clean; history is fetched only after a room is selected again.
+      roomHistory = { roomId: null, loading: false, items: [], error: '' };
+    }
+    renderWorkspace();
+  } catch (error) {
+    notice = error.message || 'Не удалось сохранить запись.';
+    noticeIsError = true;
+    renderWorkspace();
+  } finally {
+    const button = document.querySelector('[data-gih-action="create"]');
+    if (button) button.disabled = false;
+  }
+}
+
+function openDraftForEdit(id) {
+  const draft = drafts.find(item => item.id === Number(id));
+  if (!draft) return;
+  const counts = {};
+  draft.gihItems.forEach(item => {
+    counts[item.productId] = (counts[item.productId] || 0) + 1;
+  });
+  factory = {
+    editId: draft.id,
+    roomId: draft.roomId,
+    input: String(draft.number),
+    counts,
+    mode: draft.mode,
+    notes: draft.notes || ''
+  };
+  roomHistory = { roomId: null, loading: false, items: [], error: '' };
+  renderWorkspace();
+  void loadRoomHistory(factory.roomId);
+  const main = document.getElementById('appMain');
+  if (main) main.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function saveDraft(id) {
+  const draft = drafts.find(item => item.id === Number(id));
+  if (!draft || !canSave(draft)) return;
+  const assigned = assignedModeStatus(draft.mode);
+  const pills = assigned
+    ? draft.gihItems.map(item => ({ id: item.id, itemStatus: assigned }))
+    : (draft.mode ? [] : draft.gihItems.map(item => ({ id: item.id, itemStatus: item.itemStatus })));
+
+  try {
+    await api.put('checks/' + draft.id, {
+      status: 'done',
+      gihRoomStatus: draft.mode || null,
+      notes: String(draft.notes || '').trim() || null,
+      pills
+    });
+    localEdits.delete(draft.id);
+    notice = 'Проверка номера ' + draft.number + ' сохранена.';
+    noticeIsError = false;
+    await loadGih();
+    renderWorkspace();
+  } catch (error) {
+    notice = error.message || 'Не удалось сохранить проверку.';
+    noticeIsError = true;
+    renderWorkspace();
+  }
+}
+
+async function saveNote(id) {
+  const draft = drafts.find(item => item.id === Number(id));
+  if (!draft) return;
+  const next = String(draft.noteDraft || '').trim();
+  draft.notes = next;
+  draft.noteOpen = false;
+  localEdits.add(draft.id);
+  renderWorkspace();
+  try {
+    await api.put('checks/' + draft.id, { notes: next || null });
+    localEdits.delete(draft.id);
+    notice = 'Комментарий сохранён.';
+    noticeIsError = false;
+  } catch (error) {
+    notice = error.message || 'Комментарий не удалось сохранить.';
+    noticeIsError = true;
+  }
+  renderWorkspace();
+}
+
+async function deleteRecord(id) {
+  const draft = drafts.find(item => item.id === Number(id));
+  const record = draft || completed.find(item => item.id === Number(id));
+  if (!record || !window.confirm('Удалить запись GIH для номера ' + record.number + '?')) return;
+  try {
+    await api.delete('checks/' + Number(id));
+    localEdits.delete(Number(id));
+    notice = 'Запись удалена.';
+    noticeIsError = false;
+    await loadGih();
+  } catch (error) {
+    notice = error.message || 'Не удалось удалить запись.';
+    noticeIsError = true;
+  }
+  renderWorkspace();
+}
+
+function updateRoomFromInput(input) {
+  const value = String(input.value || '').trim();
+  factory.input = value;
+  const room = value ? rooms.find(item => String(item.number) === value) : null;
+  const nextId = room ? Number(room.id) : null;
+  if (Number(factory.roomId) !== Number(nextId)) {
+    factory.roomId = nextId;
+    factory.counts = {};
+    roomHistory = { roomId: nextId, loading: false, items: [], error: '' };
+    renderFactoryPreservingFocus();
+    if (nextId) void loadRoomHistory(nextId);
+  }
+}
+
+export function renderGih() {
+  return '<div id="gih-workspace" class="gih-workspace">' + workspaceContent() + '</div>';
+}
+
+export function gihDidRender() {
+  mounted = true;
+  if (!focusBound) {
+    focusBound = true;
+    window.addEventListener('focus', () => {
+      if (mounted && Date.now() - lastLoadedAt > 15000) void loadGih();
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (mounted && !document.hidden && Date.now() - lastLoadedAt > 15000) void loadGih();
+    });
+  }
+  if (!loaded && !loading) void loadGih();
+  else if (Date.now() - lastLoadedAt > 30000 && !loading) void loadGih();
+}
+
+export function gihWillUnmount() {
+  mounted = false;
+}
+
+export function handleGihInput(event) {
+  const target = event.target instanceof Element ? event.target : null;
+  if (!target || target.dataset.gihInput !== 'room') return false;
+  updateRoomFromInput(target);
+  return true;
+}
+
+export function handleGihClick(event) {
+  const target = event.target instanceof Element ? event.target : null;
+  if (!target) return false;
+  const button = target.closest('[data-gih-action]');
+  if (!button) return false;
+  const action = button.dataset.gihAction;
+  const id = Number(button.dataset.id);
+
+  if (action === 'retry') {
+    loaded = false;
+    loadError = '';
+    void loadGih();
+  } else if (action === 'increment' || action === 'decrement') {
+    const productId = Number(button.dataset.productId);
+    const max = Math.max(1, Number.parseInt(button.dataset.max, 10) || 1);
+    const current = Number(factory.counts[productId] || 0);
+    const next = action === 'increment' ? Math.min(max, current + 1) : Math.max(0, current - 1);
+    factory.counts[productId] = next;
+    renderFactoryPreservingFocus();
+  } else if (action === 'create') {
+    void createFactory();
+  } else if (action === 'cancel-edit') {
+    factory = { roomId: null, input: '', counts: {}, editId: null, mode: null, notes: '' };
+    roomHistory = { roomId: null, loading: false, items: [], error: '' };
+    renderWorkspace();
+  } else if (action === 'cycle-status') {
+    const draft = drafts.find(item => item.id === Number(button.closest('[data-gih-id]')?.dataset.gihId));
+    const itemId = Number(button.dataset.itemId);
+    const item = draft && draft.gihItems.find(row => row.id === itemId);
+    if (draft && item && !draft.mode) {
+      const index = STATUS_CYCLE.indexOf(item.itemStatus);
+      item.itemStatus = STATUS_CYCLE[(index + 1) % STATUS_CYCLE.length];
+      localEdits.add(draft.id);
+      renderWorkspace();
+    }
+  } else if (action === 'set-mode') {
+    const draft = drafts.find(item => item.id === Number(button.closest('[data-gih-id]')?.dataset.gihId));
+    if (draft && !productsDirty(draft)) {
+      const mode = button.dataset.mode;
+      draft.mode = draft.mode === mode ? null : mode;
+      localEdits.add(draft.id);
+      renderWorkspace();
+    }
+  } else if (action === 'save') {
+    void saveDraft(id);
+  } else if (action === 'edit') {
+    openDraftForEdit(id);
+  } else if (action === 'delete') {
+    void deleteRecord(id);
+  } else if (action === 'toggle-note') {
+    const draft = drafts.find(item => item.id === id);
+    if (draft) {
+      draft.noteOpen = true;
+      draft.noteDraft = draft.notes || '';
+      renderWorkspace();
+    }
+  } else if (action === 'cancel-note') {
+    const draft = drafts.find(item => item.id === id);
+    if (draft) {
+      draft.noteOpen = false;
+      draft.noteDraft = draft.notes || '';
+      renderWorkspace();
+    }
+  } else if (action === 'save-note') {
+    void saveNote(id);
+  }
+  return true;
+}
+
+export function handleGihChange(event) {
+  const target = event.target instanceof Element ? event.target : null;
+  if (!target || !target.matches('[data-gih-note]')) return false;
+  const draft = drafts.find(item => item.id === Number(target.dataset.gihNote));
+  if (draft) draft.noteDraft = target.value;
+  return true;
+}
