@@ -285,6 +285,9 @@ function renderCarousel() {
     if (checked) classes.push('is-checked');
     const marks=[];
     if(entry.vip)marks.push('<i class="camera-room-marker is-vip" title="VIP">'+icon('crown',9)+'</i>');
+    const isArrival = (getState().cameraSourceListType || getState().listType) === 'departures' &&
+      (getState().listData?.departures?.arrivalRooms || []).map(String).includes(String(number));
+    if(isArrival)marks.push('<i class="camera-room-marker is-arrival" title="На заезд" aria-label="На заезд">'+icon('log-in',9)+'</i>');
     if(isPhysicallyEmpty)marks.push('<i class="camera-room-marker is-empty" title="Пустой" aria-label="Пустой">'+icon('package-open',9)+'</i>');
     if(needsEmptying)marks.push('<i class="camera-room-marker is-empty-action" title="Опустошить" aria-label="Опустошить">'+icon('package-x',9)+'</i>');
     if(needsDeadline)marks.push('<i class="camera-room-marker is-deadline" title="Сроки">'+icon('timer',9)+'</i>');
