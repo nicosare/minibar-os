@@ -1870,7 +1870,6 @@ body.rooms-modal-open { overflow:hidden; }
 /* GIH factory: each product is a single tap target, cycling 0..max..0 like the website. */
 .gih-product-row {
   width:100%;
-  grid-template-columns:34px minmax(0,1fr) auto;
   text-align:left;
   font:inherit;
   color:inherit;
@@ -1878,7 +1877,7 @@ body.rooms-modal-open { overflow:hidden; }
   transition:background .14s ease,border-color .14s ease;
 }
 .gih-product-row:active { background:#f1f5ff; border-color:#cbd5ff; }
-.gih-product-selected { min-width:25px; padding:4px 7px; border-radius:8px; background:var(--surface-blue); color:var(--primary); font-size:11px; font-weight:800; text-align:center; font-variant-numeric:tabular-nums; }
+.gih-product-selected { min-width:20px; padding:2px 6px; border-radius:6px; background:var(--surface-blue); color:var(--primary); font-size:10px; font-weight:800; text-align:center; font-variant-numeric:tabular-nums; }
 .gih-list-products { display:grid; gap:7px; }
 .gih-list-product { min-width:0; display:grid; grid-template-columns:34px minmax(0,1fr) auto; align-items:center; gap:9px; padding:8px 10px; border:1px solid var(--border); border-radius:11px; background:var(--surface); }
 .gih-list-product-icon { width:32px; height:32px; display:grid; place-items:center; border-radius:9px; background:var(--surface-blue); color:var(--text); font-size:16px; }
