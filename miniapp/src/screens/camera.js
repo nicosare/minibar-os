@@ -1708,16 +1708,22 @@ function attachCarouselScroll(carousel = $('cameraCarousel')) {
     cancelAnimationFrame(carouselFrame);
     carouselFrame = requestAnimationFrame(() => {
       const rect = carousel.getBoundingClientRect();
-      const activationLine = rect.top + 12;
+      const activationLine = rect.top + rect.height / 2;
       let active = null;
+      let closestDistance = Infinity;
       for (const item of carousel.querySelectorAll('[data-camera-room]')) {
         const itemRect = item.getBoundingClientRect();
-        if (itemRect.bottom > activationLine) {
+        const distance = Math.abs((itemRect.top + itemRect.bottom) / 2 - activationLine);
+        if (distance < closestDistance) {
+          closestDistance = distance;
           active = item;
-          break;
         }
       }
-      if (active && active.dataset.cameraRoom !== selectedNumber) {
+      // Keep the selected room stable while the carousel is being nudged.
+      // Selection follows the item nearest the viewport center, not the first
+      // partially visible item at the top edge.
+      if (active && closestDistance <= Math.max(18, rect.height * 0.16) &&
+          active.dataset.cameraRoom !== selectedNumber) {
         setSelectedRoom(active.dataset.cameraRoom, { haptic: true });
       }
     });
