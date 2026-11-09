@@ -159,7 +159,7 @@ function cameraRoomComment(number) {
 function updatePreviewHeading() {
   const preview = $('cameraPreviewModal');
   const heading = $('cameraPreviewRoom');
-  if (!preview || preview.classList.contains('hidden') || !heading) return;
+  if (!heading) return;
   const number = String(selectedNumber || '');
   const comment = cameraRoomComment(number);
   heading.textContent = 'Номер ' + number + (comment ? ' (' + comment + ')' : '');
