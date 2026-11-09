@@ -853,3 +853,61 @@ html[data-screen="camera"] .screen-camera { position:relative; }
   .camera-capture-zone { height:60px; min-height:60px; }
   .camera-viewport { aspect-ratio:3 / 4; }
 }
+
+
+/* Camera: keep room information outside the live viewfinder and distinguish both empty states. */
+.camera-standby {
+  position:relative;
+  z-index:auto;
+  inset:auto;
+  width:100%;
+  max-height:none;
+  flex:0 0 auto;
+  padding:0;
+  overflow:visible;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+  pointer-events:auto;
+}
+.camera-info-panel {
+  padding:9px 10px;
+  color:#34445a;
+  border:1px solid #e1e8f0;
+  border-radius:12px;
+  background:#fff;
+  box-shadow:0 2px 9px rgba(31,52,78,.045);
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+}
+.camera-info-room-main strong { color:#243247; }
+.camera-info-room-main>span { color:#8090a4; }
+.camera-info-list-name { color:#53657b; background:#f1f5f9; }
+.camera-info-chip { color:#53657b; background:#f1f5f9; }
+.camera-info-chip.is-empty { color:#087da6; background:#eaf8fd; }
+.camera-info-chip.is-empty-action { color:#c66a21; background:#fff5e9; }
+.camera-info-chip.is-arrival { color:#4f46a5; background:#eef2ff; }
+.camera-info-comment { color:#7652b8; }
+.camera-info-tile {
+  border:1px solid #e7edf4;
+  background:#f8fafc;
+}
+.camera-info-tile-label { color:#8090a4; }
+.camera-info-tile>strong { color:#34445a; }
+.camera-info-tile>small { color:#94a3b8; }
+.camera-info-tile.is-empty .camera-info-tile-label,
+.camera-info-tile.is-empty>strong { color:#087da6; }
+.camera-info-tile.is-deadline .camera-info-tile-label,
+.camera-info-tile.is-deadline>strong,
+.camera-info-tile.is-refill .camera-info-tile-label,
+.camera-info-tile.is-refill>strong { color:#bd702c; }
+.camera-number-item.is-empty:not(.is-active) { color:#0784ad; background:#eaf8fd; }
+.camera-number-item.is-empty-action:not(.is-active) { border-color:#fed7aa; }
+.camera-room-marker.is-empty { color:#0784ad; }
+.camera-room-marker.is-empty-action { color:#c66a21; }
+.camera-number-item.is-active .camera-room-marker.is-empty,
+.camera-number-item.is-active .camera-room-marker.is-empty-action { color:#fff; }
+@media(max-height:700px) {
+  .camera-standby { max-height:none; padding:0; }
+}
