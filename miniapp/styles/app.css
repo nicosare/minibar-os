@@ -920,3 +920,5 @@ html[data-screen="camera"] .screen-camera { position:relative; }
   height:auto;
   aspect-ratio:3 / 4;
 }
+
+.camera-info-chip.is-not-ready { color:#9a651d; background:#fff7e6; }
