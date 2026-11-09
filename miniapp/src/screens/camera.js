@@ -1,5 +1,6 @@
 import { api } from '../core/api.js';
 import { getState } from '../core/store.js';
+import { loadList } from './lists.js';
 import { icon, renderIcons } from '../components/icons.js';
 
 let stream = null;
@@ -12,6 +13,7 @@ let orientationPermissionPromise = null;
 let orientationPermissionGranted = false;
 let selectedNumber = '';
 let rooms = [];
+const completedInCamera = new Map();
 let activeRefills = [];
 let refillCounts = {};
 let refillRequestId = null;
@@ -50,20 +52,60 @@ function roomByNumber(number) {
 }
 function roomNumbers() {
   const { data } = sourceData();
-  if (Array.isArray(data?.roomNumbers)) {
-    return [...new Set(data.roomNumbers.map(String))];
-  }
-  return rooms.map(room => String(room.number)).sort((a,b) =>
-    Number(roomByNumber(a).floor || 0) - Number(roomByNumber(b).floor || 0) || Number(a) - Number(b));
+  if (Array.isArray(data?.roomNumbers)) return [...new Set(data.roomNumbers.map(String))];
+  return rooms.map(room => String(room.number));
 }
 function carouselRoomNumbers() {
+  const state = getState();
   const { type, data } = sourceData();
   const all = roomNumbers();
-  if (type !== 'arrivals') return all;
-  const ready = Array.isArray(data?.readyNumbers)
-    ? new Set(data.readyNumbers.map(String))
-    : new Set(all.filter(number => listEntry(number).ready === true));
-  return all.filter(number => ready.has(number));
+  const completed = new Set([
+    ...(data?.checkedRoomNumbers || []),
+    ...(data?.completedNumbers || []),
+    ...(completedInCamera.get(type) || [])
+  ].map(String));
+  let visible = all.filter(number => !completed.has(number));
+
+  if (type === 'arrivals') {
+    const ready = Array.isArray(data?.readyNumbers)
+      ? new Set(data.readyNumbers.map(String))
+      : new Set(all.filter(number => listEntry(number).ready === true));
+    visible = visible.filter(number => ready.has(number));
+  }
+
+  // Match the list screen's exact numeric sort preference.
+  const descending = state.listUi?.sort === 'desc';
+  visible.sort((a, b) => descending ? Number(b) - Number(a) : Number(a) - Number(b));
+  return visible;
+}
+function rememberCompletedRoom(type, number) {
+  if (!completedInCamera.has(type)) completedInCamera.set(type, new Set());
+  completedInCamera.get(type).add(String(number));
+}
+async function advanceAfterRoomCompletion(type, number) {
+  const previousOrder = carouselRoomNumbers();
+  const previousIndex = previousOrder.indexOf(String(number));
+  rememberCompletedRoom(type, number);
+  renderCarousel();
+
+  try {
+    // Re-read the list so server-side completion and room labels stay in sync.
+    await loadList(type);
+  } catch (_) {}
+
+  const remaining = carouselRoomNumbers();
+  const preferred = previousIndex >= 0
+    ? previousOrder.slice(previousIndex + 1).find(candidate => remaining.includes(candidate))
+    : null;
+  const next = preferred || remaining[0] || '';
+  if (next) {
+    setSelectedRoom(next, { center: true, behavior: 'smooth', haptic: true });
+  } else {
+    selectedNumber = '';
+    renderCarousel();
+    renderStandby();
+    updateActionAvailability();
+  }
 }
 function listEntry(number) {
   const { data } = sourceData();
@@ -187,6 +229,7 @@ function renderCarousel() {
     return;
   }
   wrap.classList.remove('is-disabled');
+  if (selectedNumber && !roomNumbers().includes(selectedNumber)) selectedNumber = '';
   host.innerHTML = numbers.map(number => {
     const room = roomByNumber(number);
     const refill = activeRefill(room);
@@ -235,7 +278,7 @@ function centerRoom(number, behavior = 'smooth') {
 }
 function triggerCarouselHaptic() {
   try {
-    if (typeof navigator.vibrate === 'function') navigator.vibrate(24);
+    if (typeof navigator.vibrate === 'function') navigator.vibrate([42, 28, 42]);
   } catch (_) {}
 }
 function updateCarouselSelection() {
@@ -922,11 +965,10 @@ async function sendPhoto() {
       activeRefills = activeRefills.filter(item => Number(item.id) !== Number(request.id));
     }
     closePreview(true);
-    renderStandby();
-    renderCarousel();
     showNotice(data.refill_synced === false
       ? 'Фото отправлено, но пополнение не закрылось автоматически'
       : 'Фото отправлено');
+    await advanceAfterRoomCompletion(sourceData().type, number);
   } catch (error) {
     showNotice(error.message || 'Не удалось отправить фото',true);
   } finally {
@@ -951,6 +993,9 @@ async function sendRoomMessage(message, action) {
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.ok) throw new Error(data.error || 'Не удалось отправить сообщение');
     showNotice(action + ' · номер ' + selectedNumber);
+    if (action === 'Опустошение отправлено') {
+      await advanceAfterRoomCompletion(sourceData().type, String(selectedNumber));
+    }
   } catch (error) {
     showNotice(error.message || 'Не удалось отправить сообщение',true);
   } finally {
@@ -1099,7 +1144,7 @@ function handleClick(event) {
   if (roomButton) {
     if ($('cameraPreviewModal') && !$('cameraPreviewModal').classList.contains('hidden')) return;
     const next = roomButton.dataset.cameraRoom;
-    setSelectedRoom(next,{center:true,behavior:'smooth'});
+    setSelectedRoom(next,{center:true,behavior:'smooth',haptic:true});
     return;
   }
   const product = target.closest('[data-refill-product]');
@@ -1164,7 +1209,7 @@ function bind() {
 export function renderCamera(state) {
   const type = state.cameraSourceListType || state.listType || 'arrivals';
   const data = state.listData?.[type];
-  const numbers = data?.roomNumbers || rooms.map(room=>String(room.number));
+  const numbers = carouselRoomNumbers();
   const initial = String(state.cameraSelectedRoomNumber || selectedNumber || numbers[0] || '');
   if (initial && initial !== selectedNumber) selectedNumber = initial;
   return '<div class="screen screen-camera" id="cameraStage">' +
