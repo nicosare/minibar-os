@@ -1398,8 +1398,8 @@ export function renderCamera(state) {
   const type = state.cameraSourceListType || state.listType || 'arrivals';
   const data = state.listData?.[type];
   const numbers = carouselRoomNumbers();
-  const initial = String(state.cameraSelectedRoomNumber || selectedNumber || numbers[0] || '');
-  if (initial && initial !== selectedNumber) selectedNumber = initial;
+  const initial = String(selectedNumber || state.cameraSelectedRoomNumber || numbers[0] || '');
+  if (!selectedNumber && initial) selectedNumber = initial;
   return '<div class="screen screen-camera" id="cameraStage">' +
     '<div class="camera-workspace">' +
       '<aside class="camera-carousel-wrap" id="cameraCarouselWrap"><div class="camera-carousel" id="cameraCarousel"></div></aside>' +
@@ -1444,4 +1444,5 @@ export function cameraWillUnmount() {
   if (carouselTimer) clearTimeout(carouselTimer);
   if (stream) stopCamera();
   clearPhoto();
+  selectedNumber = '';
 }
