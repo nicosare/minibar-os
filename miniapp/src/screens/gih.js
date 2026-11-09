@@ -324,12 +324,22 @@ function formatDoneItems(items, mode) {
 function renderCompleted(record) {
   const assigned = assignedModeStatus(record.mode);
   const modeLabel = record.mode && !assigned ? MODE_LABEL[record.mode] : '';
+  const productCounts = {};
+  (record.gihItems || []).forEach(item => {
+    productCounts[item.name] = (productCounts[item.name] || 0) + 1;
+  });
+  const productSummary = Object.entries(productCounts).map(([name, qty]) =>
+    escapeHtml(name) + (qty > 1 ? ' ×' + qty : '')
+  ).join(', ');
+  const productContent = modeLabel
+    ? (productSummary ? '<div class="gih-mode-product-summary">' + productSummary + '</div>' : '<span>Нет данных о позициях</span>')
+    : (formatDoneItems(record.gihItems, record.mode) || '<span>Нет данных о позициях</span>');
   return '<article class="gih-record-card gih-completed-card">' +
     '<div class="gih-record-heading"><div><strong class="gih-record-room">' + escapeHtml(record.number) + '</strong>' +
       '<span class="gih-record-time">' + escapeHtml(formatTime(record.date)) + '</span></div>' +
       '<button type="button" class="gih-delete-completed" data-gih-action="delete" data-id="' + record.id + '">Удалить</button></div>' +
     (modeLabel ? '<div class="gih-completed-mode">' + escapeHtml(modeLabel) + '</div>' : '') +
-    '<div class="gih-done-products">' + (formatDoneItems(record.gihItems, record.mode) || '<span>Нет данных о позициях</span>') + '</div>' +
+    '<div class="gih-done-products">' + productContent + '</div>' +
     (record.notes ? '<div class="gih-done-note">' + escapeHtml(record.notes) + '</div>' : '') +
   '</article>';
 }
