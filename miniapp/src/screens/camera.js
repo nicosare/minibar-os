@@ -17,7 +17,9 @@ const completedInCamera = new Map();
 let activeRefills = [];
 let refillCounts = {};
 let refillRequestId = null;
+let refillAllSelected = false;
 let refillBusy = false;
+let photoSending = false;
 let deadlineBusy = false;
 let deadlineRoomNumber = '';
 let deadlineProducts = [];
@@ -146,6 +148,21 @@ async function advanceAfterRoomCompletion(type, number) {
 function listEntry(number) {
   const { data } = sourceData();
   return data?.entries?.[String(number)] || {};
+}
+function cameraRoomComment(number) {
+  const room = roomByNumber(number);
+  const values = [listEntry(number).comment, room.comment, $('cameraComment')?.value]
+    .map(value => String(value || '').trim())
+    .filter(Boolean);
+  return [...new Set(values)].join(' · ').slice(0, 240);
+}
+function updatePreviewHeading() {
+  const preview = $('cameraPreviewModal');
+  const heading = $('cameraPreviewRoom');
+  if (!preview || preview.classList.contains('hidden') || !heading) return;
+  const number = String(selectedNumber || '');
+  const comment = cameraRoomComment(number);
+  heading.textContent = 'Номер ' + number + (comment ? ' (' + comment + ')' : '');
 }
 function activeRefill(room) {
   return activeRefills.find(item => Number(item.roomId) === Number(room?.id)) || null;
@@ -948,8 +965,7 @@ async function capturePhoto() {
     const send = $('cameraSendPhoto');
     send.disabled = false;
     send.textContent = 'Отправить';
-    const entryComment = String(listEntry(number).comment || room.comment || '').trim();
-    $('cameraPreviewRoom').textContent = 'Номер ' + number + (entryComment ? ' (' + entryComment + ')' : '');
+    updatePreviewHeading();
     const previewDeadlines = $('cameraPreviewDeadlines');
     if (previewDeadlines) previewDeadlines.hidden = room.expiryStatus !== 'empty';
     $('cameraPreviewModal').classList.remove('hidden');
@@ -980,6 +996,9 @@ async function capturePhoto() {
         resolve(blob);
       }, 'image/jpeg', .84);
     });
+    // A retake can cancel this promise while the preview is open; observe the rejection
+    // here so it never becomes an unhandled promise rejection.
+    void photoPreparationPromise.catch(() => {});
     // The preview is ready to confirm immediately; JPEG encoding continues in parallel.
   } catch (error) {
     showNotice(error.message || 'Не удалось сделать снимок', true);
@@ -992,7 +1011,7 @@ async function capturePhoto() {
 }
 
 function closePreview(force = false) {
-  if (captureBusy && !force) return;
+  if ((captureBusy || photoSending) && !force) return;
   $('cameraPreviewModal')?.classList.add('hidden');
   $('cameraPreviewModal')?.setAttribute('aria-hidden','true');
   $('cameraCarouselWrap')?.classList.remove('is-disabled');
@@ -1295,35 +1314,61 @@ document.addEventListener('visibilitychange', () => {
 // Restore pending uploads on app startup, even when the user opens another tab first.
 void restorePhotoUploadQueue();
 
-function sendPhoto() {
-  if ((!photoBlob && !photoPreparationPromise) || !selectedNumber || captureBusy) return;
+async function sendPhoto() {
+  if (photoSending || (!photoBlob && !photoPreparationPromise) || !selectedNumber || captureBusy) return;
+  const preview = $('cameraPreviewModal');
+  if (!preview || preview.classList.contains('hidden')) return;
+
   const number = String(selectedNumber);
-  const request = activeRefill(roomByNumber(number));
   const listType = sourceData().type;
   const requestId = photoRandomId || String(Math.floor(Math.random() * 2147483646) + 1);
   const pendingId = String(Date.now()) + '-' + requestId;
-  const blob = photoBlob;
-  const blobPromise = photoPreparationPromise;
-
   const commentInput = $('cameraComment');
-  const comment = String(commentInput?.value || '').trim();
-  pendingPhotoWrites.set(pendingId, {
-    roomNumber: number,
-    requestId,
-    blob,
-    blobPromise,
-    comment,
-    refillRequestId: request?.id || null,
-    listType
-  });
-  if (commentInput) commentInput.value = '';
+  const sendButton = $('cameraSendPhoto');
+  const blobPromise = photoBlob ? Promise.resolve(photoBlob) : photoPreparationPromise;
 
-  // Close the preview and advance immediately. All disk/network work is detached.
-  closePreview(true);
-  triggerCarouselHaptic();
-  setPhotoQueueStatus('Фото №' + number + ' отправляется в фоне…', 'pending');
-  void advanceAfterRoomCompletion(listType, number);
-  void flushPendingPhotoWrites();
+  photoSending = true;
+  if (sendButton) {
+    sendButton.disabled = true;
+    sendButton.textContent = 'Подготавливаю…';
+  }
+
+  try {
+    // Do not close the preview or invalidate photoPreparationToken until JPEG
+    // encoding has completed. The old flow cancelled its own Blob promise here.
+    const blob = await blobPromise;
+    if (!blob || !blob.size) throw new Error('Фото не подготовлено. Пересними номер.');
+    if (preview.classList.contains('hidden')) return;
+
+    const request = activeRefill(roomByNumber(number));
+    const comment = cameraRoomComment(number);
+    pendingPhotoWrites.set(pendingId, {
+      roomNumber: number,
+      requestId,
+      blob,
+      comment,
+      refillRequestId: request?.id || null,
+      listType
+    });
+    if (commentInput) commentInput.value = '';
+
+    // Only advance after a valid Blob is ready and the upload has entered the queue.
+    closePreview(true);
+    triggerCarouselHaptic();
+    setPhotoQueueStatus('Фото №' + number + ' отправляется в фоне…', 'pending');
+    void advanceAfterRoomCompletion(listType, number);
+    void flushPendingPhotoWrites();
+  } catch (error) {
+    if (!preview.classList.contains('hidden')) {
+      showNotice(error.message || 'Не удалось подготовить фото. Пересними номер.', true);
+    }
+  } finally {
+    photoSending = false;
+    if (!preview.classList.contains('hidden') && sendButton) {
+      sendButton.disabled = false;
+      sendButton.textContent = 'Отправить';
+    }
+  }
 }
 
 async function sendRoomMessage(message, action) {
@@ -1331,7 +1376,7 @@ async function sendRoomMessage(message, action) {
   const number = String(selectedNumber);
   const sourceType = sourceData().type;
   const commentInput = $('cameraComment');
-  const comment = String(commentInput?.value || '').trim();
+  const comment = cameraRoomComment(number);
   const messageText = number + ' ' + message + (comment ? ' (' + comment + ')' : '');
   captureBusy = true;
   updateActionAvailability();
@@ -1654,10 +1699,17 @@ function openRefillModal() {
   if (!room.id || refillBusy) return;
   const request = activeRefill(room);
   refillRequestId = request?.id || null;
+  const template = refillItems(room, request);
   refillCounts = {};
-  (request?.items || []).forEach(item => {
-    refillCounts[Number(item.productId)] = Number(item.qty) || 0;
-  });
+  if (room.expiryStatus === 'empty') {
+    template.forEach(item => { refillCounts[Number(item.id)] = Number(item.maxQty) || 1; });
+    refillAllSelected = template.length > 0;
+  } else {
+    (request?.items || []).forEach(item => {
+      refillCounts[Number(item.productId)] = Number(item.qty) || 0;
+    });
+    refillAllSelected = Boolean(request?.allProducts);
+  }
   $('refillModalRoom').textContent = String(room.number);
   $('refillFeedback').textContent = '';
   $('refillModal').classList.remove('hidden');
@@ -1691,12 +1743,13 @@ async function saveRefill() {
   try {
     const result = await api.post('refills',{
       roomId:Number(room.id),
-      allProducts:false,
+      allProducts:refillAllSelected,
       expectedRequestId:refillRequestId,
       items
     });
     activeRefills = activeRefills.filter(item=>Number(item.roomId)!==Number(room.id));
     if (result.request?.status==='pending') activeRefills.push(result.request);
+    refillAllSelected = Boolean(result.request?.allProducts);
     closeRefillModal(true);
     renderStandby();
     renderCarousel();
@@ -1763,6 +1816,7 @@ function handleClick(event) {
     const max = Number(product.dataset.max) || 1;
     const current = Number(refillCounts[id]) || 0;
     refillCounts[id] = current >= max ? 0 : current + 1;
+    refillAllSelected = false;
     renderRefillProducts();
     return;
   }
@@ -1794,9 +1848,24 @@ function handleClick(event) {
   else if (action === 'clear-refill') {
     if (refillBusy) return;
     refillCounts = {};
+    refillAllSelected = false;
     renderRefillProducts();
   }
-  else if (action === 'refill-all') void markRoomEmpty();
+  else if (action === 'refill-all') {
+    if (refillBusy) return;
+    const room = roomByNumber(selectedNumber);
+    const template = refillItems(room, activeRefill(room));
+    if (!template.length) {
+      $('refillFeedback').textContent = 'Для номера не задан шаблон продуктов.';
+      return;
+    }
+    refillCounts = Object.fromEntries(template.map(item => [
+      Number(item.id), Math.max(1, Number(item.maxQty) || 1)
+    ]));
+    refillAllSelected = true;
+    $('refillFeedback').textContent = 'Выбраны все продукты в полном количестве по шаблону.';
+    renderRefillProducts();
+  }
 }
 function carouselTopIndex(carousel) {
   const items = [...carousel.querySelectorAll('[data-camera-room]')];
@@ -1838,7 +1907,7 @@ function attachCarouselScroll(carousel = $('cameraCarousel')) {
   }, { passive: true });
 }
 export function renderSharedRoomActionModals() {
-  return '<div class="camera-modal-overlay hidden" id="refillModal" role="dialog" aria-modal="true" aria-label="Пополнить номер" aria-hidden="true"><div class="camera-refill-modal"><header class="camera-modal-header"><strong>Пополнение · номер <span id="refillModalRoom"></span></strong><button type="button" data-camera-action="close-refill" aria-label="Закрыть">×</button></header><div class="camera-refill-products" id="refillProducts"></div><div class="camera-refill-feedback" id="refillFeedback"></div><footer class="camera-refill-footer"><button type="button" class="camera-refill-all" data-camera-action="refill-all">Всё в списке продуктов</button><div class="camera-refill-footer-row"><button type="button" data-camera-action="clear-refill">Очистить</button><button type="button" class="is-save" data-camera-action="save-refill" id="refillSave">Сохранить пополнение</button></div></footer></div></div>' +
+  return '<div class="camera-modal-overlay hidden" id="refillModal" role="dialog" aria-modal="true" aria-label="Пополнить номер" aria-hidden="true"><div class="camera-refill-modal"><header class="camera-modal-header"><strong>Пополнение · номер <span id="refillModalRoom"></span></strong><button type="button" data-camera-action="close-refill" aria-label="Закрыть">×</button></header><div class="camera-refill-products" id="refillProducts"></div><div class="camera-refill-feedback" id="refillFeedback"></div><footer class="camera-refill-footer"><button type="button" class="camera-refill-all" data-camera-action="refill-all">Выбрать все продукты</button><div class="camera-refill-footer-row"><button type="button" data-camera-action="clear-refill">Очистить</button><button type="button" class="is-save" data-camera-action="save-refill" id="refillSave">Сохранить пополнение</button></div></footer></div></div>' +
     '<div class="camera-modal-overlay hidden" id="deadlineModal" role="dialog" aria-modal="true" aria-label="Сроки номера" aria-hidden="true"><div class="camera-refill-modal camera-deadline-modal"><header class="camera-modal-header"><div><strong>Сроки · номер <span id="deadlineModalRoom"></span></strong><small id="deadlineModalInfo"></small></div><button type="button" data-camera-action="close-deadlines" aria-label="Закрыть">×</button></header><div class="camera-refill-products camera-deadline-products" id="deadlineProducts"></div><div class="camera-refill-feedback" id="deadlineFeedback"></div><footer class="camera-refill-footer camera-deadline-footer"><div class="camera-deadline-status-actions"><button type="button" data-camera-action="deadline-empty">Пустой</button><button type="button" data-camera-action="deadline-valid">В порядке</button><button type="button" data-camera-action="deadline-reset">Сбросить</button></div><button type="button" class="is-save" data-camera-action="save-deadlines" id="deadlineSave">Сохранить</button></footer></div></div>';
 }
 
@@ -1879,6 +1948,9 @@ function bind() {
   if (bound) return;
   bound = true;
   document.addEventListener('click',handleClick);
+  document.addEventListener('input', event => {
+    if (event.target?.id === 'cameraComment') updatePreviewHeading();
+  });
 }
 export function renderCamera(state) {
   const type = state.cameraSourceListType || state.listType || 'arrivals';
