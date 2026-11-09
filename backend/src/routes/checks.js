@@ -270,11 +270,13 @@ router.put('/:id', async (req, res) => {
       const finalStatus = status !== undefined ? status : existingCheck.status;
       const finalGihRoomStatus = gihRoomStatus !== undefined ? gihRoomStatus : existingCheck.gihRoomStatus;
       const finalRoomId = roomId !== undefined ? parseInt(roomId, 10) : existingCheck.roomId;
+      const marksEmpty = gihRoomStatus === 'empty' ||
+        (status === 'done' && finalGihRoomStatus === 'empty');
 
       if (
         existingCheck.type === 'gih' &&
         finalStatus === 'done' &&
-        finalGihRoomStatus === 'empty' &&
+        marksEmpty &&
         Number.isInteger(finalRoomId) &&
         finalRoomId > 0
       ) {
