@@ -36,6 +36,7 @@ let pendingPhotoWriteTimer = null;
 const pendingPhotoWrites = new Map();
 let photoUrl = '';
 let photoRandomId = null;
+let photoPreparationToken = 0;
 let captureBusy = false;
 let messageTimer = null;
 let carouselTimer = null;
@@ -587,6 +588,7 @@ function hideLoader() {
   $('cameraLoaderRetry')?.classList.add('hidden');
 }
 function clearPhoto() {
+  photoPreparationToken++;
   photoBlob = null;
   photoPreparationPromise = null;
   photoRandomId = null;
@@ -893,7 +895,17 @@ function cropCanvasToFourThree() {
 }
 async function capturePhoto() {
   const room = roomByNumber(selectedNumber);
-  if (captureBusy || photoBlob) return;
+  if (captureBusy) {
+    showNotice('Камера уже выполняет действие. Подожди немного.');
+    return;
+  }
+  // A previous preview may have been closed while JPEG encoding was still running.
+  // Discard that stale result instead of silently blocking the next capture.
+  if ($('cameraPreviewModal')?.classList.contains('hidden') && (photoBlob || photoPreparationPromise)) clearPhoto();
+  if (!room.id) {
+    showNotice('Сначала выбери номер из списка.', true);
+    return;
+  }
 
   const number = String(selectedNumber);
   captureBusy = true;
@@ -953,8 +965,13 @@ async function capturePhoto() {
     uploadCanvas.getContext('2d', { alpha: false }).drawImage(
       canvas, 0, 0, uploadCanvas.width, uploadCanvas.height
     );
+    const preparationToken = ++photoPreparationToken;
     photoPreparationPromise = new Promise((resolve, reject) => {
       uploadCanvas.toBlob(blob => {
+        if (preparationToken !== photoPreparationToken) {
+          reject(new Error('Подготовка фото отменена'));
+          return;
+        }
         if (!blob) {
           reject(new Error('Не удалось подготовить фото. Пересними.'));
           return;
@@ -1756,7 +1773,10 @@ function handleClick(event) {
     if (target.id === 'cameraPreviewModal') closePreview();
     return;
   }
-  if (action === 'capture') void capturePhoto();
+  if (action === 'capture') {
+    showNotice('Запускаю камеру…');
+    void capturePhoto();
+  }
   else if (action === 'retry-camera') { hideLoader(); void capturePhoto(); }
   else if (action === 'retake') closePreview();
   else if (action === 'preview-deadlines') void openDeadlineModal();
