@@ -19,7 +19,7 @@ const navItems = [
 ];
 
 export function renderBottomNav(state) {
-  const active = state.screen === 'more-detail' ? 'more' : state.screen;
+  const active = state.screen === 'more-detail' || state.screen === 'gih' ? 'more' : state.screen;
   return navItems.map(item => {
     const selected = item.id === active;
     return '<button type="button" class="nav-item' + (selected ? ' is-active' : '') +

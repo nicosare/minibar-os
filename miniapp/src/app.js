@@ -14,7 +14,7 @@ const main = document.getElementById('appMain');
 const bottomNav = document.getElementById('bottomNav');
 if (!topbar || !main || !bottomNav) throw new Error('Не найдена оболочка Minibar OS');
 
-const renderers = { today: renderToday, lists: renderLists, camera: renderCamera, rooms: renderRooms, more: renderMore };
+const renderers = { today: renderToday, lists: renderLists, camera: renderCamera, rooms: renderRooms, more: renderMore, gih: renderGih };
 let renderedScreen = null;
 let renderedListType = null;
 
@@ -29,12 +29,12 @@ function render() {
     : [];
   if (renderedScreen === 'camera' && screen !== 'camera') cameraWillUnmount();
   if (renderedScreen === 'rooms' && screen !== 'rooms') roomsWillUnmount();
-  if (renderedScreen === 'lists' && renderedListType === 'gih' && (screen !== 'lists' || state.listType !== 'gih')) gihWillUnmount();
+  if (renderedScreen === 'gih' && screen !== 'gih') gihWillUnmount();
   topbar.innerHTML = renderTopbar();
   main.innerHTML = renderers[screen](state);
   if (screen === 'camera') cameraDidRender();
   if (screen === 'rooms') roomsDidRender();
-  if (screen === 'lists' && state.listType === 'gih') gihDidRender();
+  if (screen === 'gih') gihDidRender();
   bottomNav.innerHTML = renderBottomNav({ ...state, screen });
   renderIcons();
   document.documentElement.dataset.screen = screen;
@@ -92,7 +92,8 @@ document.addEventListener('click', event => {
 
   const more = target.closest('[data-more-item]');
   if (more) {
-    setState({ screen: 'more', moreItem: more.dataset.moreItem });
+    if (more.dataset.moreItem === 'gih') setState({ screen: 'gih', moreItem: null });
+    else setState({ screen: 'more', moreItem: more.dataset.moreItem });
     return;
   }
 

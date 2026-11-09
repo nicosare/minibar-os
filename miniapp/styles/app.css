@@ -1866,3 +1866,35 @@ body.rooms-modal-open { overflow:hidden; }
   .gih-record-actions button { padding:5px 6px; }
   .gih-done-line { grid-template-columns:minmax(74px,.72fr) minmax(0,1.5fr); }
 }
+
+/* GIH standalone factory controls */
+.gih-room-sort{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 12px;color:var(--muted);font-size:12px;font-weight:700}
+.gih-room-sort select{min-height:36px;max-width:55%;padding:0 30px 0 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);font:inherit}
+.gih-products-dropdown{margin-top:10px;border:1px solid var(--border);border-radius:13px;background:var(--surface);overflow:hidden}
+.gih-products-dropdown>summary{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;padding:0 13px;cursor:pointer;list-style:none;font-size:13px;font-weight:800}
+.gih-products-dropdown>summary::-webkit-details-marker{display:none}
+.gih-products-dropdown>summary:after{content:'⌄';margin-left:auto;color:var(--muted);font-size:17px;transition:transform .18s ease}
+.gih-products-dropdown[open]>summary:after{transform:rotate(180deg)}
+.gih-products-dropdown>summary strong{min-width:24px;padding:3px 7px;border-radius:8px;background:var(--surface-blue);color:var(--primary);font-size:11px;text-align:center}
+.gih-products-dropdown-body{padding:0 10px 10px;border-top:1px solid var(--border)}
+.gih-products-dropdown .gih-product-category{margin-top:10px}
+
+
+/* GIH product picker parity and legacy basket summary */
+.gih-product-row{grid-template-columns:minmax(0,1fr) auto}
+.gih-product-main{display:flex;align-items:center;gap:8px;min-width:0;padding:0;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer}
+.gih-product-main:disabled{opacity:.55;cursor:default}
+.gih-product-main .gih-product-emoji{flex:0 0 32px}
+.gih-product-copy{flex:1}
+.gih-product-selected{min-width:25px;padding:4px 7px;border-radius:8px;background:var(--surface-blue);color:var(--primary);font-size:11px;font-weight:800;text-align:center;font-variant-numeric:tabular-nums}
+.gih-list-products{display:grid;gap:7px}
+.gih-list-product{min-width:0;display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:9px;padding:8px 10px;border:1px solid var(--border);border-radius:11px;background:var(--surface)}
+.gih-list-product-icon{width:32px;height:32px;display:grid;place-items:center;border-radius:9px;background:var(--surface-blue);color:var(--text);font-size:16px}
+.gih-list-product-icon.is-basket{background:rgba(255,177,110,.18);color:#bb6b2d}
+.gih-list-product-icon svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.gih-list-product-name{min-width:0;overflow:hidden;color:var(--text);font-size:12px;font-weight:700;text-overflow:ellipsis;white-space:nowrap}
+.gih-list-product-qty{color:var(--muted);font-size:11px;font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums}
+.gih-products-section .gih-section-heading{margin-bottom:9px}
+.gih-products-section .gih-section-empty{display:grid;gap:5px}
+.gih-products-section .gih-section-empty strong{color:var(--text);font-size:12px}
+.gih-products-section .gih-section-empty span{color:var(--muted);font-size:11px}
