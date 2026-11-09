@@ -777,7 +777,13 @@ export function handleGihClick(event) {
 
 export function handleGihChange(event) {
   const target = event.target instanceof Element ? event.target : null;
-  if (!target || !target.matches('[data-gih-note]')) return false;
+  if (!target) return false;
+  if (target.matches('[data-gih-sort]')) {
+    factory.sort = target.value === 'desc' ? 'desc' : 'asc';
+    renderFactoryPreservingFocus();
+    return true;
+  }
+  if (!target.matches('[data-gih-note]')) return false;
   const draft = drafts.find(item => item.id === Number(target.dataset.gihNote));
   if (draft) draft.noteDraft = target.value;
   return true;
