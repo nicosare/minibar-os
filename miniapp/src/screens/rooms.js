@@ -145,6 +145,18 @@ function renderRoomDetails(room, statuses) {
     '<div class="rooms-detail-status-row"><span>' + escapeHtml(item.product?.name || 'Продукт') +
     '</span><strong>' + Number(item.qtyToReplace) + ' шт.</strong></div>'
   ).join('');
+  const customItems = (room.customs || []).filter(item => item.isEnabled !== false);
+  const customHtml = customItems.map(item =>
+    '<div class="rooms-detail-product"><span class="rooms-detail-emoji">' +
+    escapeHtml(item.product?.emoji || item.product?.name?.charAt(0) || '•') + '</span>' +
+    '<span class="rooms-detail-product-copy"><strong>' + escapeHtml(item.product?.name || 'Продукт') +
+    '</strong><small>Индивидуальная комплектация</small></span><span class="rooms-detail-qty">' +
+    Number(item.qty || 1) + ' шт.</span></div>'
+  ).join('');
+  const replacementHtml = (room.replacementItems || []).map(item =>
+    '<div class="rooms-detail-status-row"><span>' + escapeHtml(item.product?.name || 'Продукт') +
+    (item.notes ? ' · ' + escapeHtml(item.notes) : '') + '</span><strong>Замена</strong></div>'
+  ).join('');
   backdrop.innerHTML =
     '<div class="rooms-detail-sheet" role="document">' +
       '<header class="rooms-detail-header"><div><span>НОМЕР</span><h2>' + escapeHtml(room.number) +
@@ -156,6 +168,9 @@ function renderRoomDetails(room, statuses) {
         (statusHtml ? '<section class="rooms-detail-section"><h3>Требуют замены</h3>' + statusHtml + '</section>' : '') +
         '<section class="rooms-detail-section"><h3>Комплектация <small>' + products.length + '</small></h3>' +
           '<div class="rooms-detail-products">' + productsHtml + '</div></section>' +
+        (customHtml ? '<section class="rooms-detail-section"><h3>Индивидуальные продукты <small>' + customItems.length + '</small></h3><div class="rooms-detail-products">' + customHtml + '</div></section>' : '') +
+        (replacementHtml ? '<section class="rooms-detail-section"><h3>Список замен</h3>' + replacementHtml + '</section>' : '') +
+        (room.notes ? '<section class="rooms-detail-section"><h3>Примечание</h3><p class="rooms-detail-note">' + escapeHtml(room.notes) + '</p></section>' : '') +
       '</div>' +
       '<footer class="rooms-detail-footer"><button type="button" data-room-detail-close>Готово</button></footer>' +
     '</div>';
