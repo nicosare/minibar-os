@@ -46,7 +46,7 @@ function roomByNumber(number) {
 }
 function roomNumbers() {
   const { data } = sourceData();
-  if (Array.isArray(data?.roomNumbers) && data.roomNumbers.length) {
+  if (Array.isArray(data?.roomNumbers)) {
     return [...new Set(data.roomNumbers.map(String))];
   }
   return rooms.map(room => String(room.number)).sort((a,b) =>
@@ -110,7 +110,11 @@ function renderStatusChips(room) {
   const chips = [];
   if (entry.vip) chips.push('<span class="camera-info-chip is-vip">' + icon('crown',12) + ' VIP</span>');
   if (entry.time) chips.push('<span class="camera-info-chip">' + icon('clock',12) + ' ' + esc(entry.time) + '</span>');
-  if (entry.ready === true) chips.push('<span class="camera-info-chip is-ready">' + icon('check',12) + ' Можно делать</span>');
+  if (type === 'arrivals') {
+    chips.push(entry.ready === true
+      ? '<span class="camera-info-chip is-ready">' + icon('check',12) + ' Можно делать</span>'
+      : '<span class="camera-info-chip is-not-ready">Пока нельзя</span>');
+  }
   if (room.expiryStatus === 'empty') chips.push('<span class="camera-info-chip is-empty">Пустой</span>');
   if (entry.empty) chips.push('<span class="camera-info-chip is-empty-action">Опустошить</span>');
   if (type === 'departures' && (getState().listData?.departures?.arrivalRooms || []).map(String).includes(String(room.number))) {
