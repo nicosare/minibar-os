@@ -52,6 +52,15 @@ function roomNumbers() {
   return rooms.map(room => String(room.number)).sort((a,b) =>
     Number(roomByNumber(a).floor || 0) - Number(roomByNumber(b).floor || 0) || Number(a) - Number(b));
 }
+function carouselRoomNumbers() {
+  const { type, data } = sourceData();
+  const all = roomNumbers();
+  if (type !== 'arrivals') return all;
+  const ready = Array.isArray(data?.readyNumbers)
+    ? new Set(data.readyNumbers.map(String))
+    : new Set(all.filter(number => listEntry(number).ready === true));
+  return all.filter(number => ready.has(number));
+}
 function listEntry(number) {
   const { data } = sourceData();
   return data?.entries?.[String(number)] || {};
@@ -95,17 +104,6 @@ function refillDescription(request) {
   return request.items.map(item => esc(item.name || 'Продукт') +
     (Number(item.qty) > 1 ? ' ×' + Number(item.qty) : '')).join(', ');
 }
-function isArrivalNotReady(room) {
-  const { type, data } = sourceData();
-  if (type !== 'arrivals' || !data) return false;
-  const number = String(room?.number || '');
-  const listed = (data.roomNumbers || []).map(String).includes(number);
-  if (!listed) return false;
-  const ready = Array.isArray(data.readyNumbers) && data.readyNumbers.length
-    ? data.readyNumbers.map(String).includes(number)
-    : listEntry(number).ready === true;
-  return !ready;
-}
 function renderStatusChips(room) {
   const { type } = sourceData();
   const entry = listEntry(room.number);
@@ -113,7 +111,8 @@ function renderStatusChips(room) {
   if (entry.vip) chips.push('<span class="camera-info-chip is-vip">' + icon('crown',12) + ' VIP</span>');
   if (entry.time) chips.push('<span class="camera-info-chip">' + icon('clock',12) + ' ' + esc(entry.time) + '</span>');
   if (entry.ready === true) chips.push('<span class="camera-info-chip is-ready">' + icon('check',12) + ' Можно делать</span>');
-  if (entry.empty) chips.push('<span class="camera-info-chip is-empty">Опустошить</span>');
+  if (room.expiryStatus === 'empty') chips.push('<span class="camera-info-chip is-empty">Пустой</span>');
+  if (entry.empty) chips.push('<span class="camera-info-chip is-empty-action">Опустошить</span>');
   if (type === 'departures' && (getState().listData?.departures?.arrivalRooms || []).map(String).includes(String(room.number))) {
     chips.push('<span class="camera-info-chip is-arrival">На заезд</span>');
   }
@@ -162,7 +161,7 @@ function renderStandby() {
 }
 function updateActionAvailability() {
   const room = roomByNumber(selectedNumber);
-  const disabled = !room.id || isArrivalNotReady(room) || captureBusy || refillBusy;
+  const disabled = !room.id || captureBusy || refillBusy;
   ['cameraActionEmpty','cameraActionRefill','cameraActionResidential','cameraCapture'].forEach(id => {
     const button = $(id);
     if (button) button.disabled = disabled;
@@ -172,7 +171,7 @@ function renderCarousel() {
   const host = $('cameraCarousel');
   const wrap = $('cameraCarouselWrap');
   if (!host || !wrap) return;
-  const numbers = roomNumbers();
+  const numbers = carouselRoomNumbers();
   if (!numbers.length) {
     host.innerHTML = '';
     wrap.classList.add('is-disabled');
@@ -184,13 +183,15 @@ function renderCarousel() {
     const room = roomByNumber(number);
     const refill = activeRefill(room);
     const entry = listEntry(number);
-    const empty = room.expiryStatus === 'empty' || Boolean(entry.empty);
+    const isPhysicallyEmpty = room.expiryStatus === 'empty';
+    const needsEmptying = Boolean(entry.empty);
     const needsDeadline = room.expiryStatus === 'needs_replacement' ||
       (room.productStatuses || []).some(item => item.expiryStatus === 'needs_replacement' || Number(item.qtyToReplace) > 0);
     const needsRefill = Boolean(refill?.items?.length);
     const classes = ['camera-number-item'];
     if (String(number) === String(selectedNumber)) classes.push('is-active');
-    if (empty) classes.push('is-empty');
+    if (isPhysicallyEmpty) classes.push('is-empty');
+    if (needsEmptying) classes.push('is-empty-action');
     if (needsDeadline) classes.push('is-deadline');
     if (needsRefill) classes.push('is-refill');
     const checked = (getState().listData?.[getState().cameraSourceListType || getState().listType]?.checkedRoomNumbers ||
@@ -198,7 +199,8 @@ function renderCarousel() {
     if (checked) classes.push('is-checked');
     const marks=[];
     if(entry.vip)marks.push('<i class="camera-room-marker is-vip" title="VIP">'+icon('crown',9)+'</i>');
-    if(empty)marks.push('<i class="camera-room-marker is-empty" title="Опустошён">'+icon('package-x',9)+'</i>');
+    if(isPhysicallyEmpty)marks.push('<i class="camera-room-marker is-empty" title="Пустой" aria-label="Пустой">'+icon('package-open',9)+'</i>');
+    if(needsEmptying)marks.push('<i class="camera-room-marker is-empty-action" title="Опустошить" aria-label="Опустошить">'+icon('package-x',9)+'</i>');
     if(needsDeadline)marks.push('<i class="camera-room-marker is-deadline" title="Сроки">'+icon('timer',9)+'</i>');
     if(needsRefill)marks.push('<i class="camera-room-marker is-refill" title="Пополнение">'+icon('package',9)+'</i>');
     if(entry.comment)marks.push('<i class="camera-room-marker is-comment" title="Комментарий">'+icon('message-square',9)+'</i>');
@@ -225,7 +227,7 @@ function centerRoom(number, behavior = 'smooth') {
 }
 function triggerCarouselHaptic() {
   try {
-    if (typeof navigator.vibrate === 'function') navigator.vibrate(8);
+    if (typeof navigator.vibrate === 'function') navigator.vibrate(24);
   } catch (_) {}
 }
 function updateCarouselSelection() {
@@ -736,10 +738,7 @@ function cropCanvasToFourThree() {
 }
 async function capturePhoto() {
   const room = roomByNumber(selectedNumber);
-  if (captureBusy || photoBlob || isArrivalNotReady(room)) {
-    if (isArrivalNotReady(room)) showNotice('Сначала отметь «Можно делать» для этого номера', true);
-    return;
-  }
+  if (captureBusy || photoBlob) return;
 
   const number = String(selectedNumber);
   captureBusy = true;
@@ -1106,9 +1105,9 @@ export function renderCamera(state) {
         '<div class="camera-viewport" id="cameraViewport">' +
           '<video id="cameraVideo" autoplay playsinline muted></video><canvas id="cameraCanvas" hidden></canvas>' +
           '<div class="camera-focus-frame" aria-hidden="true"><span></span><span></span><span></span><span></span></div>' +
-          '<div class="camera-standby" id="cameraStandby"></div>' +
-          '<div class="camera-loader hidden" id="cameraLoader"><span class="camera-loader-spinner"></span><strong id="cameraLoaderTitle">Запуск камеры…</strong><small id="cameraLoaderSubtitle"></small><button type="button" class="camera-retry hidden" data-camera-action="retry-camera" id="cameraLoaderRetry">Повторить</button></div>' +
+              '<div class="camera-loader hidden" id="cameraLoader"><span class="camera-loader-spinner"></span><strong id="cameraLoaderTitle">Запуск камеры…</strong><small id="cameraLoaderSubtitle"></small><button type="button" class="camera-retry hidden" data-camera-action="retry-camera" id="cameraLoaderRetry">Повторить</button></div>' +
         '</div>' +
+        '<div class="camera-standby" id="cameraStandby"></div>' +
         '<div class="camera-action-row"><button type="button" class="camera-room-action" data-camera-action="empty" id="cameraActionEmpty">Опустошён</button><button type="button" class="camera-room-action is-primary" data-camera-action="open-refill" id="cameraActionRefill">Пополнить</button><button type="button" class="camera-room-action" data-camera-action="residential" id="cameraActionResidential">Жилой</button></div>' +
         '<div class="camera-capture-zone"><button type="button" class="camera-capture-button" data-camera-action="capture" id="cameraCapture" aria-label="Сделать фото"><span></span></button></div>' +
       '</div>' +
