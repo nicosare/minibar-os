@@ -7,6 +7,7 @@ import { renderLists, initializeLists, loadList, handleListClick, handleListChan
 import { renderCamera, cameraDidRender, cameraWillUnmount } from './screens/camera.js';
 import { renderRooms, roomsDidRender, roomsWillUnmount, handleRoomsClick, handleRoomsInput, handleRoomsChange } from './screens/rooms.js';
 import { renderMore } from './screens/more.js';
+import { gihDidRender, gihWillUnmount, handleGihClick, handleGihInput, handleGihChange } from './screens/gih.js';
 
 const topbar = document.getElementById('appTopbar');
 const main = document.getElementById('appMain');
@@ -28,10 +29,12 @@ function render() {
     : [];
   if (renderedScreen === 'camera' && screen !== 'camera') cameraWillUnmount();
   if (renderedScreen === 'rooms' && screen !== 'rooms') roomsWillUnmount();
+  if (renderedScreen === 'lists' && renderedListType === 'gih' && (screen !== 'lists' || state.listType !== 'gih')) gihWillUnmount();
   topbar.innerHTML = renderTopbar();
   main.innerHTML = renderers[screen](state);
   if (screen === 'camera') cameraDidRender();
   if (screen === 'rooms') roomsDidRender();
+  if (screen === 'lists' && state.listType === 'gih') gihDidRender();
   bottomNav.innerHTML = renderBottomNav({ ...state, screen });
   renderIcons();
   document.documentElement.dataset.screen = screen;
@@ -59,6 +62,7 @@ function resetSingleRoomCameraContext(screen) {
 }
 
 document.addEventListener('click', event => {
+  if (handleGihClick(event)) return;
   if (handleListClick(event)) return;
   if (handleRoomsClick(event)) return;
 
@@ -98,8 +102,10 @@ document.addEventListener('click', event => {
 document.addEventListener('change', event => {
   handleListChange(event);
   handleRoomsChange(event);
+  handleGihChange(event);
 });
 document.addEventListener('input', event => {
+  if (handleGihInput(event)) return;
   handleRoomsInput(event);
 });
 
