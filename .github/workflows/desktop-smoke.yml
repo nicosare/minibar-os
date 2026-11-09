@@ -132,8 +132,8 @@ jobs:
           console.log('Departures ↔ Arrivals synchronization binding: OK');
           NODE
 
-      - name: Test the emptied-today room state
-        run: node --test backend/src/services/emptiedToday.test.js
+      - name: Test room state synchronization
+        run: node --test backend/src/services/emptiedToday.test.js backend/src/services/roomDeadlineStatus.test.js
 
       - name: Show frontend logs on failure
         if: failure()
