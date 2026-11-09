@@ -1716,7 +1716,7 @@ function carouselTopIndex(carousel) {
 }
 function triggerCarouselScrollHaptic() {
   try {
-    if (typeof navigator.vibrate === 'function') navigator.vibrate(8);
+    if (typeof navigator.vibrate === 'function') navigator.vibrate(22);
   } catch (_) {}
 }
 function attachCarouselScroll(carousel = $('cameraCarousel')) {
