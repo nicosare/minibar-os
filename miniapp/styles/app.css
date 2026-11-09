@@ -615,10 +615,10 @@ html[data-screen="camera"] .screen-camera {
   box-sizing: border-box;
   flex: 0 1 auto;
   align-self: center;
-  width: min(100%, calc(38dvh * .75));
+  width: 100%;
   height: auto;
   min-height: 0;
-  max-height: 38dvh;
+  max-height: 48dvh;
   aspect-ratio: 3 / 4;
   overflow: hidden;
   border: 1px solid #dbe4ef;
