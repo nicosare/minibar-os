@@ -222,7 +222,7 @@ export function renderRooms() {
       '<div><span>Пустые</span><strong id="roomsCountEmpty">—</strong></div>' +
       '<div><span>Требуют замены</span><strong id="roomsCountNeeds">—</strong></div>' +
     '</section>' +
-    '<label class="rooms-directory-search"><span>' + icon('search',17) + '</span><input id="roomsSearch" type="search" placeholder="Номер, этаж или категория" autocomplete="off"></label>' +
+    '<label class="rooms-directory-search"><span>' + icon('search',17) + '</span><input id="roomsSearch" type="search" value="' + escapeHtml(searchQuery) + '" placeholder="Номер, этаж или категория" autocomplete="off"></label>' +
     '<div class="rooms-filter-row" id="roomsFilterRow"></div>' +
     '<div id="roomsDirectoryContent" class="rooms-directory-content"></div>' +
     '<div id="roomDetailModal" class="rooms-detail-backdrop hidden" aria-hidden="true"></div>' +
@@ -236,6 +236,7 @@ export function roomsDidRender() {
 }
 export function roomsWillUnmount() {
   closeRoomDetails();
+  loaded = false;
 }
 export function handleRoomsInput(event) {
   const target = event.target instanceof Element ? event.target : null;
