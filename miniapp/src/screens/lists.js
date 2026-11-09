@@ -292,7 +292,7 @@ function renderRefillDetails(state, info) {
     (summary ? '<span class="list-refill-current">Сейчас: ' + escapeHtml(summary) + '</span>' : '') + '</div>' +
     (items
       ? '<button type="button" class="list-arrival-toggle" data-list-action="select-all-refill"' +
-        (busy ? ' disabled' : '') + '>Выбрать все продукты</button>' +
+        (busy ? ' disabled' : '') + '>Пустой номер — выбрать все продукты</button>' +
         '<div class="list-refill-products">' + items + '</div>' 
       : '<div class="list-editor-empty">Для номера не задан шаблон продуктов.</div>') +
     (items ? '<button type="button" class="list-primary-action" data-list-action="save-refill"' +
@@ -580,6 +580,42 @@ async function updateArrivalField(number, field, value) {
   }
 }
 
+async function selectAllRefill(card, button) {
+  const number = String(card?.dataset.roomNumber || '');
+  const type = getState().listType;
+  const data = getState().listData && getState().listData[type];
+  const info = data?.roomInfo?.[number];
+  if (!info || !Number(info.id)) {
+    setNotice('Не удалось определить номер для пополнения.', true);
+    return;
+  }
+
+  card.querySelectorAll('[data-refill-qty]').forEach(input => { input.value = input.max; });
+  if (info.expiryStatus === 'empty') {
+    setNotice('Номер ' + number + ' уже отмечен пустым. Выбрана полная корзина по шаблону.');
+    return;
+  }
+
+  if (button) button.disabled = true;
+  setNotice('Отмечаем номер ' + number + ' пустым…');
+  try {
+    await api.delete('rooms/' + Number(info.id) + '/product-statuses', { body: { roomStatus: 'empty' } });
+    const latest = getState().listData && getState().listData[type];
+    updateListData(type, {
+      ...latest,
+      roomInfo: {
+        ...(latest?.roomInfo || {}),
+        [number]: { ...(latest?.roomInfo?.[number] || info), expiryStatus: 'empty' }
+      }
+    });
+    setNotice('Номер ' + number + ' отмечен пустым. Выбрана полная корзина по шаблону.');
+  } catch (error) {
+    setNotice(error.message || 'Не удалось отметить номер пустым.', true);
+  } finally {
+    if (button?.isConnected) button.disabled = false;
+  }
+}
+
 async function saveRefill(card) {
   const number = String(card?.dataset.roomNumber || '');
   const type = getState().listType;
@@ -662,10 +698,7 @@ export function handleListClick(event) {
   else if (action === 'toggle-arrival' && number) void toggleArrival(number);
   else if (action === 'save-refill') void saveRefill(control.closest('[data-room-number]'));
   else if (action === 'select-all-refill') {
-    const card = control.closest('[data-room-number]');
-    if (card && !control.disabled) {
-      card.querySelectorAll('[data-refill-qty]').forEach(input => { input.value = input.max; });
-    }
+    if (!control.disabled) void selectAllRefill(control.closest('[data-room-number]'), control);
   }
   else if (action === 'toggle-completed') updateUi({ showCompleted: !(getState().listUi || DEFAULT_UI).showCompleted });
   else if (action === 'settings') updateUi({ settingsOpen: !(getState().listUi || DEFAULT_UI).settingsOpen });
