@@ -239,7 +239,7 @@ function assignedDepartureNumbers(session, worklist, roomByNumber) {
 
 export async function getMiniAppDepartureList(req) {
   const range = todayRange(req);
-  const [rooms, checks, session, worklist] = await Promise.all([
+  const [rooms, checks, session, worklist, arrivalNumbers] = await Promise.all([
     prisma.room.findMany({
       select: {
         id: true,
