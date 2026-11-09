@@ -5,7 +5,7 @@ import { renderIcons } from './components/icons.js';
 import { renderToday } from './screens/today.js';
 import { renderLists, initializeLists, loadList, handleListClick, handleListChange } from './screens/lists.js';
 import { renderCamera, cameraDidRender, cameraWillUnmount } from './screens/camera.js';
-import { renderRooms } from './screens/rooms.js';
+import { renderRooms, roomsDidRender, roomsWillUnmount, handleRoomsClick, handleRoomsInput } from './screens/rooms.js';
 import { renderMore } from './screens/more.js';
 
 const topbar = document.getElementById('appTopbar');
@@ -27,9 +27,11 @@ function render() {
     ? [...main.querySelectorAll('details.list-room-card[open]')].map(card => card.dataset.roomNumber)
     : [];
   if (renderedScreen === 'camera' && screen !== 'camera') cameraWillUnmount();
+  if (renderedScreen === 'rooms' && screen !== 'rooms') roomsWillUnmount();
   topbar.innerHTML = renderTopbar();
   main.innerHTML = renderers[screen](state);
   if (screen === 'camera') cameraDidRender();
+  if (screen === 'rooms') roomsDidRender();
   bottomNav.innerHTML = renderBottomNav({ ...state, screen });
   renderIcons();
   document.documentElement.dataset.screen = screen;
@@ -49,6 +51,7 @@ subscribe(render);
 
 document.addEventListener('click', event => {
   if (handleListClick(event)) return;
+  if (handleRoomsClick(event)) return;
 
   const target = event.target instanceof Element ? event.target : null;
   if (!target) return;
@@ -84,6 +87,9 @@ document.addEventListener('click', event => {
 
 document.addEventListener('change', event => {
   handleListChange(event);
+});
+document.addEventListener('input', event => {
+  handleRoomsInput(event);
 });
 
 render();
