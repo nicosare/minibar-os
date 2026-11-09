@@ -974,6 +974,7 @@ html[data-screen="camera"] .screen-camera {
 .camera-room-marker.is-deadline { color: #9a3412; }
 .camera-room-marker.is-refill { color: #9a3412; }
 .camera-room-marker.is-vip { color: #92400e; }
+.camera-room-marker.is-arrival { color: #4338ca; }
 .camera-room-marker.is-comment { color: #6d28d9; }
 .camera-room-marker.is-checked { color: #065f46; }
 .camera-number-item.is-active .camera-room-marker { color: #fff; }
