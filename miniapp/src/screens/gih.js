@@ -1,4 +1,5 @@
 import { api } from '../core/api.js';
+import { setState } from '../core/store.js';
 
 const CATEGORIES = ['Дверца', 'Напитки', 'Алкоголь', 'Соки'];
 const STATUS_CYCLE = ['pending', 'replenished', 'in_place', 'out', 'not_replenished'];
@@ -166,8 +167,7 @@ function renderProductRow(item) {
   return '<button type="button" class="gih-product-row" data-gih-action="cycle-factory-product"' +
     ' data-product-id="' + productId + '" data-max="' + max + '">' +
     '<span class="gih-product-emoji" data-color="' + escapeHtml(bg) + '">' + escapeHtml(productEmoji(product)) + '</span>' +
-    '<span class="gih-product-copy"><strong>' + escapeHtml(product.name || 'Продукт') + '</strong>' +
-    '<small>В шаблоне: ' + max + '</small></span>' +
+    '<span class="gih-product-copy"><strong>' + escapeHtml(product.name || 'Продукт') + '</strong></span>' +
     '<span class="gih-product-selected">' + count + '</span></button>';
 }
 
@@ -248,7 +248,7 @@ function renderFactory() {
       (editing ? '<button type="button" class="gih-text-button" data-gih-action="cancel-edit">Отмена</button>' : '') +
     '</div>' +
     '<label class="gih-room-input"><span>Номер комнаты</span><input type="text" inputmode="numeric" autocomplete="off" maxlength="4" ' +
-      'data-gih-input="room" value="' + escapeHtml(factory.input) + '" placeholder="Например, 204"></label>' +
+      'data-gih-input="room" value="' + escapeHtml(factory.input) + '" aria-label="Номер комнаты"></label>' +
     (room ? '<div class="gih-selected-room"><span class="gih-room-dot"></span> Номер ' +
       escapeHtml(room.number) + (room.floor ? ' · этаж ' + escapeHtml(room.floor) : '') + '</div>' : '') +
     '<div class="gih-factory-products">' + renderFactoryProducts(room) + '</div>' +
@@ -472,34 +472,43 @@ function renderGihProductSummary() {
     productRows + '</div></div></details></section>';
 }
 
-function workspaceContent() {
-  if (loading && !loaded) {
-    return '<div class="gih-loading"><span class="list-loading-spinner"></span> Загружаем GIH</div>';
-  }
-  if (loadError && !loaded) {
-    return '<div class="gih-loading gih-load-error"><strong>' + escapeHtml(loadError) +
-      '</strong><button type="button" data-gih-action="retry">Повторить</button></div>';
-  }
+function loadingGihContent() {
+  if (loading && !loaded) return '<div class="gih-loading"><span class="list-loading-spinner"></span> Загружаем GIH</div>';
+  if (loadError && !loaded) return '<div class="gih-loading gih-load-error"><strong>' + escapeHtml(loadError) +
+    '</strong><button type="button" data-gih-action="retry">Повторить</button></div>';
+  return '';
+}
+
+function factoryContent() {
+  const loadingMarkup = loadingGihContent();
+  if (loadingMarkup) return loadingMarkup;
+  return renderNotice() + '<div id="gih-factory-root">' + renderFactory() + '</div>';
+}
+
+function gihListsContent() {
+  const loadingMarkup = loadingGihContent();
+  if (loadingMarkup) return loadingMarkup;
   const total = drafts.length + completed.length;
-  return '<div class="gih-summary"><div><strong>' + drafts.length + '</strong><span>черновики</span></div>' +
-    '<div><strong>' + completed.length + '</strong><span>сохранено сегодня</span></div></div>' +
-    renderNotice() +
-    '<div id="gih-factory-root">' + renderFactory() + '</div>' +
-    renderGihProductSummary() +
-    '<section class="gih-record-section"><div class="gih-section-heading"><h3>Активные проверки</h3>' +
-      '<span>' + drafts.length + '</span></div>' +
-      (drafts.length ? drafts.map(renderDraft).join('') :
-        '<div class="gih-section-empty">' + (total ? 'Активных черновиков нет.' : 'Пока нет проверок за сегодня.') + '</div>') +
+  return renderNotice() + renderGihProductSummary() +
+    '<section class="gih-record-section"><div class="gih-section-heading"><h3>Черновики</h3><span>' + drafts.length + '</span></div>' +
+    (drafts.length ? drafts.map(renderDraft).join('') :
+      '<div class="gih-section-empty">' + (total ? 'Активных черновиков нет.' : 'Пока нет проверок за сегодня.') + '</div>') +
     '</section>' +
-    (completed.length ? '<section class="gih-record-section"><div class="gih-section-heading"><h3>Сохранённые</h3>' +
-      '<span>' + completed.length + '</span></div>' + completed.map(renderCompleted).join('') + '</section>' : '');
+    '<section class="gih-record-section"><div class="gih-section-heading"><h3>Сохранённые</h3><span>' + completed.length + '</span></div>' +
+    (completed.length ? completed.map(renderCompleted).join('') :
+      '<div class="gih-section-empty">Сохранённых проверок пока нет.</div>') +
+    '</section>';
+}
+
+function workspaceContent(view = 'factory') {
+  return view === 'lists' ? gihListsContent() : factoryContent();
 }
 
 function renderWorkspace() {
   const root = document.getElementById('gih-workspace');
   if (!root) return;
   const productsOpen = Boolean(root.querySelector('.gih-products-summary-dropdown')?.open);
-  root.innerHTML = workspaceContent();
+  root.innerHTML = workspaceContent(root.dataset.gihView || 'factory');
   const nextProducts = root.querySelector('.gih-products-summary-dropdown');
   if (productsOpen && nextProducts) nextProducts.open = true;
 }
@@ -698,6 +707,7 @@ function openDraftForEdit(id) {
     notes: draft.notes || ''
   };
   roomHistory = { roomId: null, loading: false, items: [], error: '' };
+  setState({ screen: 'gih', moreItem: null });
   renderWorkspace();
   void loadRoomHistory(factory.roomId);
   const main = document.getElementById('appMain');
@@ -783,7 +793,11 @@ function updateRoomFromInput(input) {
 }
 
 export function renderGih() {
-  return '<div id="gih-workspace" class="gih-workspace">' + workspaceContent() + '</div>';
+  return '<div id="gih-workspace" class="gih-workspace" data-gih-view="factory">' + workspaceContent('factory') + '</div>';
+}
+
+export function renderGihLists() {
+  return '<div id="gih-workspace" class="gih-workspace" data-gih-view="lists">' + workspaceContent('lists') + '</div>';
 }
 
 function scheduleDayRollover() {
