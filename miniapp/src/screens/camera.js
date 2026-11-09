@@ -1301,16 +1301,20 @@ async function sendRoomMessage(message, action) {
   if (!selectedNumber || captureBusy) return;
   const number = String(selectedNumber);
   const sourceType = sourceData().type;
+  const commentInput = $('cameraComment');
+  const comment = String(commentInput?.value || '').trim();
+  const messageText = number + ' ' + message + (comment ? ' (' + comment + ')' : '');
   captureBusy = true;
   updateActionAvailability();
   try {
     const response = await fetch('/minibar-os/vk-proxy/send-message',{
       method:'POST',
       headers:{'Content-Type':'application/json',Accept:'application/json'},
-      body:JSON.stringify({message:number+' '+message})
+      body:JSON.stringify({message:messageText})
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.ok) throw new Error(data.error || 'Не удалось отправить сообщение');
+    if (commentInput && commentInput.value.trim() === comment) commentInput.value = '';
     showNotice(action + ' · номер ' + number);
     if (action === 'Опустошение отправлено') {
       await advanceAfterRoomCompletion(sourceType, number);
@@ -1779,8 +1783,9 @@ export function renderCamera(state) {
               '<div class="camera-loader hidden" id="cameraLoader"><span class="camera-loader-spinner"></span><strong id="cameraLoaderTitle">Запуск камеры…</strong><small id="cameraLoaderSubtitle"></small><button type="button" class="camera-retry hidden" data-camera-action="retry-camera" id="cameraLoaderRetry">Повторить</button></div>' +
         '</div>' +
         '<div class="camera-standby" id="cameraStandby"></div>' +
-        '<div class="camera-action-row"><button type="button" class="camera-room-action" data-camera-action="empty" id="cameraActionEmpty">Опустошён</button><button type="button" class="camera-room-action" data-camera-action="residential" id="cameraActionResidential">Жилой</button></div>' +
         '<div class="camera-capture-zone"><button type="button" class="camera-capture-button" data-camera-action="capture" id="cameraCapture" aria-label="Сделать фото"><span></span></button></div>' +
+        '<input type="text" class="camera-comment-input" id="cameraComment" maxlength="240" placeholder="Комментарий (необязательно)" aria-label="Комментарий к сообщению" autocomplete="off">' +
+        '<div class="camera-action-row"><button type="button" class="camera-room-action" data-camera-action="empty" id="cameraActionEmpty">Опустошён</button><button type="button" class="camera-room-action" data-camera-action="residential" id="cameraActionResidential">Жилой</button></div>' +
       '</div>' +
     '</div>' +
     '<div class="camera-feedback" id="cameraFeedback" role="status"></div>' +
