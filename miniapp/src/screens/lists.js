@@ -2,12 +2,10 @@ import { api } from '../core/api.js';
 import { getState, setState } from '../core/store.js';
 import { pageHeader } from '../components/chrome.js';
 import { icon } from '../components/icons.js';
-import { renderGih } from './gih.js';
 
 const TYPES = [
   { id: 'arrivals', label: 'Заезды' },
   { id: 'departures', label: 'Выезды' },
-  { id: 'gih', label: 'GIH' },
   { id: 'empty', label: 'Пустые' }
 ];
 
@@ -390,7 +388,6 @@ function renderSettings(ui) {
 }
 
 function renderListBody(state, type) {
-  if (type === 'gih') return renderGih();
   if (type !== 'arrivals' && type !== 'departures') {
     return '<section class="list-placeholder"><span class="list-placeholder-icon">' +
       icon('door-open', 24) +
