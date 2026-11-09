@@ -165,9 +165,12 @@ function renderProductRow(item) {
   const max = Math.max(1, Number.parseInt(item.qty, 10) || 1);
   const bg = String(product.bgColor || 'slate').toLowerCase();
   return '<div class="gih-product-row">' +
-    '<span class="gih-product-emoji" data-color="' + escapeHtml(bg) + '">' + escapeHtml(productEmoji(product)) + '</span>' +
-    '<span class="gih-product-copy"><strong>' + escapeHtml(product.name || 'Продукт') + '</strong>' +
-      '<small>В шаблоне: ' + max + '</small></span>' +
+    '<button type="button" class="gih-product-main" data-gih-action="increment" data-product-id="' + productId +
+      '" data-max="' + max + '"' + (count >= max ? ' disabled' : '') + '>' +
+      '<span class="gih-product-emoji" data-color="' + escapeHtml(bg) + '">' + escapeHtml(productEmoji(product)) + '</span>' +
+      '<span class="gih-product-copy"><strong>' + escapeHtml(product.name || 'Продукт') + '</strong>' +
+        '<small>В шаблоне: ' + max + '</small></span>' +
+      '<span class="gih-product-selected">' + count + '</span></button>' +
     '<span class="gih-stepper">' +
       '<button type="button" data-gih-action="decrement" data-product-id="' + productId + '"' +
         (count <= 0 ? ' disabled' : '') + ' aria-label="Уменьшить количество">−</button>' +
@@ -177,6 +180,7 @@ function renderProductRow(item) {
     '</span></div>';
 }
 
+
 function renderFactoryProducts(room) {
   if (!room) {
     const value = String(factory.input || '').trim();
@@ -184,7 +188,20 @@ function renderFactoryProducts(room) {
     return '<div class="gih-factory-empty is-error">Номер комнаты не найден.</div>';
   }
 
-  const templateItems = room.template && Array.isArray(room.template.items) ? room.template.items : [];
+  const sourceItems = room.template && Array.isArray(room.template.items) ? room.template.items : [];
+  const groupedItems = new Map();
+  sourceItems.forEach(item => {
+    const product = item.product || {};
+    const productId = Number(item.productId || product.id);
+    if (!productId) return;
+    const key = String(productId);
+    if (!groupedItems.has(key)) {
+      groupedItems.set(key, { ...item, productId, product, qty: 0 });
+    }
+    const grouped = groupedItems.get(key);
+    grouped.qty += Math.max(1, Number.parseInt(item.qty, 10) || 1);
+  });
+  const templateItems = [...groupedItems.values()];
   if (!templateItems.length) {
     return '<div class="gih-factory-empty">Для номера ' + escapeHtml(room.number) +
       ' не настроен шаблон наполнения.</div>';
@@ -200,13 +217,13 @@ function renderFactoryProducts(room) {
     ...CATEGORIES.filter(category => grouped.has(category)),
     ...[...grouped.keys()].filter(category => !CATEGORIES.includes(category)).sort()
   ];
-  const productCount = templateItems.length;
-  return '<details class="gih-products-dropdown"><summary><span>Все продукты</span><strong>' + productCount + '</strong></summary>' +
+  return '<details class="gih-products-dropdown"><summary><span>Все продукты</span><strong>' + templateItems.length + '</strong></summary>' +
     '<div class="gih-products-dropdown-body">' + categories.map(category =>
       '<section class="gih-product-category"><h4>' + escapeHtml(category) + '</h4>' +
       grouped.get(category).map(renderProductRow).join('') + '</section>'
     ).join('') + '</div></details>';
 }
+
 
 function historySummary(item) {
   if (item.type === 'gih') {
@@ -242,8 +259,8 @@ function renderFactory() {
     '</div>' +
     '<label class="gih-room-input"><span>Номер комнаты</span><input type="text" inputmode="numeric" autocomplete="off" maxlength="4" ' +
       'data-gih-input="room" list="gih-room-options" value="' + escapeHtml(factory.input) + '" placeholder="Например, 204"></label>' +
-    '<datalist id="gih-room-options">' + rooms.slice().sort((a, b) => (factory.sort === \'desc\' ? Number(b.number) - Number(a.number) : Number(a.number) - Number(b.number))).map(item => '<option value="' + escapeHtml(item.number) + '"></option>').join('') + '</datalist>' +
-    '<label class="gih-room-sort"><span>Порядок номеров</span><select data-gih-sort><option value="asc"' + (factory.sort !== \'desc\' ? ' selected' : '') + '>По возрастанию</option><option value="desc"' + (factory.sort === \'desc\' ? ' selected' : '') + '>По убыванию</option></select></label>' +
+    '<datalist id="gih-room-options">' + rooms.slice().sort((a, b) => (factory.sort === 'desc' ? Number(b.number) - Number(a.number) : Number(a.number) - Number(b.number))).map(item => '<option value="' + escapeHtml(item.number) + '"></option>').join('') + '</datalist>' +
+    '<label class="gih-room-sort"><span>Порядок номеров</span><select data-gih-sort><option value="asc"' + (factory.sort !== 'desc' ? ' selected' : '') + '>По возрастанию</option><option value="desc"' + (factory.sort === 'desc' ? ' selected' : '') + '>По убыванию</option></select></label>' +
     (room ? '<div class="gih-selected-room"><span class="gih-room-dot"></span> Номер ' +
       escapeHtml(room.number) + (room.floor ? ' · этаж ' + escapeHtml(room.floor) : '') + '</div>' : '') +
     '<div class="gih-factory-products">' + renderFactoryProducts(room) + '</div>' +
@@ -349,6 +366,121 @@ function renderCompleted(record) {
   '</article>';
 }
 
+function normalizeRoomType(room) {
+  const values = [room && room.category, room && room.roomCategory, room && room.roomType, room && room.type]
+    .filter(value => value != null && String(value).trim() !== '')
+    .map(value => String(value).trim().toLocaleLowerCase('ru-RU'));
+  const suitePattern = /люкс|suite|lux|deluxe|апартамент|apartment|junior|полулюкс|президентск|presidential|^l$|^lx$/iu;
+  return values.some(value => suitePattern.test(value)) ? 'suite' : 'standard';
+}
+
+function registerBasketTemplate(templateByType, type, items) {
+  if (!Array.isArray(items) || !items.length) return;
+  const recipe = new Map();
+  for (const item of items) {
+    const productId = Number(item.productId || (item.product && item.product.id)) || 0;
+    const key = String(productId);
+    const qty = Math.max(0, Number(item.qty) || 0);
+    if (key === '0' || !qty) continue;
+    recipe.set(key, (recipe.get(key) || 0) + qty);
+  }
+  if (!recipe.size) return;
+  const signature = [...recipe.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([key, qty]) => key + '=' + qty).join('|');
+  const recipes = templateByType.get(type) || new Map();
+  if (!recipes.has(signature)) recipes.set(signature, recipe);
+  templateByType.set(type, recipes);
+}
+
+function finalizeBasketProductTotals(groupedProducts, templateByType) {
+  const basketCounts = { standard: 0, suite: 0 };
+  for (const type of ['standard', 'suite']) {
+    const recipes = templateByType.get(type);
+    if (!recipes || !recipes.size) continue;
+    const orderedRecipes = [...recipes.values()].sort((a, b) => b.size - a.size);
+    for (const recipe of orderedRecipes) {
+      const possible = Math.min(...[...recipe.entries()].map(([key, qty]) => {
+        const product = groupedProducts.get(key);
+        return product ? Math.floor(product.qty / qty) : 0;
+      }));
+      if (!Number.isFinite(possible) || possible <= 0) continue;
+      basketCounts[type] += possible;
+      for (const [key, qty] of recipe) {
+        const product = groupedProducts.get(key);
+        if (product) product.qty -= qty * possible;
+      }
+    }
+  }
+
+  const result = [];
+  for (const type of ['standard', 'suite']) {
+    const qty = basketCounts[type];
+    if (qty > 0) result.push({
+      name: type === 'suite' ? 'Корзинка люкс' : 'Корзинка стандарт',
+      qty,
+      basket: true,
+      bgColor: 'yellow'
+    });
+  }
+  [...groupedProducts.values()].filter(product => product.qty > 0)
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ru'))
+    .forEach(product => result.push({ ...product, basket: false }));
+  return result;
+}
+
+function renderGihProductSummary() {
+  const latestDraftByRoom = new Map();
+  for (const draft of drafts) {
+    const number = String(draft.number);
+    const current = latestDraftByRoom.get(number);
+    if (!current || new Date(draft.date || 0).getTime() > new Date(current.date || 0).getTime()) {
+      latestDraftByRoom.set(number, draft);
+    }
+  }
+
+  const groupedProducts = new Map();
+  const templateByType = new Map();
+  for (const draft of latestDraftByRoom.values()) {
+    const room = roomById(draft.roomId) || rooms.find(item => String(item.number) === String(draft.number));
+    registerBasketTemplate(templateByType, normalizeRoomType(room), room && room.template && room.template.items || []);
+    for (const item of draft.gihItems || []) {
+      const name = String(item.name || 'Продукт');
+      const productId = Number(item.productId) || 0;
+      const key = productId > 0 ? String(productId) : 'name:' + name.toLocaleLowerCase('ru-RU');
+      if (!groupedProducts.has(key)) {
+        groupedProducts.set(key, {
+          productId: productId || null,
+          name,
+          emoji: item.emoji || name.charAt(0).toUpperCase(),
+          bgColor: item.bgColor || 'slate',
+          qty: 0
+        });
+      }
+      groupedProducts.get(key).qty += 1;
+    }
+  }
+
+  const products = finalizeBasketProductTotals(groupedProducts, templateByType);
+  const heading = '<div class="gih-section-heading"><h3>Продукты GIH</h3><span>' +
+    latestDraftByRoom.size + ' номеров</span></div>';
+  if (!products.length) {
+    return '<section class="gih-record-section gih-products-section">' + heading +
+      '<div class="gih-section-empty"><strong>Пока нет продуктов</strong><span>Создай черновики GIH, чтобы собрать общий список.</span></div></section>';
+  }
+
+  const basketIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 10 2 10h12l2-10H4Z"/><path d="m8 10 4-6 4 6M8 14v3M12 14v3M16 14v3"/></svg>';
+  const productRows = products.map(product => {
+    const basket = Boolean(product.basket);
+    const icon = basket ? basketIcon : escapeHtml(product.emoji || String(product.name || '?').charAt(0));
+    return '<div class="gih-list-product' + (basket ? ' is-basket' : '') + '">' +
+      '<span class="gih-list-product-icon' + (basket ? ' is-basket' : '') + '">' + icon + '</span>' +
+      '<span class="gih-list-product-name">' + escapeHtml(product.name) + '</span>' +
+      '<strong class="gih-list-product-qty">' + product.qty + ' шт.</strong></div>';
+  }).join('');
+  return '<section class="gih-record-section gih-products-section">' + heading +
+    '<div class="gih-list-products">' + productRows + '</div></section>';
+}
+
 function workspaceContent() {
   if (loading && !loaded) {
     return '<div class="gih-loading"><span class="list-loading-spinner"></span> Загружаем GIH</div>';
@@ -362,6 +494,7 @@ function workspaceContent() {
     '<div><strong>' + completed.length + '</strong><span>сохранено сегодня</span></div></div>' +
     renderNotice() +
     '<div id="gih-factory-root">' + renderFactory() + '</div>' +
+    renderGihProductSummary() +
     '<section class="gih-record-section"><div class="gih-section-heading"><h3>Активные проверки</h3>' +
       '<span>' + drafts.length + '</span></div>' +
       (drafts.length ? drafts.map(renderDraft).join('') :
