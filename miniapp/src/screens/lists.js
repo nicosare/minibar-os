@@ -269,9 +269,18 @@ function renderDeadlineDetails(info, details) {
 
 function renderRefillDetails(state, info) {
   const request = refillForRoom(state, info.id);
-  const templateItems = Array.isArray(info.templateItems) && info.templateItems.length
+  const templateSource = Array.isArray(info.templateItems) && info.templateItems.length
     ? info.templateItems
     : (Array.isArray(request?.templateItems) ? request.templateItems : []);
+  const templateByProduct = new Map();
+  templateSource.forEach(item => {
+    const id = Number(item.productId);
+    if (!Number.isInteger(id) || id <= 0 || item.isActive === false) return;
+    const qty = Math.max(1, Number(item.qty) || 1);
+    if (templateByProduct.has(id)) templateByProduct.get(id).qty += qty;
+    else templateByProduct.set(id, { ...item, productId: id, qty });
+  });
+  const templateItems = [...templateByProduct.values()];
   const busy = isBusy('refill', String(info.id));
   if (busy) return '<div class="list-detail-line"><span class="list-inline-spinner"></span>Сохраняем пополнение…</div>';
   const selected = new Map((request?.items || []).map(item => [Number(item.productId), Number(item.qty) || 0]));
@@ -635,7 +644,7 @@ async function saveRefill(card) {
   const expected = new Map();
   (Array.isArray(info.templateItems) ? info.templateItems : []).forEach(item => {
     const id = Number(item.productId);
-    if (id > 0) expected.set(id, (expected.get(id) || 0) + Math.max(1, Number(item.qty) || 1));
+    if (id > 0 && item.isActive !== false) expected.set(id, (expected.get(id) || 0) + Math.max(1, Number(item.qty) || 1));
   });
   const selected = new Map(items.map(item => [item.productId, item.qty]));
   const allProducts = expected.size > 0 && selected.size === expected.size &&
