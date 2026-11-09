@@ -1239,6 +1239,9 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
+// Restore pending uploads on app startup, even when the user opens another tab first.
+void restorePhotoUploadQueue();
+
 function sendPhoto() {
   if (!selectedNumber || captureBusy || !photoRandomId) return;
   const number = String(selectedNumber);

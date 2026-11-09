@@ -157,7 +157,14 @@ function inArrivalList(number) {
   return (arrivalList?.roomNumbers || []).map(String).includes(String(number));
 }
 function inDepartureList(number) {
-  return (departureList?.roomNumbers || []).map(String).includes(String(number));
+  const value = String(number);
+  return [
+    ...(departureList?.roomNumbers || []),
+    ...(departureList?.completedNumbers || [])
+  ].map(String).includes(value);
+}
+function isCheckedToday(number) {
+  return (departureList?.checkedToday || []).some(item => String(item?.number || '') === String(number));
 }
 function currentArrivalEntry(number) {
   return arrivalList?.entries?.[String(number)] || {};
@@ -176,8 +183,13 @@ function renderHome(room) {
   const refill = refillForRoom(room);
   const arr = inArrivalList(room.number);
   const dep = inDepartureList(room.number);
+  const depChecked = isCheckedToday(room.number);
+  const depDone = (departureList?.completedNumbers || []).map(String).includes(String(room.number));
   const arrivalLabel = arr ? 'Уже в списке' : 'Добавить в Заезды';
-  const departureLabel = dep ? 'Уже в списке' : 'Добавить в Выезды';
+  const departureLabel = depDone ? 'Выполнен сегодня'
+    : dep ? 'Уже в списке'
+    : depChecked ? 'Проверен сегодня'
+    : 'Добавить в Выезды';
   const lastCheck = room.lastDailyCheck;
   const refillLabel = refill?.items?.length ? 'Есть заявка на пополнение' : 'Открыть пополнение';
   return '<div class="rooms-detail-home">' +
@@ -198,7 +210,7 @@ function renderHome(room) {
       '<div class="rooms-list-membership-row">' +
         '<button type="button" data-room-action="add-arrivals" class="' + (arr ? 'is-added' : '') + '"' + (arr ? ' disabled' : '') + '>' +
           icon(arr ? 'check' : 'plus',15) + ' ' + arrivalLabel + '</button>' +
-        '<button type="button" data-room-action="add-departures" class="' + (dep ? 'is-added' : '') + '"' + (dep ? ' disabled' : '') + '>' +
+        '<button type="button" data-room-action="add-departures" class="' + (dep || depChecked ? 'is-added' : '') + '"' + (dep || depChecked ? ' disabled' : '') + '>' +
           icon(dep ? 'check' : 'plus',15) + ' ' + departureLabel + '</button>' +
       '</div></section>' +
     (room.notes ? '<p class="rooms-detail-note">' + escapeHtml(room.notes) + '</p>' : '') +
@@ -206,8 +218,8 @@ function renderHome(room) {
 }
 function actionHeader(mode) {
   return '<div class="rooms-action-heading"><button type="button" data-room-action="back" aria-label="Назад">' +
-    icon('chevron-left',17) + '</button><div><strong>' + escapeHtml(ACTION_LABELS[mode] || '') +
-    '</strong><small>Номер ' + escapeHtml(selectedRoom?.number || '') + '</small></div></div>';
+    icon('chevron-left',17) + '</button><div><strong>К карточке номера</strong><small>Номер ' +
+    escapeHtml(selectedRoom?.number || '') + '</small></div></div>';
 }
 function actionFeedback() {
   return actionError
@@ -255,7 +267,7 @@ function renderMarkersAction() {
   const number = String(selectedRoom?.number || '');
   const entry = currentArrivalEntry(number);
   const inArr = inArrivalList(number);
-  const inDep = inDepartureList(number);
+  const inDep = (departureList?.roomNumbers || []).map(String).includes(number);
   const checkbox = (field,label) =>
     '<label class="rooms-marker-toggle"><input type="checkbox" data-room-marker-field="' + field + '"' +
     (entry[field] ? ' checked' : '') + '><span>' + label + '</span></label>';
@@ -547,7 +559,8 @@ async function setRoomStatus(status) {
   }
 }
 async function toggleDepartureArrival() {
-  if (!selectedRoom || actionBusy || !inDepartureList(selectedRoom.number)) return;
+  if (!selectedRoom || actionBusy ||
+      !(departureList?.roomNumbers || []).map(String).includes(String(selectedRoom.number))) return;
   const number = String(selectedRoom.number);
   const enabled = !(departureList?.arrivalRooms || []).map(String).includes(number);
   actionBusy = true;
