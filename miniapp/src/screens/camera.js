@@ -208,6 +208,7 @@ function renderStandby() {
   const room = roomByNumber(selectedNumber);
   const panel = $('cameraStandby');
   if (!panel) return;
+  const productsWasOpen = Boolean(panel.querySelector('.camera-list-products-dropdown')?.open);
   if (!room.number || !room.id) {
     panel.innerHTML = '<div class="camera-info-empty">Выбери номер в карусели</div>';
     return;
@@ -241,7 +242,9 @@ function renderStandby() {
           '<strong>' + summary + '</strong>' +
         '</button>' +
       '</div>' +
-    '</section>';
+    '</section>' + renderListRefillSummary();
+  const productsDropdown = panel.querySelector('.camera-list-products-dropdown');
+  if (productsWasOpen && productsDropdown) productsDropdown.open = true;
   renderIcons();
 }
 function updateActionAvailability() {
@@ -933,7 +936,10 @@ async function capturePhoto() {
     const send = $('cameraSendPhoto');
     send.disabled = false;
     send.textContent = 'Отправить';
-    $('cameraPreviewRoom').textContent = 'Номер ' + number;
+    const entryComment = String(listEntry(number).comment || room.comment || '').trim();
+    $('cameraPreviewRoom').textContent = 'Номер ' + number + (entryComment ? ' (' + entryComment + ')' : '');
+    const previewDeadlines = $('cameraPreviewDeadlines');
+    if (previewDeadlines) previewDeadlines.hidden = room.expiryStatus !== 'empty';
     $('cameraPreviewModal').classList.remove('hidden');
     $('cameraPreviewModal').setAttribute('aria-hidden', 'false');
     $('cameraCarouselWrap').classList.add('is-disabled');
@@ -1355,6 +1361,68 @@ function refillItems(room, request) {
     (categoryOrder.indexOf(b.category) < 0 ? 99 : categoryOrder.indexOf(b.category)) ||
     a.name.localeCompare(b.name,'ru'));
 }
+
+function currentListRefillProducts() {
+  const roomsById = new Map();
+  roomNumbers().forEach(number => {
+    const room = roomByNumber(number);
+    if (Number(room.id) > 0) roomsById.set(Number(room.id), room);
+  });
+
+  const productsByKey = new Map();
+  activeRefills.filter(request => request?.status === 'pending').forEach(request => {
+    const room = roomsById.get(Number(request.roomId));
+    if (!room) return;
+    const metadata = new Map(refillItems(room, request).map(item => [Number(item.id), item]));
+
+    (request.items || []).forEach(item => {
+      const productId = Number(item.productId) || 0;
+      const meta = productId > 0 ? metadata.get(productId) || {} : {};
+      const name = String(item.name || meta.name || 'Продукт');
+      const key = productId > 0 ? 'id:' + productId : 'name:' + name.toLocaleLowerCase('ru-RU');
+      if (!productsByKey.has(key)) {
+        productsByKey.set(key, {
+          id: productId,
+          name,
+          category: item.category || meta.category || 'Напитки',
+          emoji: item.emoji || meta.emoji || name.charAt(0).toUpperCase(),
+          unit: item.unit || meta.unit || 'шт',
+          qty: 0,
+          rooms: new Set()
+        });
+      }
+      const product = productsByKey.get(key);
+      product.qty += Math.max(0, Number(item.qty) || 0);
+      product.rooms.add(String(room.number));
+    });
+  });
+
+  return [...productsByKey.values()].filter(item => item.qty > 0).sort((a, b) =>
+    (categoryOrder.indexOf(a.category) < 0 ? 99 : categoryOrder.indexOf(a.category)) -
+    (categoryOrder.indexOf(b.category) < 0 ? 99 : categoryOrder.indexOf(b.category)) ||
+    a.name.localeCompare(b.name, 'ru')
+  );
+}
+
+function renderListRefillSummary() {
+  const products = currentListRefillProducts();
+  if (!products.length) return '';
+  const roomCount = new Set(products.flatMap(item => [...item.rooms])).size;
+  const rows = products.map(item =>
+    '<div class="gih-list-product">' +
+      '<span class="gih-list-product-icon">' + esc(item.emoji || item.name.charAt(0)) + '</span>' +
+      '<span class="gih-list-product-name">' + esc(item.name) + '</span>' +
+      '<strong class="gih-list-product-qty">' + esc(Number(item.qty).toLocaleString('ru-RU') + ' ' + item.unit) + '</strong>' +
+    '</div>'
+  ).join('');
+  return '<section class="camera-list-products-section">' +
+    '<details class="gih-products-summary-dropdown camera-list-products-dropdown">' +
+      '<summary class="gih-products-summary-head"><span>Пополнение списка</span>' +
+        '<span class="gih-products-summary-count">' + products.length + ' позиций · ' + roomCount + ' номеров</span></summary>' +
+      '<div class="gih-products-summary-content"><div class="gih-list-products">' + rows + '</div></div>' +
+    '</details>' +
+  '</section>';
+}
 function renderRefillProducts() {
   const room = roomByNumber(selectedNumber);
   const request = activeRefill(room);
@@ -1513,6 +1581,8 @@ async function refreshSelectedRoom(type) {
   if (!sharedRoomActionChanged && (type === 'arrivals' || type === 'departures')) await loadList(type);
   renderStandby();
   renderCarousel();
+  const previewDeadlines = $('cameraPreviewDeadlines');
+  if (previewDeadlines) previewDeadlines.hidden = roomByNumber(selectedNumber).expiryStatus !== 'empty';
   if (sharedRoomActionChanged) await notifySharedRoomActionChanged(sharedRoomActionNumber);
 }
 
@@ -1689,6 +1759,7 @@ function handleClick(event) {
   if (action === 'capture') void capturePhoto();
   else if (action === 'retry-camera') { hideLoader(); void capturePhoto(); }
   else if (action === 'retake') closePreview();
+  else if (action === 'preview-deadlines') void openDeadlineModal();
   else if (action === 'send-photo') void sendPhoto();
   else if (action === 'empty') void sendRoomMessage('опустошён','Опустошение отправлено');
   else if (action === 'residential') void sendRoomMessage('проверен, жилой','Отметка «Жилой» отправлена');
@@ -1812,7 +1883,7 @@ export function renderCamera(state) {
       '</div>' +
     '</div>' +
     '<div class="camera-feedback" id="cameraFeedback" role="status"></div>' +
-    '<div class="camera-modal-overlay hidden" id="cameraPreviewModal" role="dialog" aria-modal="true" aria-label="Предпросмотр фотографии" aria-hidden="true"><div class="camera-preview-card"><div class="camera-preview-room" id="cameraPreviewRoom">Номер</div><canvas id="cameraPreviewCanvas" class="camera-preview-canvas"></canvas><div class="camera-preview-actions"><button type="button" class="camera-preview-secondary" data-camera-action="retake">Переснять</button><button type="button" class="camera-preview-primary" data-camera-action="send-photo" id="cameraSendPhoto">Отправить</button></div></div></div>' +
+    '<div class="camera-modal-overlay hidden" id="cameraPreviewModal" role="dialog" aria-modal="true" aria-label="Предпросмотр фотографии" aria-hidden="true"><div class="camera-preview-card"><div class="camera-preview-room" id="cameraPreviewRoom">Номер</div><canvas id="cameraPreviewCanvas" class="camera-preview-canvas"></canvas><button type="button" class="camera-preview-deadlines" data-camera-action="preview-deadlines" id="cameraPreviewDeadlines" hidden>Отметить сроки</button><div class="camera-preview-actions"><button type="button" class="camera-preview-secondary" data-camera-action="retake">Переснять</button><button type="button" class="camera-preview-primary" data-camera-action="send-photo" id="cameraSendPhoto">Отправить</button></div></div></div>' +
     renderSharedRoomActionModals() +
   '</div>';
 }
