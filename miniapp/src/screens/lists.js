@@ -298,8 +298,16 @@ function renderRefillDetails(state, info) {
     '<small class="list-editor-hint">Укажи количество отсутствующих продуктов. Ноль — не требуется.</small></section>';
 }
 
-function renderCameraAction(number, busy, done) {
-  if (done) return '';
+function cameraEligible(type, data, number) {
+  if (type !== 'arrivals') return true;
+  const ready = Array.isArray(data?.readyNumbers)
+    ? new Set(data.readyNumbers.map(String))
+    : new Set((data?.roomNumbers || []).map(String).filter(value => data?.entries?.[value]?.ready === true));
+  return ready.has(String(number));
+}
+
+function renderCameraAction(number, busy, done, eligible = true) {
+  if (done || !eligible) return '';
   return '<button type="button" class="list-camera-action" data-open-camera="' + escapeHtml(number) + '"' +
     (busy ? ' disabled' : '') + '>' + icon('camera', 15) + ' Открыть номер в камере</button>';
 }
@@ -321,7 +329,7 @@ function renderArrivalDetails(number, info, entry, done, state, busy, details) {
       '<label class="list-field list-comment-field"><span>Комментарий</span><input type="text" maxlength="500" data-list-field="comment" data-number="' +
         escapeHtml(number) + '" value="' + escapeHtml(entry.comment || '') + '" placeholder="Добавить комментарий"' + disabled + '></label>' +
     '</div>' +
-    renderCameraAction(number, busy, done) +
+    renderCameraAction(number, busy, done, cameraEligible('arrivals', state.listData?.arrivals, number)) +
     renderDeadlineDetails(info, details) +
     '' +
     '<div class="list-card-footer"><span class="list-saving-label">' + (busy ? 'Сохраняем…' : '') + '</span>' +
@@ -416,12 +424,13 @@ function renderListBody(state, type) {
   const ui = state.listUi || DEFAULT_UI;
   const numbers = listNumbers(type, data, ui.showCompleted);
   const completeCount = numbers.completed.length;
-  const cameraNumber = numbers.pending.slice().sort((a, b) =>
+  const cameraNumber = numbers.pending.filter(number => cameraEligible(type, data, number)).slice().sort((a, b) =>
     ui.sort === 'desc' ? Number(b) - Number(a) : Number(a) - Number(b)
   )[0] || '';
+  const emptyCameraTitle = type === 'arrivals' ? 'Нет готовых номеров' : 'Нет невыполненных номеров';
   const cameraButton = '<button type="button" class="list-camera-button" data-open-camera="' +
-    escapeHtml(cameraNumber) + '"' + (!cameraNumber ? ' disabled title="Нет невыполненных номеров"' : ' title="Открыть камеру с первым невыполненным номером"') +
-    '>' + icon('camera', 15) + ' Камера</button>';
+    escapeHtml(cameraNumber) + '"' + (!cameraNumber ? ' disabled title="' + emptyCameraTitle + '"' : ' title="Открыть камеру с первым доступным номером"') +
+    '>' + icon('camera', 15) + ' К камере</button>';
   const doneSet = new Set((type === 'arrivals' ? (data.checkedRoomNumbers || []) : (data.completedNumbers || [])).map(String));
   const cards = numbers.visible.slice().sort((a, b) =>
     ui.sort === 'desc' ? Number(b) - Number(a) : Number(a) - Number(b)
