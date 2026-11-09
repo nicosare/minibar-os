@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
+import { clientOffset } from '../lib/timezone.js';
+import { setRoomDeadlineStatus } from '../services/roomDeadlineStatus.js';
 const router = Router();
 
 // Capture product details on each GIH line so later catalog edits never rewrite history.
@@ -243,7 +245,18 @@ router.put('/:id', async (req, res) => {
     if (notes !== undefined) data.notes = notes;
     if (roomId !== undefined) data.roomId = parseInt(roomId, 10);
     if (status === 'done') data.checkDate = new Date();
+    const offset = clientOffset(req);
     const check = await prisma.$transaction(async tx => {
+      const existingCheck = await tx.check.findUnique({
+        where: { id },
+        select: { id: true, roomId: true, type: true, status: true, gihRoomStatus: true }
+      });
+      if (!existingCheck) {
+        const error = new Error('Запись не найдена');
+        error.statusCode = 404;
+        throw error;
+      }
+
       if (Array.isArray(gihItems)) {
         const existingItems = await tx.gihItem.findMany({ where: { checkId: id }, select: { productId: true } });
         const existingCounts = new Map();
@@ -254,6 +267,25 @@ router.put('/:id', async (req, res) => {
       } else if (Array.isArray(pills)) {
         await Promise.all(pills.map(p => tx.gihItem.update({ where: { id: parseInt(p.id, 10) }, data: { itemStatus: p.itemStatus } })));
       }
+      const finalStatus = status !== undefined ? status : existingCheck.status;
+      const finalGihRoomStatus = gihRoomStatus !== undefined ? gihRoomStatus : existingCheck.gihRoomStatus;
+      const finalRoomId = roomId !== undefined ? parseInt(roomId, 10) : existingCheck.roomId;
+
+      if (
+        existingCheck.type === 'gih' &&
+        finalStatus === 'done' &&
+        finalGihRoomStatus === 'empty' &&
+        Number.isInteger(finalRoomId) &&
+        finalRoomId > 0
+      ) {
+        await setRoomDeadlineStatus(tx, {
+          roomId: finalRoomId,
+          roomStatus: 'empty',
+          note: 'Номер автоматически отмечен как опустошённый после GIH',
+          skipIfSame: true
+        }, offset);
+      }
+
       return tx.check.update({ where: { id }, data, include: { room: true, gihItems: { include: { product: true } } } });
     });
     res.json(check);
