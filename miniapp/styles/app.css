@@ -1498,3 +1498,15 @@ body.rooms-modal-open { overflow:hidden; }
   .rooms-directory-summary>div { padding:9px 7px; }
   .rooms-directory-summary span { font-size:8px; }
 }
+
+.rooms-detail-note {
+  margin:0;
+  padding:9px 10px;
+  color:#53657b;
+  border:1px solid #e2e8f0;
+  border-radius:9px;
+  background:#f8fafc;
+  font-size:10px;
+  line-height:1.45;
+  white-space:pre-wrap;
+}
