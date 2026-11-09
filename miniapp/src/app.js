@@ -7,6 +7,7 @@ import { renderLists, initializeLists, loadList, handleListClick, handleListChan
 import { renderCamera, cameraDidRender, cameraWillUnmount } from './screens/camera.js';
 import { renderRooms, roomsDidRender, roomsWillUnmount, handleRoomsClick, handleRoomsInput, handleRoomsChange } from './screens/rooms.js';
 import { renderMore } from './screens/more.js';
+import { renderGih } from './screens/gih.js';
 import { gihDidRender, gihWillUnmount, handleGihClick, handleGihInput, handleGihChange } from './screens/gih.js';
 
 const topbar = document.getElementById('appTopbar');
