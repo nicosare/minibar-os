@@ -1878,3 +1878,22 @@ body.rooms-modal-open { overflow:hidden; }
 .gih-products-dropdown>summary strong{min-width:24px;padding:3px 7px;border-radius:8px;background:var(--surface-blue);color:var(--primary);font-size:11px;text-align:center}
 .gih-products-dropdown-body{padding:0 10px 10px;border-top:1px solid var(--border)}
 .gih-products-dropdown .gih-product-category{margin-top:10px}
+
+
+/* GIH product picker parity and legacy basket summary */
+.gih-product-main{display:flex;align-items:center;gap:8px;min-width:0;padding:0;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer}
+.gih-product-main:disabled{opacity:.55;cursor:default}
+.gih-product-main .gih-product-emoji{flex:0 0 32px}
+.gih-product-copy{flex:1}
+.gih-product-selected{min-width:25px;padding:4px 7px;border-radius:8px;background:var(--surface-blue);color:var(--primary);font-size:11px;font-weight:800;text-align:center;font-variant-numeric:tabular-nums}
+.gih-list-products{display:grid;gap:7px}
+.gih-list-product{min-width:0;display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:9px;padding:8px 10px;border:1px solid var(--border);border-radius:11px;background:var(--surface)}
+.gih-list-product-icon{width:32px;height:32px;display:grid;place-items:center;border-radius:9px;background:var(--surface-blue);color:var(--text);font-size:16px}
+.gih-list-product-icon.is-basket{background:rgba(255,177,110,.18);color:#bb6b2d}
+.gih-list-product-icon svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.gih-list-product-name{min-width:0;overflow:hidden;color:var(--text);font-size:12px;font-weight:700;text-overflow:ellipsis;white-space:nowrap}
+.gih-list-product-qty{color:var(--muted);font-size:11px;font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums}
+.gih-products-section .gih-section-heading{margin-bottom:9px}
+.gih-products-section .gih-section-empty{display:grid;gap:5px}
+.gih-products-section .gih-section-empty strong{color:var(--text);font-size:12px}
+.gih-products-section .gih-section-empty span{color:var(--muted);font-size:11px}
