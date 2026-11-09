@@ -7,8 +7,7 @@ import { renderLists, initializeLists, loadList, handleListClick, handleListChan
 import { renderCamera, cameraDidRender, cameraWillUnmount } from './screens/camera.js';
 import { renderRooms, roomsDidRender, roomsWillUnmount, handleRoomsClick, handleRoomsInput, handleRoomsChange } from './screens/rooms.js';
 import { renderMore } from './screens/more.js';
-import { renderGih } from './screens/gih.js';
-import { gihDidRender, gihWillUnmount, handleGihClick, handleGihInput, handleGihChange } from './screens/gih.js';
+import { renderGih, gihDidRender, gihWillUnmount, handleGihClick, handleGihInput, handleGihChange } from './screens/gih.js';
 
 const topbar = document.getElementById('appTopbar');
 const main = document.getElementById('appMain');
@@ -18,11 +17,13 @@ if (!topbar || !main || !bottomNav) throw new Error('Не найдена обо�
 const renderers = { today: renderToday, lists: renderLists, camera: renderCamera, rooms: renderRooms, more: renderMore, gih: renderGih };
 let renderedScreen = null;
 let renderedListType = null;
+let renderedGihView = false;
 
 function render() {
   const state = getState();
   const screen = renderers[state.screen] ? state.screen : 'today';
   const scrollTop = main.scrollTop;
+  const gihView = screen === 'gih' || (screen === 'lists' && state.listType === 'gih');
   const preserveExpanded = screen === renderedScreen &&
     (screen !== 'lists' || state.listType === renderedListType);
   const expandedRooms = preserveExpanded
@@ -30,12 +31,12 @@ function render() {
     : [];
   if (renderedScreen === 'camera' && screen !== 'camera') cameraWillUnmount();
   if (renderedScreen === 'rooms' && screen !== 'rooms') roomsWillUnmount();
-  if (renderedScreen === 'gih' && screen !== 'gih') gihWillUnmount();
+  if (renderedGihView && !gihView) gihWillUnmount();
   topbar.innerHTML = renderTopbar();
   main.innerHTML = renderers[screen](state);
   if (screen === 'camera') cameraDidRender();
   if (screen === 'rooms') roomsDidRender();
-  if (screen === 'gih') gihDidRender();
+  if (gihView) gihDidRender();
   bottomNav.innerHTML = renderBottomNav({ ...state, screen });
   renderIcons();
   document.documentElement.dataset.screen = screen;
@@ -48,6 +49,7 @@ function render() {
   }
   renderedScreen = screen;
   renderedListType = state.listType;
+  renderedGihView = gihView;
 }
 
 initializeLists();
