@@ -118,6 +118,19 @@ jobs:
           while IFS= read -r -d '' file; do
             node --check "$file"
           done < <(find backend/src vk-proxy vk-bot -type f -name '*.js' -print0)
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const source = fs.readFileSync('backend/src/routes/departures.js', 'utf8');
+          const start = source.indexOf('export async function getMiniAppDepartureList(req)');
+          const end = source.indexOf("router.get('/', async", start);
+          const handler = source.slice(start, end);
+          if (!handler.includes('const [rooms, checks, session, worklist, arrivalNumbers] = await Promise.all([') ||
+              !handler.includes('readArrivalRoomNumbers(prisma, range.dateKey)') ||
+              !handler.includes('for (const number of arrivalNumbers) effectiveArrivalRooms.add(number)')) {
+            throw new Error('Departures must bind and merge today’s Arrivals room numbers before rendering arrival labels');
+          }
+          console.log('Departures ↔ Arrivals synchronization binding: OK');
+          NODE
 
       - name: Test the emptied-today room state
         run: node --test backend/src/services/emptiedToday.test.js
