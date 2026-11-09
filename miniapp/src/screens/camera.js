@@ -171,20 +171,27 @@ function productTemplate(room) {
   const fromRoom = Array.isArray(room?.template?.items) ? room.template.items : [];
   const fromList = Array.isArray(room?.templateItems) ? room.templateItems : [];
   const raw = fromRoom.length ? fromRoom : fromList;
-  return raw.map(item => {
+  const grouped = new Map();
+  raw.forEach(item => {
     const product = item.product || item;
+    if (product.isActive === false) return;
     const id = Number(item.productId || product.id);
-    return {
+    if (!Number.isInteger(id) || id <= 0) return;
+    const qty = Math.max(1, Number(item.qty || item.maxQty || 1));
+    const current = grouped.get(id);
+    if (current) current.maxQty += qty;
+    else grouped.set(id, {
       id,
-      name:product.name || item.name || 'Продукт',
-      category:product.category || item.category || 'Напитки',
-      volume:product.volume ?? item.volume ?? null,
-      unit:product.unit || item.unit || 'шт',
-      emoji:product.emoji || item.emoji || null,
-      bgColor:product.bgColor || item.bgColor || 'slate',
-      maxQty:Math.max(1, Number(item.qty || item.maxQty || 1))
-    };
-  }).filter(item => item.id > 0);
+      name: product.name || item.name || 'Продукт',
+      category: product.category || item.category || 'Напитки',
+      volume: product.volume ?? item.volume ?? null,
+      unit: product.unit || item.unit || 'шт',
+      emoji: product.emoji || item.emoji || null,
+      bgColor: product.bgColor || item.bgColor || 'slate',
+      maxQty: qty
+    });
+  });
+  return [...grouped.values()];
 }
 function deadlineDescription(room) {
   const statuses = Array.isArray(room?.productStatuses) ? room.productStatuses : [];
