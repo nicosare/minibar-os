@@ -23,6 +23,7 @@ let deadlineRoomNumber = '';
 let deadlineProducts = [];
 let deadlineSelections = {};
 let photoBlob = null;
+let photoPreparationPromise = null;
 let sharedRoomActionChanged = null;
 let sharedRoomActionNumber = '';
 let sharedRoomActionRoom = null;
@@ -581,6 +582,7 @@ function hideLoader() {
 }
 function clearPhoto() {
   photoBlob = null;
+  photoPreparationPromise = null;
   photoRandomId = null;
   if (photoUrl) URL.revokeObjectURL(photoUrl);
   photoUrl = '';
@@ -926,8 +928,8 @@ async function capturePhoto() {
     photoBlob = null;
     photoRandomId = String(Math.floor(Math.random() * 2147483646) + 1);
     const send = $('cameraSendPhoto');
-    send.disabled = true;
-    send.textContent = 'Подготовка…';
+    send.disabled = false;
+    send.textContent = 'Отправить';
     $('cameraPreviewRoom').textContent = 'Номер ' + number;
     $('cameraPreviewModal').classList.remove('hidden');
     $('cameraPreviewModal').setAttribute('aria-hidden', 'false');
@@ -942,18 +944,17 @@ async function capturePhoto() {
     uploadCanvas.getContext('2d', { alpha: false }).drawImage(
       canvas, 0, 0, uploadCanvas.width, uploadCanvas.height
     );
-    uploadCanvas.toBlob(blob => {
-      if (!$('cameraPreviewModal') || $('cameraPreviewModal').classList.contains('hidden')) return;
-      if (!blob) {
-        showNotice('Не удалось подготовить фото. Пересними.', true);
-        send.disabled = true;
-        send.textContent = 'Ошибка';
-        return;
-      }
-      photoBlob = blob;
-      send.disabled = false;
-      send.textContent = 'Отправить';
-    }, 'image/jpeg', .84);
+    photoPreparationPromise = new Promise((resolve, reject) => {
+      uploadCanvas.toBlob(blob => {
+        if (!blob) {
+          reject(new Error('Не удалось подготовить фото. Пересними.'));
+          return;
+        }
+        photoBlob = blob;
+        resolve(blob);
+      }, 'image/jpeg', .84);
+    });
+    // The preview is ready to confirm immediately; JPEG encoding continues in parallel.
   } catch (error) {
     showNotice(error.message || 'Не удалось сделать снимок', true);
   } finally {
@@ -1081,7 +1082,14 @@ async function flushPendingPhotoWrites() {
   pendingPhotoWriteActive = true;
   try {
     for (const [id, pending] of pendingPhotoWrites) {
-      const blob = pending.blob;
+      let blob = pending.blob;
+      try {
+        if (!blob && pending.blobPromise) blob = await pending.blobPromise;
+      } catch (error) {
+        pendingPhotoWrites.delete(id);
+        setPhotoQueueStatus('Не удалось подготовить фото №' + pending.roomNumber + '. Пересними номер.', 'error');
+        continue;
+      }
       if (!blob || !blob.size) {
         pendingPhotoWrites.delete(id);
         setPhotoQueueStatus('Не удалось подготовить фото №' + pending.roomNumber + '. Пересними номер.', 'error');
@@ -1260,18 +1268,20 @@ document.addEventListener('visibilitychange', () => {
 void restorePhotoUploadQueue();
 
 function sendPhoto() {
-  if (!photoBlob || !selectedNumber || captureBusy) return;
+  if ((!photoBlob && !photoPreparationPromise) || !selectedNumber || captureBusy) return;
   const number = String(selectedNumber);
   const request = activeRefill(roomByNumber(number));
   const listType = sourceData().type;
   const requestId = photoRandomId || String(Math.floor(Math.random() * 2147483646) + 1);
   const pendingId = String(Date.now()) + '-' + requestId;
   const blob = photoBlob;
+  const blobPromise = photoPreparationPromise;
 
   pendingPhotoWrites.set(pendingId, {
     roomNumber: number,
     requestId,
     blob,
+    blobPromise,
     refillRequestId: request?.id || null,
     listType
   });
