@@ -46,7 +46,23 @@ router.get('/', async (req, res) => {
       include: { template: { include: { items: { include: { product: true } } } } },
       orderBy: { number: 'asc' }
     });
-    res.json(rooms);
+    const latestChecks = rooms.length ? await prisma.check.findMany({
+      where: {
+        roomId: { in: rooms.map(room => room.id) },
+        status: 'done',
+        type: { notIn: ['gih', 'deadline'] }
+      },
+      select: { id: true, roomId: true, checkDate: true, type: true },
+      orderBy: [{ checkDate: 'desc' }, { id: 'desc' }]
+    }) : [];
+    const lastCheckByRoom = new Map();
+    for (const check of latestChecks) {
+      if (!lastCheckByRoom.has(check.roomId)) lastCheckByRoom.set(check.roomId, check);
+    }
+    res.json(rooms.map(room => ({
+      ...room,
+      lastDailyCheck: lastCheckByRoom.get(room.id) || null
+    })));
   } catch (err) {
     console.error('GET rooms error:', err);
     res.status(500).json({ error: err.message });

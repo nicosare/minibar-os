@@ -5,7 +5,7 @@ import { renderIcons } from './components/icons.js';
 import { renderToday } from './screens/today.js';
 import { renderLists, initializeLists, loadList, handleListClick, handleListChange } from './screens/lists.js';
 import { renderCamera, cameraDidRender, cameraWillUnmount } from './screens/camera.js';
-import { renderRooms, roomsDidRender, roomsWillUnmount, handleRoomsClick, handleRoomsInput } from './screens/rooms.js';
+import { renderRooms, roomsDidRender, roomsWillUnmount, handleRoomsClick, handleRoomsInput, handleRoomsChange } from './screens/rooms.js';
 import { renderMore } from './screens/more.js';
 
 const topbar = document.getElementById('appTopbar');
@@ -87,6 +87,7 @@ document.addEventListener('click', event => {
 
 document.addEventListener('change', event => {
   handleListChange(event);
+  handleRoomsChange(event);
 });
 document.addEventListener('input', event => {
   handleRoomsInput(event);

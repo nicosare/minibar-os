@@ -23,6 +23,15 @@ let deadlineRoomNumber = '';
 let deadlineProducts = [];
 let deadlineSelections = {};
 let photoBlob = null;
+let photoBlobPromise = null;
+let cameraStartPromise = null;
+let photoQueueDbPromise = null;
+let photoQueueWorkerActive = false;
+let photoQueueRetryTimer = null;
+let photoQueueStatusTimer = null;
+let pendingPhotoWriteActive = false;
+let pendingPhotoWriteTimer = null;
+const pendingPhotoWrites = new Map();
 let photoUrl = '';
 let photoRandomId = null;
 let captureBusy = false;
@@ -90,27 +99,39 @@ async function advanceAfterRoomCompletion(type, number) {
   const previousOrder = carouselRoomNumbers();
   const previousIndex = previousOrder.indexOf(String(number));
   rememberCompletedRoom(type, number);
-  renderCarousel();
-
-  try {
-    // Re-read the list so server-side completion and room labels stay in sync.
-    await loadList(type);
-  } catch (_) {}
-
-  const remaining = carouselRoomNumbers();
-  const preferred = previousIndex >= 0
-    ? previousOrder.slice(previousIndex + 1).find(candidate => remaining.includes(candidate))
+  const remainingNow = carouselRoomNumbers();
+  const nextNow = previousIndex >= 0
+    ? previousOrder.slice(previousIndex + 1).find(candidate => remainingNow.includes(candidate))
     : null;
-  const next = preferred || remaining[0] || '';
-  if (next) {
-    setSelectedRoom(next, { center: true, behavior: 'smooth', haptic: true });
-  } else {
+  const next = nextNow || remainingNow[0] || '';
+  if (next) setSelectedRoom(next, { center: true, behavior: 'smooth', haptic: true });
+  else {
     selectedNumber = '';
     renderCarousel();
     renderStandby();
     updateActionAvailability();
   }
+
+  const selectionAtRefresh = selectedNumber;
+  void loadList(type).then(() => {
+    if (!mounted || selectedNumber !== selectionAtRefresh) return;
+    const latest = carouselRoomNumbers();
+    if (selectedNumber && latest.includes(selectedNumber)) {
+      renderCarousel();
+      renderStandby();
+      return;
+    }
+    const fallback = latest[0] || '';
+    if (fallback) setSelectedRoom(fallback, { center: true, behavior: 'smooth' });
+    else {
+      selectedNumber = '';
+      renderCarousel();
+      renderStandby();
+      updateActionAvailability();
+    }
+  }).catch(() => {});
 }
+
 function listEntry(number) {
   const { data } = sourceData();
   return data?.entries?.[String(number)] || {};
@@ -486,54 +507,63 @@ async function armTorch() {
   return setTorch(true);
 }
 async function startCamera() {
-  if (stream && videoTrack) {
-    const existingVideo = $('cameraVideo');
-    if (existingVideo && existingVideo.srcObject !== stream) {
-      existingVideo.srcObject = stream;
-      await existingVideo.play().catch(() => {});
-      await waitForVideo(existingVideo);
-    }
-    $('cameraStage')?.classList.add('is-live');
-    hideLoader();
-    return true;
-  }
-  if (!navigator.mediaDevices?.getUserMedia) {
-    showLoader('Камера недоступна', 'Разреши доступ к камере в VK.', true);
-    return false;
-  }
-  showLoader('Запуск камеры…', '');
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: {
-        facingMode: { ideal: 'environment' },
-        aspectRatio: { ideal: 4 / 3 },
-        width: { ideal: 1920 },
-        height: { ideal: 1440 }
+  if (cameraStartPromise) return cameraStartPromise;
+  cameraStartPromise = (async () => {
+    if (stream && videoTrack) {
+      const existingVideo = $('cameraVideo');
+      if (existingVideo && existingVideo.srcObject !== stream) {
+        existingVideo.srcObject = stream;
+        await existingVideo.play().catch(() => {});
+        await waitForVideo(existingVideo);
       }
-    });
-    videoTrack = stream.getVideoTracks()[0] || null;
-    if (!videoTrack) throw new Error('Камера не вернула видеопоток');
-    try {
-      const capabilities = videoTrack.getCapabilities?.();
-      torchSupported = capabilities ? capabilities.torch === true : null;
-    } catch (_) {
-      torchSupported = null;
+      $('cameraStage')?.classList.add('is-live');
+      hideLoader();
+      return true;
     }
-    const video = $('cameraVideo');
-    if (!video) throw new Error('Не найдено окно камеры');
-    video.srcObject = stream;
-    await video.play();
-    await waitForVideo(video);
-    $('cameraStage')?.classList.add('is-live');
-    hideLoader();
-    return true;
-  } catch (error) {
-    stopCamera();
-    showLoader('Не удалось открыть камеру', error.message || 'Проверь разрешение на камеру.', true);
-    return false;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      showLoader('Камера недоступна', 'Разреши доступ к камере в VK.', true);
+      return false;
+    }
+    showLoader('Запуск камеры…', '');
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: { ideal: 'environment' },
+          aspectRatio: { ideal: 4 / 3 },
+          width: { ideal: 1920 },
+          height: { ideal: 1440 }
+        }
+      });
+      videoTrack = stream.getVideoTracks()[0] || null;
+      if (!videoTrack) throw new Error('Камера не вернула видеопоток');
+      try {
+        const capabilities = videoTrack.getCapabilities?.();
+        torchSupported = capabilities ? capabilities.torch === true : null;
+      } catch (_) {
+        torchSupported = null;
+      }
+      const video = $('cameraVideo');
+      if (!video) throw new Error('Не найдено окно камеры');
+      video.srcObject = stream;
+      await video.play();
+      await waitForVideo(video);
+      $('cameraStage')?.classList.add('is-live');
+      hideLoader();
+      return true;
+    } catch (error) {
+      stopCamera();
+      showLoader('Не удалось открыть камеру', error.message || 'Проверь разрешение на камеру.', true);
+      return false;
+    }
+  })();
+  try {
+    return await cameraStartPromise;
+  } finally {
+    cameraStartPromise = null;
   }
 }
+
 function showLoader(title, subtitle, error = false) {
   const loader = $('cameraLoader');
   if (!loader) return;
@@ -550,10 +580,12 @@ function hideLoader() {
 }
 function clearPhoto() {
   photoBlob = null;
+  photoBlobPromise = null;
   photoRandomId = null;
   if (photoUrl) URL.revokeObjectURL(photoUrl);
   photoUrl = '';
 }
+
 async function waitForVideo(video, timeoutMs = 4500) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -852,9 +884,7 @@ function cropCanvasToFourThree() {
   context.drawImage(source, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
 }
 async function capturePhoto() {
-  const room = roomByNumber(selectedNumber);
-  if (captureBusy || photoBlob) return;
-
+  if (captureBusy || photoBlob || photoBlobPromise) return;
   const number = String(selectedNumber);
   captureBusy = true;
   updateActionAvailability();
@@ -862,27 +892,18 @@ async function capturePhoto() {
     await requestOrientationPermission();
     const started = await startCamera();
     if (!started || !videoTrack) throw new Error('Не удалось открыть камеру');
-
     const video = $('cameraVideo');
-    await waitForVideo(video);
-    await waitForOrientationToSettle();
-    await prepareCameraFocus();
-    const flashReady = await armTorch();
     await waitForVideo(video, 1800);
-    if (flashReady) await wait(140);
 
-    const nativeCaptureSucceeded = await captureStillPhotoToCanvas();
-    if (!nativeCaptureSucceeded) {
-      if (torchArmed) await setTorch(false);
-      drawSourceToCanvas(
-        video,
-        video.videoWidth,
-        video.videoHeight,
-        getCaptureOrientationAngle(video.videoWidth, video.videoHeight)
-      );
-    } else {
-      correctNativeLandscapeCapture();
-    }
+    // Capture the already-running viewfinder frame. Focus/sensor settling and
+    // JPEG encoding are no longer on the preview's critical path.
+    await armTorch();
+    drawSourceToCanvas(
+      video,
+      video.videoWidth,
+      video.videoHeight,
+      getCaptureOrientationAngle(video.videoWidth, video.videoHeight)
+    );
     cropCanvasToFourThree();
 
     const canvas = $('cameraCanvas');
@@ -893,9 +914,8 @@ async function capturePhoto() {
 
     photoBlob = null;
     photoRandomId = String(Math.floor(Math.random() * 2147483646) + 1);
+    const captureId = photoRandomId;
     const send = $('cameraSendPhoto');
-    send.disabled = true;
-    send.textContent = 'Подготовка…';
     $('cameraPreviewRoom').textContent = 'Номер ' + number;
     $('cameraPreviewModal').classList.remove('hidden');
     $('cameraPreviewModal').setAttribute('aria-hidden', 'false');
@@ -910,27 +930,25 @@ async function capturePhoto() {
     uploadCanvas.getContext('2d', { alpha: false }).drawImage(
       canvas, 0, 0, uploadCanvas.width, uploadCanvas.height
     );
-    uploadCanvas.toBlob(blob => {
-      if (!$('cameraPreviewModal') || $('cameraPreviewModal').classList.contains('hidden')) return;
-      if (!blob) {
-        showNotice('Не удалось подготовить фото. Пересними.', true);
-        send.disabled = true;
-        send.textContent = 'Ошибка';
-        return;
-      }
-      photoBlob = blob;
-      send.disabled = false;
-      send.textContent = 'Отправить';
-    }, 'image/jpeg', .84);
+
+    photoBlobPromise = new Promise(resolve => {
+      uploadCanvas.toBlob(blob => {
+        const readyBlob = blob && blob.size ? blob : null;
+        if (photoRandomId === captureId) photoBlob = readyBlob;
+        resolve(readyBlob);
+      }, 'image/jpeg', .84);
+    });
+    send.disabled = false;
+    send.textContent = 'Отправить';
   } catch (error) {
     showNotice(error.message || 'Не удалось сделать снимок', true);
   } finally {
-    if (torchArmed) await setTorch(false);
-    stopCamera();
+    if (torchArmed) void setTorch(false);
     captureBusy = false;
     updateActionAvailability();
   }
 }
+
 function closePreview(force = false) {
   if (captureBusy && !force) return;
   $('cameraPreviewModal')?.classList.add('hidden');
@@ -942,48 +960,311 @@ function closePreview(force = false) {
   hideLoader();
   updateActionAvailability();
 }
-async function sendPhoto() {
-  if (!photoBlob || !selectedNumber || captureBusy) return;
-  captureBusy = true;
-  const number = String(selectedNumber);
-  const room = roomByNumber(number);
-  const request = activeRefill(room);
-  updateActionAvailability();
-  const button = $('cameraSendPhoto');
-  button.disabled = true;
-  button.textContent = 'Отправляем…';
-  try {
-    const form = new FormData();
-    form.append('photo',photoBlob,'photo.jpg');
-    form.append('room',number);
-    if (photoRandomId) form.append('random_id',photoRandomId);
-    if (request?.id) form.append('refill_request_id',String(request.id));
-    const response = await fetch('/minibar-os/vk-proxy/send-photo',{
-      method:'POST',
-      body:form,
-      signal:AbortSignal.timeout ? AbortSignal.timeout(60000) : undefined
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data.ok) throw new Error(data.error || 'Не удалось отправить фото');
-    if (data.refill_synced !== false && request?.id) {
-      activeRefills = activeRefills.filter(item => Number(item.id) !== Number(request.id));
-    }
-    closePreview(true);
-    showNotice(data.refill_synced === false
-      ? 'Фото отправлено, но пополнение не закрылось автоматически'
-      : 'Фото отправлено');
-    await advanceAfterRoomCompletion(sourceData().type, number);
-  } catch (error) {
-    showNotice(error.message || 'Не удалось отправить фото',true);
-  } finally {
-    captureBusy = false;
-    if ($('cameraSendPhoto')) {
-      $('cameraSendPhoto').disabled = false;
-      $('cameraSendPhoto').textContent = 'Отправить';
-    }
-    updateActionAvailability();
+const PHOTO_QUEUE_DB_NAME = 'minibar-miniapp-photo-queue-v1';
+const PHOTO_QUEUE_STORE_NAME = 'photos';
+
+function setPhotoQueueStatus(message, tone = 'pending', hideAfter = 0) {
+  const host = $('cameraUploadStatus');
+  if (!host) return;
+  if (photoQueueStatusTimer) clearTimeout(photoQueueStatusTimer);
+  photoQueueStatusTimer = null;
+  host.textContent = message || '';
+  host.className = 'camera-upload-status' + (message ? ' is-visible is-' + tone : '');
+  if (message && hideAfter > 0) {
+    const expected = message;
+    photoQueueStatusTimer = setTimeout(() => {
+      if (host.textContent === expected) {
+        host.textContent = '';
+        host.className = 'camera-upload-status';
+      }
+      photoQueueStatusTimer = null;
+    }, hideAfter);
   }
 }
+function openPhotoQueueDb() {
+  if (!window.indexedDB) return Promise.reject(new Error('IndexedDB недоступен'));
+  if (!photoQueueDbPromise) {
+    photoQueueDbPromise = new Promise((resolve, reject) => {
+      const request = window.indexedDB.open(PHOTO_QUEUE_DB_NAME, 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(PHOTO_QUEUE_STORE_NAME)) {
+          db.createObjectStore(PHOTO_QUEUE_STORE_NAME, { keyPath: 'id' });
+        }
+      };
+      request.onsuccess = () => {
+        const db = request.result;
+        db.onversionchange = () => {
+          db.close();
+          photoQueueDbPromise = null;
+        };
+        resolve(db);
+      };
+      request.onerror = () => {
+        photoQueueDbPromise = null;
+        reject(request.error || new Error('Не удалось открыть очередь фото'));
+      };
+    });
+  }
+  return photoQueueDbPromise;
+}
+function photoQueueDbAction(mode, action, value) {
+  return openPhotoQueueDb().then(db => new Promise((resolve, reject) => {
+    let tx;
+    try { tx = db.transaction(PHOTO_QUEUE_STORE_NAME, mode); }
+    catch (error) { reject(error); return; }
+    const store = tx.objectStore(PHOTO_QUEUE_STORE_NAME);
+    let request;
+    if (action === 'getAll') request = store.getAll();
+    else if (action === 'put') request = store.put(value);
+    else if (action === 'delete') request = store.delete(value);
+    else { reject(new Error('Неизвестная операция очереди фото')); return; }
+    let result;
+    request.onsuccess = () => { result = request.result; };
+    request.onerror = () => reject(request.error || new Error('Ошибка очереди фото'));
+    tx.oncomplete = () => resolve(action === 'getAll' ? (result || []) : true);
+    tx.onerror = () => reject(tx.error || request.error || new Error('Не удалось сохранить очередь фото'));
+    tx.onabort = () => reject(tx.error || new Error('Сохранение очереди фото прервано'));
+  }));
+}
+function sortPhotoQueue(items) {
+  return items.sort((a,b) =>
+    (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0) ||
+    String(a.id).localeCompare(String(b.id))
+  );
+}
+async function queuePhotoForUpload(pending, blob) {
+  let requestId = Number(pending.requestId);
+  if (!Number.isInteger(requestId) || requestId < 1 || requestId > 2147483647) {
+    requestId = Math.floor(Math.random() * 2147483647) + 1;
+  }
+  const now = Date.now();
+  const item = {
+    id: String(now) + '-' + requestId + '-' + Math.random().toString(36).slice(2, 9),
+    roomNumber: String(pending.roomNumber), requestId,
+    refillRequestId: Number.isSafeInteger(Number(pending.refillRequestId)) && Number(pending.refillRequestId) > 0
+      ? Number(pending.refillRequestId) : null,
+    listType: pending.listType || 'arrivals',
+    refillRetryToken: null, photoSent: false, blob, createdAt: now,
+    attempts: 0, nextAttemptAt: 0, lastError: ''
+  };
+  await photoQueueDbAction('readwrite', 'put', item);
+  return item;
+}
+function schedulePendingPhotoWriteRetry(delay = 3000) {
+  if (pendingPhotoWriteTimer) clearTimeout(pendingPhotoWriteTimer);
+  pendingPhotoWriteTimer = setTimeout(() => {
+    pendingPhotoWriteTimer = null;
+    void flushPendingPhotoWrites();
+  }, Math.max(500, delay));
+}
+async function flushPendingPhotoWrites() {
+  if (pendingPhotoWriteActive || !pendingPhotoWrites.size) return;
+  pendingPhotoWriteActive = true;
+  try {
+    for (const [id,pending] of pendingPhotoWrites) {
+      let blob = null;
+      try { blob = await pending.blobPromise; }
+      catch (error) { console.warn('[MINIBAR PHOTO QUEUE] Encoding failed:', error); }
+      if (!blob || !blob.size) {
+        pendingPhotoWrites.delete(id);
+        setPhotoQueueStatus('Не удалось подготовить фото №' + pending.roomNumber + '. Пересними номер.', 'error');
+        continue;
+      }
+      try {
+        await queuePhotoForUpload(pending, blob);
+        pendingPhotoWrites.delete(id);
+        setPhotoQueueStatus('Фото №' + pending.roomNumber + ' сохранено. Отправка продолжается в фоне…', 'pending');
+      } catch (error) {
+        console.warn('[MINIBAR PHOTO QUEUE] IndexedDB save will retry:', error);
+        setPhotoQueueStatus('Фото №' + pending.roomNumber + ' пока хранится в памяти. Повторяю сохранение…', 'error');
+        schedulePendingPhotoWriteRetry(3000);
+        return;
+      }
+    }
+    if (!pendingPhotoWrites.size) void processPhotoQueue();
+  } finally {
+    pendingPhotoWriteActive = false;
+  }
+}
+async function sendPhotoToServer(item) {
+  try {
+    const form = new FormData();
+    form.append('photo', item.blob, 'photo.jpg');
+    form.append('room', String(item.roomNumber));
+    if (item.requestId) form.append('random_id', String(item.requestId));
+    if (item.refillRequestId) form.append('refill_request_id', String(item.refillRequestId));
+    const response = await fetch('/minibar-os/vk-proxy/send-photo', {
+      method: 'POST', body: form,
+      signal: AbortSignal.timeout ? AbortSignal.timeout(60000) : undefined
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) throw new Error(data.error || 'Не удалось отправить фото (HTTP ' + response.status + ')');
+    return {
+      ok: true, site_synced: data.site_synced !== false, site_sync_error: data.site_sync_error || '',
+      refill_synced: data.refill_synced !== false, refill_sync_error: data.refill_sync_error || '',
+      refill_retry_token: data.refill_retry_token || '', photo_sent: true
+    };
+  } catch (error) {
+    return { ok: false, error: error.message || 'Ошибка отправки фото' };
+  }
+}
+async function retryRefillCompletion(item) {
+  try {
+    const response = await fetch('/minibar-os/vk-proxy/complete-refill', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        room: String(item.roomNumber), refill_request_id: Number(item.refillRequestId),
+        refill_retry_token: String(item.refillRetryToken || ''), random_id: Number(item.requestId)
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok || data.refill_synced === false) {
+      return { ok: false, photo_sent: true, refill_synced: false, refill_sync_error: data.error || 'Не удалось завершить пополнение' };
+    }
+    return { ok: true, photo_sent: true, refill_synced: true };
+  } catch (error) {
+    return { ok: false, photo_sent: true, refill_synced: false, refill_sync_error: error.message || 'Ошибка синхронизации пополнения' };
+  }
+}
+function schedulePhotoQueueRetry(delay) {
+  if (photoQueueRetryTimer) clearTimeout(photoQueueRetryTimer);
+  photoQueueRetryTimer = setTimeout(() => {
+    photoQueueRetryTimer = null;
+    void processPhotoQueue();
+  }, Math.max(250, delay));
+}
+async function refreshAfterPhotoUpload(item, result) {
+  void loadList(item.listType || 'arrivals').catch(() => {});
+  if (item.refillRequestId) {
+    try {
+      const response = await api.get('refills/active');
+      activeRefills = (response?.requests || []).filter(request => request?.status === 'pending');
+      if (mounted) { renderStandby(); renderCarousel(); }
+    } catch (_) {}
+  }
+  if (result.site_synced === false) {
+    console.warn('[MINIBAR PHOTO QUEUE] Site sync failed:', result.site_sync_error);
+    setPhotoQueueStatus('Фото №' + item.roomNumber + ' отправлено, но список не синхронизировался.', 'error');
+  }
+}
+async function processPhotoQueue() {
+  if (photoQueueWorkerActive) return;
+  if (photoQueueRetryTimer) { clearTimeout(photoQueueRetryTimer); photoQueueRetryTimer = null; }
+  photoQueueWorkerActive = true;
+  let sentAny = false;
+  try {
+    while (true) {
+      const items = sortPhotoQueue(await photoQueueDbAction('readonly', 'getAll'));
+      if (!items.length) {
+        if (sentAny) setPhotoQueueStatus('Все фото отправлены', 'success', 2400);
+        return;
+      }
+      if (navigator.onLine === false) {
+        setPhotoQueueStatus('Нет сети. Фото сохранено; отправка продолжится автоматически.', 'error');
+        return;
+      }
+      const item = items[0];
+      const waitMs = Math.max(0, (Number(item.nextAttemptAt) || 0) - Date.now());
+      if (waitMs > 0) {
+        setPhotoQueueStatus('Фото №' + item.roomNumber + ' ожидает повторной отправки. В очереди: ' + items.length, 'pending');
+        schedulePhotoQueueRetry(waitMs);
+        return;
+      }
+      setPhotoQueueStatus('Отправляю фото №' + item.roomNumber + (items.length > 1 ? ' · в очереди ещё ' + (items.length - 1) : '…'), 'pending');
+      const result = item.photoSent && item.refillRequestId
+        ? await retryRefillCompletion(item)
+        : await sendPhotoToServer(item);
+      if (result.ok) {
+        if (item.refillRequestId && result.refill_synced === false) {
+          const attempts = (Number(item.attempts) || 0) + 1;
+          const retryDelay = Math.min(1000 * Math.pow(2, Math.min(attempts - 1, 6)), 60000);
+          await photoQueueDbAction('readwrite', 'put', {
+            ...item, photoSent: Boolean(item.photoSent || result.photo_sent),
+            refillRetryToken: result.refill_retry_token || item.refillRetryToken || null,
+            attempts, nextAttemptAt: Date.now() + retryDelay,
+            lastError: result.refill_sync_error || 'Ожидаю завершения пополнения'
+          });
+          setPhotoQueueStatus('Фото №' + item.roomNumber + ' уже отправлено; завершаю пополнение…', 'pending');
+          schedulePhotoQueueRetry(retryDelay);
+          return;
+        }
+        await photoQueueDbAction('readwrite', 'delete', item.id);
+        sentAny = true;
+        void refreshAfterPhotoUpload(item, result);
+        continue;
+      }
+      const attempts = (Number(item.attempts) || 0) + 1;
+      const retryDelay = Math.min(1000 * Math.pow(2, Math.min(attempts - 1, 6)), 60000);
+      await photoQueueDbAction('readwrite', 'put', {
+        ...item, attempts, nextAttemptAt: Date.now() + retryDelay,
+        lastError: result.error || 'Неизвестная ошибка отправки'
+      });
+      setPhotoQueueStatus('Фото №' + item.roomNumber + ' сохранено. Повторная отправка через ' + Math.ceil(retryDelay / 1000) + ' сек.', 'error');
+      schedulePhotoQueueRetry(retryDelay);
+      return;
+    }
+  } catch (error) {
+    console.error('[MINIBAR PHOTO QUEUE] Queue worker failed:', error);
+    setPhotoQueueStatus('Очередь фото сохранена. Отправка повторится автоматически.', 'error');
+    schedulePhotoQueueRetry(5000);
+  } finally {
+    photoQueueWorkerActive = false;
+  }
+}
+async function restorePhotoUploadQueue() {
+  try {
+    const items = sortPhotoQueue(await photoQueueDbAction('readonly', 'getAll'));
+    if (items.length) {
+      setPhotoQueueStatus('В очереди сохранено фото: ' + items.length + '. Продолжаю отправку…', 'pending');
+      void processPhotoQueue();
+    }
+  } catch (error) {
+    console.warn('[MINIBAR PHOTO QUEUE] Could not restore queue:', error);
+  }
+}
+window.addEventListener('online', () => {
+  if (photoQueueRetryTimer) clearTimeout(photoQueueRetryTimer);
+  photoQueueRetryTimer = null;
+  if (pendingPhotoWriteTimer) clearTimeout(pendingPhotoWriteTimer);
+  pendingPhotoWriteTimer = null;
+  void flushPendingPhotoWrites();
+  void processPhotoQueue();
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    void flushPendingPhotoWrites();
+    void processPhotoQueue();
+  }
+});
+
+function sendPhoto() {
+  if (!selectedNumber || captureBusy || !photoRandomId) return;
+  const number = String(selectedNumber);
+  const request = activeRefill(roomByNumber(number));
+  const blobPromise = photoBlob ? Promise.resolve(photoBlob) : photoBlobPromise;
+  if (!blobPromise) {
+    showNotice('Фото ещё не подготовлено. Пересними его.', true);
+    return;
+  }
+
+  const listType = sourceData().type;
+  const requestId = photoRandomId;
+  const pendingId = String(Date.now()) + '-' + requestId;
+  pendingPhotoWrites.set(pendingId, {
+    roomNumber: number, requestId, blobPromise,
+    refillRequestId: request?.id || null, listType
+  });
+
+  closePreview(true);
+  triggerCarouselHaptic();
+  showNotice('Фото №' + number + ' принято — можно продолжать');
+  setPhotoQueueStatus('Фото №' + number + ' отправляется в фоне…', 'pending');
+  void advanceAfterRoomCompletion(listType, number);
+  void flushPendingPhotoWrites();
+}
+
 async function sendRoomMessage(message, action) {
   if (!selectedNumber || captureBusy) return;
   const number = String(selectedNumber);
@@ -1414,7 +1695,7 @@ export function renderCamera(state) {
         '<div class="camera-capture-zone"><button type="button" class="camera-capture-button" data-camera-action="capture" id="cameraCapture" aria-label="Сделать фото"><span></span></button></div>' +
       '</div>' +
     '</div>' +
-    '<div class="camera-feedback" id="cameraFeedback" role="status"></div>' +
+    '<div class="camera-feedback" id="cameraFeedback" role="status"></div><div class="camera-upload-status" id="cameraUploadStatus" aria-live="polite"></div>' +
     '<div class="camera-modal-overlay hidden" id="cameraPreviewModal" role="dialog" aria-modal="true" aria-label="Предпросмотр фотографии" aria-hidden="true"><div class="camera-preview-card"><div class="camera-preview-room" id="cameraPreviewRoom">Номер</div><canvas id="cameraPreviewCanvas" class="camera-preview-canvas"></canvas><div class="camera-preview-actions"><button type="button" class="camera-preview-secondary" data-camera-action="retake">Переснять</button><button type="button" class="camera-preview-primary" data-camera-action="send-photo" id="cameraSendPhoto">Отправить</button></div></div></div>' +
     '<div class="camera-modal-overlay hidden" id="refillModal" role="dialog" aria-modal="true" aria-label="Пополнить номер" aria-hidden="true"><div class="camera-refill-modal"><header class="camera-modal-header"><strong>Пополнение · номер <span id="refillModalRoom"></span></strong><button type="button" data-camera-action="close-refill" aria-label="Закрыть">×</button></header><div class="camera-refill-products" id="refillProducts"></div><div class="camera-refill-feedback" id="refillFeedback"></div><footer class="camera-refill-footer"><button type="button" class="camera-refill-all" data-camera-action="refill-all">Всё в списке продуктов</button><div class="camera-refill-footer-row"><button type="button" data-camera-action="clear-refill">Очистить</button><button type="button" class="is-save" data-camera-action="save-refill" id="refillSave">Сохранить пополнение</button></div></footer></div></div>' +
     '<div class="camera-modal-overlay hidden" id="deadlineModal" role="dialog" aria-modal="true" aria-label="Сроки номера" aria-hidden="true"><div class="camera-refill-modal camera-deadline-modal"><header class="camera-modal-header"><div><strong>Сроки · номер <span id="deadlineModalRoom"></span></strong><small id="deadlineModalInfo"></small></div><button type="button" data-camera-action="close-deadlines" aria-label="Закрыть">×</button></header><div class="camera-refill-products camera-deadline-products" id="deadlineProducts"></div><div class="camera-refill-feedback" id="deadlineFeedback"></div><footer class="camera-refill-footer camera-deadline-footer"><div class="camera-deadline-status-actions"><button type="button" data-camera-action="deadline-empty">Пустой</button><button type="button" data-camera-action="deadline-valid">В порядке</button><button type="button" data-camera-action="deadline-reset">Сбросить</button></div><button type="button" class="is-save" data-camera-action="save-deadlines" id="deadlineSave">Сохранить</button></footer></div></div>' +
@@ -1437,6 +1718,9 @@ export function cameraDidRender() {
   void loadCameraData();
   renderCarousel();
   renderStandby();
+  void restorePhotoUploadQueue();
+  // Warm the stream once per visit; each shutter click can then use the live frame.
+  void startCamera();
 }
 export function cameraWillUnmount() {
   mounted = false;
