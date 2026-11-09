@@ -201,7 +201,7 @@ function renderFactoryProducts(room) {
     ...[...grouped.keys()].filter(category => !CATEGORIES.includes(category)).sort()
   ];
   const productCount = templateItems.length;
-  return '<details class="gih-products-dropdown" open><summary><span>Все продукты</span><strong>' + productCount + '</strong></summary>' +
+  return '<details class="gih-products-dropdown"><summary><span>Все продукты</span><strong>' + productCount + '</strong></summary>' +
     '<div class="gih-products-dropdown-body">' + categories.map(category =>
       '<section class="gih-product-category"><h4>' + escapeHtml(category) + '</h4>' +
       grouped.get(category).map(renderProductRow).join('') + '</section>'
