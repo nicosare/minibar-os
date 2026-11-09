@@ -2,11 +2,13 @@ import { api } from '../core/api.js';
 import { getState, setState } from '../core/store.js';
 import { pageHeader } from '../components/chrome.js';
 import { icon } from '../components/icons.js';
+import { renderGihLists } from './gih.js';
 
 const TYPES = [
   { id: 'arrivals', label: 'Заезды' },
   { id: 'departures', label: 'Выезды' },
-  { id: 'empty', label: 'Пустые' }
+  { id: 'empty', label: 'Пустые' },
+  { id: 'gih', label: 'GIH' }
 ];
 
 const PREFERENCES_KEY = 'minibar-os-miniapp-list-preferences-v2';
@@ -388,6 +390,7 @@ function renderSettings(ui) {
 }
 
 function renderListBody(state, type) {
+  if (type === 'gih') return renderGihLists();
   if (type !== 'arrivals' && type !== 'departures') {
     return '<section class="list-placeholder"><span class="list-placeholder-icon">' +
       icon('door-open', 24) +
@@ -602,7 +605,7 @@ export function handleListClick(event) {
     const type = tab.dataset.listType;
     setNotice('');
     setState({ listType: type });
-    void loadList(type);
+    if (type === 'arrivals' || type === 'departures') void loadList(type);
     return true;
   }
 
