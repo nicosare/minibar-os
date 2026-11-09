@@ -172,14 +172,8 @@ function renderProductRow(item) {
 }
 
 
-function renderFactoryProducts(room) {
-  if (!room) {
-    const value = String(factory.input || '').trim();
-    if (!value) return '<div class="gih-factory-empty">Введи номер комнаты, чтобы загрузить её шаблон наполнения.</div>';
-    return '<div class="gih-factory-empty is-error">Номер комнаты не найден.</div>';
-  }
-
-  const sourceItems = room.template && Array.isArray(room.template.items) ? room.template.items : [];
+function factoryTemplateItems(room) {
+  const sourceItems = room?.template && Array.isArray(room.template.items) ? room.template.items : [];
   const groupedItems = new Map();
   sourceItems.forEach(item => {
     const product = item.product || {};
@@ -189,10 +183,23 @@ function renderFactoryProducts(room) {
     if (!groupedItems.has(key)) {
       groupedItems.set(key, { ...item, productId, product, qty: 0 });
     }
-    const grouped = groupedItems.get(key);
-    grouped.qty += Math.max(1, Number.parseInt(item.qty, 10) || 1);
+    groupedItems.get(key).qty += Math.max(1, Number.parseInt(item.qty, 10) || 1);
   });
-  const templateItems = [...groupedItems.values()];
+  return [...groupedItems.values()];
+}
+
+function factoryTemplateCounts(room) {
+  return new Map(factoryTemplateItems(room).map(item => [Number(item.productId), Number(item.qty)]));
+}
+
+function renderFactoryProducts(room) {
+  if (!room) {
+    const value = String(factory.input || '').trim();
+    if (!value) return '<div class="gih-factory-empty">Введи номер комнаты, чтобы загрузить её шаблон наполнения.</div>';
+    return '<div class="gih-factory-empty is-error">Номер комнаты не найден.</div>';
+  }
+
+  const templateItems = factoryTemplateItems(room);
   if (!templateItems.length) {
     return '<div class="gih-factory-empty">Для номера ' + escapeHtml(room.number) +
       ' не настроен шаблон наполнения.</div>';
@@ -251,7 +258,11 @@ function renderFactory() {
       'data-gih-input="room" value="' + escapeHtml(factory.input) + '" aria-label="Номер комнаты"></label>' +
     (room ? '<div class="gih-selected-room"><span class="gih-room-dot"></span> Номер ' +
       escapeHtml(room.number) + (room.floor ? ' · этаж ' + escapeHtml(room.floor) : '') + '</div>' : '') +
-    '<div class="gih-factory-products">' + renderFactoryProducts(room) + '</div>' +
+    '<div class="gih-factory-products">' +
+      (room && factoryTemplateCounts(room).size
+        ? '<div><button type="button" class="gih-text-button" data-gih-action="select-all-products">Выбрать все продукты по шаблону</button></div>'
+        : '') +
+      renderFactoryProducts(room) + '</div>' +
     renderRoomHistory() +
     (editing && factory.mode ? '<div class="gih-edit-mode-note">Режим проверки: <strong>' +
       escapeHtml(MODE_LABEL[factory.mode] || factory.mode) + '</strong></div>' : '') +
@@ -363,7 +374,7 @@ function normalizeRoomType(room) {
 }
 
 function registerBasketTemplate(templateByType, type, items) {
-  if (!Array.isArray(items) || !items.length) return;
+  if (!Array.isArray(items) || !items.length) return false;
   const recipe = new Map();
   for (const item of items) {
     const productId = Number(item.productId || (item.product && item.product.id)) || 0;
@@ -372,16 +383,20 @@ function registerBasketTemplate(templateByType, type, items) {
     if (key === '0' || !qty) continue;
     recipe.set(key, (recipe.get(key) || 0) + qty);
   }
-  if (!recipe.size) return;
+  if (!recipe.size) return false;
   const signature = [...recipe.entries()].sort((a, b) => a[0].localeCompare(b[0]))
     .map(([key, qty]) => key + '=' + qty).join('|');
   const recipes = templateByType.get(type) || new Map();
   if (!recipes.has(signature)) recipes.set(signature, recipe);
   templateByType.set(type, recipes);
+  return true;
 }
 
-function finalizeBasketProductTotals(groupedProducts, templateByType) {
-  const basketCounts = { standard: 0, suite: 0 };
+function finalizeBasketProductTotals(groupedProducts, templateByType, initialBasketCounts = {}) {
+  const basketCounts = {
+    standard: Math.max(0, Number(initialBasketCounts.standard) || 0),
+    suite: Math.max(0, Number(initialBasketCounts.suite) || 0)
+  };
   for (const type of ['standard', 'suite']) {
     const recipes = templateByType.get(type);
     if (!recipes || !recipes.size) continue;
@@ -428,9 +443,16 @@ function renderGihProductSummary() {
 
   const groupedProducts = new Map();
   const templateByType = new Map();
+  const emptyBasketCounts = { standard: 0, suite: 0 };
   for (const draft of latestDraftByRoom.values()) {
     const room = roomById(draft.roomId) || rooms.find(item => String(item.number) === String(draft.number));
-    registerBasketTemplate(templateByType, normalizeRoomType(room), room && room.template && room.template.items || []);
+    const roomType = normalizeRoomType(room);
+    const hasTemplate = registerBasketTemplate(templateByType, roomType, room && room.template && room.template.items || []);
+    const roomIsEmpty = draft.mode === 'empty' || room?.expiryStatus === 'empty';
+    if (roomIsEmpty && hasTemplate) {
+      emptyBasketCounts[roomType] += 1;
+      continue;
+    }
     for (const item of draft.gihItems || []) {
       const name = String(item.name || 'Продукт');
       const productId = Number(item.productId) || 0;
@@ -448,7 +470,7 @@ function renderGihProductSummary() {
     }
   }
 
-  const products = finalizeBasketProductTotals(groupedProducts, templateByType);
+  const products = finalizeBasketProductTotals(groupedProducts, templateByType, emptyBasketCounts);
   const heading = '<summary class="gih-products-summary-head"><span>Продукты GIH</span>' +
     '<span class="gih-products-summary-count">' + latestDraftByRoom.size + ' номеров</span></summary>';
   if (!products.length) {
@@ -860,6 +882,15 @@ export function handleGihClick(event) {
     loaded = false;
     loadError = '';
     void loadGih();
+  } else if (action === 'select-all-products') {
+    const room = roomById(factory.roomId);
+    const counts = factoryTemplateCounts(room);
+    if (!counts.size) {
+      setNotice('Для номера не задан шаблон наполнения.', true);
+    } else {
+      factory.counts = Object.fromEntries(counts);
+      renderFactoryPreservingFocus();
+    }
   } else if (action === 'cycle-factory-product') {
     const productId = Number(button.dataset.productId);
     const max = Math.max(1, Number.parseInt(button.dataset.max, 10) || 1);
