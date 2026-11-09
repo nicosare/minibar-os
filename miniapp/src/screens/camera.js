@@ -1707,12 +1707,37 @@ function handleClick(event) {
   }
   else if (action === 'refill-all') void markRoomEmpty();
 }
+function carouselTopIndex(carousel) {
+  const items = [...carousel.querySelectorAll('[data-camera-room]')];
+  if (!items.length) return -1;
+  const topLine = carousel.getBoundingClientRect().top + 8;
+  const index = items.findIndex(item => item.getBoundingClientRect().bottom > topLine);
+  return index < 0 ? items.length - 1 : index;
+}
+function triggerCarouselScrollHaptic() {
+  try {
+    if (typeof navigator.vibrate === 'function') navigator.vibrate(8);
+  } catch (_) {}
+}
 function attachCarouselScroll(carousel = $('cameraCarousel')) {
   if (!carousel || carousel.dataset.cameraScrollBound === '1') return;
   carousel.dataset.cameraScrollBound = '1';
+  let lastIndex = carouselTopIndex(carousel);
+  let lastHapticAt = 0;
   carousel.addEventListener('scroll', () => {
-    // Scrolling only changes the viewport. Selection changes on tap or
-    // after a completed photo, never because another item crossed an edge.
+    // A light tactile tick is emitted only when another room position crosses
+    // the top edge. This works for touch scrolling and programmatic scrolling,
+    // without vibrating for every raw scroll event or changing the selection.
+    const nextIndex = carouselTopIndex(carousel);
+    if (nextIndex !== lastIndex) {
+      const now = Date.now();
+      if (lastIndex >= 0 && now - lastHapticAt >= 35) {
+        triggerCarouselScrollHaptic();
+        lastHapticAt = now;
+      }
+      lastIndex = nextIndex;
+    }
+
     if (carouselTimer) clearTimeout(carouselTimer);
     carouselTimer = setTimeout(() => {
       carouselTimer = null;
