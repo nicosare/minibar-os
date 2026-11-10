@@ -1,3 +1,4 @@
+import bridge from 'https://cdn.jsdelivr.net/npm/@vkontakte/vk-bridge@3.0.2/+esm';
 import { getState, setState, subscribe } from './core/store.js';
 import { renderTopbar, renderBottomNav, pageHeader } from './components/chrome.js';
 import { icon, renderIcons } from './components/icons.js';
@@ -5,6 +6,12 @@ import { icon, renderIcons } from './components/icons.js';
 const topbar = document.getElementById('appTopbar');
 const main = document.getElementById('appMain');
 const bottomNav = document.getElementById('bottomNav');
+
+// VK Mini Apps remain in their loading state until the bridge is initialized.
+// Keep ordinary browser preview usable when no VK host is present.
+bridge.send('VKWebAppInit').catch(error => {
+  console.info('VK Bridge initialization is unavailable outside VK:', error);
+});
 if (!topbar || !main || !bottomNav) throw new Error('Не найдена оболочка Minibar OS');
 
 const screens = {
