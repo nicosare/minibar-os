@@ -1,26 +1,15 @@
 const initialState = {
-  screen: 'today',
-  listType: 'arrivals',
-  moreItem: null,
-  listData: { arrivals: null, departures: null },
-  listLoading: { arrivals: false, departures: false },
-  listErrors: { arrivals: '', departures: '' },
-  listBusy: {},
-  listNotice: null,
-  listRefills: [],
-  listRefillError: '',
-  listUi: {
-    showCompleted: false,
-    sort: 'asc',
-    settingsOpen: false,
-    format: 'standard',
-    details: { deadlines: true, refill: true, roomMeta: false }
-  }
+  screen: 'camera',
+  menuOpen: false
 };
+
 let state = { ...initialState };
 const subscribers = new Set();
 
-export function getState() { return state; }
+export function getState() {
+  return state;
+}
+
 export function setState(patch) {
   const next = typeof patch === 'function' ? patch(state) : patch;
   if (!next || typeof next !== 'object') return state;
@@ -28,6 +17,7 @@ export function setState(patch) {
   subscribers.forEach(listener => listener(state));
   return state;
 }
+
 export function subscribe(listener) {
   if (typeof listener !== 'function') throw new TypeError('Store subscriber must be a function');
   subscribers.add(listener);
