@@ -148,13 +148,11 @@ jobs:
   deploy:
     name: Deploy changed components to production
     needs: desktop-smoke
-    # Pushes to the working branch run CI only. Production deployment from
-    # design/desktop-unification must be an explicit workflow_dispatch.
     if: >-
       (github.event_name == 'workflow_dispatch' &&
        (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/design/desktop-unification')) ||
       (github.event_name == 'push' &&
-       github.ref == 'refs/heads/main')
+       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/design/desktop-unification'))
     permissions:
       contents: write
     runs-on: ubuntu-latest
