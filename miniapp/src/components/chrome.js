@@ -5,23 +5,40 @@ export function pageHeader({ eyebrow = '', title, description = '' }) {
     '<h1>' + title + '</h1>' + (description ? '<p class="page-description">' + description + '</p>' : '') + '</header>';
 }
 
-export function renderTopbar() {
-  return '<div class="topbar-brand"><span class="brand-mark">' + icon('box', 20) +
-    '</span><span class="brand-name">MINIBAR <strong>OS</strong></span></div>';
-}
-
-const navItems = [
-  { id: 'today', label: 'Сегодня', glyph: 'layout-dashboard' },
-  { id: 'lists', label: 'Списки', glyph: 'list' },
-  { id: 'camera', label: 'Камера', glyph: 'camera' },
-  { id: 'rooms', label: 'Номера', glyph: 'door-open' },
-  { id: 'more', label: 'Ещё', glyph: 'more-horizontal' }
+const menuItems = [
+  { id: 'excises', label: 'Акцизы', glyph: 'stamp' },
+  { id: 'inventory', label: 'Инвентаризация', glyph: 'clipboard-list' },
+  { id: 'calculator', label: 'Калькулятор', glyph: 'calculator' },
+  { id: 'settings', label: 'Настройки', glyph: 'settings' }
 ];
 
-export function renderBottomNav(state) {
-  const active = state.screen === 'more-detail' || state.screen === 'gih' ? 'more' : state.screen;
+const navItems = [
+  { id: 'camera', label: 'Камера', glyph: 'camera' },
+  { id: 'deadlines', label: 'Сроки', glyph: 'calendar-clock' },
+  { id: 'history', label: 'История', glyph: 'history' },
+  { id: 'gih', label: 'GIH', glyph: 'clipboard-check' }
+];
+
+export function renderTopbar(state = {}) {
+  const menuOpen = state.menuOpen === true;
+  return '<div class="topbar-brand"><span class="brand-mark">' + icon('box', 20) +
+    '</span><span class="brand-name">MINIBAR <strong>OS</strong></span></div>' +
+    '<button type="button" class="topbar-menu-toggle' + (menuOpen ? ' is-active' : '') +
+    '" data-menu-toggle aria-label="' + (menuOpen ? 'Закрыть меню' : 'Открыть меню') +
+    '" aria-expanded="' + (menuOpen ? 'true' : 'false') + '" aria-controls="topbarMenu">' +
+    icon(menuOpen ? 'x' : 'menu', 21) + '</button>' +
+    '<div class="topbar-menu' + (menuOpen ? ' is-open' : '') +
+    '" id="topbarMenu" role="menu" aria-hidden="' + (menuOpen ? 'false' : 'true') + '">' +
+    '<div class="topbar-menu-heading">Ещё</div>' +
+    menuItems.map(item => '<button type="button" class="topbar-menu-item" role="menuitem" data-menu-screen="extra-' +
+      item.id + '"><span class="topbar-menu-item-icon">' + icon(item.glyph, 19) +
+      '</span><span>' + item.label + '</span>' + icon('chevron-right', 16, 'topbar-menu-arrow') +
+      '</button>').join('') + '</div>';
+}
+
+export function renderBottomNav(state = {}) {
   return navItems.map(item => {
-    const selected = item.id === active;
+    const selected = item.id === state.screen;
     return '<button type="button" class="nav-item' + (selected ? ' is-active' : '') +
       '" data-nav="' + item.id + '" aria-label="' + item.label +
       '" aria-current="' + (selected ? 'page' : 'false') + '"><span class="nav-icon">' +
