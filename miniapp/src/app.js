@@ -1,117 +1,125 @@
 import { getState, setState, subscribe } from './core/store.js';
-import { initializeVkApp } from './core/vk.js';
-import { renderTopbar, renderBottomNav } from './components/chrome.js';
-import { renderIcons } from './components/icons.js';
-import { renderToday } from './screens/today.js';
-import { renderLists, initializeLists, loadList, handleListClick, handleListChange } from './screens/lists.js';
-import { renderCamera, cameraDidRender, cameraWillUnmount } from './screens/camera.js';
-import { renderRooms, roomsDidRender, roomsWillUnmount, handleRoomsClick, handleRoomsInput, handleRoomsChange } from './screens/rooms.js';
-import { renderMore } from './screens/more.js';
-import { renderGih, gihDidRender, gihWillUnmount, handleGihClick, handleGihInput, handleGihChange } from './screens/gih.js';
+import { renderTopbar, renderBottomNav, pageHeader } from './components/chrome.js';
+import { icon, renderIcons } from './components/icons.js';
 
 const topbar = document.getElementById('appTopbar');
 const main = document.getElementById('appMain');
 const bottomNav = document.getElementById('bottomNav');
 if (!topbar || !main || !bottomNav) throw new Error('Не найдена оболочка Minibar OS');
 
-const renderers = { today: renderToday, lists: renderLists, camera: renderCamera, rooms: renderRooms, more: renderMore, gih: renderGih };
+const screens = {
+  camera: {
+    title: 'Камера',
+    glyph: 'camera',
+    status: 'Рабочее пространство камеры',
+    description: 'Здесь будет единая очередь номеров из заездов и выездов. Каждый номер будет отображаться только один раз. Для всех номеров на заезд появится отдельная метка — независимо от того, из какого списка пришёл номер.'
+  },
+  deadlines: {
+    title: 'Сроки',
+    glyph: 'calendar-clock',
+    status: 'Раздел сроков готовится',
+    description: 'Здесь будут собраны сроки по номерам из общей очереди.'
+  },
+  history: {
+    title: 'История',
+    glyph: 'history',
+    status: 'История пока не подключена',
+    description: 'Здесь будет отображаться история действий и изменений.'
+  },
+  gih: {
+    title: 'GIH',
+    glyph: 'clipboard-check',
+    status: 'Раздел GIH готовится',
+    description: 'Здесь будет отдельное рабочее пространство GIH.'
+  },
+  'extra-excises': {
+    title: 'Акцизы',
+    glyph: 'stamp',
+    status: 'Раздел пока пуст',
+    description: 'Инструмент появится здесь на следующем этапе.'
+  },
+  'extra-inventory': {
+    title: 'Инвентаризация',
+    glyph: 'clipboard-list',
+    status: 'Раздел пока пуст',
+    description: 'Инструмент появится здесь на следующем этапе.'
+  },
+  'extra-calculator': {
+    title: 'Калькулятор',
+    glyph: 'calculator',
+    status: 'Раздел пока пуст',
+    description: 'Инструмент появится здесь на следующем этапе.'
+  },
+  'extra-settings': {
+    title: 'Настройки',
+    glyph: 'settings',
+    status: 'Раздел пока пуст',
+    description: 'Настройки появятся здесь на следующем этапе.'
+  }
+};
+
+function renderScreen(screen) {
+  const content = screens[screen] || screens.camera;
+  const cameraNote = screen === 'camera'
+    ? '<div class="placeholder-principle"><span class="placeholder-principle-dot"></span><span>Один номер — одна карточка в общей очереди</span></div>'
+    : '';
+  return '<div class="screen screen-placeholder">' +
+    pageHeader({ title: content.title }) +
+    '<section class="placeholder-card">' +
+    '<span class="placeholder-icon">' + icon(content.glyph, 27) + '</span>' +
+    '<span class="placeholder-kicker">В РАЗРАБОТКЕ</span>' +
+    '<strong>' + content.status + '</strong>' +
+    '<p>' + content.description + '</p>' +
+    cameraNote +
+    '</section></div>';
+}
+
 let renderedScreen = null;
-let renderedListType = null;
-let renderedGihView = false;
 
 function render() {
   const state = getState();
-  const screen = renderers[state.screen] ? state.screen : 'today';
-  const scrollTop = main.scrollTop;
-  const gihView = screen === 'gih' || (screen === 'lists' && state.listType === 'gih');
-  const preserveExpanded = screen === renderedScreen &&
-    (screen !== 'lists' || state.listType === renderedListType);
-  const expandedRooms = preserveExpanded
-    ? [...main.querySelectorAll('details.list-room-card[open]')].map(card => card.dataset.roomNumber)
-    : [];
-  if (renderedScreen === 'camera' && screen !== 'camera') cameraWillUnmount();
-  if (renderedScreen === 'rooms' && screen !== 'rooms') roomsWillUnmount();
-  if (renderedGihView && !gihView) gihWillUnmount();
-  topbar.innerHTML = renderTopbar();
-  main.innerHTML = renderers[screen](state);
-  if (screen === 'camera') cameraDidRender();
-  if (screen === 'rooms') roomsDidRender();
-  if (gihView) gihDidRender();
+  const screen = screens[state.screen] ? state.screen : 'camera';
+
+  topbar.innerHTML = renderTopbar(state);
+  main.innerHTML = renderScreen(screen);
   bottomNav.innerHTML = renderBottomNav({ ...state, screen });
   renderIcons();
+
   document.documentElement.dataset.screen = screen;
-  if (screen !== renderedScreen || (screen === 'lists' && state.listType !== renderedListType)) main.scrollTop = 0;
-  else main.scrollTop = scrollTop;
-  if (expandedRooms.length) {
-    main.querySelectorAll('details.list-room-card[data-room-number]').forEach(card => {
-      if (expandedRooms.includes(card.dataset.roomNumber)) card.open = true;
-    });
-  }
+  if (screen !== renderedScreen) main.scrollTop = 0;
   renderedScreen = screen;
-  renderedListType = state.listType;
-  renderedGihView = gihView;
 }
 
-initializeLists();
 subscribe(render);
-
-function resetSingleRoomCameraContext(screen) {
-  const state = getState();
-  if (screen !== 'camera' || state.cameraSourceListType !== 'room-single') return {};
-  return {
-    cameraSourceListType: state.listType === 'departures' ? 'departures' : 'arrivals',
-    cameraSelectedRoomNumber: ''
-  };
-}
+if (!screens[getState().screen]) setState({ screen: 'camera', menuOpen: false });
+render();
 
 document.addEventListener('click', event => {
-  if (handleGihClick(event)) return;
-  if (handleListClick(event)) return;
-  if (handleRoomsClick(event)) return;
-
   const target = event.target instanceof Element ? event.target : null;
   if (!target) return;
 
-  const nav = target.closest('[data-nav]');
-  if (nav) {
-    const screen = nav.dataset.nav;
-    setState({ screen, moreItem: null, ...resetSingleRoomCameraContext(screen) });
-    if (screen === 'lists') void loadList(getState().listType);
+  if (target.closest('[data-menu-toggle]')) {
+    setState(current => ({ menuOpen: !current.menuOpen }));
     return;
   }
 
-  const open = target.closest('[data-open-screen]');
-  if (open) {
-    const screen = open.dataset.openScreen;
-    setState({
-      screen,
-      moreItem: null,
-      ...resetSingleRoomCameraContext(screen),
-      ...(open.dataset.listType ? { listType: open.dataset.listType } : {})
-    });
-    if (screen === 'lists') void loadList(open.dataset.listType || getState().listType);
+  const menuItem = target.closest('[data-menu-screen]');
+  if (menuItem) {
+    setState({ screen: menuItem.dataset.menuScreen, menuOpen: false });
     return;
   }
 
-  const more = target.closest('[data-more-item]');
-  if (more) {
-    if (more.dataset.moreItem === 'gih') setState({ screen: 'gih', moreItem: null });
-    else setState({ screen: 'more', moreItem: more.dataset.moreItem });
+  const navItem = target.closest('[data-nav]');
+  if (navItem) {
+    setState({ screen: navItem.dataset.nav, menuOpen: false });
     return;
   }
 
-  if (target.closest('[data-back-more]')) setState({ screen: 'more', moreItem: null });
+  if (getState().menuOpen && !target.closest('#topbarMenu')) {
+    setState({ menuOpen: false });
+  }
 });
 
-document.addEventListener('change', event => {
-  handleListChange(event);
-  handleRoomsChange(event);
-  handleGihChange(event);
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && getState().menuOpen) setState({ menuOpen: false });
 });
-document.addEventListener('input', event => {
-  if (handleGihInput(event)) return;
-  handleRoomsInput(event);
-});
-
-render();
-void initializeVkApp();
