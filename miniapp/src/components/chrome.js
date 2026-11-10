@@ -21,9 +21,7 @@ const navItems = [
 
 export function renderTopbar(state = {}) {
   const menuOpen = state.menuOpen === true;
-  return '<div class="topbar-brand"><span class="brand-mark">' + icon('box', 20) +
-    '</span><span class="brand-name">MINIBAR <strong>OS</strong></span></div>' +
-    '<button type="button" class="topbar-menu-toggle' + (menuOpen ? ' is-active' : '') +
+  return '<button type="button" class="topbar-menu-toggle' + (menuOpen ? ' is-active' : '') +
     '" data-menu-toggle aria-label="' + (menuOpen ? 'Закрыть меню' : 'Открыть меню') +
     '" aria-expanded="' + (menuOpen ? 'true' : 'false') + '" aria-controls="topbarMenu">' +
     icon(menuOpen ? 'x' : 'menu', 21) + '</button>' +
@@ -33,7 +31,7 @@ export function renderTopbar(state = {}) {
     menuItems.map(item => '<button type="button" class="topbar-menu-item" role="menuitem" data-menu-screen="extra-' +
       item.id + '"><span class="topbar-menu-item-icon">' + icon(item.glyph, 19) +
       '</span><span>' + item.label + '</span>' + icon('chevron-right', 16, 'topbar-menu-arrow') +
-      '</button>').join('') + '</div>';
+      '</button>').join('') + '</div>'
 }
 
 export function renderBottomNav(state = {}) {
