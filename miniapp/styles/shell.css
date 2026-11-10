@@ -27,7 +27,7 @@
 .topbar-menu {
   position: absolute;
   top: calc(100% + 8px);
-  right: 14px;
+  left: 14px;
   z-index: 40;
   width: min(268px, calc(100vw - 28px));
   display: none;
@@ -172,6 +172,6 @@
 }
 
 @media(max-width:370px) {
-  .topbar-menu { right: 10px; }
+  .topbar-menu { left: 10px; }
   .placeholder-card { padding: 23px 17px; }
 }
